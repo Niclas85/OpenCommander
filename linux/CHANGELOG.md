@@ -1,5 +1,24 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.7 – 10. Oktober 2026
+
+- GitGuardian-Fundstelle geprüft: deutscher Hilfetext zum iCloud-Passwortfeld,
+  kein Zugangswert. Hilfetext aus der Passwort-Schlüssel/Wert-Tabelle getrennt,
+  damit die Benutzererklärung nicht wie ein eingebettetes Passwort aussieht.
+
+- Dateien und Ordner in gespeicherten Cloud-Mounts haben ein Online-Kontextmenü:
+  Teilen mit Link, Online-Pfad kopieren und Freigaben auf der Provider-Website.
+- Google Drive, OneDrive und Dropbox erstellen/holen Freigabelinks über rclone.
+  Dialog erklärt vor Erstellung den Zugriff für jeden mit dem Link; Link erst
+  auf Knopfdruck kopieren/öffnen. OneDrive fordert ausdrücklich einen Leselink.
+- iCloud bietet Browser-Freigabeverwaltung; direkte Linkerstellung dort nicht
+  verfügbar. Keine vorgetäuschte Freigabe-/Widerruf-Unterstützung.
+- Linkerstellung mit Ladeanzeige, Abbruch und 30-Sekunden-Zeitlimit außerhalb
+  des GUI-Threads; Backendfehler ohne ungefilterte Zugangsdaten. Abbruch/Timeout
+  kann eine bereits beim Dienst erstellte Freigabe nicht zurücknehmen.
+- Keine Cloud-Freigabeaktionen für lokale Dateien, Archiv-Inhalte, Symlinks
+  oder gemischte Speicher-Auswahl. Linkerstellung für ein ausgewähltes Objekt.
+
 ## 0.3.6 – 10. Oktober 2026
 
 - Online-Video-/Audiovorschau lädt die ausgewählte Datei sequenziell in einen

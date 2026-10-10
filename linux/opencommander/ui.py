@@ -234,6 +234,8 @@ class FileTable(QTableView):
         menu = QMenu(self)
         for key in ('open', 'open_with', 'preview', 'copy', 'move', 'rename', 'zip', 'extract', 'trash', 'info'):
             menu.addAction(self.pane.main.actions[key])
+        from .cloud_actions import add_cloud_actions
+        add_cloud_actions(menu, self.pane)
         menu.exec(self.viewport().mapToGlobal(point))
 
 

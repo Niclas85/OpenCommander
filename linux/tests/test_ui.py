@@ -1095,3 +1095,39 @@ def test_online_video_cancel_keeps_player_empty(window, app, monkeypatch, tmp_pa
     assert viewer.player.source().isEmpty()
     assert not cache.exists()
     viewer.close()
+
+
+def test_cloud_share_dialog_async_progress_result_and_cancel(window, app, monkeypatch):
+    import threading
+    from opencommander import cloud_actions as cloud
+    from opencommander.filesystem import Entry
+    profile = dict(id='oc_fixture', kind='drive', label='Fixture cloud')
+    entry = Entry('folder', Path('/not-read/folder'), True)
+    release = threading.Event()
+    def delayed(main, profile, relative, cancel):
+        while not release.wait(.01):
+            if cancel.is_set():
+                raise RuntimeError('Cancelled')
+        return 'https://example.org/fixture-share'
+    monkeypatch.setattr(cloud, 'share_link', delayed)
+    dialog = cloud.ShareDialog(window, profile, 'folder', entry)
+    dialog.show()
+    assert dialog.url.text() == ''
+    dialog.create.click()
+    assert not dialog.progress.isHidden()
+    assert not dialog.create.isEnabled()
+    app.processEvents()
+    release.set()
+    wait(app, lambda: dialog.copy.isEnabled())
+    assert dialog.progress.isHidden()
+    dialog.copy.click()
+    assert QApplication.clipboard().text() == 'https://example.org/fixture-share'
+    dialog.reject()
+    assert dialog.cancel.is_set() and dialog.closed
+    release.clear()
+    cancelled = cloud.ShareDialog(window, profile, 'folder', entry)
+    cancelled.show()
+    cancelled.create.click()
+    cancelled.close()
+    wait(app, lambda: cancelled.cancel.is_set() and not window.tasks)
+    assert cancelled.url.text() == ''

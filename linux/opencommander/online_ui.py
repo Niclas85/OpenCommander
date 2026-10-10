@@ -609,10 +609,12 @@ class OnlineDialog(QDialog):
         self.help.setText(option.get('Help', option.get('Name', '')))
         if self.de and self.profile['kind'] == 'iclouddrive':
             prompts = {'apple_id': 'Apple-ID (E-Mail-Adresse)',
-                       'password': 'Reguläres Apple-ID-Passwort. App-spezifische Passwörter werden nicht unterstützt.',
                        'config_2fa': 'Apple-Bestätigungscode vom vertrauenswürdigen Gerät eingeben. Für SMS: sms eingeben.'}
             if option.get('Name') in prompts:
                 self.help.setText(prompts[option['Name']])
+            if option.get('Name') == 'password':
+                # UI help only; never a credential stored in source.
+                self.help.setText('Reguläres Apple-ID-Passwort. App-spezifische Passwörter werden nicht unterstützt.')
         self.status.setText('Eingabe nicht akzeptiert / Input not accepted' if value.get('Error') else '')
         self.answer.clear()
         is_drive = self.profile['kind'] == 'onedrive' and option.get('Name') == 'config_driveid'

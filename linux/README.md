@@ -3,7 +3,7 @@
 Native Qt-Desktop-Version nach dem Vorbild der Mac-Catalyst-App. Keine Browser-
 oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 
-Aktueller Stand: **0.3.6**. Die Änderungen und der geprüfte Umfang stehen im
+Aktueller Stand: **0.3.7**. Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
 
 ## Starten
@@ -389,7 +389,7 @@ ist; die Restzeit schätzt nur den verbleibenden Datentransfer. Bei Umbenennunge
 demselben Laufwerk zählen die angezeigten Bytes die logisch verschobenen Daten.
 Die Darkmode-Checkbox steht im Kopfbereich und speichert ihre Auswahl.
 
-### NAS/GVFS-Kompatibilität (0.3.6)
+### NAS/GVFS-Kompatibilität (0.3.7)
 
 Auf erkannten GVFS-/rclone-Mounts blockieren ausdrücklich nicht unterstützte
 `fsync`-/Metadatenfunktionen die Inhaltskopie nicht. Zeitstempel und Dateirechte
@@ -400,7 +400,7 @@ und Speicherplatzfehler bleiben Fehler. Lokale Dateisysteme bleiben strikt.
 GVFS-Umbenennungen ohne RENAME_NOREPLACE prüfen das Ziel vorab innerhalb derselben
 Freigabe; gegenüber anderen gleichzeitig schreibenden Clients ist dies nicht atomar.
 
-### Cloud-Start und Ladegrenzen (0.3.6)
+### Cloud-Start und Ladegrenzen (0.3.7)
 
 Eingerichtete Cloud-Mounts laden ihre Ordnerliste direkt über das Provider-Backend,
 statt beim Start auf einen möglicherweise blockierten FUSE-Daemon zu warten.
@@ -413,7 +413,7 @@ Anmeldung unter „Online-Orte“ erneut anmelden. Plattformseitig fehlendes
 No-follow-chmod wird beim Kopieren als Metadatenhinweis behandelt, ohne Links
 zu folgen oder Inhaltsfehler zu verbergen.
 
-### Archive (0.3.6)
+### Archive (0.3.7)
 
 ZIP, TAR, TGZ/TAR.GZ, TAR.BZ2, TAR.XZ/TAR.ZST, 7z und RAR lassen sich per
 Doppelklick wie Ordner öffnen. In Unterordner navigieren, einzelne Dateien ansehen
@@ -434,3 +434,22 @@ Wechseln entfernt den privaten Zwischenspeicher. Grenze: 2 GiB je Medium,
 30 Sekunden ohne Fortschritt und 15 Minuten insgesamt. Die Wiedergabe beginnt
 erst nach dem vollständigen Laden; ausreichend lokaler temporärer Speicher ist
 nötig. Bildvorschauen behalten ihre kleineren Downloadgrenzen.
+
+### Cloud-Aktionen im Kontextmenü
+
+In gespeicherten Google-Drive-, OneDrive-, Dropbox- und iCloud-Mounts erscheint
+bei Dateien und Ordnern ein Online-Untermenü. „Teilen mit Link“ erstellt oder
+holt bei Drive/OneDrive/Dropbox einen öffentlichen Freigabelink. Der Dialog
+erklärt den Zugriff vor „Link erstellen“; Kopieren und Öffnen erfolgen separat.
+Bei OneDrive werden Leserechte angefordert. Es gibt kein automatisch gesetztes
+Ablaufdatum. Der Dienst bzw. die Organisation kann öffentliche Freigaben sperren.
+Bei iCloud erfolgt die Freigabe über die Provider-Website. Der Browserzugang
+öffnet die Cloud-Startseite; dort gegebenenfalls anmelden und das Objekt wählen.
+„Online-Pfad kopieren“ kopiert den Pfad innerhalb des Cloud-Speichers.
+
+Linkanfragen laufen mit Ladeanzeige außerhalb des GUI-Threads und sind auf
+30 Sekunden begrenzt. Schließen bricht die Anfrage ab, kann aber eine bereits
+beim Dienst angelegte Freigabe nicht zurücknehmen. Freigaben und Rechte auf
+der Website des Dienstes verwalten. Keine automatische Freigabe beim Öffnen
+des Menüs und kein persönlicher Cloud-Inhalt in automatisierten Tests.
+Backendgrundlage: https://rclone.org/commands/rclone_link/
