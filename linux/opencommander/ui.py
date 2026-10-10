@@ -7,6 +7,7 @@ import os
 import shutil
 import tempfile
 import time
+import threading
 import zipfile
 
 from PySide6.QtCore import (Qt, Signal, QObject, QRunnable, QThreadPool, QAbstractTableModel,
@@ -21,11 +22,13 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
     QListWidgetItem, QStyle, QFrame, QCheckBox)
 
 from .filesystem import listing, archive_listing, mounted_locations, cloud_locations, remote_location, Entry
+from .archives import is_archive, open_archive
 from .operations import FileEngine, SafetyError, exists, unique_path, checked_members
 from .i18n import text
 from . import __version__
 from .media import media_kind, ThumbnailCache, MediaViewer
 from .controls import ModeToggle
+from .location_preferences import load_preferences, configured_locations
 from shiboken6 import isValid
 
 
@@ -39,6 +42,7 @@ def human_size(value):
 class TaskSignals(QObject):
     result = Signal(object, object)
     progress = Signal(int, str)
+    metrics = Signal(object)
 
 
 class Task(QRunnable):
@@ -169,7 +173,7 @@ class FileTable(QTableView):
 
     def startDrag(self, supported):
         entries = self.pane.selected()
-        if self.pane.archive or self.pane.main.busy or not entries:
+        if self.pane.archive or (self.pane.main.busy and not self.pane.main.operation_running) or not entries:
             return
         mime = QMimeData()
         mime.setUrls([QUrl.fromLocalFile(str(e.path)) for e in entries])
@@ -178,7 +182,7 @@ class FileTable(QTableView):
         drag.exec(Qt.CopyAction)  # The receiver owns transfers; never request a second deletion.
 
     def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls() and not self.pane.archive and not self.pane.main.busy:
+        if event.mimeData().hasUrls() and not self.pane.archive and not (self.pane.main.busy and not self.pane.main.operation_running):
             event.acceptProposedAction()
         else:
             event.ignore()
@@ -187,7 +191,7 @@ class FileTable(QTableView):
         self.dragEnterEvent(event)
 
     def dropEvent(self, event):
-        if self.pane.archive or self.pane.main.busy:
+        if self.pane.archive or (self.pane.main.busy and not self.pane.main.operation_running):
             event.ignore()
             return
         entry = self.pane.entry_at(self.indexAt(event.position().toPoint()))
@@ -207,6 +211,20 @@ class FileTable(QTableView):
     def context_menu(self, point):
         index = self.indexAt(point)
         if not index.isValid():
+            self.pane.main.activate(self.pane)
+            self.clearSelection()
+            menu = QMenu(self)
+            if not self.pane.archive:
+                menu.addAction(self.pane.main.actions['new_folder'])
+                paste = menu.addAction('Einfügen' if self.pane.main.language == 'de' else 'Paste')
+                mime = QApplication.clipboard().mimeData()
+                paste.setEnabled(bool(mime and (mime.hasUrls() or mime.hasFormat('x-special/gnome-copied-files'))))
+                paste.triggered.connect(self.pane.main.paste_clipboard)
+                menu.addSeparator()
+            refresh = menu.addAction(self.pane.main.tr_key('refresh'))
+            refresh.triggered.connect(self.pane.refresh)
+            menu.addAction(self.pane.main.actions['hidden'])
+            menu.exec(self.viewport().mapToGlobal(point))
             return
         if not self.selectionModel().isRowSelected(index.row()):
             self.clearSelection()
@@ -228,7 +246,7 @@ class FolderTree(QTreeView):
         self.setDragDropMode(QAbstractItemView.DropOnly)
 
     def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls() and not self.pane.main.busy:
+        if event.mimeData().hasUrls() and not (self.pane.main.busy and not self.pane.main.operation_running):
             event.acceptProposedAction()
         else:
             event.ignore()
@@ -238,7 +256,7 @@ class FolderTree(QTreeView):
 
     def dropEvent(self, event):
         index = self.indexAt(event.position().toPoint())
-        if not index.isValid() or self.pane.main.busy:
+        if not index.isValid() or (self.pane.main.busy and not self.pane.main.operation_running):
             event.ignore()
             return
         self.pane.main.drop_urls(event.mimeData().urls(), Path(self.pane.tree_model.filePath(index)))
@@ -253,6 +271,8 @@ class Pane(QFrame):
         self.directory, self.archive, self.prefix = Path(directory), None, ''
         self.navigation, self.nav_index = [], -1
         self.generation = 0
+        self.load_cancel = threading.Event()
+        self.remote = False
         self.setObjectName('pane')
         self.setProperty('side', str(number))
         layout = QVBoxLayout(self)
@@ -321,6 +341,26 @@ class Pane(QFrame):
         self.message.setWordWrap(True)
         self.message.setObjectName('muted')
         right_layout.addWidget(self.message)
+        self.thumbnail_status = QLabel()
+        self.thumbnail_status.setObjectName('muted')
+        self.thumbnail_status.setWordWrap(True)
+        self.thumbnail_status.setTextFormat(Qt.PlainText)
+        right_layout.addWidget(self.thumbnail_status)
+        loading_row = QHBoxLayout()
+        self.loading_bar = QProgressBar()
+        self.loading_bar.setRange(0, 0)
+        self.loading_bar.hide()
+        self.stop_loading = QPushButton('✕')
+        self.stop_loading.setToolTip('Laden abbrechen / Cancel loading')
+        self.stop_loading.clicked.connect(self.cancel_loading)
+        self.stop_loading.hide()
+        self.retry_loading = QPushButton('Erneut laden / Retry')
+        self.retry_loading.clicked.connect(self.refresh)
+        self.retry_loading.hide()
+        loading_row.addWidget(self.loading_bar)
+        loading_row.addWidget(self.stop_loading)
+        loading_row.addWidget(self.retry_loading)
+        right_layout.addLayout(loading_row)
         splitter.addWidget(right)
         splitter.setStretchFactor(1, 1)
         splitter.setSizes([155, 475])
@@ -339,6 +379,16 @@ class Pane(QFrame):
     def navigate(self, directory, archive=None, prefix='', remember=True):
         self.main.activate(self)
         directory = Path(os.path.abspath(directory))
+        previous_directory, previous_archive, previous_prefix = self.location()
+        self.return_selection = None
+        if archive == previous_archive and archive and previous_prefix:
+            old = PurePosixPath(previous_prefix.rstrip('/'))
+            if old.parent == PurePosixPath(prefix or '.'):
+                self.return_selection = old.name
+        elif previous_archive and not archive and directory == previous_archive.parent:
+            self.return_selection = previous_archive.name
+        elif not archive and not previous_archive and previous_directory != directory and previous_directory.parent == directory:
+            self.return_selection = previous_directory.name
         self.directory, self.archive, self.prefix = directory, archive, prefix
         if remember:
             del self.navigation[self.nav_index + 1:]
@@ -349,14 +399,15 @@ class Pane(QFrame):
         self.filter.clear()
         if self.watcher.directories():
             self.watcher.removePaths(self.watcher.directories())
-        if not remote_location(directory) and directory.is_dir():
+        self.remote = remote_location(directory)
+        if not self.remote:
             self.watcher.addPath(str(directory))
         self.main.settings.setValue(f'pane{self.number}', str(directory))
         self.sync_tree()
         self.refresh()
 
     def sync_tree(self):
-        if remote_location(self.directory):
+        if self.remote or getattr(self.main, "closing", False):
             return
         index = self.tree_model.index(str(self.directory))
         if index.isValid():
@@ -369,10 +420,10 @@ class Pane(QFrame):
 
     def navigate_text(self):
         value = os.path.expanduser(self.path_edit.text())
-        marker = value.lower().find('.zip!/')
-        if marker >= 0:
-            archive = Path(value[:marker + 4])
-            prefix = value[marker + 6:]
+        marker = value.find('!/')
+        if marker >= 0 and is_archive(value[:marker]):
+            archive = Path(value[:marker])
+            prefix = value[marker + 2:]
             self.navigate(archive.parent, archive, prefix.rstrip('/') + '/' if prefix else '')
         else:
             self.navigate(Path(value))
@@ -392,20 +443,88 @@ class Pane(QFrame):
         else:
             self.navigate(self.directory.parent)
 
+    def cancel_loading(self):
+        self.load_cancel.set()
+        self.generation += 1
+        self.loading_bar.hide()
+        self.stop_loading.hide()
+        self.retry_loading.show()
+        self.message.setText('Abgebrochen / Cancelled')
+
     def refresh(self):
+        if getattr(self.main, "closing", False):
+            return
+        self.main.thumbnails.cancel_remote(self)
+        self.load_cancel.set()
+        self.load_cancel = threading.Event()
+        cancel = self.load_cancel
         self.generation += 1
         generation = self.generation
         directory, archive, prefix = self.location()
         self.message.setText(self.main.tr_key('loading'))
+        if getattr(self, 'listed_location', None) != self.location():
+            self.model.replace([])
+        self.loading_bar.show()
+        self.stop_loading.show()
+        self.retry_loading.hide()
         hidden = self.main.hidden
-        task = Task(lambda: archive_listing(archive, prefix) if archive else listing(directory, hidden))
+        profile = None
+        if self.remote and not archive:
+            from .online_ui import mount_path
+            profile = next((dict(row) for row in self.main.online_profiles
+                            if row['kind'] in ('onedrive', 'drive', 'dropbox', 'iclouddrive') and
+                            (directory == mount_path(self.main.state_dir, row['id']) or
+                             mount_path(self.main.state_dir, row['id']) in directory.parents)), None)
+        started = time.monotonic()
+        timer = QTimer(self)
+        timer.setInterval(250)
+        def waiting():
+            if generation != self.generation:
+                timer.stop()
+                return
+            elapsed = time.monotonic() - started
+            self.message.setText(f'{self.main.tr_key("loading")} · {int(elapsed)} s · {"Cloud" if profile else "Netzwerk / Network"}')
+            if elapsed >= (32 if profile else 17):
+                self.cancel_loading()
+                self.message.setText('Verbindung antwortet nicht rechtzeitig. Erneut laden oder anderen Ordner öffnen. / Connection timed out; retry or open another folder.')
+                timer.stop()
+        if self.remote:
+            timer.timeout.connect(waiting)
+            timer.start()
+        def work():
+            if cancel.is_set():
+                return []
+            if profile:
+                from .online_ui import list_cloud
+                return [entry for entry in list_cloud(self.main, profile, directory, cancel)
+                        if hidden or not entry.name.startswith('.')]
+            return archive_listing(archive, prefix) if archive else listing(directory, hidden, cancel=cancel)
+        task = Task(work)
         def done(entries, error):
+            timer.stop()
+            timer.deleteLater()
             if generation != self.generation:
                 return
+            self.loading_bar.hide()
+            self.stop_loading.hide()
+            self.retry_loading.setVisible(bool(error))
             self.model.replace(entries or [])
+            if not error:
+                self.listed_location = (directory, archive, prefix)
+                name = getattr(self, 'return_selection', None)
+                if name:
+                    for row, entry in enumerate(self.model.entries):
+                        if entry.name == name:
+                            index = self.proxy.mapFromSource(self.model.index(row, 0))
+                            if index.isValid():
+                                self.table.selectRow(index.row())
+                                self.table.setCurrentIndex(index)
+                                self.table.scrollTo(index)
+                            break
+                    self.return_selection = None
             self.message.setText(str(error) if error else self.main.tr_key('empty') if not entries else '')
             self.selection_changed()
-        task.signals.result.connect(done)
+        task.signals.result.connect(done, Qt.QueuedConnection)
         self.main.start_background(task)
 
     def entry_at(self, index):
@@ -437,7 +556,7 @@ class Pane(QFrame):
                 self.main.open_entry(entry)
         elif entry.directory:
             self.navigate(entry.path)
-        elif entry.path.suffix.lower() == '.zip':
+        elif is_archive(entry.path):
             self.navigate(entry.path.parent, entry.path)
         else:
             self.main.open_entry(entry)
@@ -456,16 +575,27 @@ class MainWindow(QMainWindow):
         self.state_dir = Path(state_dir)
         self.engine = FileEngine(self.state_dir)
         self.settings = QSettings(str(self.state_dir / 'settings.ini'), QSettings.IniFormat)
+        self.location_preferences = load_preferences(self.settings.value('locations', '[]'))
+        try:
+            profiles = json.loads(self.settings.value('online_profiles', '[]'))
+            self.online_profiles = [row for row in profiles if isinstance(row, dict) and isinstance(row.get('id'), str) and row['id'].startswith('oc_') and row['id'][3:].isalnum() and isinstance(row.get('name'), str)] if isinstance(profiles, list) else []
+        except (TypeError, ValueError):
+            self.online_profiles = []
         locale = os.environ.get('LANG', 'en')
         self.language = str(self.settings.value('language', 'de' if locale.startswith('de') else 'en'))
         self.dark = self.settings.value('dark', True, type=bool)
         self.hidden = self.settings.value('hidden', False, type=bool)
         self.busy = False
+        self.operation_running = False
+        self.operation_queue = []
+        self.closing = False
         self.active = None
         self.panes = []
         self.tasks = set()
         self.pool = QThreadPool(self)
         self.pool.setMaxThreadCount(4)
+        self.operation_pool = QThreadPool(self)
+        self.operation_pool.setMaxThreadCount(1)
         self.thumbnails = ThumbnailCache(self)
         self.setWindowTitle(f'OpenCommander · Linux {__version__}')
         self.resize(1440, 880)
@@ -489,16 +619,18 @@ class MainWindow(QMainWindow):
         header.addWidget(self.mode_label)
         self.mode = ModeToggle()
         header.addWidget(self.mode)
-        self.language_combo = QComboBox()
-        self.language_combo.addItem('Deutsch', 'de')
-        self.language_combo.addItem('English', 'en')
-        self.language_combo.setCurrentIndex(0 if self.language == 'de' else 1)
-        self.language_combo.currentIndexChanged.connect(self.change_language)
-        header.addWidget(self.language_combo)
         self.theme_button = QCheckBox()
         self.theme_button.setChecked(self.dark)
         self.theme_button.clicked.connect(self.toggle_theme)
+        self.theme_button.setObjectName("darkModeCheckbox")
         header.addWidget(self.theme_button)
+        self.location_settings_button = QPushButton()
+        self.location_settings_button.clicked.connect(self.location_settings)
+        header.addWidget(self.location_settings_button)
+        settings_action = QAction(self)
+        settings_action.setShortcut(QKeySequence('Ctrl+,'))
+        settings_action.triggered.connect(self.location_settings)
+        self.addAction(settings_action)
         layout.addLayout(header)
         self.actions = {}
         callbacks = {
@@ -510,6 +642,9 @@ class MainWindow(QMainWindow):
             'open': (self.open_selected, 'Ctrl+O'), 'preview': (self.preview_selected, 'Ctrl+Y'),
             'refresh': (self.refresh_all, 'Ctrl+R'), 'hidden': (self.toggle_hidden, 'Ctrl+H'),
             'folder': (self.choose_folder, 'Ctrl+Shift+O'), 'history': (self.toggle_history, ''),
+            'search': (lambda: self.show_tools('search'), 'Ctrl+F'),
+            'compare': (lambda: self.show_tools('compare'), 'Ctrl+Alt+C'),
+            'multi_rename': (lambda: self.show_tools('rename'), 'Ctrl+Shift+M'),
             'help': (self.help, 'F1'), 'info': (self.info, 'Ctrl+I'),
         }
         self.toolbar = QToolBar()
@@ -523,9 +658,16 @@ class MainWindow(QMainWindow):
             self.addAction(action)
         self.actions['hidden'].setCheckable(True)
         self.actions['hidden'].setChecked(self.hidden)
-        for key in ('rename', 'new_folder', 'trash', 'zip', 'extract', 'preview', 'undo', 'history', 'help'):
+        for key in ('search', 'rename', 'new_folder', 'trash', 'zip', 'extract', 'preview', 'undo', 'history', 'help'):
             self.toolbar.addAction(self.actions[key])
             self.toolbar.widgetForAction(self.actions[key]).setProperty('actionKind', key)
+        tools_button = QPushButton('Werkzeuge' if self.language == 'de' else 'Tools')
+        tools_menu = QMenu(tools_button)
+        tools_menu.addAction(self.actions['compare'])
+        tools_menu.addAction(self.actions['multi_rename'])
+        tools_button.setMenu(tools_menu)
+        self.toolbar.addWidget(tools_button)
+        self.tools_button = tools_button
         self.hidden_checkbox = QCheckBox()
         self.hidden_checkbox.setChecked(self.hidden)
         self.hidden_checkbox.clicked.connect(self.toggle_hidden)
@@ -548,7 +690,7 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(0, self.scan_integrations)
         split = QSplitter(Qt.Horizontal)
         downloads = Path(QStandardPaths.writableLocation(QStandardPaths.DownloadLocation))
-        defaults = [left or self.settings.value('pane1', '/'), right or self.settings.value('pane2', str(downloads if downloads.is_dir() else Path.home()))]
+        defaults = [left or self.settings.value('pane1', '/'), right or self.settings.value('pane2', str(downloads or Path.home()))]
         for index, path in enumerate(defaults, 1):
             pane = Pane(self, index, Path(path))
             self.panes.append(pane)
@@ -558,14 +700,24 @@ class MainWindow(QMainWindow):
         self.status = QLabel()
         self.status.setObjectName('muted')
         self.status.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.transfer_details = QLabel()
+        self.transfer_details.setObjectName('transferDetails')
+        self.transfer_details.setWordWrap(True)
+        self.transfer_details.setTextFormat(Qt.PlainText)
+        self.transfer_details.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.transfer_details.hide()
+        layout.addWidget(self.transfer_details)
         self.progress = QProgressBar()
         self.progress.setFixedWidth(160)
         self.progress.hide()
         self.cancel_button = QPushButton()
-        self.cancel_button.clicked.connect(self.engine.cancel.set)
+        self.cancel_button.clicked.connect(self.cancel_operations)
         self.cancel_button.hide()
         footer = QHBoxLayout()
         footer.addWidget(self.status, 1)
+        self.queue_label = QLabel()
+        self.queue_label.setObjectName("operationQueue")
+        footer.addWidget(self.queue_label)
         footer.addWidget(self.progress)
         footer.addWidget(self.cancel_button)
         layout.addLayout(footer)
@@ -627,19 +779,44 @@ class MainWindow(QMainWindow):
             return
         selected = self.active.selected()
         archive = bool(self.active.archive) or (len(selected) == 1 and not selected[0].directory
-                   and selected[0].path.suffix.lower() == '.zip')
+                   and is_archive(selected[0].path))
         self.actions['extract'].setVisible(archive)
-        self.actions['extract'].setEnabled(archive and not self.busy)
+        self.actions['extract'].setEnabled(archive and not self.closing)
 
     def start_background(self, task):
         self.tasks.add(task)
         task.signals.result.connect(lambda *_: self.tasks.discard(task))
         self.pool.start(task)
 
+    def cancel_operations(self):
+        self.operation_queue.clear()
+        self.update_queue_label()
+        self.engine.cancel.set()
+
+    def update_queue_label(self):
+        count = len(self.operation_queue)
+        self.queue_label.setText((f'{count} wartend' if self.language == 'de' else f'{count} queued') if count else '')
+
+    def run_readonly(self, callback, after):
+        task = Task(callback)
+        def done(value, error):
+            if error:
+                self.status.setText(str(error))
+            elif not self.closing:
+                after(value)
+        task.signals.result.connect(done, Qt.QueuedConnection)
+        self.start_background(task)
+
     def run_operation(self, callback, after=None):
+        if self.closing:
+            return
         if self.busy:
+            if self.operation_running:
+                self.operation_queue.append((callback, after))
+                self.update_queue_label()
             return
         self.busy = True
+        self.operation_running = True
         for row in range(self.history_list.count()):
             card = self.history_list.itemWidget(self.history_list.item(row))
             if card:
@@ -649,10 +826,57 @@ class MainWindow(QMainWindow):
         self.progress.setRange(0, 0)
         self.progress.show()
         self.cancel_button.show()
-        for key, action in self.actions.items():
-            if key not in ('help', 'history', 'hidden', 'refresh'):
-                action.setEnabled(False)
+        self.actions['undo'].setEnabled(False)
         task = Task(callback)
+        started = time.monotonic()
+        latest = [None]
+        timer = QTimer(self)
+        timer.setInterval(250)
+        def show_metrics():
+            value = latest[0]
+            if value is None:
+                return
+            elapsed = time.monotonic() - started
+            total, count = value['bytes_total'], value['bytes_done']
+            phase = value['phase']
+            percent = 100 if phase == 'complete' else min(99, int(count * 100 / total)) if total else min(99, int(value['files_done'] * 100 / value['files_total'])) if value['files_total'] else 0
+            phases = {'planning': ('Dateien und Größe ermitteln', 'Counting files and size'),
+                      'copying': ('Kopieren', 'Copying'), 'moving': ('Verschieben', 'Moving'),
+                      'uploading': ('Schreiben abschließen / Upload', 'Finishing writes / upload'),
+                      'verifying': ('Prüfen und abschließen', 'Verifying and finalizing'), 'complete': ('Abgeschlossen', 'Completed')}
+            label = phases[phase][0 if self.language == 'de' else 1]
+            clock = f'{int(elapsed) // 60:02d}:{int(elapsed) % 60:02d}'
+            if phase == 'planning':
+                self.progress.setRange(0, 0)
+                details = f'{label} · {clock} · {value["name"]}'
+            else:
+                self.progress.setRange(0, 100)
+                self.progress.setValue(percent)
+                rate = count / max(elapsed, 0.001)
+                remaining = (total - count) / rate if rate and total > count else None
+                eta = (f' · Rest ca. {int(remaining) // 60:02d}:{int(remaining) % 60:02d}' if self.language == 'de' else
+                       f' · Remaining ~{int(remaining) // 60:02d}:{int(remaining) % 60:02d}') if remaining is not None else ''
+                files = 'Dateien' if self.language == 'de' else 'files'
+                duration = 'Zeit' if self.language == 'de' else 'Time'
+                details = (f'{label} · {percent}% · {human_size(count)} / {human_size(total)} · '
+                           f'{value["files_done"]} / {value["files_total"]} {files} · {duration} {clock} · {human_size(rate)}/s{eta}\n'
+                           f'{value["name"]}')
+            self.transfer_details.setText(details)
+            self.transfer_details.show()
+        last_metrics = [0.0]
+        def report_metrics(value):
+            now = time.monotonic()
+            if value['phase'] == 'complete' or now - last_metrics[0] >= 0.1:
+                last_metrics[0] = now
+                task.signals.metrics.emit(value)
+        def received_metrics(value):
+            latest[0] = value
+            show_metrics()
+        self.transfer_details.hide()
+        self.engine.metrics_report = report_metrics
+        task.signals.metrics.connect(received_metrics)
+        timer.timeout.connect(show_metrics)
+        timer.start()
         last_progress = [0.0]
         def progress(count, name):
             now = time.monotonic()
@@ -663,6 +887,16 @@ class MainWindow(QMainWindow):
         task.signals.progress.connect(lambda kib, name: self.status.setText(f'{self.tr_key("working")}  {human_size(kib * 1024)}  ·  {name}'))
         def done(value, error):
             self.busy = False
+            self.operation_running = False
+            timer.stop()
+            timer.deleteLater()
+            self.engine.metrics_report = lambda _: None
+            if latest[0] is not None:
+                show_metrics()
+                if error:
+                    self.transfer_details.setText(self.transfer_details.text() + '\n' + str(error))
+                elif isinstance(value, dict) and value.get('warnings'):
+                    self.transfer_details.setText(self.transfer_details.text() + '\n' + '\n'.join(value['warnings']))
             self.engine.progress = lambda *_: None
             self.progress.hide()
             self.cancel_button.hide()
@@ -675,10 +909,18 @@ class MainWindow(QMainWindow):
             if not error and after:
                 after(value)
             self.operation_finished.emit(error)
-        task.signals.result.connect(done)
-        self.start_background(task)
+            if self.operation_queue:
+                callback, following = self.operation_queue.pop(0)
+                self.update_queue_label()
+                self.run_operation(callback, following)
+        task.signals.result.connect(done, Qt.QueuedConnection)
+        self.tasks.add(task)
+        task.signals.result.connect(lambda *_: self.tasks.discard(task), Qt.QueuedConnection)
+        self.operation_pool.start(task)
 
     def conflict_mode(self, paths, directory):
+        if remote_location(directory) or any(remote_location(p) for p in paths):
+            return 'keep'  # Resolve collisions in the worker, never stat a provider on the GUI thread.
         if not any(exists(Path(directory) / Path(p).name) and Path(p) != Path(directory) / Path(p).name for p in paths):
             return 'keep'
         dialog = QMessageBox(self)
@@ -691,7 +933,7 @@ class MainWindow(QMainWindow):
         return 'keep' if dialog.clickedButton() == keep else 'replace' if dialog.clickedButton() == replace else None
 
     def transfer(self, move=False, paths=None, directory=None):
-        if self.busy:
+        if self.closing or (self.busy and not self.operation_running):
             return
         pane = self.active
         target_pane = self.panes[1] if pane == self.panes[0] else self.panes[0]
@@ -709,6 +951,7 @@ class MainWindow(QMainWindow):
         if not paths:
             self.status.setText(self.tr_key('no_selection'))
             return
+        paths = tuple(Path(path) for path in paths)
         mode = self.conflict_mode(paths, directory)
         if mode:
             self.run_operation(lambda: self.engine.transfer(paths, directory, move, mode))
@@ -721,7 +964,7 @@ class MainWindow(QMainWindow):
         self.transfer(self.mode.currentData() == 'move', paths, directory)
 
     def copy_clipboard(self, move):
-        if self.busy or self.active.archive:
+        if self.closing or (self.busy and not self.operation_running) or self.active.archive:
             return
         paths = [entry.path for entry in self.active.selected()]
         if not paths:
@@ -736,7 +979,7 @@ class MainWindow(QMainWindow):
         self.status.setText(self.tr_key('cut' if move else 'clipboard'))
 
     def paste_clipboard(self):
-        if self.busy or self.active.archive:
+        if self.closing or (self.busy and not self.operation_running) or self.active.archive:
             return
         mime = QApplication.clipboard().mimeData()
         if mime is None:
@@ -766,7 +1009,7 @@ class MainWindow(QMainWindow):
         return selected[0]
 
     def rename_selected(self):
-        if self.busy or self.active.archive:
+        if self.closing or (self.busy and not self.operation_running) or self.active.archive:
             return
         entry = self.selected_one()
         if entry:
@@ -775,7 +1018,7 @@ class MainWindow(QMainWindow):
                 self.run_operation(lambda: self.engine.rename(entry.path, name))
 
     def new_folder(self):
-        if self.busy or self.active.archive:
+        if self.closing or (self.busy and not self.operation_running) or self.active.archive:
             return
         directory = self.active.directory
         name, accepted = QInputDialog.getText(self, self.tr_key('new_folder'), self.tr_key('name_prompt'))
@@ -783,7 +1026,7 @@ class MainWindow(QMainWindow):
             self.run_operation(lambda: self.engine.mkdir(directory, name))
 
     def trash_selected(self):
-        if self.busy or self.active.archive:
+        if self.closing or (self.busy and not self.operation_running) or self.active.archive:
             return
         paths = [entry.path for entry in self.active.selected()]
         if paths and QMessageBox.question(self, self.tr_key('trash'), self.tr_key('confirm_trash'),
@@ -791,7 +1034,7 @@ class MainWindow(QMainWindow):
             self.run_operation(lambda: self.engine.trash(paths))
 
     def zip_selected(self):
-        if self.busy or self.active.archive:
+        if self.closing or (self.busy and not self.operation_running) or self.active.archive:
             return
         paths = [entry.path for entry in self.active.selected()]
         if not paths:
@@ -799,11 +1042,11 @@ class MainWindow(QMainWindow):
         directory = self.active.directory
         name, accepted = QInputDialog.getText(self, self.tr_key('zip'), self.tr_key('zip_name'), text='Archive.zip')
         if accepted and name and Path(name).name == name and name not in ('.', '..'):
-            target = unique_path(directory, name if name.lower().endswith('.zip') else name + '.zip')
-            self.run_operation(lambda: self.engine.make_zip(paths, target))
+            self.run_operation(lambda: self.engine.make_zip(paths, unique_path(directory,
+                name if name.lower().endswith('.zip') else name + '.zip')))
 
     def extract_selected(self, directory=None):
-        if self.busy:
+        if self.closing or (self.busy and not self.operation_running):
             return
         # QAction.triggered supplies a bool when connected directly.
         if isinstance(directory, bool):
@@ -821,7 +1064,7 @@ class MainWindow(QMainWindow):
             members = [entry.member for entry in selected] if selected else ([pane.prefix] if pane.prefix else None)
         else:
             entry = self.selected_one()
-            if not entry or entry.path.suffix.lower() != '.zip':
+            if not entry or not is_archive(entry.path):
                 return
             archive = entry.path
         self.run_operation(lambda: self.engine.extract_zip(archive, directory, members))
@@ -843,7 +1086,7 @@ class MainWindow(QMainWindow):
             item = QListWidgetItem()
             item.setData(Qt.UserRole, operation['id'])
             card = HistoryCard(self, operation)
-            item.setSizeHint(QSize(350, 300))
+            item.setSizeHint(QSize(350, 220))
             self.history_list.addItem(item)
             self.history_list.setItemWidget(item, card)
         self.actions['undo'].setEnabled(bool(self.engine.history) and not self.busy)
@@ -880,7 +1123,7 @@ class MainWindow(QMainWindow):
 
     def open_with_selected(self):
         entry = self.selected_one()
-        if not entry or self.busy:
+        if not entry or self.closing:
             return
         if entry.member and entry.directory:
             self.status.setText(self.tr_key('zip_readonly'))
@@ -893,7 +1136,7 @@ class MainWindow(QMainWindow):
                 self.status.setText('Abgebrochen' if self.language == 'de' else 'Cancelled')
             elif entry.member:
                 self.status.setText(self.tr_key('archive_copy'))
-        self.run_operation(choose, done)
+        self.run_readonly(choose, done)
 
     def materialize(self, entry):
         if not entry.member:
@@ -903,20 +1146,27 @@ class MainWindow(QMainWindow):
         directory = Path(tempfile.mkdtemp(dir=cache))
         target = directory / entry.name
         try:
-            with zipfile.ZipFile(entry.path) as archive:
+            with open_archive(entry.path) as archive:
                 checked_members(archive)
                 info = archive.getinfo(entry.member)
                 if info.file_size > 128 * 1024**2:
                     raise SafetyError('ZIP preview limit: 128 MiB')
                 with archive.open(info) as inp, target.open('xb') as out:
-                    shutil.copyfileobj(inp, out, 1024 * 1024)
+                    total = 0
+                    for block in iter(lambda: inp.read(1024 * 1024), b''):
+                        total += len(block)
+                        if total > min(info.file_size, 128 * 1024**2):
+                            raise SafetyError('Archive preview size limit exceeded')
+                        out.write(block)
+                    if total != info.file_size:
+                        raise SafetyError('Archive size mismatch')
             return target
         except Exception:
             shutil.rmtree(directory, ignore_errors=True)
             raise
 
     def open_entry(self, entry):
-        if self.busy:
+        if self.closing:
             return
         if media_kind(entry.name):
             self.open_media(entry)
@@ -926,7 +1176,7 @@ class MainWindow(QMainWindow):
                 self.status.setText(self.tr_key('error') + ': ' + str(path))
             elif entry.member:
                 self.status.setText(self.tr_key('archive_copy'))
-        self.run_operation(lambda: self.materialize(entry), opened)
+        self.run_readonly(lambda: self.materialize(entry), opened)
 
     def open_media(self, entry):
         pane = self.active
@@ -946,51 +1196,51 @@ class MainWindow(QMainWindow):
 
     def preview_selected(self):
         entry = self.selected_one()
-        if not entry or entry.directory or self.busy:
+        if not entry or entry.directory or self.closing:
             return
         if media_kind(entry.name):
             self.open_media(entry)
         else:
-            self.run_operation(lambda: self.materialize(entry), self.show_preview)
+            self.run_readonly(lambda: self.materialize(entry), lambda path: self.show_preview(path, entry))
 
-    def show_preview(self, path):
+    def show_preview(self, path, entry=None):
         dialog = QDialog(self)
         dialog.setAttribute(Qt.WA_DeleteOnClose)
         dialog.setWindowTitle(path.name)
         dialog.resize(850, 650)
         layout = QVBoxLayout(dialog)
-        reader = QImageReader(str(path))
-        reader.setAllocationLimit(64)
-        reader.setAutoTransform(True)
-        if reader.canRead() or self.is_image(path):
-            if reader.size().isValid():
-                reader.setScaledSize(reader.size().scaled(QSize(1600, 1200), Qt.KeepAspectRatio))
-            image = reader.read()
-            label = QLabel()
-            label.setAlignment(Qt.AlignCenter)
-            if image.isNull():
-                label.setText(reader.errorString())
-            else:
-                label.setPixmap(QPixmap.fromImage(image))
-            scroll = QScrollArea()
-            scroll.setWidget(label)
-            scroll.setWidgetResizable(True)
-            layout.addWidget(scroll)
-        else:
-            area = QTextEdit()
-            area.setReadOnly(True)
-            try:
-                with path.open('rb') as stream:
-                    content = stream.read(2 * 1024**2)
-                area.setPlainText(content.decode('utf-8') if b'\0' not in content else self.tr_key('preview_large'))
-            except (UnicodeError, OSError):
-                area.setPlainText(self.tr_key('open_external'))
-            layout.addWidget(area)
+        area = QTextEdit()
+        area.setReadOnly(True)
+        area.setPlainText(self.tr_key('loading'))
+        layout.addWidget(area)
+        task = Task(lambda: self.read_text_preview(path))
+        def done(content, error):
+            if isValid(area):
+                area.setPlainText(str(error) if error else content)
+        task.signals.result.connect(done)
+        self.start_background(task)
         button = QPushButton(self.tr_key('open_external'))
         button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(path))))
         layout.addWidget(button)
+        if entry and not entry.member:
+            delete = QPushButton('In Papierkorb' if self.language == 'de' else 'Move to trash')
+            def remove():
+                if not self.busy and QMessageBox.question(dialog, self.tr_key('trash'),
+                        self.tr_key('confirm_trash') + '\n' + str(entry.path),
+                        QMessageBox.Yes | QMessageBox.No, QMessageBox.No) == QMessageBox.Yes:
+                    self.run_operation(lambda: self.engine.trash([entry.path]), lambda _: dialog.close() if isValid(dialog) else None)
+            delete.clicked.connect(remove)
+            layout.addWidget(delete)
         self.preview_dialog = dialog
         dialog.show()
+
+    def read_text_preview(self, path):
+        try:
+            with path.open('rb') as stream:
+                content = stream.read(2 * 1024**2)
+            return content.decode('utf-8') if b'\0' not in content else self.tr_key('preview_large')
+        except (UnicodeError, OSError):
+            return self.tr_key('open_external')
 
     def info(self):
         entry = self.selected_one()
@@ -1015,15 +1265,19 @@ class MainWindow(QMainWindow):
             pane.tree_model.setFilter(QDir.AllDirs | QDir.NoDotAndDotDot | (QDir.Hidden if self.hidden else QDir.Filter(0)))
         self.refresh_all()
 
-    def change_language(self):
-        self.language = self.language_combo.currentData()
+    def change_language(self, language):
+        self.language = language
         self.settings.setValue('language', self.language)
         self.retranslate()
 
     def retranslate(self):
+        self.location_settings_button.setText('Einstellungen / Orte' if self.language == 'de' else 'Settings / Locations')
+        self.tools_button.setText('Werkzeuge' if self.language == 'de' else 'Tools')
         for key, action in self.actions.items():
             action.setText(self.tr_key(key))
             action.setToolTip(self.tr_key(key) + (f' ({action.shortcut().toString()})' if not action.shortcut().isEmpty() else ''))
+        for key, de, en in [('search', 'Suchen', 'Search'), ('compare', 'Ordner vergleichen', 'Compare folders'), ('multi_rename', 'Mehrfach umbenennen', 'Multi-rename')]:
+            self.actions[key].setText(de if self.language == 'de' else en)
         self.actions['open_with'].setText('Öffnen mit …' if self.language == 'de' else 'Open with …')
         self.mode.set_labels(self.tr_key('copy'), self.tr_key('move'))
         self.hidden_checkbox.setText(self.tr_key('hidden'))
@@ -1039,20 +1293,62 @@ class MainWindow(QMainWindow):
         self.reload_history()
 
     def scan_integrations(self):
-        if self.integration_scanning:
+        if self.integration_scanning or self.closing:
             return
         from .integrations import invoke
         self.integration_scanning = True
-        task = Task(invoke)
+        task = Task(lambda: (invoke(), cloud_locations()))
         self.tasks.add(task)
         def done(value, error):
             self.tasks.discard(task)
             self.integration_scanning = False
-            if not error and value != self.integration_locations:
-                self.integration_locations = value
-                self.update_places()
+            if not error:
+                locations, clouds = value
+                if locations != self.integration_locations or clouds != getattr(self, 'local_cloud_places', []):
+                    self.integration_locations = locations
+                    self.local_cloud_places = clouds
+                    self.update_places()
         task.signals.result.connect(done)
         self.pool.start(task)
+
+    def save_online_profiles(self):
+        self.settings.setValue('online_profiles', json.dumps(self.online_profiles, ensure_ascii=False))
+        self.settings.sync()
+        self.update_places()
+
+    def online_locations(self):
+        if self.closing:
+            return
+        from .online_ui import OnlineDialog
+        if not hasattr(self, 'online_dialog'):
+            self.online_dialog = OnlineDialog(self)
+        self.online_dialog.show()
+        self.online_dialog.raise_()
+
+    def show_tools(self, mode):
+        if self.closing:
+            return
+        if any(pane.archive for pane in (self.panes if mode == 'compare' else [self.active])):
+            self.status.setText('Werkzeuge unterstützen keine ZIP-Inhalte / Tools do not support ZIP contents')
+            return
+        from .tools_ui import ToolsDialog
+        self.tools_dialog = ToolsDialog(self, mode)
+        self.tools_dialog.show()
+
+    def location_settings(self):
+        if self.closing:
+            return
+        from .location_settings import LocationSettingsDialog
+        self.location_settings_dialog = LocationSettingsDialog(self, getattr(self, 'known_locations', []))
+        self.location_settings_dialog.exec()
+
+    def show_trash(self):
+        from .trash_ui import TrashDialog
+        if not hasattr(self, 'trash_dialog'):
+            self.trash_dialog = TrashDialog(self)
+        self.trash_dialog.refresh()
+        self.trash_dialog.show()
+        self.trash_dialog.raise_()
 
     def connections(self):
         from .connections_ui import ConnectionsDialog
@@ -1070,10 +1366,25 @@ class MainWindow(QMainWindow):
                 item.widget().deleteLater()
         locations = [(self.tr_key('root'), Path('/')), (self.tr_key('home'), Path.home())]
         downloads = Path(QStandardPaths.writableLocation(QStandardPaths.DownloadLocation))
-        if downloads.is_dir():
+        if downloads.is_absolute():
             locations.append((self.tr_key('downloads'), downloads))
-        locations += [(path.name, path) for path in mounted_locations() + cloud_locations()]
+        locations += [(path.name, path) for path in mounted_locations() + getattr(self, 'local_cloud_places', [])]
+        from .online_ui import mount_path
+        from .provider_mounts import register
+        online_mounts = [(row['name'], mount_path(self.state_dir, row['id'])) for row in self.online_profiles]
+        for _, path in online_mounts:
+            if remote_location(path):
+                register(path)
+        locations += online_mounts
         locations += [(item['name'], Path(item['path'])) for item in self.integration_locations if item['path']]
+        trash = QPushButton('Papierkorb' if self.language == 'de' else 'Trash')
+        trash.clicked.connect(self.show_trash)
+        self.places.addWidget(trash)
+        online = QPushButton('Online-Orte …' if self.language == 'de' else 'Online locations …')
+        online.clicked.connect(self.online_locations)
+        self.places.addWidget(online)
+        self.known_locations = locations
+        locations = [(name, Path(path)) for name, path in configured_locations(locations, self.location_preferences)]
         connect = QPushButton('Verbindungen …' if self.language == 'de' else 'Connections …')
         connect.clicked.connect(self.connections)
         self.places.addWidget(connect)
@@ -1085,9 +1396,25 @@ class MainWindow(QMainWindow):
             button = QPushButton(name)
             button.setToolTip(str(path))
             button.setObjectName('place')
-            button.clicked.connect(lambda checked=False, path=path: self.active.navigate(path))
+            profile = next((row for row in self.online_profiles if mount_path(self.state_dir, row['id']) == path), None)
+            if profile:
+                button.clicked.connect(lambda checked=False, profile=profile: self.open_online_profile(profile))
+            else:
+                button.clicked.connect(lambda checked=False, path=path: self.active.navigate(path))
             self.places.addWidget(button)
         self.places.addStretch()
+
+    def open_online_profile(self, profile):
+        if self.closing:
+            return
+        self.online_locations()
+        dialog = self.online_dialog
+        if dialog.pending:
+            return
+        index = next((i for i in range(dialog.saved.count()) if dialog.saved.itemData(i)['id'] == profile['id']), -1)
+        if index >= 0:
+            dialog.saved.setCurrentIndex(index)
+            dialog.open_saved()
 
     def toggle_theme(self):
         self.dark = not self.dark
@@ -1116,7 +1443,8 @@ class MainWindow(QMainWindow):
             QLabel#brand {{ color: {blue}; font-size: 25px; font-weight: 700; }}
             QLabel#badge {{ color: #6caaff; background: {inset}; padding: 5px 9px; border-radius: 4px; font-size: 10px; font-weight: 700; }}
             QLabel#muted {{ color: {muted}; font-size: 11px; }}
-            QLineEdit, QComboBox {{ background: {inset}; border: 1px solid {border}; padding: 7px; border-radius: 5px; selection-background-color: {selection}; }}
+            QLineEdit, QComboBox, QSpinBox {{ background: {inset}; border: 1px solid {border}; padding: 7px; border-radius: 5px; selection-background-color: {selection}; }}
+            QSpinBox QLineEdit {{ background: transparent; border: none; padding: 0; }}
             QPushButton, QToolButton {{ background: {panel}; border: 1px solid {border}; border-radius: 5px; padding: 7px 10px; }}
             QPushButton:hover, QToolButton:hover, QToolButton:checked {{ background: {selection}; }}
             QPushButton:disabled, QToolButton:disabled {{ color: {muted}; }}
@@ -1150,18 +1478,31 @@ class MainWindow(QMainWindow):
         ''')
 
     def closeEvent(self, event):
-        if self.busy or (hasattr(self, 'connections_dialog') and self.connections_dialog.pending):
+        if self.busy or (hasattr(self, 'connections_dialog') and self.connections_dialog.pending) or (hasattr(self, 'online_dialog') and self.online_dialog.pending):
             self.status.setText(self.tr_key('quit_busy'))
             event.ignore()
             return
+        self.closing = True
         self.integration_timer.stop()
+        for pane in self.panes:
+            pane.refresh_timer.stop()
+            if pane.watcher.directories():
+                pane.watcher.removePaths(pane.watcher.directories())
         if hasattr(self, 'connections_dialog'):
             self.connections_dialog.timer.stop()
         # Listing workers must finish before their signal receivers are destroyed.
         if getattr(self, 'preview_dialog', None) is not None and isValid(self.preview_dialog):
             self.preview_dialog.close()
-        self.thumbnails.pool.waitForDone()
-        self.pool.waitForDone()
+        self.thumbnails.cancel_remote()
+        for pane in self.panes:
+            pane.load_cancel.set()
+        if hasattr(self, 'tools_dialog'):
+            self.tools_dialog.cancel.set()
+        if self.tasks or self.pool.activeThreadCount() or self.operation_pool.activeThreadCount() or self.thumbnails.pool.activeThreadCount():
+            self.status.setText('Hintergrundzugriffe werden beendet … / Finishing background requests …')
+            QTimer.singleShot(100, self.close)
+            event.ignore()
+            return
         self.settings.setValue('geometry', self.saveGeometry())
         self.settings.sync()
         event.accept()

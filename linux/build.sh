@@ -17,19 +17,28 @@ for task_deb in "$task_runtime"/libxcb-cursor0_*.deb; do
     dpkg-deb -x "$task_deb" "$task_runtime/root"
 done
 task_cursor=$("$task_root/.venv/bin/python" -c 'import glob,sys; print(glob.glob(sys.argv[1]+"/root/usr/lib/*/libxcb-cursor.so.0")[0])' "$task_runtime")
+task_archive=$("$task_root/.venv/bin/python" -c 'import glob; print(glob.glob("/lib/*/libarchive.so.13")[0])')
 "$task_root/.venv/bin/python" -m PyInstaller --noconfirm --clean --onedir \
     --name opencommander --workpath "$task_work" --distpath "$task_dist" \
     --specpath "$task_work" --paths "$task_root" \
     --add-data "$task_root/opencommander/assets:opencommander/assets" \
+    --add-data "$task_root/opencommander/media_fetch.py:opencommander" \
     --add-data "$task_root/opencommander/gio_bridge.py:opencommander" \
-    --copy-metadata PySide6-Addons --copy-metadata PySide6-Essentials --copy-metadata shiboken6 \
+    --add-data "$task_root/opencommander/secret_bridge.py:opencommander" \
+    --copy-metadata PySide6-Addons --copy-metadata PySide6-Essentials --copy-metadata shiboken6 --copy-metadata libarchive-c \
     --add-binary "$task_cursor:." \
+    --add-binary "$task_archive:." \
     "$task_root/launcher.py"
 task_bundle="$task_dist/opencommander"
-cp "$task_root/README.md" "$task_root/CHANGELOG.md" "$task_root/THIRD-PARTY.md" "$task_root/install-local.sh" "$task_bundle/"
+cp "$task_root/README.md" "$task_root/CHANGELOG.md" "$task_root/PARITY.md" "$task_root/THIRD-PARTY.md" "$task_root/install-local.sh" "$task_bundle/"
 cp "$task_root/../LICENSE" "$task_bundle/LICENSE"
 cp -R "$task_root/licenses" "$task_bundle/licenses"
 cp "$task_runtime/root/usr/share/doc/libxcb-cursor0/copyright" "$task_bundle/licenses/xcb-cursor-copyright"
+for task_package in libarchive13t64 libnettle8t64 libacl1 liblzma5 libzstd1 liblz4-1 libbz2-1.0 zlib1g libxml2 libssl3t64 libattr1; do
+    if [ -f "/usr/share/doc/$task_package/copyright" ]; then
+        cp "/usr/share/doc/$task_package/copyright" "$task_bundle/licenses/$task_package-copyright"
+    fi
+done
 mkdir -p "$task_bundle/source/opencommander"
 cp "$task_root"/opencommander/*.py "$task_bundle/source/opencommander/"
 cp -R "$task_root/opencommander/assets" "$task_bundle/source/opencommander/assets"

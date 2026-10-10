@@ -20,11 +20,11 @@ class Entry:
     error: str = ''
 
 
-def listing(directory: Path, hidden=False):
+def listing(directory: Path, hidden=False, cancel=None):
     if remote_location(directory):
         from .integrations import invoke
         try:
-            records = invoke('scan', str(directory))
+            records = invoke('scan', str(directory), cancel=cancel) if cancel is not None else invoke('scan', str(directory))
         except subprocess.TimeoutExpired:
             raise OSError('Network / Cloud: Zeitüberschreitung / connection timed out (15 s)') from None
         entries = [Entry(**dict(record, path=Path(record['path']))) for record in records
@@ -48,7 +48,8 @@ def listing(directory: Path, hidden=False):
 
 def archive_listing(path: Path, prefix=''):
     result = {}
-    with zipfile.ZipFile(path) as archive:
+    from .archives import open_archive
+    with open_archive(path) as archive:
         for item in checked_members(archive):
             if not item.filename.startswith(prefix):
                 continue
@@ -89,13 +90,14 @@ def cloud_locations(home=None):
                 candidates.append(Path(account['path']))
     except (OSError, ValueError, AttributeError):
         pass
-    return list(dict.fromkeys(p for p in candidates if p.is_absolute() and p.is_dir()))
+    return list(dict.fromkeys(p for p in candidates if p.is_absolute() and (remote_location(p) or p.is_dir())))
 
 
 
 def remote_location(directory):
     """Identify provider paths without probing a potentially unavailable server."""
     directory = Path(os.path.abspath(directory))
+    mounts = []
     try:
         for line in Path('/proc/self/mountinfo').read_text().splitlines():
             before, after = line.split(' - ', 1)
@@ -103,8 +105,28 @@ def remote_location(directory):
             if not filesystem.startswith(('fuse', 'nfs', 'cifs', 'smb', '9p')):
                 continue
             mount = Path(re.sub(r'\\([0-7]{3})', lambda m: chr(int(m[1], 8)), before.split()[4]))
-            if mount == directory or mount in directory.parents:
-                return True
+            mounts.append(mount)
     except (OSError, ValueError, IndexError):
         pass
-    return False
+    for _ in range(16):
+        if any(mount == directory or mount in directory.parents for mount in mounts):
+            return True
+        # Resolve links only on local ancestors. Never stat/readlink a provider:
+        # a local Downloads/OneDrive symlink can otherwise bypass remote guards.
+        prefix = Path('/')
+        changed = False
+        for index, part in enumerate(directory.parts[1:], 1):
+            prefix /= part
+            if any(mount == prefix or mount in prefix.parents for mount in mounts):
+                return True
+            try:
+                link = os.readlink(prefix)
+            except OSError:
+                continue
+            destination = Path(link) if os.path.isabs(link) else prefix.parent / link
+            directory = Path(os.path.abspath(destination.joinpath(*directory.parts[index + 1:])))
+            changed = True
+            break
+        if not changed:
+            return False
+    return True  # Cyclic links must not trigger synchronous GUI filesystem probes.

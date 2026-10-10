@@ -1,5 +1,184 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.6 – 10. Oktober 2026
+
+- Online-Video-/Audiovorschau lädt die ausgewählte Datei sequenziell in einen
+  privaten lokalen Zwischenspeicher, bevor Wiedergabe und Zeitleiste starten.
+  Ladeanzeige mit Prozent, MiB, Dauer und Geschwindigkeit sowie Abbruch;
+  Navigation/Schließen beendet den Download und entfernt den Zwischenspeicher.
+  Maximal 2 GiB pro Medium, 30 Sekunden ohne Fortschritt/15 Minuten insgesamt;
+  Fehlermeldungen geben keine Zugangsdaten aus. Keine Änderung der Quelldatei.
+
+- Archive als Ordner öffnen: ZIP, TAR/TGZ, TAR.GZ/BZ2/XZ/ZST, 7z und RAR.
+  Gleiches Browsen, Pfadnavigation, Vorschau/externe Öffnung einzelner Dateien
+  und ausgewähltes Entpacken mit bestehender Historie/Undo. Native Formate über
+  libarchive; keine externe 7z-/unrar-Installation nötig im portablen Paket.
+- Archiv-Prüfung vor Veröffentlichung: relative Pfade ohne Traversal,
+  keine Symlinks/Hardlinks/Spezialdateien, keine doppelten Namen;
+  100.000 Einträge/4 GiB, Vorschau maximal 128 MiB mit tatsächlicher Byteprüfung.
+  Native Entpackung liest nach der Headerprüfung sequenziell statt das ganze
+  Archiv für jede Datei neu zu öffnen. Verschlüsselte Archive ohne Passwort-
+  Assistent; nicht unterstützte Verschlüsselungen/Varianten melden einen Fehler.
+- Rechtsklick auf leere Ordnerfläche: Neuer Ordner, Einfügen, Aktualisieren und
+  versteckte Dateien. Aktiviert den geklickten Bereich und entfernt die alte
+  Dateiauswahl; Archive bieten nur die lesenden Ordneraktionen.
+
+- Gespeicherte, eingebundene Cloud-Orte (OneDrive, Google Drive, Dropbox, iCloud)
+  lesen Ordner-Metadaten direkt über das rclone-Backend. Ein langsamer/staler
+  FUSE-Daemon blockiert damit nicht mehr das Auflisten beim Start. Dateiaktionen
+  und Mediendownloads verwenden weiter den Mount und ihre bestehenden Grenzen.
+- Cloud-Leseprozesse sind abbrechbar und auf 30 Sekunden begrenzt; Verbindungs-/
+  Anfrage-Zeitlimits und begrenzte Wiederholungen. Kein ungefiltertes Backend-
+  stderr im UI. Abgelaufene Anmeldung bekommt einen verständlichen Hinweis.
+- Netzwerk-/Cloud-Bereiche zeigen verstrichene Ladezeit und „Erneut laden“ nach
+  Fehler oder Abbruch. Eigenes GUI-Zeitlimit greift auch vor einem durch volle
+  Worker verzögerten Start. Navigation verwirft alte Ergebnisse.
+- Synchrone GUI-is_dir-Abfragen für Startordner/Downloads entfernt. Lokale
+  Symlinks auf Cloud-Mounts werden erkannt, ohne den Provider zu statten;
+  remote Ordnerbäume bleiben von synchroner Qt-Pfadsynchronisation ausgenommen.
+- Fehlendes Python-API `chmod(..., follow_symlinks=False)` verursacht beim
+  Attributabschluss keinen Transferabbruch mehr. Nicht verfügbare Metadaten
+  werden als Hinweis erfasst; kein unsicherer Fallback, der Symlinks folgt.
+  Verfügbare Zeitstempel werden weiterhin übernommen.
+- Tatsächlicher gespeicherter OneDrive-Root read-only geprüft: 28 Einträge in
+  0,8 Sekunden, Anmeldung erreichbar. Regressionstests für Startup-Cloud-Stall,
+  GUI-Zeitlimit/Navigation, CLI-Abbruch und Auth-Fehler-Sanitierung sowie den
+  fehlenden chmod-API-Fall einschließlich vollständigem Transfer und Undo.
+
+## 0.3.5 – 10. Oktober 2026
+
+- Errno 95 beim Kopieren auf GVFS-SMB/NAS-Mounts behoben: nicht unterstütztes
+  `fsync` und nicht unterstützte Dateiattribute auf erkannten GVFS-/rclone-
+  Providern blockieren die Inhaltskopie nicht mehr. Flush und Schließen bleiben
+  erforderlich; echte I/O-, Berechtigungs- und Speicherplatzfehler brechen ab.
+- Nach fehlendem Attribut-Support werden Zeitstempel und Unix-Dateirechte getrennt
+  versucht. Einschränkungen erscheinen im Transferabschluss und dauerhaft in
+  der Historien-Info; ohne fsync kann die Dauerhaftigkeit auf dem Server nicht
+  bestätigt werden. Normale lokale Dateisysteme behalten strikte Fehlerbehandlung.
+- GVFS unterstützt ebenfalls den gegen vorhandene Ziele prüfenden Rename-Fallback,
+  wenn RENAME_NOREPLACE nicht unterstützt wird. Die Erkennung trennt verschiedene
+  GVFS-Freigaben und respektiert verschachtelte andere Mounts. Keine Atomizitäts-
+  garantie gegenüber gleichzeitig schreibenden anderen Clients.
+- Regressionstests: rekursiver JPG-Transfer trotz ENOTSUP bei fsync/chmod,
+  erhaltene Bytes/Zeitstempel und Undo; EIO, ENOSPC und EACCES bleiben Fehler;
+  lokales ENOTSUP wird nicht ignoriert. Keine Teständerungen an persönlichen
+  NAS-Dateien.
+
+## 0.3.4 – 10. Oktober 2026
+
+- Server-Anmeldung mit einem Formular für SFTP, FTP und explizites FTPS:
+  Server, Port, Benutzer, Passwort/SSH-Key/SSH-Agent und optionaler Startordner.
+  Verbindungen werden gespeichert und im aktiven Bereich geöffnet. Gespeicherte
+  Server lassen sich über „Erneut anmelden“ bearbeiten; eingebundene Verbindungen
+  müssen dafür erst getrennt werden.
+- Server-Passwörter/Key-Passphrasen standardmäßig nur im Sitzungsspeicher,
+  optional im Linux Secret Service. Kein unsicherer Speicher-Fallback bei
+  gesperrtem/fehlendem Schlüsselbund. Neue Server-Konfigurationen enthalten
+  keine Passwörter; beim Bearbeiten werden alte rclone-Passwortfelder entfernt.
+  Cloud-Konfiguration bleibt beim bisherigen privaten rclone-Profil.
+- SSH-Hostprüfung integriert: SHA-256-Fingerabdruck neuer Server ausdrücklich
+  bestätigen; geänderte bekannte Schlüssel blockieren die Verbindung.
+  SFTP führt keine Shell-Kommandos auf dem Server aus. FTPS behält verpflichtende
+  Zertifikatsprüfung; unverschlüsseltes FTP verlangt eine Warnbestätigung.
+- Private OpenSSH-/PEM-Schlüssel bleiben an ihrem Speicherort, nur bei privaten
+  Dateirechten verwendbar. Verschlüsselte OpenSSH-Schlüssel werden über ein
+  Askpass-Hilfsprogramm im vorhandenen SSH-Agent für eine Stunde entsperrt.
+  Passphrasen gehen nicht in Prozessargumente oder Logs. Kein SCP-only-Backend,
+  kein direkter PuTTY-PPK-Import. SSH-Agent und libsecret sind Host-Abhängigkeiten.
+- Navigation nach oben markiert den verlassenen Ordner nach dem asynchronen
+  Laden und scrollt ihn in den sichtbaren Bereich; ebenso in ZIP-Ordnern und beim
+  Verlassen eines ZIP-Archivs.
+- Kopieren/Verschieben blockiert Vorschau, Öffnen, Eigenschaften, Suche und
+  Einstellungen nicht mehr. Weitere Datei-Aufträge warten in FIFO-Reihenfolge;
+  Quell-/Zielpfade und Aktion sind beim Einreihen festgelegt. Eigener Worker-Pool
+  für Datei-Aufträge hält die Lesezugriffe frei. Anzeige der wartenden Aufträge;
+  Abbrechen verwirft auch die Warteschlange. Undo und Aushängen bleiben während
+  einer Dateioperation gesperrt.
+- Lokaler echter SFTP-Test mit Passwort, privatem Key und verschlüsseltem
+  OpenSSH-Key/isoliertem Agent; Ablehnung ungeprüfter Hostschlüssel getestet.
+  Kein Test mit persönlichen Server-Zugangsdaten.
+
+## 0.3.3 – 10. Oktober 2026
+
+- JPG-/Bild-Thumbnails auch auf Online-/NAS-Mounts: sichtbare Bilder werden im
+  Hintergrund geladen, maximal zwei Online-Anfragen gleichzeitig. Größenlimit
+  32 MiB für Thumbnails; keine automatischen Online-Video-Downloads.
+- Online-Bildvorschau liest sequenziell in eine private temporäre Datei und
+  dekodiert lokal, statt auf Cloud-Dateien zu suchen. Fortschrittsanzeige,
+  128-MiB-Downloadlimit, Zeitlimits und Abbruch bei Navigation/Schließen;
+  temporäre Downloads werden nach dem Dekodieren entfernt.
+- Bild-Ergebnisse und Fortschritt werden über den GUI-Thread verarbeitet.
+  Gleiches-Verzeichnis-Aktualisierung behält die letzte Dateiliste bis zum neuen
+  Ergebnis; Schließen stoppt Timer, Ordnerüberwachung und neue Ladeanfragen.
+- Kopieren/Verschieben zeigt Prozent, Datenmenge, Anzahl Dateien, aktuellen Namen,
+  Dauer, mittlere Rate und geschätzte Restzeit. Vorbereiten, Upload-Abschluss und
+  Prüfen sind eigene Phasen; 100 Prozent erst nach erfolgreichem Abschluss.
+- Darkmode-Checkbox jetzt sichtbar im Kopfbereich; Auswahl bleibt gespeichert.
+- EINVAL/Errno 22 beim Wiederherstellungsordner auf externen rclone-Mounts behoben:
+  erkannte fuse.rclone-Mounts verwenden ebenfalls den Provider-Umbenennungsweg
+  mit Zielprüfung. Normale/externe andere Dateisysteme behalten RENAME_NOREPLACE.
+  Keine Atomizitätsgarantie gegenüber gleichzeitigen Änderungen anderer Clients.
+
+## 0.3.2 – 10. Oktober 2026
+
+- Browser-Anmeldung für OneDrive, Google Drive und Dropbox mit erklärten Schritten.
+  OpenCommander öffnet den Standardbrowser über Qt; unter Wayland wird eine
+  XDG-Vordergrundaktivierung angefordert. Der Desktop kann den Fokus ablehnen;
+  dafür bleibt während der Anmeldung ein Knopf zum erneuten Öffnen verfügbar.
+- Nur der lokale rclone-OAuth-Endpunkt wird aus dem laufenden Backend übernommen;
+  Anmelde-URLs werden nicht protokolliert oder gespeichert. Kein doppelter Browserstart.
+- OneDrive-Laufwerksauswahl zeigt lesbare Namen und bevorzugt „OneDrive – persönliche
+  Dateien“. Zusätzliche/interne Laufwerke bleiben auswählbar; echte IDs bleiben erhalten.
+- Gespeicherte Verbindungen bleiben nach Neustart in der Seitenleiste sichtbar,
+  auch ohne aktiven Mount. Ein Klick verbindet mit den gespeicherten Zugangsdaten.
+- Assistent erklärt Online-Zugriff, kurze Ordnercache-Zeit und die iCloud-Anmeldung
+  mit Apple-ID/Passwort/2FA. iCloud bietet im verwendeten Backend kein Browser-OAuth.
+- Bei app-eigenen FUSE-Mounts wird die Rücknahme-Prüfsumme erst nach stabilen
+  Attributen aufgezeichnet; Änderungen während der Prüfung werden abgewiesen.
+
+## 0.3.1 – 10. Oktober 2026
+
+- OneDrive-Anmeldeknopf startet Browser-OAuth direkt; technische Konfigurationsfragen
+  entfallen. Erfolgreich eingerichtete Cloud-Orte öffnen automatisch den aktiven Bereich.
+- Aktuelles rclone app-intern installiert (geprüft mit 1.75.2). Offizieller HTTPS-
+  Download, SHA-256-Prüfung vor Ausführung; Systeminstallation und Mounts bleiben erhalten.
+- iCloud-Backend verfügbar: Apple-ID, reguläres Passwort und 2FA im Dialog.
+  Keine falsche Browser-OAuth-Zusage für Apple; Unterstützung und Anforderungen
+  stehen sichtbar im Dialog und in der Anleitung.
+- Erneute Anmeldung für abgelaufene Verbindungen; Profile werden nicht dupliziert.
+- Abbrechen greift auf den aktuellen Vorgang; Passwort/2FA bleiben verdeckt.
+- Ohne Konto geprüft: echter OneDrive-Backend-Aufruf fordert Browserstart an und
+  lässt sich abbrechen; aktueller iCloud-Assistent liefert die Apple-Konfigurationsfragen.
+  Keine persönlichen Zugangsdaten, Kontozugriffe oder Cloud-Dateiänderungen getestet.
+
+## 0.3.0 – 10. Oktober 2026
+
+Abgleich mit `origin/codex/mac-linux-parity` bei Commit `2f96726`:
+
+- Rekursive Suche mit editierbarem Pfad, Platzhaltern, optionaler Groß-/Kleinschreibung,
+  vollständigen Trefferpfaden, Ladeanzeige und Abbruch.
+- SHA-256-Ordnervergleich und Vorschau vor Mehrfach-Umbenennen mit Mustern,
+  Zähler, Suchen/Ersetzen, Kollisionsschutz und persistenter Rücknahme.
+- Orte-Einstellungen aus dem Paritätsbranch übernommen: Sprache, Erscheinungsbild,
+  Namen/Sichtbarkeit und benutzerdefinierte Verknüpfungen.
+- Grafischer Online-Einrichtungsassistent für rclone/FUSE: OneDrive, Google Drive,
+  Dropbox, iCloud (passende rclone-Version erforderlich), FTP, FTPS und SFTP.
+  Eigene Konfiguration und kein Eingriff in vorhandene Benutzerkonten.
+- Registrierung app-eigener Provider-Mounts mit gesondertem Umbenennungspfad;
+  keine falsche Behauptung atomarer Online-Transaktionen. Details: PARITY.md.
+- Kompaktere Historienkarten mit Info-Dialog und eigener Rücknahme.
+- Papierkorb-Ansicht mit Wiederherstellung bisheriger OpenCommander-Löschvorgänge.
+- Löschmöglichkeit in Medien-/Textvorschau. Mediennavigation geht nach Entfernen
+  zur nächsten Datei; letzter Eintrag schließt den Betrachter.
+- Ordner-Ladebalken und Abbruch, veraltete Ergebnisse werden verworfen;
+  Remote-Listings bleiben auf 15 Sekunden begrenzt.
+- Cloud-Pfadprüfungen und ZIP-Zielprüfung aus dem UI-Thread verlagert,
+  keine automatischen Remote-Thumbnails/Historiendownloads, Textvorschau im Hintergrund.
+- Beim Beenden wartet die App asynchron auf Hintergrundzugriffe.
+- Zusätzliche Regressionstests und echter isolierter rclone-/FUSE-Test für Kopieren,
+  Konfliktnamen, Rücknahme, Entfernen und Wiederherstellung. Keine persönlichen
+  Cloud-Dateien oder Zugangsdaten für Tests verwendet.
+
 ## 0.2.4 – 30. September 2026
 
 Erster zusammengeführter Linux-Quellstand im Repository. Dieser Eintrag dokumentiert

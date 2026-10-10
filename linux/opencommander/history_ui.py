@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QDialog
 from shiboken6 import isValid
 from .media import media_kind, thumbnail
 
@@ -30,6 +30,8 @@ def describe(operation, german=True):
         lines.append('')
     if operation.get('error'):
         lines.append(('Fehler: ' if german else 'Error: ') + operation['error'])
+    for warning in operation.get('warnings', []):
+        lines.append(('Hinweis: ' if german else 'Note: ') + warning)
     return '\n'.join(lines).strip()
 
 
@@ -47,7 +49,7 @@ class HistoryCard(QWidget):
         self.thumbnail_label.setAlignment(Qt.AlignCenter)
         self.thumbnail_label.setText('↶')
         header.addWidget(self.thumbnail_label)
-        title = QLabel(main.tr_key(operation['label']) + '\n' +
+        title = QLabel((('Mehrfach umbenennen' if de else 'Multi-rename') if operation['label'] == 'multi_rename' else main.tr_key(operation['label'])) + '\n' +
                        datetime.fromtimestamp(operation['time']).strftime('%d.%m.%Y · %H:%M:%S'))
         title.setWordWrap(True)
         header.addWidget(title, 1)
@@ -63,14 +65,36 @@ class HistoryCard(QWidget):
         self.details.setPlainText(describe(operation, de))
         self.details.setMinimumHeight(90)
         self.details.setMaximumHeight(160)
-        layout.addWidget(self.details)
+        self.details.hide()
+        summary = QLabel('\n'.join((('Quelle: ' if de else 'Source: ') + records[0]['source'],
+                                  ('Ziel: ' if de else 'Destination: ') + records[0]['destination'])) if records else '')
+        summary.setWordWrap(True)
+        summary.setMaximumHeight(58)
+        summary.setToolTip(describe(operation, de))
+        layout.addWidget(summary)
         self.undo_button = QPushButton(main.tr_key('undo'))
         self.undo_button.setToolTip(('Diesen Vorgang rückgängig machen: ' if de else 'Undo this operation: ') + main.tr_key(operation['label']))
         self.undo_button.setEnabled(not main.busy)
         self.undo_button.clicked.connect(lambda: main.undo(operation['id']))
-        layout.addWidget(self.undo_button)
+        buttons = QHBoxLayout()
+        self.info_button = QPushButton('Info')
+        self.info_button.clicked.connect(self.show_info)
+        buttons.addWidget(self.info_button)
+        buttons.addWidget(self.undo_button)
+        layout.addLayout(buttons)
         self.preview_requested = False
         self.main, self.operation = main, operation
+
+    def show_info(self):
+        self.info_dialog = QDialog(self.main)
+        self.info_dialog.setWindowTitle(self.main.tr_key('history'))
+        self.info_dialog.resize(760, 450)
+        layout = QVBoxLayout(self.info_dialog)
+        details = QTextEdit()
+        details.setReadOnly(True)
+        details.setPlainText(describe(self.operation, self.main.language == 'de'))
+        layout.addWidget(details)
+        self.info_dialog.show()
 
     def request_preview(self):
         if self.preview_requested:
@@ -78,7 +102,8 @@ class HistoryCard(QWidget):
         self.preview_requested = True
         record = next((r for r in self.operation['records']
                        if media_kind(r['source']) in ('image', 'video')), None)
-        if not record:
+        from .filesystem import remote_location
+        if not record or remote_location(record['destination']) or remote_location(record['source']):
             return
         from .ui import Task
         def work():

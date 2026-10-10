@@ -2,7 +2,7 @@ import time
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import Qt, QUrl, QMimeData, QPointF
+from PySide6.QtCore import Qt, QUrl, QMimeData, QPointF, QEvent
 from PySide6.QtGui import QDropEvent
 from PySide6.QtTest import QTest, QSignalSpy
 from PySide6.QtWidgets import QApplication
@@ -38,6 +38,9 @@ def window(tmp_path, app):
     wait(app, lambda: not main.busy)
     QApplication.clipboard().clear()
     main.close()
+    wait(app, lambda: not main.isVisible(), timeout=20)
+    main.deleteLater()
+    app.sendPostedEvents(None, QEvent.DeferredDelete)
     app.processEvents()
 
 
@@ -104,9 +107,9 @@ def test_filter_language_and_theme(window, app):
     assert pane.proxy.rowCount() == 0
     pane.filter.clear()
     assert pane.proxy.rowCount() == 1
-    window.language_combo.setCurrentIndex(0)
+    window.change_language('de')
     assert window.actions['copy'].text() == 'Kopieren'
-    window.language_combo.setCurrentIndex(1)
+    window.change_language('en')
     assert window.actions['copy'].text() == 'Copy'
     previous = window.dark
     window.toggle_theme()
@@ -159,7 +162,7 @@ def test_text_preview(window, app):
     window.actions['preview'].trigger()
     wait(app, lambda: hasattr(window, 'preview_dialog'))
     area = window.preview_dialog.findChild(QTextEdit)
-    assert area.toPlainText() == 'Hello from OpenCommander'
+    wait(app, lambda: area.toPlainText() == 'Hello from OpenCommander')
     window.preview_dialog.close()
 
 
@@ -508,8 +511,587 @@ def test_open_with_selected_application_and_cancel(window, app, monkeypatch):
         return {'launched': False}
     monkeypatch.setattr(integrations, 'invoke', invoke)
     window.actions['open_with'].trigger()
-    wait(app, lambda: not window.busy)
+    wait(app, lambda: window.status.text() in ('Abgebrochen', 'Cancelled'))
     assert calls == [('open-with', str(pane.directory / 'Grüße.txt'))]
     assert not window.engine.history
     assert window.status.text() in ('Abgebrochen', 'Cancelled')
     assert (pane.directory / 'Grüße.txt').exists()
+
+
+def test_preview_delete_moves_to_recoverable_trash_and_advances(window, app, monkeypatch):
+    from PySide6.QtGui import QImage, QColor
+    from PySide6.QtWidgets import QMessageBox
+    pane = window.panes[0]
+    paths = [pane.directory / name for name in ('first.png', 'second.png')]
+    for path in paths:
+        image = QImage(20, 20, QImage.Format_RGB32)
+        image.fill(QColor('red'))
+        assert image.save(str(path))
+    pane.refresh()
+    wait(app, lambda: pane.proxy.rowCount() == 3)
+    entry = next(entry for entry in pane.model.entries if entry.name == 'first.png')
+    window.open_media(entry)
+    viewer = window.preview_dialog
+    wait(app, lambda: not viewer.current_image.isNull())
+    monkeypatch.setattr(QMessageBox, 'question', lambda *args: QMessageBox.Yes)
+    viewer.trash_current()
+    wait(app, lambda: not window.busy and not viewer.deleting)
+    wait(app, lambda: not viewer.current_image.isNull())
+    assert not paths[0].exists()
+    assert viewer.entries[viewer.index].path == paths[1]
+    assert window.engine.history[-1]['label'] == 'trash'
+    window.show_trash()
+    trash = window.trash_dialog
+    assert trash.items.topLevelItemCount() == 1
+    trash.items.setCurrentItem(trash.items.topLevelItem(0))
+    trash.restore()
+    wait(app, lambda: not window.busy and paths[0].exists())
+    assert trash.items.topLevelItemCount() == 0
+    viewer.close(); trash.close()
+
+
+def test_preview_delete_cancel_preserves_file(window, app, monkeypatch):
+    from PySide6.QtGui import QImage
+    from PySide6.QtWidgets import QMessageBox
+    path = window.panes[0].directory / 'keep.png'
+    image = QImage(20, 20, QImage.Format_RGB32); image.fill(Qt.green); image.save(str(path))
+    window.panes[0].refresh()
+    wait(app, lambda: window.panes[0].proxy.rowCount() == 2)
+    entry = next(entry for entry in window.panes[0].model.entries if entry.name == path.name)
+    window.open_media(entry)
+    viewer = window.preview_dialog
+    wait(app, lambda: not viewer.current_image.isNull())
+    monkeypatch.setattr(QMessageBox, 'question', lambda *args: QMessageBox.No)
+    viewer.trash_current()
+    assert path.exists() and not window.engine.history and not window.busy
+    viewer.close()
+
+
+def test_search_dialog_and_settings_language(window, app):
+    window.show_tools('search')
+    dialog = window.tools_dialog
+    assert dialog.path.text() == str(window.active.directory)
+    assert not dialog.sensitive.isChecked()
+    dialog.query.setText('Grüße')
+    dialog.run()
+    wait(app, lambda: not dialog.pending)
+    assert dialog.items.topLevelItemCount() == 1
+    assert str(window.active.directory) in dialog.items.topLevelItem(0).text(0)
+    dialog.close()
+    from opencommander.location_settings import LocationSettingsDialog
+    settings = LocationSettingsDialog(window, window.known_locations)
+    settings.language_combo.setCurrentIndex(0)
+    assert window.language == 'de'
+    settings.close()
+
+
+def test_cancelled_folder_load_ignores_stale_result(window, app, monkeypatch):
+    import threading
+    import opencommander.ui as ui
+    entered, released = threading.Event(), threading.Event()
+    def slow(*args, **kwargs):
+        entered.set()
+        released.wait(2)
+        return []
+    monkeypatch.setattr(ui, 'listing', slow)
+    pane = window.panes[0]
+    pane.refresh()
+    wait(app, entered.is_set)
+    assert pane.loading_bar.isVisible()
+    pane.cancel_loading()
+    assert not pane.loading_bar.isVisible()
+    released.set()
+    wait(app, lambda: not window.tasks)
+    assert pane.message.text() == 'Abgebrochen / Cancelled'
+
+
+def test_onedrive_button_starts_browser_flow_without_expert_questions(window, app, monkeypatch):
+    from opencommander import online_ui
+    calls = []
+    monkeypatch.setattr(online_ui.rclone_runtime, 'ensure_cloud_backend', lambda _: 'fixture')
+    def command(config, arguments, cancel, result=None, **kwargs):
+        calls.append((list(arguments), result))
+        if arguments[1] == 'create':
+            return {'State': 'oauth-start', 'Option': {'Name': 'config_is_local', 'DefaultStr': 'false'}}
+        return {'State': 'drive-choice', 'Option': {'Name': 'config_driveid', 'Help': 'Select drive',
+                'DefaultStr': 'drive1', 'Examples': [{'Value': 'drive1', 'Help': 'Personal drive'}]}}
+    monkeypatch.setattr(online_ui, 'command_json', command)
+    window.online_locations()
+    dialog = window.online_dialog
+    assert dialog.provider.currentData() == 'onedrive'
+    assert 'Browser' in dialog.next_button.text() or 'browser' in dialog.next_button.text()
+    dialog.next()
+    wait(app, lambda: not dialog.pending and dialog.state == 'drive-choice')
+    assert calls[1][1] == 'true'
+    assert '--all' not in calls[0][0]
+    assert dialog.answer.currentData() == 'drive1'
+    assert not window.online_profiles
+    dialog.close()
+
+
+def test_icloud_dialog_explains_apple_credentials_and_masks_password(window, app):
+    window.online_locations()
+    dialog = window.online_dialog
+    dialog.provider.setCurrentIndex(dialog.provider.findData('iclouddrive'))
+    assert 'Apple' in dialog.next_button.text()
+    dialog.profile = dict(id='oc_fixture', kind='iclouddrive', name='iCloud')
+    dialog.cloud_auth = True
+    dialog.question({'State': 'password', 'Option': {'Name': 'password', 'IsPassword': True, 'DefaultStr': ''}})
+    from PySide6.QtWidgets import QLineEdit
+    assert dialog.answer.lineEdit().echoMode() == QLineEdit.Password
+    dialog.close()
+
+
+def test_cancel_button_stops_current_online_login_worker(window, app, monkeypatch):
+    import threading
+    from PySide6.QtWidgets import QPushButton
+    from opencommander import online_ui
+    entered = threading.Event()
+    monkeypatch.setattr(online_ui.rclone_runtime, 'ensure_cloud_backend', lambda _: 'fixture')
+    def command(config, arguments, cancel, **kwargs):
+        entered.set()
+        if not cancel.wait(3):
+            raise AssertionError('Cancel button did not stop the current login')
+        raise RuntimeError('Abgebrochen / Cancelled')
+    monkeypatch.setattr(online_ui, 'command_json', command)
+    window.online_locations()
+    dialog = window.online_dialog
+    dialog.next()
+    wait(app, entered.is_set)
+    dialog.findChild(QPushButton, 'cancelOnlineLogin').click()
+    wait(app, lambda: not dialog.pending)
+    assert 'Cancelled' in dialog.status.text()
+    assert not window.online_profiles
+    dialog.close()
+
+
+@pytest.mark.parametrize('kind,brand', [('onedrive', 'Microsoft'), ('drive', 'Google'), ('dropbox', 'Dropbox')])
+def test_all_oauth_providers_explain_browser_and_saved_connection(window, kind, brand):
+    window.online_locations()
+    dialog = window.online_dialog
+    dialog.provider.setCurrentIndex(dialog.provider.findData(kind))
+    assert brand in dialog.next_button.text()
+    assert 'browser' in dialog.next_button.text().lower()
+    assert 'restart' in dialog.help.text().lower() or 'Neustart' in dialog.help.text()
+    dialog.close()
+
+
+def test_onedrive_selection_labels_keep_actual_ids(window):
+    window.online_locations()
+    dialog = window.online_dialog
+    dialog.profile = dict(id='oc_fixture', name='fixture', kind='onedrive')
+    dialog.question({'State': 'drive-choice', 'Option': {'Name': 'config_driveid', 'DefaultStr': 'internal',
+        'Examples': [{'Value': 'internal', 'Help': 'OCMetadataArchive (personal)'},
+                     {'Value': 'real-drive-id', 'Help': 'OneDrive (personal)'}]}})
+    assert dialog.answer.currentData() == 'real-drive-id'
+    assert dialog.answer.currentText().startswith('OneDrive')
+    assert 'real-drive-id' not in dialog.answer.currentText()
+    assert not dialog.answer.isEditable()
+    assert dialog.answer.count() == 2
+    dialog.close()
+
+
+def test_browser_signal_runs_on_gui_and_ignores_cancelled_flow(window, monkeypatch):
+    import threading
+    from opencommander import online_ui
+    opened = []
+    monkeypatch.setattr(online_ui.QDesktopServices, 'openUrl', lambda url: opened.append(url.toString()) or True)
+    window.online_locations()
+    dialog = window.online_dialog
+    dialog.pending = True
+    url = 'http://127.0.0.1:53682/auth?state=' + 'a' * 22
+    dialog.browser_ready(threading.Event(), url)
+    assert not opened
+    dialog.browser_ready(dialog.cancel, url)
+    assert opened == [url]
+    assert not dialog.browser_button.isHidden()
+    dialog.cancel.set()
+    dialog.open_browser()
+    assert opened == [url]
+    dialog.pending = False
+    dialog.close()
+
+
+def test_saved_connection_survives_restart_and_opens_from_sidebar(window, app, monkeypatch):
+    from PySide6.QtWidgets import QPushButton
+    from opencommander import online_ui
+    profile = dict(id='oc_persistentfixture', name='Saved Cloud Fixture', kind='onedrive')
+    window.online_profiles = [profile]
+    window.save_online_profiles()
+    restarted = MainWindow(window.state_dir, window.panes[0].directory, window.panes[1].directory)
+    restarted.show()
+    try:
+        assert restarted.online_profiles == [profile]
+        button = next(button for button in restarted.findChildren(QPushButton, 'place') if button.text() == profile['name'])
+        calls = []
+        target = window.panes[1].directory
+        monkeypatch.setattr(online_ui, 'mount_profile', lambda main, selected, cancel: calls.append(selected) or target)
+        button.click()
+        wait(app, lambda: not restarted.tasks)
+        wait(app, lambda: restarted.active.directory == target)
+        assert calls == [profile]
+    finally:
+        restarted.close()
+        wait(app, lambda: not restarted.isVisible(), timeout=20)
+
+
+def test_darkmode_checkbox_is_visible_and_persisted(window, app):
+    from PySide6.QtWidgets import QCheckBox
+    checkbox = window.findChild(QCheckBox, 'darkModeCheckbox')
+    assert checkbox.isVisible()
+    previous = window.dark
+    checkbox.click()
+    assert window.dark is not previous
+    assert checkbox.isChecked() == window.dark
+    assert window.settings.value('dark', type=bool) == window.dark
+
+
+def test_remote_jpg_thumbnails_and_viewer_navigation(window, app, monkeypatch):
+    from PySide6.QtGui import QImage, QColor
+    from opencommander import filesystem
+    pane = window.panes[0]
+    for name, color in [('one.jpg', 'red'), ('two.JPG', 'blue')]:
+        image = QImage(100, 50, QImage.Format_RGB32)
+        image.fill(QColor(color))
+        assert image.save(str(pane.directory / name))
+    pane.remote = True
+    real_remote = filesystem.remote_location
+    monkeypatch.setattr(filesystem, 'remote_location', lambda path: pane.directory == path or pane.directory in path.parents or real_remote(path))
+    pane.refresh()
+    wait(app, lambda: pane.proxy.rowCount() == 3)
+    entries = [entry for entry in pane.model.entries if entry.name == 'one.jpg']
+    entry = entries[0]
+    key = (str(entry.path), entry.size, entry.modified)
+    row = pane.model.entries.index(entry)
+    window.thumbnails.get(entry, pane.model, row)
+    wait(app, lambda: key in window.thumbnails.cache)
+    assert window.thumbnails.cache[key] is not None
+    try:
+        wait(app, lambda: pane.proxy.rowCount() == 3 and not pane.loading_bar.isVisible())
+    except AssertionError:
+        raise AssertionError((str(pane.directory), pane.proxy.rowCount(), pane.message.text(), pane.loading_bar.isVisible(), [item.name for item in pane.model.entries], len(window.tasks), window.pool.activeThreadCount()))
+    entry = next(item for item in pane.model.entries if item.name == 'one.jpg')
+    window.activate(pane)
+    window.open_media(entry)
+    viewer = window.preview_dialog
+    try:
+        wait(app, lambda: not viewer.current_image.isNull(), timeout=15)
+    except AssertionError:
+        raise AssertionError((viewer.message.text(), viewer.closed, viewer.generation, [item.name for item in viewer.entries], len(window.tasks), window.pool.activeThreadCount()))
+    assert viewer.current_image.pixelColor(0, 0).red() > 200
+    blue_index = next(i for i, item in enumerate(viewer.entries) if item.name == 'two.JPG')
+    viewer.step(blue_index - viewer.index)
+    try:
+        wait(app, lambda: not viewer.current_image.isNull(), timeout=15)
+    except AssertionError:
+        raise AssertionError((viewer.message.text(), viewer.closed, viewer.generation, [item.name for item in viewer.entries], len(window.tasks), window.pool.activeThreadCount()))
+    assert viewer.current_image.pixelColor(0, 0).blue() > 200
+    assert viewer.download_progress.isHidden()
+    viewer.close()
+
+
+def test_copy_progress_has_totals_and_keeps_summary(window, app):
+    from PySide6.QtCore import Qt
+    left, right = window.panes
+    left.table.selectRow(0)
+    window.activate(left)
+    window.transfer(False)
+    wait(app, lambda: not window.busy)
+    details = window.transfer_details.text()
+    assert '100%' in details
+    assert '1 / 1' in details
+    assert '/s' in details
+    assert '00:' in details
+    assert window.transfer_details.isVisible()
+    assert (right.directory / 'Grüße.txt').exists()
+
+
+def test_refresh_keeps_media_neighbors_until_new_listing(window, app, monkeypatch):
+    import threading
+    import opencommander.ui as ui
+    pane = window.panes[0]
+    before = list(pane.model.entries)
+    released = threading.Event()
+    monkeypatch.setattr(ui, 'listing', lambda *args, **kwargs: released.wait(2) and before)
+    pane.refresh()
+    assert pane.model.entries == before
+    released.set()
+    wait(app, lambda: not pane.loading_bar.isVisible())
+
+
+def test_up_selects_previous_folder_after_async_listing(window, app):
+    pane = window.panes[0]
+    child = pane.directory / 'previous folder'
+    child.mkdir()
+    pane.navigate(child)
+    wait(app, lambda: getattr(pane, 'listed_location', None) == pane.location())
+    pane.up()
+    wait(app, lambda: bool(pane.selected()))
+    assert [entry.path for entry in pane.selected()] == [child]
+    assert pane.entry_at(pane.table.currentIndex()).path == child
+
+
+def test_up_selects_archive_folder_and_archive_file(window, app):
+    import zipfile
+    pane = window.panes[0]
+    archive = pane.directory / 'fixture.zip'
+    with zipfile.ZipFile(archive, 'w') as stream:
+        stream.writestr('folder/inside/file.txt', 'fixture')
+    pane.navigate(pane.directory, archive, 'folder/inside/')
+    wait(app, lambda: getattr(pane, 'listed_location', None) == pane.location())
+    pane.up()
+    wait(app, lambda: bool(pane.selected()))
+    assert pane.selected()[0].member == 'folder/inside/'
+    pane.navigate(pane.directory, archive)
+    wait(app, lambda: getattr(pane, 'listed_location', None) == pane.location())
+    pane.up()
+    wait(app, lambda: bool(pane.selected()))
+    assert pane.selected()[0].path == archive
+
+
+def test_copy_keeps_navigation_preview_and_queue_available(window, app):
+    import threading
+    from PySide6.QtGui import QImage
+    pane, target = window.panes
+    image = QImage(20, 20, QImage.Format_RGB32)
+    image.fill(Qt.red)
+    photo = pane.directory / 'photo.jpg'
+    image.save(str(photo))
+    pane.refresh()
+    wait(app, lambda: pane.proxy.rowCount() == 2)
+    started, release = threading.Event(), threading.Event()
+    original = window.engine.transfer
+    calls = []
+    def slow_transfer(*args):
+        calls.append(args)
+        if len(calls) == 1:
+            started.set()
+            assert release.wait(10)
+        return original(*args)
+    window.engine.transfer = slow_transfer
+    try:
+        source = pane.directory / 'Grüße.txt'
+        window.transfer(paths=[source], directory=target.directory)
+        wait(app, started.is_set)
+        assert window.busy
+        assert window.actions['preview'].isEnabled()
+        assert window.actions['search'].isEnabled()
+        assert window.actions['info'].isEnabled()
+        window.open_entry(next(entry for entry in pane.model.entries if entry.path == photo))
+        assert window.preview_dialog.isVisible()
+        window.transfer(paths=[photo], directory=target.directory)
+        assert len(window.operation_queue) == 1
+        assert len(calls) == 1
+        assert window.queue_label.text()
+        pane.navigate(target.directory)
+        wait(app, lambda: getattr(pane, 'listed_location', None) == pane.location())
+        assert window.busy
+    finally:
+        release.set()
+    wait(app, lambda: not window.busy and not window.operation_queue)
+    assert (target.directory / 'Grüße.txt').exists()
+    assert (target.directory / 'photo.jpg').exists()
+    assert len(window.engine.history) == 2
+    assert not window.queue_label.text()
+
+
+def test_server_form_has_password_key_agent_and_saved_values(window, app):
+    from opencommander.online_ui import OnlineDialog
+    from opencommander.server_connections import settings, write_config
+    dialog = OnlineDialog(window)
+    dialog.provider.setCurrentIndex(dialog.provider.findData('sftp'))
+    dialog.show()
+    assert dialog.server_form.isVisible()
+    assert dialog.server_form.port.value() == 22
+    from PySide6.QtWidgets import QLineEdit
+    assert dialog.server_form.secret.echoMode() == QLineEdit.Password
+    assert not dialog.server_form.remember.isChecked()
+    dialog.server_form.mode.setCurrentIndex(dialog.server_form.mode.findData('key'))
+    assert dialog.server_form.key_row.isVisible()
+    dialog.provider.setCurrentIndex(dialog.provider.findData('ftps'))
+    assert dialog.server_form.mode.currentData() == 'password'
+    assert not dialog.server_form.mode.isEnabled()
+    section, extra = settings('sftp', 'nas.example.org', 2222, 'alice', 'password', directory='/data')
+    profile = dict(id='oc_fixture', name='Test NAS', kind='sftp', **extra)
+    write_config(dialog.config, profile['id'], section)
+    window.online_profiles = [profile]
+    window.save_online_profiles()
+    dialog.reload()
+    dialog.open_saved()
+    assert dialog.server_form.host.text() == 'nas.example.org'
+    assert dialog.server_form.port.value() == 2222
+    assert dialog.server_form.directory.text() == '/data'
+    assert not dialog.pending
+    dialog.close()
+
+
+def test_cancel_discards_waiting_operations(window, app):
+    import threading
+    started, release = threading.Event(), threading.Event()
+    following = []
+    def slow():
+        started.set()
+        assert release.wait(10)
+    try:
+        window.run_operation(slow)
+        wait(app, started.is_set)
+        window.run_operation(lambda: following.append('must not run'))
+        assert len(window.operation_queue) == 1
+        window.cancel_button.click()
+        assert window.engine.cancel.is_set()
+        assert not window.operation_queue
+    finally:
+        release.set()
+    wait(app, lambda: not window.busy)
+    assert not following
+
+
+def test_startup_cloud_uses_direct_listing_and_can_be_cancelled(tmp_path, app, monkeypatch):
+    import threading
+    from PySide6.QtCore import QSettings
+    from opencommander import online_ui, ui
+    from opencommander.filesystem import Entry
+    state = tmp_path / 'state'; state.mkdir()
+    local = tmp_path / 'local'; local.mkdir()
+    profile = dict(id='oc_fixture', name='OneDrive fixture', kind='onedrive')
+    root = online_ui.mount_path(state, profile['id'])
+    settings = QSettings(str(state / 'settings.ini'), QSettings.IniFormat)
+    import json
+    settings.setValue('online_profiles', json.dumps([profile]))
+    settings.setValue('pane1', str(root)); settings.setValue('pane2', str(local)); settings.sync()
+    original_remote = ui.remote_location
+    monkeypatch.setattr(ui, 'remote_location', lambda path: Path(path) == root or root in Path(path).parents or original_remote(path))
+    started = threading.Event()
+    def stalled(main, row, directory, cancel):
+        started.set()
+        assert cancel.wait(5)
+        raise RuntimeError('Cancelled fixture')
+    monkeypatch.setattr(online_ui, 'list_cloud', stalled)
+    main = MainWindow(state)
+    main.show()
+    try:
+        wait(app, started.is_set)
+        pane = main.panes[0]
+        assert pane.loading_bar.isVisible()
+        from PySide6.QtCore import QTimer
+        original_clock = time.monotonic
+        with monkeypatch.context() as patch:
+            patch.setattr(ui.time, 'monotonic', lambda: original_clock() + 60)
+            for timer in pane.findChildren(QTimer):
+                if timer.isActive() and not timer.isSingleShot() and timer.interval() == 250:
+                    timer.timeout.emit()
+        assert pane.load_cancel.is_set()
+        assert 'antwortet nicht' in pane.message.text()
+        assert pane.retry_loading.isVisible()
+        pane.navigate(local)
+        wait(app, lambda: getattr(pane, 'listed_location', None) == pane.location())
+        assert not pane.loading_bar.isVisible()
+        assert not main.busy
+    finally:
+        main.close()
+        wait(app, lambda: not main.isVisible(), timeout=20)
+        main.deleteLater()
+        app.sendPostedEvents(None, QEvent.DeferredDelete)
+
+
+def test_blank_space_context_menu_activates_pane_and_offers_folder_actions(window, app, monkeypatch):
+    from PySide6.QtWidgets import QMenu
+    from PySide6.QtCore import QPoint
+    pane=window.panes[1]
+    actions=[]
+    from opencommander import ui
+    menus=[]
+    class Menu:
+        def __init__(self,parent):
+            self.real=QMenu(parent)
+            menus.append(self)
+        def __getattr__(self,name):
+            return getattr(self.real,name)
+        def exec(self,*args):
+            actions.extend(self.real.actions())
+    monkeypatch.setattr(ui,'QMenu',Menu)
+    point=QPoint(10,pane.table.viewport().height()-2)
+    assert not pane.table.indexAt(point).isValid()
+    pane.table.context_menu(point)
+    assert window.active is pane
+    assert window.actions['new_folder'] in actions
+    assert any(action.text() in ('Einfügen','Paste') for action in actions)
+    assert any(action.text()==window.tr_key('refresh') for action in actions)
+    assert window.actions['trash'] not in actions
+
+
+@pytest.mark.parametrize('format,suffix', [('ustar','.tar'),('7zip','.7z')])
+def test_native_archive_opens_in_pane_and_materializes_member(window, app, format, suffix):
+    import libarchive
+    pane=window.panes[0]
+    archive_path=pane.directory/('fixture'+suffix)
+    with libarchive.file_writer(str(archive_path),format) as writer:
+        writer.add_file_from_memory('folder/hello.txt',5,b'hello')
+    pane.refresh()
+    wait(app,lambda:any(entry.path==archive_path for entry in pane.model.entries))
+    pane.open_entry(next(entry for entry in pane.model.entries if entry.path==archive_path))
+    wait(app,lambda:pane.archive==archive_path and pane.proxy.rowCount()==1)
+    pane.open_entry(pane.model.entries[0])
+    wait(app,lambda:bool(pane.model.entries) and pane.model.entries[0].member=='folder/hello.txt')
+    member=pane.model.entries[0]
+    assert window.materialize(member).read_bytes()==b'hello'
+    assert window.actions['extract'].isVisible()
+
+
+def test_online_video_loading_progress_local_playback_and_cleanup(window, app, monkeypatch, tmp_path):
+    import shutil
+    import subprocess
+    import threading
+    from opencommander import media, filesystem
+    if not shutil.which('ffmpeg'):
+        pytest.skip('ffmpeg required for playback fixture')
+    source = tmp_path / 'online.mp4'
+    subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'color=c=blue:s=160x90:d=1',
+                    '-c:v', 'mpeg4', str(source)], check=True, timeout=10)
+    entry = filesystem.Entry(source.name, source, False, source.stat().st_size)
+    monkeypatch.setattr(filesystem, 'remote_location', lambda path: True)
+    release = threading.Event()
+    original = media.download_online
+    def delayed(entry, target, cancel, report):
+        report(entry.size // 2, entry.size)
+        while not release.wait(.01):
+            if cancel.is_set():
+                raise RuntimeError('Cancelled')
+        return original(entry, target, cancel, report)
+    monkeypatch.setattr(media, 'download_online', delayed)
+    viewer = media.MediaViewer(window, [entry], 0)
+    viewer.show()
+    try:
+        wait(app, lambda: viewer.download_progress.value() >= 49)
+        assert not viewer.download_progress.isHidden()
+        assert not viewer.cancel_download.isHidden()
+        assert 'MiB' in viewer.message.text()
+        assert viewer.player.source().isEmpty()
+        cache = Path(viewer.media_cache.name)
+        release.set()
+        wait(app, lambda: viewer.video.videoSink().videoFrame().isValid(), timeout=10)
+        local = Path(viewer.player.source().toLocalFile())
+        assert local.parent == cache and local.suffix == '.mp4' and local != source
+        assert viewer.download_progress.isHidden()
+        viewer.shutdown()
+        assert not cache.exists()
+    finally:
+        release.set()
+        viewer.close()
+
+
+def test_online_video_cancel_keeps_player_empty(window, app, monkeypatch, tmp_path):
+    from opencommander import media, filesystem
+    monkeypatch.setattr(filesystem, 'remote_location', lambda path: True)
+    def blocked(entry, target, cancel, report):
+        cancel.wait(3)
+        raise RuntimeError('Cancelled')
+    monkeypatch.setattr(media, 'download_online', blocked)
+    viewer = media.MediaViewer(window, [filesystem.Entry('blocked.mp4', tmp_path / 'blocked.mp4', False)], 0)
+    viewer.show()
+    cache = Path(viewer.media_cache.name)
+    viewer.cancel_download.click()
+    wait(app, lambda: viewer.download_progress.isHidden())
+    assert viewer.player.source().isEmpty()
+    assert not cache.exists()
+    viewer.close()

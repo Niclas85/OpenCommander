@@ -36,7 +36,10 @@ def main():
             directory.mkdir(parents=True, exist_ok=True)
     state = args.state_dir or Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'opencommander'
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if os.environ.get("WAYLAND_DISPLAY"):
+        os.environ.setdefault("QT_QPA_PLATFORM", "wayland;xcb")
     app = QApplication(sys.argv[:1])
+    app.setDesktopFileName("opencommander")
     app.setApplicationName('OpenCommander')
     app.setOrganizationName('OpenCommander')
     app.setStyle('Fusion')
@@ -53,13 +56,33 @@ def main():
         QTimer.singleShot(500, lambda: ask_default(window))
     exit_status = [0]
     if args.smoke_test:
+        import libarchive
+        from .archives import open_archive
+        from .operations import checked_members
+        for kind, compression, suffix in (('ustar', 'gzip', '.tgz'), ('7zip', None, '.7z')):
+            archive_path = Path(fixture.name) / ('archive-smoke' + suffix)
+            with libarchive.file_writer(str(archive_path), kind, compression) as writer:
+                writer.add_file_from_memory('hello.txt', 5, b'hello')
+            with open_archive(archive_path) as archive:
+                member = checked_members(archive)[0]
+                with archive.open(member) as stream:
+                    assert stream.read() == b'hello'
         from PySide6.QtGui import QImage, QColor
         from .filesystem import Entry
         sample = QImage(120, 80, QImage.Format_RGB32)
         sample.fill(QColor('#408acb'))
-        sample_path = Path(fixture.name) / 'preview.png'
+        sample_path = Path(fixture.name) / 'preview.JPG'
         sample.save(str(sample_path))
-        window.open_entry(Entry(sample_path.name, sample_path, False))
+        entry = Entry(sample_path.name, sample_path, False, sample_path.stat().st_size)
+        window.open_entry(entry)
+        from .media import online_image
+        from .ui import Task
+        from PySide6.QtCore import QSize
+        import threading
+        smoke_download = [False]
+        task = Task(lambda: online_image(entry, QSize(96, 64), threading.Event()))
+        task.signals.result.connect(lambda value, error: smoke_download.__setitem__(0, not error and not value.isNull()))
+        window.start_background(task)
     if args.screenshot or args.smoke_test:
         def finish():
             if args.screenshot:
@@ -67,11 +90,11 @@ def main():
                 if not window.grab().save(str(args.screenshot)):
                     exit_status[0] = 1
             if args.smoke_test:
-                if window.preview_dialog.current_image.isNull():
+                if window.preview_dialog.current_image.isNull() or not smoke_download[0]:
                     exit_status[0] = 1
                     print('FAIL: media preview did not load')
                 else:
-                    print('PASS: Linux desktop and media viewer started, image decoded')
+                    print('PASS: Linux desktop, JPEG viewer, isolated online-image download and TAR/7z archive readers')
                 window.close()
         QTimer.singleShot(2000, finish)
     result = app.exec()

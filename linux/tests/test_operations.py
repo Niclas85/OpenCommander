@@ -288,3 +288,114 @@ def test_active_recovery_profile_cannot_be_removed(fixture):
     with pytest.raises(SafetyError):
         engine.rename(engine.state_dir, 'moved-state')
     assert engine.state_dir.is_dir()
+
+
+def test_transfer_reports_nested_file_and_byte_totals(tmp_path):
+    from opencommander.operations import FileEngine
+    source = tmp_path / 'source'; source.mkdir()
+    (source / 'empty').write_bytes(b'')
+    child = source / 'sub'; child.mkdir()
+    (child / 'data').write_bytes(b'hello')
+    (child / 'link').symlink_to('data')
+    target = tmp_path / 'target'; target.mkdir()
+    engine = FileEngine(tmp_path / 'state')
+    reports = []
+    engine.metrics_report = reports.append
+    engine.transfer([source], target)
+    assert reports[0]['phase'] == 'planning'
+    assert reports[-1]['phase'] == 'complete'
+    assert reports[-1]['files_total'] == reports[-1]['files_done'] == 3
+    assert reports[-1]['bytes_total'] == reports[-1]['bytes_done'] == 5
+    assert any(row['phase'] == 'verifying' for row in reports)
+
+
+def test_fast_move_reports_files_without_copying(tmp_path):
+    from opencommander.operations import FileEngine
+    source = tmp_path / 'source'; source.write_bytes(b'hello')
+    target = tmp_path / 'target'; target.mkdir()
+    engine = FileEngine(tmp_path / 'state')
+    reports = []
+    engine.metrics_report = reports.append
+    engine.transfer([source], target, move=True)
+    assert reports[-1]['files_done'] == reports[-1]['files_total'] == 1
+    assert reports[-1]['bytes_done'] == reports[-1]['bytes_total'] == 5
+    assert not source.exists()
+
+
+def test_provider_unsupported_fsync_and_mode_keep_bytes_timestamps_and_undo(fixture, monkeypatch):
+    from opencommander import provider_mounts
+    engine, left, right = fixture
+    monkeypatch.setattr(provider_mounts, '_roots', {right})
+    folder = left / '01_Anreise'
+    folder.mkdir()
+    source = write(folder / '20241104_164044.jpg', 'exact fixture bytes')
+    os.utime(source, ns=(1700000000000000000, 1700000000000000000))
+    real_sync, real_chmod = os.fsync, os.chmod
+    def fsync(fd):
+        path = Path(os.readlink(f'/proc/self/fd/{fd}'))
+        if right in path.parents:
+            raise OSError(errno.EOPNOTSUPP, 'fixture unsupported fsync', str(path))
+        return real_sync(fd)
+    def chmod(path, mode, **kwargs):
+        if right == Path(path) or right in Path(path).parents:
+            raise OSError(errno.EOPNOTSUPP, 'fixture unsupported chmod', str(path))
+        return real_chmod(path, mode, **kwargs)
+    monkeypatch.setattr(os, 'fsync', fsync)
+    monkeypatch.setattr(os, 'chmod', chmod)
+    operation = engine.transfer([folder], right)
+    target = right / folder.name / source.name
+    assert target.read_bytes() == source.read_bytes()
+    assert target.stat().st_mtime_ns == source.stat().st_mtime_ns
+    assert len(operation['warnings']) == 2
+    assert not list(right.glob('.OpenCommanderTransfer-*'))
+    assert FileEngine(engine.state_dir).history[-1]['warnings'] == operation['warnings']
+    engine.undo()
+    assert not (right / folder.name).exists()
+    assert source.exists()
+
+
+@pytest.mark.parametrize('number,provider', [(errno.EIO, True), (errno.ENOSPC, True),
+                                             (errno.EACCES, True), (errno.EOPNOTSUPP, False)])
+def test_real_sync_errors_and_local_unsupported_sync_fail_safely(fixture, monkeypatch, number, provider):
+    from opencommander import provider_mounts
+    engine, left, right = fixture
+    monkeypatch.setattr(provider_mounts, '_roots', {right} if provider else set())
+    monkeypatch.setattr(provider_mounts, 'provider_mount', lambda _: None)
+    source = write(left / 'original.jpg')
+    original = os.fsync
+    def fsync(fd):
+        path = Path(os.readlink(f'/proc/self/fd/{fd}'))
+        if right in path.parents:
+            raise OSError(number, 'fixture failure', str(path))
+        return original(fd)
+    monkeypatch.setattr(os, 'fsync', fsync)
+    with pytest.raises(OSError) as error:
+        engine.transfer([source], right)
+    assert error.value.errno == number
+    assert source.read_text() == 'fixture content'
+    assert not (right / source.name).exists()
+    assert not list(right.glob('.OpenCommanderTransfer-*'))
+    assert not engine.history
+
+
+def test_missing_nofollow_chmod_api_does_not_fail_after_writing(fixture, monkeypatch):
+    engine, left, right = fixture
+    source = write(left / 'file.webp', 'complete image fixture')
+    os.utime(source, ns=(1700000000000000000, 1700000000000000000))
+    def copystat(*args, **kwargs):
+        raise NotImplementedError('chmod: follow_symlinks unavailable on this platform')
+    original = os.chmod
+    def chmod(path, mode, **kwargs):
+        if kwargs.get('follow_symlinks') is False:
+            raise NotImplementedError('chmod: follow_symlinks unavailable on this platform')
+        return original(path, mode, **kwargs)
+    monkeypatch.setattr(ops.shutil, 'copystat', copystat)
+    monkeypatch.setattr(os, 'chmod', chmod)
+    operation = engine.transfer([source], right)
+    target = right / source.name
+    assert target.read_bytes() == source.read_bytes()
+    assert target.stat().st_mtime_ns == source.stat().st_mtime_ns
+    assert operation['warnings']
+    assert len(operation['records']) == 1
+    engine.undo()
+    assert source.exists() and not target.exists()
