@@ -3,7 +3,7 @@
 Native Qt-Desktop-Version nach dem Vorbild der Mac-Catalyst-App. Keine Browser-
 oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 
-Aktueller Stand: **0.3.9**. Die Änderungen und der geprüfte Umfang stehen im
+Aktueller Stand: **0.3.10**. Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
 
 ## Starten
@@ -389,7 +389,7 @@ ist; die Restzeit schätzt nur den verbleibenden Datentransfer. Bei Umbenennunge
 demselben Laufwerk zählen die angezeigten Bytes die logisch verschobenen Daten.
 Die Darkmode-Checkbox steht im Kopfbereich und speichert ihre Auswahl.
 
-### NAS/GVFS-Kompatibilität (0.3.9)
+### NAS/GVFS-Kompatibilität (0.3.10)
 
 Auf erkannten GVFS-/rclone-Mounts blockieren ausdrücklich nicht unterstützte
 `fsync`-/Metadatenfunktionen die Inhaltskopie nicht. Zeitstempel und Dateirechte
@@ -400,7 +400,7 @@ und Speicherplatzfehler bleiben Fehler. Lokale Dateisysteme bleiben strikt.
 GVFS-Umbenennungen ohne RENAME_NOREPLACE prüfen das Ziel vorab innerhalb derselben
 Freigabe; gegenüber anderen gleichzeitig schreibenden Clients ist dies nicht atomar.
 
-### Cloud-Start und Ladegrenzen (0.3.9)
+### Cloud-Start und Ladegrenzen (0.3.10)
 
 Eingerichtete Cloud-Mounts laden ihre Ordnerliste direkt über das Provider-Backend,
 statt beim Start auf einen möglicherweise blockierten FUSE-Daemon zu warten.
@@ -413,7 +413,7 @@ Anmeldung unter „Online-Orte“ erneut anmelden. Plattformseitig fehlendes
 No-follow-chmod wird beim Kopieren als Metadatenhinweis behandelt, ohne Links
 zu folgen oder Inhaltsfehler zu verbergen.
 
-### Archive (0.3.9)
+### Archive (0.3.10)
 
 ZIP, TAR, TGZ/TAR.GZ, TAR.BZ2, TAR.XZ/TAR.ZST, 7z und RAR lassen sich per
 Doppelklick wie Ordner öffnen. In Unterordner navigieren, einzelne Dateien ansehen
@@ -472,3 +472,15 @@ Desktop-Dialog. Bereits eingebundene Datenträger zeigen ihren Laufwerksnamen,
 auch im Dateibereich. Die regelmäßige Desktop-Abfrage aktualisiert die Liste
 nach Anschließen oder Entfernen. Unformatierte Datenträger ohne einbindbares
 Dateisystem werden durch diese Funktion nicht formatiert.
+
+Externe rclone-Mounts (beispielsweise `google-drive-live`) werden für Cloud-
+Aktionen erkannt, sofern der Mountprozess dem aktuellen Benutzer gehört und
+die zugehörige Konfiguration lesbar ist. Remote-Unterordner bleiben erhalten;
+Zugangsdaten werden nicht in OpenCommander-Profile kopiert. Namespace-Overrides
+wie `--drive-shared-with-me` oder ein abweichendes Root-ID-Flag werden aus
+Sicherheitsgründen nicht automatisch für Freigabelinks übernommen. Die Liste
+wird asynchron aus dem Backend gelesen. Mount und Quelldateien bleiben bestehen.
+
+Der Ordnerbaum ist standardmäßig breiter, lange Namen können horizontal
+gescrollt werden. Die eingestellte Breite wird je Bereich gespeichert. Beim
+Drag-and-drop zeigt eine Karte am Mauszeiger Dateiname, Anzahl und Modus.

@@ -74,6 +74,15 @@ def main():
         sample_path = Path(fixture.name) / 'preview.JPG'
         sample.save(str(sample_path))
         entry = Entry(sample_path.name, sample_path, False, sample_path.stat().st_size)
+        from PySide6.QtWidgets import QMenu
+        from types import SimpleNamespace
+        from .cloud_actions import add_cloud_actions
+        window.external_cloud_profiles = [dict(id='external_smoke', kind='drive', name='Google Drive smoke',
+            external=True, mount_root=str(sample_path.parent), remote_base='smoke:', config_path=str(sample_path.parent / 'unused.conf'))]
+        cloud_menu = QMenu(window)
+        add_cloud_actions(cloud_menu, SimpleNamespace(main=window, archive=None, selected=lambda: [entry]))
+        assert cloud_menu.actions()[-1].menu().actions()[0].isEnabled()
+        window.external_cloud_profiles = []
         window.open_entry(entry)
         from .media import online_image
         from .ui import Task
@@ -94,7 +103,7 @@ def main():
                     exit_status[0] = 1
                     print('FAIL: media preview did not load')
                 else:
-                    print('PASS: Linux desktop, JPEG viewer, isolated online-image download and TAR/7z archive readers')
+                    print('PASS: Linux desktop, JPEG viewer, isolated online-image download TAR/7z archive readers and external Drive context menu')
                 window.close()
         QTimer.singleShot(2000, finish)
     result = app.exec()

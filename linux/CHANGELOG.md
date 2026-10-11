@@ -1,5 +1,25 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.10 – 11. Oktober 2026
+
+- Externe rclone-Cloud-Mounts des eigenen Benutzers erkennen: Google Drive,
+  OneDrive, Dropbox, iCloud. Remote-Unterordner und zugehörige Konfiguration aus
+  dem laufenden Mountprozess übernehmen, ohne Zugangsdaten in Profile zu kopieren.
+- Auch dort Cloud-Kontextmenü mit Linkfreigabe (Drive/OneDrive/Dropbox), Pfad
+  kopieren und Provider-Website. Keine Freigabe allein beim Öffnen des Menüs.
+- Fehler der GVFS-Desktop-Abfrage blenden erkannte rclone-Orte nicht aus.
+- Ordner-Metadaten dieser Mounts direkt über das Cloud-Backend auflisten statt
+  jedes Objekt durch den FUSE-Mount zu statten. Abbruch, Zeitlimits und verworfene
+  alte Ergebnisse wie bei intern gespeicherten Cloud-Verbindungen.
+- Namespace-Overrides, die ein anderes Cloud-Ziel freigeben könnten, werden
+  nicht automatisch für Cloud-Aktionen übernommen; reine Fremd-Mounts unverändert.
+- Ungültige/beschädigte Passwort-Konfiguration ebenfalls als Anmeldefehler mit
+  Hinweis auf erneute Anmeldung melden; keine ungefilterten Backend-Zugangsdaten.
+- Ordnerbaum standardmäßig rund 280 px breit statt 155 px; Ordnernamen ohne
+  Auslassung mit horizontalem Scrollen. Splitterbreite je Bereich speichern.
+- Drag-and-drop zeigt eine Vorschau am Mauszeiger mit Symbol/Vorschaubild,
+  Dateiname, Anzahl und gewähltem Kopier-/Verschiebemodus.
+
 ## 0.3.9 – 11. Oktober 2026
 
 - Angeschlossene, vom Desktop erkannte einbindbare Datenträger auch ohne

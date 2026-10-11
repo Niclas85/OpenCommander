@@ -30,7 +30,7 @@ task_archive=$("$task_root/.venv/bin/python" -c 'import glob; print(glob.glob("/
     --add-binary "$task_archive:." \
     "$task_root/launcher.py"
 task_bundle="$task_dist/opencommander"
-cp "$task_root/README.md" "$task_root/CHANGELOG.md" "$task_root/PARITY.md" "$task_root/THIRD-PARTY.md" "$task_root/install-local.sh" "$task_bundle/"
+cp "$task_root/README.md" "$task_root/CHANGELOG.md" "$task_root/PARITY.md" "$task_root/TESTING.md" "$task_root/THIRD-PARTY.md" "$task_root/install-local.sh" "$task_bundle/"
 cp "$task_root/../LICENSE" "$task_bundle/LICENSE"
 cp -R "$task_root/licenses" "$task_bundle/licenses"
 cp "$task_runtime/root/usr/share/doc/libxcb-cursor0/copyright" "$task_bundle/licenses/xcb-cursor-copyright"

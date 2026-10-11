@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QProgressBar, QApplication
 from .desktop import host_environment
-from .online_ui import mount_path, private_config
+from .external_cloud import root_for, config_for, remote_for
 from . import rclone_runtime
 
 WEBSITES = {'drive': 'https://drive.google.com/drive/my-drive',
@@ -22,10 +22,10 @@ def cloud_target(main, entry):
     if entry.member or entry.link:
         return None
     path = Path(os.path.abspath(entry.path))
-    for profile in main.online_profiles:
+    for profile in main.online_profiles + getattr(main, 'external_cloud_profiles', []):
         if profile['kind'] not in WEBSITES:
             continue
-        root = mount_path(main.state_dir, profile['id'])
+        root = root_for(main, profile)
         try:
             relative = path.relative_to(root).as_posix()
         except ValueError:
@@ -43,8 +43,8 @@ def share_link(main, profile, relative, cancel, timeout=30):
     binary = rclone_runtime.binary()
     if not binary:
         raise RuntimeError('Cloud-Backend fehlt / Cloud backend unavailable')
-    command = [binary, '--config', str(private_config(main.state_dir)), 'link',
-               profile['id'] + ':' + relative, '--contimeout', '5s', '--timeout', '10s',
+    command = [binary, '--config', str(config_for(main, profile)), 'link',
+               remote_for(profile, relative), '--contimeout', '5s', '--timeout', '10s',
                '--retries', '1', '--low-level-retries', '1']
     if profile['kind'] == 'onedrive':
         command += ['--onedrive-link-type', 'view', '--onedrive-link-scope', 'anonymous']

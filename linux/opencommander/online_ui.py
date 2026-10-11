@@ -120,13 +120,14 @@ def mount_path(state, identifier):
 def list_cloud(main, profile, directory, cancel, timeout=30):
     """Read provider metadata directly; a stale FUSE daemon cannot stall listing."""
     from .filesystem import Entry
-    root = mount_path(main.state_dir, profile['id'])
+    from .external_cloud import root_for, config_for, remote_for
+    root = root_for(main, profile)
     relative = Path(directory).relative_to(root).as_posix()
-    remote = profile['id'] + ':' + ('' if relative == '.' else relative)
+    remote = remote_for(profile, '' if relative == '.' else relative)
     binary = rclone_runtime.binary()
     if not binary:
         raise RuntimeError('Cloud-Backend fehlt. Online-Orte öffnen und erneut anmelden. / Cloud backend unavailable')
-    command = [binary, '--config', str(private_config(main.state_dir)),
+    command = [binary, '--config', str(config_for(main, profile)),
                'lsjson', remote, '--no-mimetype', '--contimeout', '5s', '--timeout', '10s',
                '--retries', '1', '--low-level-retries', '1']
     if cancel.is_set():
@@ -146,8 +147,8 @@ def list_cloud(main, profile, directory, cancel, timeout=30):
                 except subprocess.TimeoutExpired:
                     continue
             if process.returncode:
-                authentication = any(term in error.lower() for term in ('invalid_grant', 'unauthorized', '401', 'token expired'))
-                raise RuntimeError('Cloud-Anmeldung abgelaufen. Unter Online-Orte erneut anmelden. / Sign in again' if authentication else
+                authentication = any(term in error.lower() for term in ('invalid_grant', 'unauthorized', '401', 'token expired', "couldn't decrypt password", 'invalid credentials', 'invalid session'))
+                raise RuntimeError('Cloud-Anmeldung abgelaufen oder ungültig. Unter Online-Orte erneut anmelden. / Sign in again' if authentication else
                                    'Cloud-Ordner nicht erreichbar. Verbindung prüfen und erneut laden. / Cloud folder unavailable')
             result = []
             for row in json.loads(output):

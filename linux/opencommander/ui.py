@@ -12,9 +12,9 @@ import zipfile
 
 from PySide6.QtCore import (Qt, Signal, QObject, QRunnable, QThreadPool, QAbstractTableModel,
     QModelIndex, QSortFilterProxyModel, QUrl, QMimeData, QTimer, QDir, QFileSystemWatcher,
-    QSettings, QStandardPaths, QSize, QItemSelectionModel)
+    QSettings, QStandardPaths, QSize, QPoint, QItemSelectionModel)
 from PySide6.QtGui import (QAction, QKeySequence, QDrag, QDesktopServices, QImageReader,
-    QPixmap, QIcon, QColor)
+    QPixmap, QIcon, QColor, QPainter, QPen)
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QLineEdit, QSplitter, QTreeView, QTableView, QFileSystemModel,
     QAbstractItemView, QHeaderView, QComboBox, QProgressBar, QToolBar, QMenu, QFileDialog,
@@ -179,6 +179,30 @@ class FileTable(QTableView):
         mime.setUrls([QUrl.fromLocalFile(str(e.path)) for e in entries])
         drag = QDrag(self)
         drag.setMimeData(mime)
+        preview = QPixmap(300, 64)
+        preview.fill(Qt.transparent)
+        painter = QPainter(preview)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setPen(QPen(QColor('#88baff'), 1))
+        painter.setBrush(QColor('#242e40'))
+        painter.drawRoundedRect(0, 0, 299, 63, 10, 10)
+        icon = self.pane.main.thumbnails.cache.get((str(entries[0].path), entries[0].size, entries[0].modified))
+        if icon is None:
+            icon = self.pane.model.folder_icon if entries[0].directory else self.pane.model.file_icon
+        painter.drawPixmap(10, 10, icon.pixmap(42, 42))
+        painter.setPen(QColor('#e8eef9'))
+        font = painter.font()
+        font.setBold(True)
+        painter.setFont(font)
+        painter.drawText(62, 25, painter.fontMetrics().elidedText(entries[0].name, Qt.ElideMiddle, 225))
+        font.setBold(False)
+        painter.setFont(font)
+        mode = self.pane.main.mode.currentData() == 'move'
+        label = ('Verschieben' if mode else 'Kopieren') if self.pane.main.language == 'de' else ('Move' if mode else 'Copy')
+        painter.drawText(62, 47, f'{label} · {len(entries)}')
+        painter.end()
+        drag.setPixmap(preview)
+        drag.setHotSpot(QPoint(20, 20))
         drag.exec(Qt.CopyAction)  # The receiver owns transfers; never request a second deletion.
 
     def dragEnterEvent(self, event):
@@ -315,7 +339,10 @@ class Pane(QFrame):
             self.tree.hideColumn(column)
         self.tree.clicked.connect(lambda index: self.navigate(Path(self.tree_model.filePath(index))))
         self.tree_model.directoryLoaded.connect(lambda _: self.sync_tree())
-        self.tree.setMinimumWidth(110)
+        self.tree.setMinimumWidth(150)
+        self.tree.setTextElideMode(Qt.ElideNone)
+        self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.tree.header().setStretchLastSection(False)
         splitter.addWidget(self.tree)
         right = QWidget()
         right_layout = QVBoxLayout(right)
@@ -366,7 +393,16 @@ class Pane(QFrame):
         right_layout.addLayout(loading_row)
         splitter.addWidget(right)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([155, 475])
+        self.tree_splitter = splitter
+        saved_sizes = main.settings.value(f'pane{number}_tree_sizes')
+        if isinstance(saved_sizes, list) and len(saved_sizes) == 2:
+            try:
+                splitter.setSizes([max(150, int(saved_sizes[0])), max(240, int(saved_sizes[1]))])
+            except (ValueError, TypeError):
+                splitter.setSizes([280, 350])
+        else:
+            splitter.setSizes([280, 350])
+        splitter.splitterMoved.connect(lambda *_: main.settings.setValue(f'pane{number}_tree_sizes', splitter.sizes()))
         layout.addWidget(splitter, 1)
         self.watcher = QFileSystemWatcher(self)
         self.refresh_timer = QTimer(self)
@@ -474,11 +510,11 @@ class Pane(QFrame):
         hidden = self.main.hidden
         profile = None
         if self.remote and not archive:
-            from .online_ui import mount_path
-            profile = next((dict(row) for row in self.main.online_profiles
+            from .external_cloud import root_for
+            profile = next((dict(row) for row in self.main.online_profiles + self.main.external_cloud_profiles
                             if row['kind'] in ('onedrive', 'drive', 'dropbox', 'iclouddrive') and
-                            (directory == mount_path(self.main.state_dir, row['id']) or
-                             mount_path(self.main.state_dir, row['id']) in directory.parents)), None)
+                            (directory == root_for(self.main, row) or
+                             root_for(self.main, row) in directory.parents)), None)
         started = time.monotonic()
         timer = QTimer(self)
         timer.setInterval(250)
@@ -585,6 +621,7 @@ class MainWindow(QMainWindow):
             self.online_profiles = [row for row in profiles if isinstance(row, dict) and isinstance(row.get('id'), str) and row['id'].startswith('oc_') and row['id'][3:].isalnum() and isinstance(row.get('name'), str)] if isinstance(profiles, list) else []
         except (TypeError, ValueError):
             self.online_profiles = []
+        self.external_cloud_profiles = []
         locale = os.environ.get('LANG', 'en')
         self.language = str(self.settings.value('language', 'de' if locale.startswith('de') else 'en'))
         self.dark = self.settings.value('dark', True, type=bool)
@@ -774,9 +811,9 @@ class MainWindow(QMainWindow):
         for p in self.panes:
             accent = ('#6caaff' if p.number == 1 else '#60c69d') if self.dark else ('#1e66c1' if p.number == 1 else '#1f8a5b')
             active = '  •  ' + self.tr_key('active') if p == pane else ''
-            from .online_ui import mount_path
-            profile = next((row for row in self.online_profiles if p.directory == mount_path(self.state_dir, row['id']) or
-                            mount_path(self.state_dir, row['id']) in p.directory.parents), None)
+            from .external_cloud import root_for
+            profile = next((row for row in self.online_profiles + self.external_cloud_profiles if p.directory == root_for(self, row) or
+                            root_for(self, row) in p.directory.parents), None)
             device = next((row for row in self.integration_locations if row.get('path') and
                            (p.directory == Path(row['path']) or Path(row['path']) in p.directory.parents)), None)
             name = profile['name'] if profile else device['name'] if device else ''
@@ -1308,18 +1345,37 @@ class MainWindow(QMainWindow):
             return
         from .integrations import invoke
         self.integration_scanning = True
-        task = Task(lambda: (invoke(), cloud_locations()))
+        from .external_cloud import discover
+        def scan():
+            external = discover()
+            try:
+                locations = invoke()
+            except Exception:
+                locations = None  # A broken GVFS service must not hide rclone cloud actions.
+            return locations, cloud_locations(), external
+        task = Task(scan)
         self.tasks.add(task)
         def done(value, error):
             self.tasks.discard(task)
             self.integration_scanning = False
             if not error:
-                locations, clouds = value
-                if locations != self.integration_locations or clouds != getattr(self, 'local_cloud_places', []):
+                locations, clouds, external = value
+                if locations is None:
+                    locations = self.integration_locations
+                from .online_ui import mount_path
+                saved_roots = {str(mount_path(self.state_dir, row['id'])) for row in self.online_profiles}
+                external = [row for row in external if row['mount_root'] not in saved_roots]
+                external_changed = external != self.external_cloud_profiles
+                if external_changed or locations != self.integration_locations or clouds != getattr(self, 'local_cloud_places', []):
                     self.integration_locations = locations
                     self.local_cloud_places = clouds
+                    self.external_cloud_profiles = external
                     self.update_places()
-        task.signals.result.connect(done)
+                    if external_changed:
+                        for pane in self.panes:
+                            if pane.remote and not pane.archive:
+                                pane.refresh()
+        task.signals.result.connect(done, Qt.QueuedConnection)
         self.pool.start(task)
 
     def save_online_profiles(self):

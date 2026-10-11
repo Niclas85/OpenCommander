@@ -403,7 +403,13 @@ def test_mouse_gesture_starts_drag_and_transfers(window, app, monkeypatch, move,
             self.source = source
         def setMimeData(self, mime):
             self.mime = mime
+        def setPixmap(self, pixmap):
+            assert not pixmap.isNull() and pixmap.width() >= 250
+            self.pixmap = pixmap
+        def setHotSpot(self, point):
+            assert point.x() > 0 and point.y() > 0
         def exec(self, actions):
+            assert not self.pixmap.isNull()
             gestures.append(self.mime.urls())
             event = QDropEvent(drop_position, actions, self.mime, Qt.LeftButton, Qt.NoModifier)
             right.table.dropEvent(event)
@@ -1203,6 +1209,10 @@ def test_onedrive_context_menu_opens_for_remote_file_and_folder(window, app, mon
     window.online_profiles = [profile]
     pane = window.panes[0]
     root = mount_path(window.state_dir, profile['id'])
+    wait(app, lambda: not window.integration_scanning)
+    window.integration_timer.stop()
+    pane.load_cancel.set()
+    pane.generation += 1
     pane.directory = root
     pane.remote = True
     pane.model.replace([Entry('file.jpg', root / 'file.jpg', False), Entry('folder', root / 'folder', True)])
@@ -1254,3 +1264,59 @@ def test_sidebar_mount_failure_keeps_device_and_does_not_navigate(window, app, m
     wait(app, lambda: not window.opening_devices)
     assert window.active.directory == original
     assert 'Device disconnected' in window.status.text()
+
+
+def test_external_google_drive_context_and_direct_listing(window, app, monkeypatch):
+    from opencommander import online_ui
+    from opencommander.filesystem import Entry
+    from opencommander.cloud_actions import add_cloud_actions
+    from PySide6.QtWidgets import QMenu
+    import opencommander.ui as ui
+    wait(app, lambda: not window.integration_scanning)
+    window.integration_timer.stop()
+    root = window.state_dir.parent / 'google-drive-live'
+    profile = dict(id='external_fixture', kind='drive', name='Google Drive Nikki', external=True,
+                   mount_root=str(root), config_path=str(window.state_dir.parent / 'external.conf'), remote_base='gdrive:')
+    window.external_cloud_profiles = [profile]
+    calls = []
+    monkeypatch.setattr(ui, 'remote_location', lambda path: root == path or root in path.parents)
+    def cloud_list(main, received, directory, cancel):
+        calls.append(received)
+        return [Entry('photo.jpg', directory / 'photo.jpg', False)]
+    monkeypatch.setattr(online_ui, 'list_cloud', cloud_list)
+    pane = window.panes[0]
+    pane.navigate(root)
+    wait(app, lambda: pane.proxy.rowCount() == 1 and pane.model.entries[0].name == 'photo.jpg')
+    assert calls == [profile]
+    assert 'Google Drive Nikki' in pane.title.text()
+    pane.table.selectRow(0)
+    menu = QMenu()
+    add_cloud_actions(menu, pane)
+    submenu = menu.actions()[-1].menu()
+    assert submenu.title() == 'Online · Google Drive Nikki'
+    assert submenu.actions()[0].isEnabled()
+
+
+def test_folder_tree_wider_unelided_and_width_persisted(window, app):
+    pane = window.panes[0]
+    assert pane.tree.textElideMode() == Qt.ElideNone
+    sizes = pane.tree_splitter.sizes()
+    assert sizes[0] >= 220
+    pane.tree_splitter.setSizes([320, 340])
+    pane.tree_splitter.splitterMoved.emit(320, 1)
+    assert window.settings.value('pane1_tree_sizes') == pane.tree_splitter.sizes()
+
+
+def test_external_drive_survives_failed_desktop_scan(window, app, monkeypatch):
+    from opencommander import external_cloud, integrations
+    wait(app, lambda: not window.integration_scanning)
+    window.integration_timer.stop()
+    profile = dict(id='external_fixture', kind='drive', name='Google Drive', external=True,
+                   mount_root=str(window.state_dir.parent / 'drive'), config_path='/unused.conf', remote_base='gdrive:')
+    def unavailable(*args):
+        raise RuntimeError('GVFS unavailable')
+    monkeypatch.setattr(integrations, 'invoke', unavailable)
+    monkeypatch.setattr(external_cloud, 'discover', lambda: [profile])
+    window.scan_integrations()
+    wait(app, lambda: not window.integration_scanning)
+    assert window.external_cloud_profiles == [profile]
