@@ -399,3 +399,48 @@ def test_missing_nofollow_chmod_api_does_not_fail_after_writing(fixture, monkeyp
     assert len(operation['records']) == 1
     engine.undo()
     assert source.exists() and not target.exists()
+
+
+def test_undo_cancel_during_verification_retains_both_files(fixture, monkeypatch):
+    engine, left, right = fixture
+    source = left / 'large.bin'
+    source.write_bytes(b'x' * 3 * 1024**2)
+    operation = engine.transfer([source], right)
+    check = engine.check_cancel
+    checks = 0
+    def cancel_inside_hash():
+        nonlocal checks
+        checks += 1
+        if checks == 3:
+            engine.cancel.set()
+        check()
+    monkeypatch.setattr(engine, 'check_cancel', cancel_inside_hash)
+    with pytest.raises(Cancelled):
+        engine.undo(operation['id'])
+    assert (right / source.name).read_bytes() == source.read_bytes()
+    assert not operation['records'][0]['reverted']
+    engine.cancel.clear()
+    monkeypatch.setattr(engine, 'check_cancel', check)
+    engine.undo(operation['id'])
+    assert not (right / source.name).exists()
+
+
+def test_local_listing_stops_when_cancelled(tmp_path, monkeypatch):
+    import threading
+    from types import SimpleNamespace
+    from opencommander import filesystem
+    cancel = threading.Event()
+    seen = []
+    class Stream:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def __iter__(self):
+            for number in range(10000):
+                seen.append(number)
+                if number == 5:
+                    cancel.set()
+                yield SimpleNamespace(name='.hidden')
+    monkeypatch.setattr(filesystem, 'remote_location', lambda _: False)
+    monkeypatch.setattr(filesystem.os, 'scandir', lambda _: Stream())
+    assert filesystem.listing(tmp_path, cancel=cancel) == []
+    assert len(seen) == 6

@@ -8,6 +8,7 @@ from PySide6.QtCore import Qt, QThreadPool, QTimer
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
                               QToolButton, QScrollArea, QProgressBar, QSpinBox, QFrame, QSizePolicy)
 from .operations import Cancelled
+from .formatting import human_duration
 
 
 def resources(job):
@@ -64,6 +65,7 @@ class TransferCard(QFrame):
         layout.setSpacing(4)
         top = QHBoxLayout()
         self.title = QLabel()
+        self.title.setObjectName('transferTitle')
         self.title.setTextFormat(Qt.PlainText)
         self.title.setWordWrap(True)
         top.addWidget(self.title, 1)
@@ -113,7 +115,16 @@ class TransferCard(QFrame):
         from .ui import human_size
         if self.pending_metrics and self.pending_metrics[0] is not None:
             self.metrics = self.pending_metrics[0]
-        de = self.manager.window.language == 'de'
+        language = self.manager.window.language
+        # Settled cards need no repeated text/layout work. Active elapsed time
+        # only changes once per second; fresh metrics still render at 250 ms.
+        render_key = (language, self.manager.window.closing, self.state, self.error,
+                      self.minimize.isChecked(), self.metrics, self.previous_elapsed,
+                      int(time.monotonic() - self.started) if self.started else None)
+        if getattr(self, '_render_key', None) == render_key:
+            return self.details.text()
+        self._render_key = render_key
+        de = language == 'de'
         states = {
             'queued': ('Wartend', 'Queued'), 'waiting': ('Wartet auf freien Quell-/Zielpfad', 'Waiting for source/destination'),
             'running': ('Läuft', 'Running'), 'pausing': ('Pause angefordert · warte auf Dateizugriff', 'Pause requested · waiting for file access'),
@@ -129,6 +140,10 @@ class TransferCard(QFrame):
             name = Path(self.job['sources'][0]).name + f' · {len(self.job["sources"])} ' + ('Elemente' if de else 'items')
         if minimized and self.state == 'blocked':
             state = 'Angehalten – Fehler · Details öffnen' if de else 'Stopped – error · open details'
+        if self.title.property('transferState') != self.state:
+            self.title.setProperty('transferState', self.state)
+            self.title.style().unpolish(self.title)
+            self.title.style().polish(self.title)
         self.title.setText(f'{kind} · {name} · {state}')
         self.minimize.setText(('Details' if minimized else 'Minimieren') if de else ('Details' if minimized else 'Minimize'))
         self.minimize.setToolTip(('Details anzeigen' if minimized else 'Kompakt anzeigen – Auftrag läuft weiter') if de else
@@ -159,9 +174,9 @@ class TransferCard(QFrame):
             label = phases.get(phase, (kind, kind))[0 if de else 1]
             if minimized:
                 self.title.setText(f'{kind} · {name} · {state} · {percent}% · {human_size(count)} / {human_size(total)}')
-            rate = max(0, count - value.get('bytes_resumed', 0)) / max(time.monotonic() - self.started, .001) if self.started else 0
+            rate = max(0, count - value.get('bytes_resumed', 0)) / max(time.monotonic() - self.started, .001) if self.started else getattr(self, 'last_rate', 0) if self.state == 'complete' else 0
             remaining = max(0, total-count) / rate if rate and total > count and self.state == 'running' else None
-            clock = lambda seconds: f'{int(seconds)//60:02d}:{int(seconds)%60:02d}'
+            clock = lambda seconds: human_duration(seconds, language)
             eta = f' · {"Rest ca." if de else "Remaining ~"} {clock(remaining)}' if remaining is not None else ''
             details = (f'{label} · {percent}% · {human_size(count)} / {human_size(total)} · '
                        f'{value["files_done"]} / {value["files_total"]} {"Dateien" if de else "files"} · '
@@ -228,7 +243,6 @@ class TransferOverview(QWidget):
         self.timer = QTimer(self)
         self.timer.setInterval(250)
         self.timer.timeout.connect(self.render)
-        self.timer.start()
         self.hide()
 
     def set_expanded(self, expanded, save=True):
@@ -340,7 +354,9 @@ class TransferOverview(QWidget):
         if card.pending_metrics and card.pending_metrics[0] is not None:
             card.metrics = card.pending_metrics[0]
         card.pending_metrics = None
-        card.previous_elapsed += time.monotonic() - card.started
+        duration = time.monotonic() - card.started
+        card.last_rate = max(0, card.metrics['bytes_done'] - card.metrics.get('bytes_resumed', 0)) / max(duration, .001) if card.metrics else 0
+        card.previous_elapsed += duration
         card.started = None
         card.state = saved['status'] if saved else 'cancelled' if isinstance(error, Cancelled) or card.state == 'cancelling' else 'complete'
         if saved:
@@ -481,12 +497,18 @@ class TransferOverview(QWidget):
                 w.progress.setValue(card.progress.value())
                 w.progress.show()
         width = max(300, self.scroll.viewport().width())
-        height = sum(max(card.sizeHint().height(), card.heightForWidth(width))
-                     for card in self.cards.values())
-        height += max(0, len(self.cards)-1) * self.rows.spacing() + 4
+        height = 4
+        for card in self.cards.values():
+            height += max(card.sizeHint().height(), card.heightForWidth(width)) + self.rows.spacing()
+            if height >= 245:
+                break  # Extra cards cannot increase the capped viewport height.
         height = min(245, max(65, height))
         self.scroll.setMinimumHeight(min(95, height))
         self.scroll.setMaximumHeight(height)
+        if active and not self.timer.isActive():
+            self.timer.start()
+        elif not active:
+            self.timer.stop()
         if active > 1:
             w.transfer_details.setText(self.toggle.text())
             w.transfer_details.show()

@@ -1,9 +1,69 @@
-# Linux 0.3.16 – Verbindungs- und Desktop-Prüfung
+# Linux 0.3.17 – Performance-, Stabilitäts- und Desktop-Prüfung
 
-Stand: 11. Oktober 2026. Minimierbare Aufträge und Parallelsteuerung mit 0.3.16
-automatisiert geprüft; lesende Google-Drive-/OneDrive-Prüfung mit 0.3.14 wie unten dokumentiert.
-Gesamtsuite zuletzt mit 0.3.15: 268 Tests erfolgreich. Für 0.3.16 wurden die sieben
-Parallel-/Neustarttests mit den ergänzten Minimier-Prüfungen sowie der Pakettest ausgeführt.
+Stand: 11. Oktober 2026. Die Prüfung umfasst Dateimodell, Auftragssteuerung,
+Abbruch/Fortsetzung, Historie, Vorschau und Providerzugriffe der Linux-App.
+Vollständige Testsuite: **287 Tests erfolgreich (55,71 s)**.
+Nach der abschließenden Archiv-Dateityp-Korrektur: sieben relevante Desktop-Tests
+erneut erfolgreich. Paket-Smoke-Test erfolgreich (Desktop, JPEG, Online-Bild,
+TAR/7z, externes Drive-Menü und gespeicherte Pause/Fortsetzung).
+Die Änderungen wurden mit isolierten Dateien und Testprofilen geprüft. Der laufende
+Nutzerauftrag „Weltreise“ blieb unangetastet; sein Journal meldete weiterhin
+`running`, keinen Fehler und zunehmende Dateicheckpoints.
+
+## Analyse und behobene Ursachen
+
+| Befund | Änderung / Nachweis |
+| --- | --- |
+| Jede Tabellenzelle berechnete alle vier Spalten, einschließlich Datum/Größe | Nur angeforderte Spalte formatieren; formatierte Werte bei Listenwechsel invalidieren. Tests für Wiederverwendung, Dateigröße, Archiv-Dateityp und ungültige Provider-Zeitstempel |
+| Abgeschlossene Karten wurden alle 250 ms erneut formatiert; Größenberechnung über alle Karten | Unveränderte Karten überspringen, Größenberechnung am sichtbaren Maximum beenden, Timer ohne aktive Übertragungen stoppen |
+| Auch unsichtbare Historie baute sämtliche Widgets nach jeder Operation neu auf | Aufbau bis zum Öffnen verschieben; Undo-Aktion weiterhin aktuell |
+| Lokale Dateiliste ignorierte ihren Abbruch-Event; Undo-Prüfung las große Dateien ohne Abbruchprüfung | Abbruch zwischen Verzeichniseinträgen bzw. Datenblöcken; Test bestätigt erhaltene Dateien und später erfolgreiches Undo |
+| Zusätzliche Dateivorgänge sendeten Fortschritt als Qt-Signale | Wie bei dauerhaften Kopien nur neuesten Snapshot auf dem GUI-Timer anzeigen; Ergebnisse für Historie/Verbindungen ausdrücklich im GUI-Thread |
+| rclone ohne Schreibcache nahm Append-Öffnung an, scheiterte erst beim Schreiben mit ESPIPE; Schließen meldete zusätzlich EPERM | Auf echtem lokalem rclone/FUSE reproduziert. Nach Präfixprüfung nur unvollständige Datei neu schreiben, fertige Dateien erhalten. Geändertes Präfix wird vor Schreiböffnung abgewiesen |
+| Lange Zeiten als rohe Sekunden oder unbegrenzt wachsende Minutenangabe | Einheiten s/min/h und ab 24 Stunden Tage, auch für Restzeit und Medien-Downloads; Grenzwerte und Deutsch/Englisch geprüft |
+| Status schwerer unterscheidbar; Abschluss setzte Geschwindigkeit auf null | Zusätzliche Statusfarben in Hell/Dunkel; durchschnittliche Geschwindigkeit der abgeschlossenen Sitzung erhalten |
+
+### Messung des Dateimodells
+
+20.000 synthetische Dateien, vier Display-Zellen je Datei, drei Durchläufe in
+isoliertem Qt/offscreen-Prozess auf diesem Rechner. Ausgangspunkt: Commit 71e2586.
+
+| Stand | Erster Durchlauf | Weitere Durchläufe |
+| --- | --- | --- |
+| 0.3.16 | 1,588 s | 1,427 / 1,441 s |
+| Optimiertes Dateimodell | 1,166 s | 1,069 / 1,118 s |
+
+Rund 25 % kürzere wiederholte Zellabfragen. Das ist ein Modell-Mikrobenchmark,
+keine Aussage über Kopierbandbreite, Cloud-Ladezeit oder alle GUI-Aktionen.
+Zusätzlich in isolierter laufender GUI geprüft: zwei parallele Aufträge, ein Auftrag
+minimiert/pausiert, langer Zeitwert, Hell- und Dunkeldarstellung. Keine echte Nutzerdatei
+wurde dafür übertragen oder gelöscht.
+
+### Verbleibende Architekturgrenzen
+
+- Inhaltsprüfungen für sichere Rücknahme und Fortsetzung lesen Dateien erneut.
+  Auf großen Cloud-Ordnern bleibt das teuer. Diese Prüfung wurde nicht abgeschwächt.
+- Die aktuelle Übertragung läuft über das Dateisystem/FUSE. Direkte, separat
+  steuerbare rclone-Transfers mit explizitem Uploadabschluss sind noch nicht implementiert.
+- Bei externen rclone-Mounts mit Schreibcache kann der Dateiabschluss vor dem tatsächlichen
+  Cloud-Upload liegen; die App bestätigt damit keinen gesonderten Provider-Uploadstatus.
+- Ein bereits blockierender Dateisystemaufruf kann erst nach Rückkehr reagieren.
+  Der GUI-Button setzt den Abbruch sofort, garantiert aber keinen sofort beendeten
+  Kernel-/Providerzugriff. Mounts werden nicht gewaltsam getrennt.
+- Auf rclone wird bei Fortsetzung die unvollständige Datei neu geschrieben, auch wenn
+  der externe Mount Append mit Cache unterstützen könnte. Fertige Dateien bleiben
+  nach Prüfung erhalten; lokale Teilkopien werden weiterhin byteweise fortgesetzt.
+- Geöffnete große Historien werden weiterhin vollständig als Karten aufgebaut.
+  Verlaufsspeicherung und Konfliktprüfung sehr großer Mehrfachauswahlen sind weitere
+  mögliche Engpässe. Langzeittests mit sehr großen Verläufen stehen aus.
+- Google-Quoten, Konto-/Serverregeln und Anmeldestatus bleiben externe Einflüsse.
+  Die bisherigen realen Kontoprüfungen stehen unten mit ihrem tatsächlichen Umfang.
+  In dieser Runde wurde kein neuer Login und keine öffentliche Freigabe ausgelöst.
+
+## Bisherige Verbindungsprüfungen und abgedeckte Funktionen
+
+Lesende Google-Drive-/OneDrive-Prüfungen stammen von 0.3.14; die zugehörigen
+automatisierten Regressionstests werden mit der vollständigen Suite erneut ausgeführt.
 
 | Bereich | Prüfung | Ergebnis / Grenze |
 | --- | --- | --- |

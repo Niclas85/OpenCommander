@@ -1,5 +1,31 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.17 – 11. Oktober 2026
+
+- Zeit und Restzeit mit expliziten Einheiten: Sekunden, Minuten, Stunden und Tage.
+  Gilt für Kopieren/Verschieben, weitere Dateivorgänge, Laden und Medien-Downloads.
+- Dateiliste formatiert nur angeforderte Spalten und hält formatierte Werte bis zur
+  nächsten Aktualisierung vor. Ungültige Provider-Zeitstempel ergeben „—“.
+- Unveränderte Auftragskarten werden nicht neu aufgebaut; der Übersichtstimer ruht
+  ohne aktive Übertragungen. Verdeckte Historie wird erst beim Öffnen aufgebaut.
+- Pause, Abschluss und Fehler farblich erkennbar, zusätzlich zu den Statusbeschriftungen.
+  Abgeschlossene Aufträge behalten ihre durchschnittliche Geschwindigkeit.
+- Lokale Ordnerabfragen reagieren zwischen Einträgen auf Abbruch. Die Inhaltsprüfung
+  vor Rückgängig lässt sich blockweise abbrechen, ohne die Zieldatei zu entfernen.
+- Fortschritt weiterer Dateivorgänge wird wie bei Kopien zusammengefasst, statt
+  GUI-Signale aufzustauen. Verbindungs-/Historienergebnisse explizit im GUI-Thread.
+- Bildformate einmal ermitteln statt bei jeder Vorschau-Anfrage erneut. Beim Neuladen
+  nur tatsächlich ausgewählte/aktuelle Zeilen zur sortierten Ansicht zuordnen.
+- rclone ohne Schreibcache: Fortsetzen einer unvollständigen Datei konnte mit
+  „Illegal seek“ scheitern. Nach Prüfung des vorhandenen Präfixes wird diese Datei
+  auf rclone-Mounts neu geschrieben; fertige Dateien bleiben erhalten. Das gilt
+  vorsorglich auch für externe rclone-Mounts mit unbekanntem/änderbarem Cache-Modus.
+  Lokale Dateien behalten die byteweise Fortsetzung. Fremdveränderte Zwischenstände
+  werden weiterhin abgewiesen und nicht überschrieben.
+- Reproduzierter Fehler mit echtem lokalem rclone/FUSE-Mount; Tests für Fortsetzung,
+  manipulierte Teilkopien, Abbruch während Undo, Zeiteinheiten und ruhende GUI ergänzt.
+  Messwerte und verbleibende Architekturgrenzen stehen in TESTING.md.
+
 ## 0.3.16 – 11. Oktober 2026
 
 - Jeden Kopier- oder Verschiebeauftrag mit „Minimieren“ einzeln kompakt darstellen;

@@ -1,5 +1,6 @@
 """Bounded asynchronous thumbnails and an in-app image/audio/video browser."""
 from collections import OrderedDict
+from functools import lru_cache
 from pathlib import Path
 import shutil
 import subprocess
@@ -15,15 +16,21 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushB
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from .desktop import host_environment
+from .formatting import human_duration
 
 IMAGES = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tif', '.tiff', '.svg', '.heic', '.avif'}
 VIDEOS = {'.mp4', '.mov', '.mkv', '.webm', '.avi', '.m4v', '.mpeg', '.mpg'}
 AUDIO = {'.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac', '.opus', '.wma'}
 
 
+@lru_cache(maxsize=1)
+def supported_image_suffixes():
+    return {bytes(value).decode().lower() for value in QImageReader.supportedImageFormats()}
+
+
 def media_kind(path):
     suffix = Path(path).suffix.lower()
-    if suffix in IMAGES or suffix.lstrip('.') in {bytes(x).decode().lower() for x in QImageReader.supportedImageFormats()}:
+    if suffix in IMAGES or suffix.lstrip('.') in supported_image_suffixes():
         return 'image'
     return 'video' if suffix in VIDEOS else 'audio' if suffix in AUDIO else None
 
@@ -280,7 +287,7 @@ class MediaViewer(QDialog):
         started = time.monotonic()
         def report(count, total):
             elapsed = max(0.1, time.monotonic() - started)
-            label = f'{count / 1024**2:.1f} / {total / 1024**2:.1f} MiB · {elapsed:.0f}s · {count / elapsed / 1024**2:.1f} MiB/s'
+            label = f'{count / 1024**2:.1f} / {total / 1024**2:.1f} MiB · {human_duration(elapsed, self.main.language)} · {count / elapsed / 1024**2:.1f} MiB/s'
             task.signals.progress.emit(min(99, count * 100 // total) if total else 0, label)
         self.current_image = QImage()
         self.image_label.clear()

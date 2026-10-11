@@ -28,6 +28,7 @@ from .i18n import text
 from . import __version__
 from .media import media_kind, ThumbnailCache, MediaViewer
 from .controls import ModeToggle
+from .formatting import human_duration
 from .location_preferences import load_preferences, configured_locations
 from shiboken6 import isValid
 
@@ -65,6 +66,7 @@ class EntryModel(QAbstractTableModel):
         super().__init__(pane)
         self.pane = pane
         self.entries = []
+        self.formatted = {}
         style = QApplication.style()
         self.folder_icon = QIcon(style.standardIcon(QStyle.SP_DirIcon).pixmap(24, 24))
         self.file_icon = QIcon(style.standardIcon(QStyle.SP_FileIcon).pixmap(24, 24))
@@ -102,15 +104,20 @@ class EntryModel(QAbstractTableModel):
         item = self.entries[index.row()]
         column = index.column()
         if role == Qt.UserRole:
-            return (item.name.casefold(), item.size,
-                    '0' if item.directory else item.path.suffix, item.modified)[column]
+            if column == 0:
+                return item.name.casefold()
+            if column == 1:
+                return item.size
+            if column == 2:
+                return '0' if item.directory else Path(item.name).suffix
+            return item.modified
         if role == Qt.ForegroundRole and column == 0:
             dark = self.pane.main.dark
             if item.error:
                 return QColor('#ff919c' if dark else '#b42338')
             if item.directory:
                 return QColor('#88baff' if dark else '#185bb5')
-            suffix = item.path.suffix.lower()
+            suffix = Path(item.name).suffix.lower()
             if suffix in ('.zip', '.tar', '.gz', '.7z', '.rar'):
                 return QColor('#f1c36d' if dark else '#885400')
             if suffix in ('.png', '.jpg', '.jpeg', '.svg', '.mp4', '.mp3', '.webp'):
@@ -126,16 +133,29 @@ class EntryModel(QAbstractTableModel):
             return str(item.path) + (f'!/{item.member}' if item.member else '') + ('\n' + item.error if item.error else '')
         if role != Qt.DisplayRole:
             return None
-        kind = self.pane.main.tr_key('link' if item.link else 'directory' if item.directory else 'file')
         if item.error:
             return (item.name, '—', '⚠', '—')[column]
-        return (item.name, '—' if item.directory else human_size(item.size),
-                kind if item.directory or item.link else Path(item.name).suffix.removeprefix('.').upper() or kind,
-                datetime.fromtimestamp(item.modified).strftime('%d.%m.%Y %H:%M') if item.modified else '—')[column]
+        if column == 0:
+            return item.name
+        key = (index.row(), column, self.pane.main.language)
+        if key not in self.formatted:
+            if column == 1:
+                value = '—' if item.directory else human_size(item.size)
+            elif column == 2:
+                kind = self.pane.main.tr_key('link' if item.link else 'directory' if item.directory else 'file')
+                value = kind if item.directory or item.link else Path(item.name).suffix.removeprefix('.').upper() or kind
+            else:
+                try:
+                    value = datetime.fromtimestamp(item.modified).strftime('%d.%m.%Y %H:%M') if item.modified else '—'
+                except (ValueError, OverflowError, OSError):
+                    value = '—'
+            self.formatted[key] = value
+        return self.formatted[key]
 
     def replace(self, entries):
         self.beginResetModel()
         self.entries = entries
+        self.formatted.clear()
         self.endResetModel()
 
 
@@ -525,7 +545,7 @@ class Pane(QFrame):
                 timer.stop()
                 return
             elapsed = time.monotonic() - started
-            self.message.setText(f'{self.main.tr_key("loading")} · {int(elapsed)} s · {"Cloud" if profile else "Netzwerk / Network"}')
+            self.message.setText(f'{self.main.tr_key("loading")} · {human_duration(elapsed, self.main.language)} · {"Cloud" if profile else "Netzwerk / Network"}')
             if elapsed >= (32 if profile else 17):
                 self.cancel_loading()
                 self.message.setText('Verbindung antwortet nicht rechtzeitig. Erneut laden oder anderen Ordner öffnen. / Connection timed out; retry or open another folder.')
@@ -565,6 +585,8 @@ class Pane(QFrame):
                 self.listed_location = (directory, archive, prefix)
                 for row, entry in enumerate(self.model.entries):
                     key = (str(entry.path), entry.member)
+                    if key not in selected and key != current_key:
+                        continue
                     index = self.proxy.mapFromSource(self.model.index(row, 0))
                     if not index.isValid():
                         continue
@@ -817,7 +839,7 @@ class MainWindow(QMainWindow):
         self.history_dock.setMinimumWidth(380)
         self.history_dock.setMinimumHeight(345)
         self.history_list.verticalScrollBar().valueChanged.connect(self.load_history_previews)
-        self.history_dock.visibilityChanged.connect(lambda visible: self.load_history_previews() if visible else None)
+        self.history_dock.visibilityChanged.connect(self.history_visibility_changed)
         self.history_dock.setWidget(self.history_list)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.history_dock)
         self.history_dock.hide()
@@ -994,7 +1016,7 @@ class MainWindow(QMainWindow):
                       'paused': ('Pausiert – gespeichert', 'Paused – saved'),
                       'cancelled': ('Abgebrochen', 'Cancelled'), 'complete': ('Abgeschlossen', 'Completed')}
             label = phases[phase][0 if self.language == 'de' else 1]
-            clock = f'{int(elapsed) // 60:02d}:{int(elapsed) % 60:02d}'
+            clock = human_duration(elapsed, self.language)
             if phase == 'planning':
                 self.progress.setRange(0, 0)
                 details = f'{label} · {clock} · {value["name"]}'
@@ -1003,8 +1025,7 @@ class MainWindow(QMainWindow):
                 self.progress.setValue(percent)
                 rate = max(0, count - value.get('bytes_resumed', 0)) / max(elapsed, 0.001)
                 remaining = (total - count) / rate if rate and total > count else None
-                eta = (f' · Rest ca. {int(remaining) // 60:02d}:{int(remaining) % 60:02d}' if self.language == 'de' else
-                       f' · Remaining ~{int(remaining) // 60:02d}:{int(remaining) % 60:02d}') if remaining is not None else ''
+                eta = (' · Rest ca. ' if self.language == 'de' else ' · Remaining ~') + human_duration(remaining, self.language) if remaining is not None else ''
                 files = 'Dateien' if self.language == 'de' else 'files'
                 duration = 'Zeit' if self.language == 'de' else 'Time'
                 details = (f'{label} · {percent}% · {human_size(count)} / {human_size(total)} · '
@@ -1012,17 +1033,10 @@ class MainWindow(QMainWindow):
                            f'{value["name"]}')
             self.transfer_details.setText(details)
             self.transfer_details.show()
-        last_metrics = [0.0]
         def report_metrics(value):
-            now = time.monotonic()
-            if value['phase'] == 'complete' or now - last_metrics[0] >= 0.1:
-                last_metrics[0] = now
-                task.signals.metrics.emit(value)
-        def received_metrics(value):
-            latest[0] = value  # Render on the GUI timer, not once per worker signal.
+            latest[0] = value  # Coalesce immutable snapshots without queued GUI signals.
         self.transfer_details.hide()
         self.engine.metrics_report = report_metrics
-        task.signals.metrics.connect(received_metrics, Qt.QueuedConnection)
         timer.timeout.connect(show_metrics)
         timer.start()
         last_progress = [0.0]
@@ -1255,7 +1269,19 @@ class MainWindow(QMainWindow):
         else:
             self.status.setText(self.tr_key('no_history'))
 
+    def history_visibility_changed(self, visible):
+        if visible:
+            if getattr(self, 'history_dirty', False):
+                self.reload_history()
+            else:
+                self.load_history_previews()
+
     def reload_history(self):
+        self.actions['undo'].setEnabled(bool(self.engine.history) and not self.busy)
+        if not self.history_dock.isVisible():
+            self.history_dirty = True
+            return
+        self.history_dirty = False
         from .history_ui import HistoryCard
         self.history_list.clear()
         for operation in reversed(self.engine.history):
@@ -1739,6 +1765,10 @@ class MainWindow(QMainWindow):
             QWidget#historyCard {{ background: {inset}; border: 1px solid {border}; border-radius: 8px; }}
             QWidget#transferItems, QScrollArea#transferScroll {{ background: {bg}; border: none; }}
             QLabel {{ background: transparent; }}
+            QLabel#transferTitle {{ font-weight: 600; }}
+            QLabel#transferTitle[transferState="complete"] {{ color: {green}; }}
+            QLabel#transferTitle[transferState="paused"], QLabel#transferTitle[transferState="pausing"] {{ color: {gold}; }}
+            QLabel#transferTitle[transferState="blocked"] {{ color: {red}; }}
             QLabel#brand {{ color: {blue}; font-size: 25px; font-weight: 700; }}
             QLabel#badge {{ color: #6caaff; background: {inset}; padding: 5px 9px; border-radius: 4px; font-size: 10px; font-weight: 700; }}
             QLabel#muted {{ color: {muted}; font-size: 11px; }}

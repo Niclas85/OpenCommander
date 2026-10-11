@@ -121,5 +121,5 @@ class HistoryCard(QWidget):
             self.main.tasks.discard(task)
             if isValid(self.thumbnail_label) and not error and image is not None:
                 self.thumbnail_label.setPixmap(QPixmap.fromImage(image).scaled(QSize(76, 54), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        task.signals.result.connect(done)
+        task.signals.result.connect(done, Qt.QueuedConnection)
         self.main.thumbnails.pool.start(task)

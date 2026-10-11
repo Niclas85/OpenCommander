@@ -505,7 +505,7 @@ class FileEngine:
             self.check_cancel()
             source, target = Path(record['source']), Path(record['destination'])
             if not record['reverted']:
-                if record['snapshot'] is None or safe_snapshot(target) != record['snapshot']:
+                if record['snapshot'] is None or safe_snapshot(target, self.check_cancel) != record['snapshot']:
                     raise SafetyError(f'Undo stopped: file changed or cannot be verified.\n{target}')
                 if record['kind'] == 'move':
                     if exists(source):

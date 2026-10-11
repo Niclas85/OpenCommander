@@ -21,6 +21,8 @@ class Entry:
 
 
 def listing(directory: Path, hidden=False, cancel=None):
+    if cancel is not None and cancel.is_set():
+        return []
     if remote_location(directory):
         from .integrations import invoke
         try:
@@ -33,6 +35,8 @@ def listing(directory: Path, hidden=False, cancel=None):
     entries = []
     with os.scandir(directory) as stream:
         for item in stream:
+            if cancel is not None and cancel.is_set():
+                return []
             if not hidden and item.name.startswith('.'):
                 continue
             try:

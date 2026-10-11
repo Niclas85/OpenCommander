@@ -108,10 +108,26 @@ def copy_file(engine, source, target):
                     # writing, since cloud mounts may upload on writable close.
                     fd = None
                     if offset < info.st_size:
-                        fd = open_regular(target, os.O_WRONLY | os.O_APPEND)
-                        if os.fstat(fd).st_size != offset:
-                            os.close(fd)
-                            raise SafetyError(f'Zwischenstand geändert / Partial copy changed: {target}')
+                        from .provider_mounts import rclone_mount
+                        engine.check_cancel()
+                        if rclone_mount(target) is not None:
+                            # Cache-off rclone accepts an append descriptor but
+                            # fails on write (ESPIPE); closing it may also fail.
+                            # Only restart our verified incomplete staging file.
+                            # Finished files above remain read-only. Be conservative
+                            # for external mounts whose cache mode can change.
+                            inp.seek(0)
+                            fd = open_regular(target, os.O_WRONLY | os.O_TRUNC)
+                            digest = hashlib.sha256()
+                            offset = 0
+                            engine.compatibility_warnings.add(
+                                'rclone: Unvollständige Datei beim Fortsetzen neu geschrieben; fertige Dateien erhalten / '
+                                'Partial file restarted on resume; completed files retained')
+                        else:
+                            fd = open_regular(target, os.O_WRONLY | os.O_APPEND)
+                            if os.fstat(fd).st_size != offset:
+                                os.close(fd)
+                                raise SafetyError(f'Zwischenstand geändert / Partial copy changed: {target}')
                 else:
                     fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
                 engine.bytes_done += offset

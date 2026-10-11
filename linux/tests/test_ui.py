@@ -808,7 +808,8 @@ def test_copy_progress_has_totals_and_keeps_summary(window, app):
     assert '100%' in details
     assert '1 / 1' in details
     assert '/s' in details
-    assert '00:' in details
+    assert 'Zeit ' in details or 'Time ' in details
+    assert ' s' in details
     assert window.transfer_details.isVisible()
     assert (right.directory / 'Grüße.txt').exists()
 
@@ -1844,3 +1845,68 @@ def test_refresh_preserves_selection_while_copy_changes_directory(window, app):
     pane.refresh()
     wait(app, lambda: pane.proxy.rowCount() == 1 and not pane.loading_bar.isVisible())
     assert not pane.selected()
+
+
+def test_file_model_formats_only_requested_cells_and_handles_invalid_dates(window, monkeypatch):
+    from opencommander import ui
+    from opencommander.filesystem import Entry
+    pane = window.panes[0]
+    entries = [Entry('example.txt', pane.directory / 'example.txt', False, 2048, 1e30)]
+    pane.model.replace(entries)
+    calls = []
+    original = ui.human_size
+    monkeypatch.setattr(ui, 'human_size', lambda size: (calls.append(size), original(size))[1])
+    assert pane.model.data(pane.model.index(0, 0)) == 'example.txt'
+    assert pane.model.data(pane.model.index(0, 3)) == '—'
+    assert not calls
+    for _ in range(10):
+        assert pane.model.data(pane.model.index(0, 1)) == '2.0 KiB'
+    assert calls == [2048]
+    entries[0].path = pane.directory / 'archive.zip'
+    entries[0].member = 'example.txt'
+    assert pane.model.data(pane.model.index(0, 2)) == 'TXT'
+    assert pane.model.data(pane.model.index(0, 2), Qt.UserRole) == '.txt'
+    entries[0].size = 4096
+    pane.model.replace(entries)
+    assert pane.model.data(pane.model.index(0, 1)) == '4.0 KiB'
+
+
+def test_transfer_duration_and_idle_rendering(window, monkeypatch):
+    job = window.engine.transfers.create([window.panes[0].directory / 'Grüße.txt'],
+                                        window.panes[1].directory, 'keep', [])
+    card = window.transfers.add(job)
+    card.state = 'paused'
+    card.previous_elapsed = 7385
+    card.metrics = dict(bytes_done=1024, bytes_total=2048, files_done=0, files_total=1,
+                        phase='copying', name='Grüße.txt')
+    window.change_language('de')
+    window.transfers.render()
+    assert 'Zeit 2 h 3 min 5 s' in card.details.text()
+    assert not window.transfers.timer.isActive()
+    calls = []
+    original = card.details.setText
+    monkeypatch.setattr(card.details, 'setText', lambda text: (calls.append(text), original(text)))
+    for _ in range(10):
+        window.transfers.render()
+    assert not calls
+    window.change_language('en')
+    window.transfers.render()
+    assert 'Time 2 h 3 min 5 s' in card.details.text()
+    assert calls
+    window.engine.transfers.delete(job['id'])
+    card.state = 'cancelled'
+    window.transfers.clear_completed()
+
+
+def test_hidden_history_defers_widget_rebuild(window, app):
+    window.history_dock.hide()
+    source = window.panes[0].directory / 'Grüße.txt'
+    window.engine.transfer([source], window.panes[1].directory)
+    window.reload_history()
+    assert window.history_dirty
+    assert window.history_list.count() == 0
+    window.history_dock.show()
+    app.processEvents()
+    assert not window.history_dirty
+    assert window.history_list.count() == 1
+    assert window.history_list.itemWidget(window.history_list.item(0)) is not None

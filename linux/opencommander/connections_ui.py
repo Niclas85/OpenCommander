@@ -89,7 +89,7 @@ class ConnectionsDialog(QDialog):
             self.status.setText(str(error) if error else '')
             if not error and after:
                 after(value)
-        task.signals.result.connect(done)
+        task.signals.result.connect(done, Qt.QueuedConnection)
         self.main.pool.start(task)
 
     def refresh(self):
@@ -167,7 +167,7 @@ class ConnectionsDialog(QDialog):
             self.status.setText(str(error) if error else '')
             if not error:
                 self.populate(value)
-        task.signals.result.connect(done)
+        task.signals.result.connect(done, Qt.QueuedConnection)
         self.main.pool.start(task)
 
     def accounts(self):

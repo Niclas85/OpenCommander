@@ -469,3 +469,40 @@ def test_independent_engines_serialize_shared_history(fixture):
     assert {operation['id'] for operation in restored.history} == {operation['id'] for operation in results}
     assert all((target / file.name).read_bytes() == file.read_bytes() for file in files)
     assert len({id(worker.cancel) for worker in [engine]+forks}) == 4
+
+
+def test_rclone_resume_restarts_only_verified_partial_file(fixture, monkeypatch):
+    from opencommander import provider_mounts
+    engine, source, target = fixture
+    folder = source / 'folder'
+    folder.mkdir()
+    (folder / 'a.txt').write_bytes(b'complete')
+    (folder / 'b.bin').write_bytes(b'b' * 2 * 1024**2)
+    job = engine.transfers.create([folder], target, 'keep')
+    pause_after_block(engine, 'b.bin')
+    with pytest.raises(Cancelled):
+        run(engine, job)
+    saved = engine.transfers.get(job['id'])
+    payload = Path(saved['roots'][0]['staging']) / 'payload'
+    partial = payload / 'b.bin'
+    assert (payload / 'a.txt').read_bytes() == b'complete'
+    assert partial.stat().st_size == 1024**2
+    monkeypatch.setattr(provider_mounts, 'rclone_mount', lambda path: (target, 'fixture'))
+    partial.write_bytes(b'c' * 1024**2)
+    with pytest.raises(SafetyError, match='Partial data mismatch'):
+        run(FileEngine(engine.state_dir), saved)
+    assert partial.read_bytes() == b'c' * 1024**2
+    partial.write_bytes(b'b' * 1024**2)
+    original_open = os.open
+    writes = []
+    def opening(path, flags, *args, **kwargs):
+        if Path(path).parent == payload and flags & os.O_WRONLY:
+            writes.append((Path(path).name, bool(flags & os.O_TRUNC)))
+        return original_open(path, flags, *args, **kwargs)
+    monkeypatch.setattr(os, 'open', opening)
+    resumed = FileEngine(engine.state_dir)
+    operation = run(resumed, saved)
+    assert writes == [('b.bin', True)]
+    assert (target / 'folder' / 'a.txt').read_bytes() == b'complete'
+    assert (target / 'folder' / 'b.bin').read_bytes() == (folder / 'b.bin').read_bytes()
+    assert any('Partial file restarted' in value for value in operation['warnings'])

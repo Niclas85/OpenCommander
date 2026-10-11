@@ -380,3 +380,37 @@ def test_waiting_for_same_mount_is_independently_cancellable(tmp_path, monkeypat
         finally:
             release.set()
         assert first.result(timeout=5) == tmp_path
+
+
+def test_rclone_cache_off_partial_resume(tmp_path):
+    from pathlib import Path
+    from opencommander.operations import FileEngine, Cancelled
+    if not Path('/dev/fuse').exists() or not online_ui.shutil.which('rclone') or not online_ui.shutil.which('fusermount3'):
+        pytest.skip('FUSE/rclone unavailable')
+    backing = tmp_path / 'backing'
+    backing.mkdir()
+    main = SimpleNamespace(state_dir=tmp_path / 'state')
+    config = online_ui.private_config(main.state_dir)
+    config.write_text('[oc_fixture]\ntype = alias\nremote = ' + str(backing) + '\n')
+    mount = None
+    try:
+        mount = online_ui.mount_profile(main, dict(id='oc_fixture', kind='alias'), threading.Event())
+        source = tmp_path / 'resume.bin'
+        source.write_bytes(b'a' * 1024**2 + b'b' * 1024**2)
+        engine = FileEngine(main.state_dir)
+        job = engine.transfers.create([source], mount, 'keep')
+        def pause(*_):
+            engine.pause.set()
+            engine.cancel.set()
+        engine.progress = pause
+        with pytest.raises(Cancelled):
+            engine.transfer([source], mount, job_id=job['id'])
+        assert engine.transfers.get(job['id'])['status'] == 'paused'
+        resumed = FileEngine(main.state_dir)
+        resumed.transfer([source], mount, job_id=job['id'])
+        assert (backing / source.name).read_bytes() == source.read_bytes()
+        assert not resumed.transfers.jobs()
+    finally:
+        if mount is not None:
+            result = subprocess.run(['fusermount3', '-u', str(mount)], capture_output=True, timeout=10)
+            assert result.returncode == 0
