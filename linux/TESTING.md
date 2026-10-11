@@ -1,8 +1,9 @@
-# Linux 0.3.15 – Verbindungs- und Desktop-Prüfung
+# Linux 0.3.16 – Verbindungs- und Desktop-Prüfung
 
-Stand: 11. Oktober 2026. Parallelübertragungen und Desktop-Steuerung mit 0.3.15
+Stand: 11. Oktober 2026. Minimierbare Aufträge und Parallelsteuerung mit 0.3.16
 automatisiert geprüft; lesende Google-Drive-/OneDrive-Prüfung mit 0.3.14 wie unten dokumentiert.
-Gesamtsuite: 268 Tests erfolgreich.
+Gesamtsuite zuletzt mit 0.3.15: 268 Tests erfolgreich. Für 0.3.16 wurden die sieben
+Parallel-/Neustarttests mit den ergänzten Minimier-Prüfungen sowie der Pakettest ausgeführt.
 
 | Bereich | Prüfung | Ergebnis / Grenze |
 | --- | --- | --- |
@@ -25,6 +26,7 @@ Gesamtsuite: 268 Tests erfolgreich.
 | Transfer | Kopieren/Verschieben, Undo, NAS-/FUSE-Metadaten und echte Fehler | Separate Testdaten, teilweise echter lokaler rclone-/SFTP-Testserver |
 | Altversion-Zwischenstände | Explizite Übernahme, fertige Datei ohne Schreiböffnung, Teilbytes, falsche Inhalte, Symlinks, vorige Originale, Mountpfad | Isolierte Testdaten; Altordner werden nicht automatisch angenommen |
 | Kopier-Fortsetzung | Pause nach geschriebenem Datenblock, Neustart in neuem Prozess, fertige Dateien, Teilbytes, Queue, GUI-Schließen, Abbruch, Undo, fehlende Mounts, manipulierte Daten, uneindeutiger Publish | Isolierte lokale Testdaten; kein laufender Nutzertransfer geändert |
+| Minimierte Aufträge | Einzelne laufende Karte kompakt, andere Karte unverändert, Fortschritt/Controls sichtbar, Details wiederherstellen, Neustart | Bestehende Parallel-/Neustarttests erweitert; synthetische Testdaten |
 | Parallele Übertragungen | Zwei echte Kopien gleichzeitig, Pause/Abbruch einzeln, alle beim Schließen speichern, Neustart, Einstellungen/Navigation, GUI-Heartbeat | Isolierte Testdateien; blockierte Providerzugriffe mit Events nachgebildet |
 | Pfadkonflikte | Kopieren gegen Verschieben, pausierte Quellen, lokale Aliase, Behalten-Namensfamilien | Konflikte warten; Providerpfade im GUI nicht gestattet |
 | Dauerhaftes Verschieben | Native Umbenennung/Undo, Laufwerksgrenze, Pause/Neustart, Quelländerung, Pause während Bereinigung | Vollständiges Ziel erhalten, geänderte Quellen geschützt, Historie gemeinsam serialisiert |

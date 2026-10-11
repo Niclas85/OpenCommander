@@ -3,7 +3,7 @@
 Native Qt-Desktop-Version nach dem Vorbild der Mac-Catalyst-App. Keine Browser-
 oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 
-Aktueller Stand: **0.3.15**. Die Änderungen und der geprüfte Umfang stehen im
+Aktueller Stand: **0.3.16**. Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
 
 ## Starten
@@ -149,6 +149,11 @@ oder schließt sich, wenn keine Datei mehr übrig ist. ZIP-Vorschauen sind schre
 Die aufklappbare **Übertragungen**-Leiste zeigt jeden Kopier- und Verschiebeauftrag
 mit Quelle, Ziel, Prozent, Datenmenge, Dateizahl, aktueller Datei, Zeit und Geschwindigkeit.
 Laufende, wartende, gespeicherte und abgeschlossene Aufträge bleiben getrennt sichtbar.
+Mit **Minimieren** lässt sich jeder Auftrag einzeln kompakt darstellen: Status, Prozent,
+Datenmenge, Fortschrittsbalken und Pause/Fortsetzen/Abbrechen bleiben sichtbar. Der
+Auftrag läuft unverändert weiter. **Details** blendet Pfade und ausführliche Werte wieder
+ein. Die kompakte Ansicht wird für gespeicherte Aufträge nach Neustart übernommen.
+
 Bei mehreren Aufträgen öffnet sich die Übersicht automatisch, sofern noch keine eigene
 Einstellung zum Aufklappen gespeichert wurde. Abgeschlossene Einträge lassen sich ausblenden.
 

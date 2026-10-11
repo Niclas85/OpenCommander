@@ -1632,6 +1632,14 @@ def test_parallel_transfers_have_independent_controls_and_responsive_gui(window,
         one, two = cards[first.name], cards[second.name]
         window.transfers.toggle.click() if not window.transfers.toggle.isChecked() else None
         assert window.transfers.body.isVisible()
+        QTest.mouseClick(one.minimize, Qt.LeftButton)
+        assert not one.route.isVisible() and not one.details.isVisible()
+        assert one.progress.isVisible() and one.pause.isVisible() and one.cancel.isVisible()
+        assert two.route.isVisible() and two.details.isVisible()
+        assert one.state == two.state == 'running'
+        assert not one.engine.cancel.is_set() and not two.engine.cancel.is_set()
+        QTest.mouseClick(one.minimize, Qt.LeftButton)
+        assert one.route.isVisible() and one.details.isVisible()
         QTest.mouseClick(one.pause, Qt.LeftButton)
         assert one.state == 'pausing' and one.engine.pause.is_set() and one.engine.cancel.is_set()
         assert not two.engine.cancel.is_set()
@@ -1744,6 +1752,9 @@ def test_parallel_close_saves_all_active_transfers(window, app, monkeypatch):
     for file in files:
         window.transfer(paths=[file], directory=target.directory)
     wait(app, lambda: all(event.is_set() for event in entered))
+    minimized = next(iter(window.transfers.cards.values()))
+    minimized.minimize.click()
+    minimized_id = minimized.job['id']
     window.close()
     wait(app, lambda: not window.isVisible(), timeout=10)
     assert len(window.engine.transfers.jobs()) == 2
@@ -1753,6 +1764,8 @@ def test_parallel_close_saves_all_active_transfers(window, app, monkeypatch):
     restored.show()
     try:
         assert restored.transfers.parallel.value() == 2
+        wait(app, lambda: minimized_id in restored.transfers.cards)
+        assert restored.transfers.cards[minimized_id].minimize.isChecked()
         wait(app, lambda: not restored.busy and not restored.engine.transfers.jobs(), timeout=10)
         assert all((target.directory / file.name).read_bytes() == file.read_bytes() for file in files)
     finally:

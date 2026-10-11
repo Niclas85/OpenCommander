@@ -67,6 +67,10 @@ class TransferCard(QFrame):
         self.title.setTextFormat(Qt.PlainText)
         self.title.setWordWrap(True)
         top.addWidget(self.title, 1)
+        self.minimize = QToolButton()
+        self.minimize.setCheckable(True)
+        self.minimize.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        top.addWidget(self.minimize)
         self.pause = QPushButton()
         self.resume = QPushButton()
         self.cancel = QPushButton()
@@ -89,7 +93,21 @@ class TransferCard(QFrame):
         self.details.setWordWrap(True)
         self.details.setTextInteractionFlags(Qt.TextSelectableByMouse)
         layout.addWidget(self.details)
+        self.minimize.setChecked(manager.window.settings.value(
+            'transfer_minimized/' + job['id'], False, type=bool))
+        self.minimize.toggled.connect(self.set_minimized)
+        self.set_minimized(self.minimize.isChecked(), save=False)
         self.render()
+
+    def set_minimized(self, minimized, save=True):
+        self.route.setVisible(not minimized)
+        self.details.setVisible(not minimized)
+        self.minimize.setArrowType(Qt.DownArrow if minimized else Qt.UpArrow)
+        if save:
+            self.manager.window.settings.setValue('transfer_minimized/' + self.job['id'], minimized)
+        self.render()
+        if save:
+            self.manager.render()
 
     def render(self):
         from .ui import human_size
@@ -106,7 +124,16 @@ class TransferCard(QFrame):
         kind = ('Verschieben' if self.job.get('move') else 'Kopieren') if de else ('Move' if self.job.get('move') else 'Copy')
         name = ', '.join(Path(p).name for p in self.job['sources'])
         state = states[self.state][0 if de else 1]
+        minimized = self.minimize.isChecked()
+        if minimized and len(self.job['sources']) > 1:
+            name = Path(self.job['sources'][0]).name + f' · {len(self.job["sources"])} ' + ('Elemente' if de else 'items')
+        if minimized and self.state == 'blocked':
+            state = 'Angehalten – Fehler · Details öffnen' if de else 'Stopped – error · open details'
         self.title.setText(f'{kind} · {name} · {state}')
+        self.minimize.setText(('Details' if minimized else 'Minimieren') if de else ('Details' if minimized else 'Minimize'))
+        self.minimize.setToolTip(('Details anzeigen' if minimized else 'Kompakt anzeigen – Auftrag läuft weiter') if de else
+                                ('Show details' if minimized else 'Show compact view – transfer keeps running'))
+        self.minimize.setAccessibleName(self.minimize.toolTip())
         self.pause.setText('Pause')
         self.resume.setText('Fortsetzen' if de else 'Resume')
         self.cancel.setText('Abbrechen' if de else 'Cancel')
@@ -130,6 +157,8 @@ class TransferCard(QFrame):
                       'uploading': ('Schreiben abschließen / Upload', 'Finishing writes / upload'),
                       'cleanup': ('Quelle bereinigen', 'Cleaning up source')}
             label = phases.get(phase, (kind, kind))[0 if de else 1]
+            if minimized:
+                self.title.setText(f'{kind} · {name} · {state} · {percent}% · {human_size(count)} / {human_size(total)}')
             rate = max(0, count - value.get('bytes_resumed', 0)) / max(time.monotonic() - self.started, .001) if self.started else 0
             remaining = max(0, total-count) / rate if rate and total > count and self.state == 'running' else None
             clock = lambda seconds: f'{int(seconds)//60:02d}:{int(seconds)%60:02d}'
@@ -143,6 +172,8 @@ class TransferCard(QFrame):
         if self.error:
             details += '\n' + self.error
         self.details.setText(details)
+        self.title.setToolTip(self.route.text() + '\n' + details)
+        self.progress.setToolTip(details)
         return details
 
 
@@ -318,6 +349,7 @@ class TransferOverview(QWidget):
             card.error = saved.get('error') or ''
             card.metrics = saved.get('progress') or card.metrics
         else:
+            w.settings.remove('transfer_minimized/' + identifier)
             card.error = str(error) if error and not isinstance(error, Cancelled) else '\n'.join(value.get('warnings', [])) if isinstance(value, dict) else ''
         card.engine.metrics_report = lambda _: None
         card.engine.progress = lambda *_: None
@@ -326,7 +358,7 @@ class TransferOverview(QWidget):
         self.sync_busy()
         details = card.render()
         if not self.active:
-            w.transfer_details.setText(details)
+            w.transfer_details.setText(card.title.text() if card.minimize.isChecked() else details)
             w.transfer_details.show()
             w.progress.hide()
         w.status.setText(card.title.text())
@@ -411,6 +443,7 @@ class TransferOverview(QWidget):
                 self.rows.removeWidget(card)
                 card.deleteLater()
                 self.cards.pop(identifier)
+                self.window.settings.remove('transfer_minimized/' + identifier)
         self.setVisible(bool(self.cards))
         self.render()
 
@@ -442,11 +475,18 @@ class TransferOverview(QWidget):
         for card in self.cards.values():
             details = card.render()
             if active == 1 and card.job['id'] in self.active:
-                w.transfer_details.setText(card.title.text() + '\n' + details)
+                w.transfer_details.setText(card.title.text() + ('' if card.minimize.isChecked() else '\n' + details))
                 w.transfer_details.show()
                 w.progress.setRange(card.progress.minimum(), card.progress.maximum())
                 w.progress.setValue(card.progress.value())
                 w.progress.show()
+        width = max(300, self.scroll.viewport().width())
+        height = sum(max(card.sizeHint().height(), card.heightForWidth(width))
+                     for card in self.cards.values())
+        height += max(0, len(self.cards)-1) * self.rows.spacing() + 4
+        height = min(245, max(65, height))
+        self.scroll.setMinimumHeight(min(95, height))
+        self.scroll.setMaximumHeight(height)
         if active > 1:
             w.transfer_details.setText(self.toggle.text())
             w.transfer_details.show()

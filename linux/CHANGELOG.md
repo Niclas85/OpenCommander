@@ -1,5 +1,16 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.16 – 11. Oktober 2026
+
+- Jeden Kopier- oder Verschiebeauftrag mit „Minimieren“ einzeln kompakt darstellen;
+  „Details“ stellt die ausführliche Ansicht wieder her.
+- Status, Prozent, Datenmenge, Fortschrittsbalken und laufende Bedienelemente bleiben
+  sichtbar. Andere Aufträge und die Ausführung bleiben unverändert.
+- Minimierte Ansicht je gespeichertem Auftrag über Neustarts erhalten; Einstellungen
+  abgeschlossener oder ausgeblendeter Aufträge wieder entfernen.
+- Bestehende Parallel-/Neustarttests prüfen zusätzlich Minimieren, verfügbare Controls,
+  Wiederherstellen der Details und gespeicherte kompakte Ansicht.
+
 ## 0.3.15 – 11. Oktober 2026
 
 - Aufklappbare Übertragungsübersicht mit eigener Karte, Quelle/Ziel, Prozent, Bytes,
