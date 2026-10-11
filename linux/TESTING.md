@@ -1,6 +1,7 @@
-# Linux 0.3.10 – Verbindungs- und Desktop-Prüfung
+# Linux 0.3.11 – Verbindungs- und Desktop-Prüfung
 
-Stand: 11. Oktober 2026. Gesamtsuite: 209 Tests erfolgreich.
+Stand: 11. Oktober 2026. Live-Verbindungsprüfungen aus 0.3.10;
+Desktop-Prüfungen und Gesamtsuite mit 0.3.11. Gesamtsuite: 213 Tests erfolgreich.
 
 | Bereich | Prüfung | Ergebnis / Grenze |
 | --- | --- | --- |
@@ -16,6 +17,8 @@ Stand: 11. Oktober 2026. Gesamtsuite: 209 Tests erfolgreich.
 | Cloud-Freigaben | Kontextmenü, Dialog, HTTPS-Link, Kopieren, Abbruch | Simulierter Provider; keine persönlichen Dateien öffentlich freigegeben |
 | Laufwerke | Nicht eingebunden, Einbinden, Fehler, direkte Navigation | Separate Desktop-Fixtures; keine persönlichen Datenträger eingebunden/ausgeworfen |
 | Transfer | Kopieren/Verschieben, Undo, NAS-/FUSE-Metadaten und echte Fehler | Separate Testdaten, teilweise echter lokaler rclone-/SFTP-Testserver |
+| GUI während Transfer | Echte lokale Kopie, parallele Einstellungen, Themenwechsel, Navigation, GUI-Heartbeat und Thread-Zustellung | Automatisierter Desktop-Test; laufende Nutzerkopie nicht unterbrochen |
+| Orte-Leiste und Verwaltung | Nur Öffnungsziele in der Leiste; Online-Orte und Verbindungen aus Einstellungen | Desktop-Tests in Deutsch und Englisch |
 | Ordnerbaum | Breite, vollständige Namen und gespeicherter Splitter | Automatisierter Desktop-Test |
 | Drag-and-drop | Sichtbare Pixmap, Hotspot, Copy/Move, Datei-/Ordnerziele | Automatisierte Mausgesten und Testdaten-Transfers |
 

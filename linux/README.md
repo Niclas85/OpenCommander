@@ -3,7 +3,7 @@
 Native Qt-Desktop-Version nach dem Vorbild der Mac-Catalyst-App. Keine Browser-
 oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 
-Aktueller Stand: **0.3.10**. Die Änderungen und der geprüfte Umfang stehen im
+Aktueller Stand: **0.3.11**. Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
 
 ## Starten
@@ -130,7 +130,11 @@ begrenzt. Bei blockierenden Provider-Lesezugriffen kann ein Abbruch verzögert g
 
 **Einstellungen / Orte / Strg-,** enthält Sprache, Erscheinungsbild und lokale
 Verknüpfungen: Namen ändern, ausblenden und eigene Ordner hinzufügen. Änderungen
-an Verknüpfungen löschen keine Dateien. Online-Orte können dort eingerichtet werden.
+an Verknüpfungen löschen keine Dateien. **Online-Orte verwalten …** und
+**Verbindungen verwalten …** befinden sich ebenfalls hier. Die Orte-Leiste zeigt
+nur Ziele zum Öffnen; ein Klick öffnet den Ort beziehungsweise bindet ihn zuerst ein.
+Das Einstellungsfenster ist nicht modal: Dateibereiche und Einstellungen bleiben
+auch während eines Kopiervorgangs gleichzeitig bedienbar.
 
 **Papierkorb** zeigt die von OpenCommander entfernten Dateien aus der persistenten
 Historie mit Originalpfad, Zeitpunkt und Wiederherstellung des ausgewählten
@@ -142,7 +146,7 @@ oder schließt sich, wenn keine Datei mehr übrig ist. ZIP-Vorschauen sind schre
 
 ## Online-Orte ohne Sync-App
 
-**Online-Orte …** beziehungsweise **Einstellungen / Orte → Online-Ort hinzufügen**
+**Einstellungen / Orte → Online-Orte verwalten …**
 führt durch die Einrichtung von OneDrive, Google Drive, Dropbox, iCloud Drive,
 FTP, explizitem FTPS oder SFTP. Linux verwendet dazu das installierte `rclone` und
 FUSE, keinen portierten Swift-/Graph-Client. Die Konfiguration läuft als grafischer
@@ -202,7 +206,7 @@ Mounts liegen neben dem Profil in `opencommander-online-mounts`, damit die
 Schutzregeln für Wiederherstellungsmetadaten keine Remote-Dateiaktionen blockieren.
 Mounts bleiben nach Schließen der App verfügbar; es wird keine Synchronisation gestartet.
 
-Für Server: **Verbindungen → SFTP / FTP / FTPS – Passwort oder SSH-Key** oder
+Für Server: **Einstellungen / Orte → Verbindungen verwalten → SFTP / FTP / FTPS – Passwort oder SSH-Key** oder
 in **Online-Orte** das Protokoll auswählen. Server ohne `sftp://` eingeben,
 Port (SFTP 22, FTP/FTPS 21), Benutzer und Anmeldeart wählen, dann **Verbinden und
 öffnen**. Ein optionaler Startordner begrenzt den eingebundenen Bereich; leer
@@ -261,7 +265,8 @@ Feature-Vergleich und Prüfgrenzen: [PARITY.md](PARITY.md).
 
 ## USB, Netzwerk, Google Drive und OneDrive
 
-**Verbindungen …** zeigt eingehängte Laufwerke und noch nicht eingebundene Volumes.
+**Einstellungen / Orte → Verbindungen verwalten …** zeigt eingehängte Laufwerke
+und noch nicht eingebundene Volumes.
 Doppelklick oder **Öffnen / Einbinden** öffnet einen eingebundenen Ort im aktiven
 Bereich. Ein noch nicht eingebundenes Volume wird zuerst eingebunden; anschließend
 kann es geöffnet werden. **Trennen / Auswerfen** verwendet die sichere Linux-
@@ -389,7 +394,7 @@ ist; die Restzeit schätzt nur den verbleibenden Datentransfer. Bei Umbenennunge
 demselben Laufwerk zählen die angezeigten Bytes die logisch verschobenen Daten.
 Die Darkmode-Checkbox steht im Kopfbereich und speichert ihre Auswahl.
 
-### NAS/GVFS-Kompatibilität (0.3.10)
+### NAS/GVFS-Kompatibilität (0.3.11)
 
 Auf erkannten GVFS-/rclone-Mounts blockieren ausdrücklich nicht unterstützte
 `fsync`-/Metadatenfunktionen die Inhaltskopie nicht. Zeitstempel und Dateirechte
@@ -400,7 +405,7 @@ und Speicherplatzfehler bleiben Fehler. Lokale Dateisysteme bleiben strikt.
 GVFS-Umbenennungen ohne RENAME_NOREPLACE prüfen das Ziel vorab innerhalb derselben
 Freigabe; gegenüber anderen gleichzeitig schreibenden Clients ist dies nicht atomar.
 
-### Cloud-Start und Ladegrenzen (0.3.10)
+### Cloud-Start und Ladegrenzen (0.3.11)
 
 Eingerichtete Cloud-Mounts laden ihre Ordnerliste direkt über das Provider-Backend,
 statt beim Start auf einen möglicherweise blockierten FUSE-Daemon zu warten.
@@ -413,7 +418,7 @@ Anmeldung unter „Online-Orte“ erneut anmelden. Plattformseitig fehlendes
 No-follow-chmod wird beim Kopieren als Metadatenhinweis behandelt, ohne Links
 zu folgen oder Inhaltsfehler zu verbergen.
 
-### Archive (0.3.10)
+### Archive (0.3.11)
 
 ZIP, TAR, TGZ/TAR.GZ, TAR.BZ2, TAR.XZ/TAR.ZST, 7z und RAR lassen sich per
 Doppelklick wie Ordner öffnen. In Unterordner navigieren, einzelne Dateien ansehen

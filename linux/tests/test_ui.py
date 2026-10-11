@@ -1320,3 +1320,85 @@ def test_external_drive_survives_failed_desktop_scan(window, app, monkeypatch):
     window.scan_integrations()
     wait(app, lambda: not window.integration_scanning)
     assert window.external_cloud_profiles == [profile]
+
+
+def test_settings_and_gui_stay_usable_during_real_transfer(window, app):
+    import threading
+    from PySide6.QtCore import QTimer
+    source_pane, target = window.panes
+    source = source_pane.directory / 'Grüße.txt'
+    destination = target.directory / source.name
+    original = window.engine.copy_file
+    started, release = threading.Event(), threading.Event()
+    def paused_copy(src, dst):
+        started.set()
+        assert release.wait(10)
+        return original(src, dst)
+    window.engine.copy_file = paused_copy
+    ticks = []
+    heartbeat = QTimer(window)
+    heartbeat.setInterval(10)
+    heartbeat.timeout.connect(lambda: ticks.append(True))
+    heartbeat.start()
+    try:
+        window.transfer(paths=[source], directory=target.directory)
+        wait(app, started.is_set)
+        assert window.busy
+        window.location_settings_button.click()
+        settings = window.location_settings_dialog
+        assert settings.isVisible() and not settings.isModal()
+        assert app.activeModalWidget() is None
+        initial = window.dark
+        settings.theme_checkbox.click()
+        assert window.dark != initial
+        window.location_settings_button.click()
+        assert window.location_settings_dialog is settings
+        window.activate(target)
+        target.navigate(source_pane.directory)
+        wait(app, lambda: len(ticks) >= 5)
+        assert window.busy and window.active is target
+        settings.close()
+    finally:
+        release.set()
+        heartbeat.stop()
+    wait(app, lambda: not window.busy)
+    assert destination.read_text() == source.read_text()
+    assert len(window.engine.history) == 1
+
+
+def test_transfer_ui_updates_run_on_application_thread(window, app, monkeypatch):
+    from PySide6.QtCore import QThread
+    threads = []
+    original = window.status.setText
+    def track(text):
+        threads.append(QThread.currentThread())
+        original(text)
+    monkeypatch.setattr(window.status, 'setText', track)
+    source, target = window.panes
+    window.transfer(paths=[source.directory / 'Grüße.txt'], directory=target.directory)
+    wait(app, lambda: not window.busy)
+    assert threads and all(thread == app.thread() for thread in threads)
+
+
+@pytest.mark.parametrize('language', ['de', 'en'])
+def test_places_only_open_locations_and_management_is_in_settings(window, app, monkeypatch, language):
+    from PySide6.QtWidgets import QPushButton
+    calls = []
+    monkeypatch.setattr(window, 'online_locations', lambda: calls.append('online'))
+    monkeypatch.setattr(window, 'connections', lambda: calls.append('connections'))
+    window.change_language(language)
+    forbidden = {'Online-Orte …', 'Online locations …', 'Verbindungen …', 'Connections …'}
+    buttons = [window.places.itemAt(i).widget() for i in range(window.places.count())]
+    assert all(button.text() not in forbidden for button in buttons if isinstance(button, QPushButton))
+    assert any(button.objectName() == 'place' for button in buttons if button)
+    window.location_settings()
+    settings = window.location_settings_dialog
+    assert settings.online_button.text() == ('Online-Orte verwalten …' if language == 'de' else 'Manage online locations …')
+    settings.online_button.click()
+    assert calls == ['online'] and not settings.isVisible()
+    app.sendPostedEvents(None, QEvent.DeferredDelete)
+    window.location_settings()
+    settings = window.location_settings_dialog
+    assert settings.connections_button.text() == ('Verbindungen verwalten …' if language == 'de' else 'Manage connections …')
+    settings.connections_button.click()
+    assert calls == ['online', 'connections'] and not settings.isVisible()

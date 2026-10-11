@@ -6,7 +6,7 @@ Historienansicht und FTP/FTPS/SFTP samt Online-Werkzeugen. Frühere Commits erg�
 Orte-Einstellungen, OneDrive-Online und Desktop-Bedienung. Linux übernimmt die
 benutzbaren Funktionen mit Linux-Backends, nicht den Swift-/AppKit-Code.
 
-| Funktion | Linux 0.3.10 | Prüfung / Unterschied |
+| Funktion | Linux 0.3.11 | Prüfung / Unterschied |
 | --- | --- | --- |
 | ZIP/TAR/TGZ/7z/RAR öffnen und entpacken | libarchive, sichere Prüfung und Undo | TAR/7z-Roundtrips, echtes RAR5-Fixture, Traversal-/Link-/Spezialdatei-Ablehnung |
 | Zwei Bereiche, Baum, Sortierung, Filter, Navigation | Vorhanden, auch für Online-Mounts | Bestehende UI-Tests |

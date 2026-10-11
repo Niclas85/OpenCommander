@@ -918,11 +918,10 @@ class MainWindow(QMainWindow):
                 last_metrics[0] = now
                 task.signals.metrics.emit(value)
         def received_metrics(value):
-            latest[0] = value
-            show_metrics()
+            latest[0] = value  # Render on the GUI timer, not once per worker signal.
         self.transfer_details.hide()
         self.engine.metrics_report = report_metrics
-        task.signals.metrics.connect(received_metrics)
+        task.signals.metrics.connect(received_metrics, Qt.QueuedConnection)
         timer.timeout.connect(show_metrics)
         timer.start()
         last_progress = [0.0]
@@ -932,7 +931,7 @@ class MainWindow(QMainWindow):
                 last_progress[0] = now
                 task.signals.progress.emit(count // 1024, name)
         self.engine.progress = progress
-        task.signals.progress.connect(lambda kib, name: self.status.setText(f'{self.tr_key("working")}  {human_size(kib * 1024)}  ·  {name}'))
+        task.signals.progress.connect(lambda kib, name: self.status.setText(f'{self.tr_key("working")}  {human_size(kib * 1024)}  ·  {name}'), Qt.QueuedConnection)
         def done(value, error):
             self.busy = False
             self.operation_running = False
@@ -1405,9 +1404,16 @@ class MainWindow(QMainWindow):
     def location_settings(self):
         if self.closing:
             return
+        existing = getattr(self, 'location_settings_dialog', None)
+        if existing is not None and isValid(existing) and existing.isVisible():
+            existing.raise_()
+            existing.activateWindow()
+            return
         from .location_settings import LocationSettingsDialog
         self.location_settings_dialog = LocationSettingsDialog(self, getattr(self, 'known_locations', []))
-        self.location_settings_dialog.exec()
+        self.location_settings_dialog.show()
+        self.location_settings_dialog.raise_()
+        self.location_settings_dialog.activateWindow()
 
     def show_trash(self):
         from .trash_ui import TrashDialog
@@ -1447,14 +1453,8 @@ class MainWindow(QMainWindow):
         trash = QPushButton('Papierkorb' if self.language == 'de' else 'Trash')
         trash.clicked.connect(self.show_trash)
         self.places.addWidget(trash)
-        online = QPushButton('Online-Orte …' if self.language == 'de' else 'Online locations …')
-        online.clicked.connect(self.online_locations)
-        self.places.addWidget(online)
         self.known_locations = locations
         locations = [(name, Path(path)) for name, path in configured_locations(locations, self.location_preferences)]
-        connect = QPushButton('Verbindungen …' if self.language == 'de' else 'Connections …')
-        connect.clicked.connect(self.connections)
-        self.places.addWidget(connect)
         seen = set()
         for name, path in locations:
             if path in seen:

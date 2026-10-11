@@ -1,5 +1,19 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.11 – 11. Oktober 2026
+
+- Einstellungen / Orte als eigenes, nicht modales Fenster öffnen und bestehendes
+  Fenster bei erneutem Klick aktivieren. Dateibereiche bleiben gleichzeitig bedienbar,
+  auch während eines laufenden Kopiervorgangs.
+- Transfer-Signale ausdrücklich an den GUI-Thread zustellen; Fortschrittsdetails
+  gebündelt alle 250 ms anzeigen statt zusätzlich bei jeder Worker-Meldung.
+- Orte-Leiste enthält nur Ziele zum Öffnen einschließlich Papierkorb, gespeicherter
+  Online-Orte und einbindbarer Datenträger. Verwaltungsbuttons dort entfernt.
+- Online-Orte und Verbindungen ausschließlich unter Einstellungen / Orte verwalten;
+  beide Zugänge in Deutsch und Englisch, auch während eines Transfers erreichbar.
+- Desktop-Tests prüfen eine echte lokale Kopie mit parallel bedienbaren Einstellungen,
+  Navigation, GUI-Ereignissen sowie Verwaltung aus den Einstellungen in beiden Sprachen.
+
 ## 0.3.10 – 11. Oktober 2026
 
 - Externe rclone-Cloud-Mounts des eigenen Benutzers erkennen: Google Drive,

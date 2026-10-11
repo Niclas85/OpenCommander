@@ -8,6 +8,8 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QTableWidget,
 class LocationSettingsDialog(QDialog):
     def __init__(self, main, locations):
         super().__init__(main)
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setWindowModality(Qt.NonModal)
         self.main = main
         self.rows = [dict(row) for row in main.location_preferences]
         self.de = main.language == 'de'
@@ -49,9 +51,12 @@ class LocationSettingsDialog(QDialog):
             self.buttons.append(button)
             buttons.addWidget(button)
         layout.addLayout(buttons)
-        online = QPushButton('Online-Ort hinzufügen …' if self.de else 'Add online location …')
-        online.clicked.connect(lambda: (self.accept(), main.online_locations()))
-        layout.addWidget(online)
+        self.online_button = QPushButton()
+        self.online_button.clicked.connect(lambda: (self.accept(), main.online_locations()))
+        layout.addWidget(self.online_button)
+        self.connections_button = QPushButton()
+        self.connections_button.clicked.connect(lambda: (self.accept(), main.connections()))
+        layout.addWidget(self.connections_button)
         self.retranslate()
         self.refresh()
         self.table.itemChanged.connect(self.save)
@@ -65,6 +70,8 @@ class LocationSettingsDialog(QDialog):
         self.setWindowTitle('Einstellungen / Orte' if self.de else 'Settings / Locations')
         self.language_label.setText('Sprache' if self.de else 'Language')
         self.theme_checkbox.setText('Dunkles Erscheinungsbild' if self.de else 'Dark appearance')
+        self.online_button.setText('Online-Orte verwalten …' if self.de else 'Manage online locations …')
+        self.connections_button.setText('Verbindungen verwalten …' if self.de else 'Manage connections …')
         self.table.setHorizontalHeaderLabels(['Sichtbar', 'Name', 'Pfad'] if self.de else ['Visible', 'Name', 'Path'])
         self.help_label.setText('Nur Verknüpfungen werden geändert; Dateien bleiben erhalten.' if self.de
                                else 'Only shortcuts are changed; files are preserved.')
