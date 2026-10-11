@@ -1,5 +1,19 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.9 – 11. Oktober 2026
+
+- Angeschlossene, vom Desktop erkannte einbindbare Datenträger auch ohne
+  Mountpfad in der Ortsliste anzeigen. Klick bindet im Hintergrund ein und
+  öffnet direkt; keine vorgeschalteten Verbindungsoptionen.
+- Stabile Volume-ID verbindet den Einbindungsauftrag mit dem danach sichtbaren
+  Mount. Laufwerksnamen statt technischer Mountpfadnamen, auch im Bereichstitel.
+- Fehlgeschlagene Einbindung lässt den bisherigen Ordner geöffnet und den
+  Datenträger erneut auswählbar. Keine doppelten Einbindungsaufträge; Navigation
+  während des Einbindens wird nicht durch verspätete Ergebnisse überschrieben.
+- Automatische Desktop-Abfragen aktualisieren angeschlossene/entfernte Geräte.
+  Beenden wartet auf laufende Einbindung; keine unterbrochenen Mountmutationen.
+- OneDrive-Kontextmenü zusätzlich für Datei und Ordner im Desktop-Test geprüft.
+
 ## 0.3.8 – 11. Oktober 2026
 
 - Kopfzeile jedes Dateibereichs zeigt den gespeicherten Online-Verbindungsnamen,

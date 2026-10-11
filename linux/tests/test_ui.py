@@ -1192,3 +1192,65 @@ def test_pane_header_shows_saved_connection_in_subfolders_and_updates_name(windo
     assert 'Nikki online' in left.title.text()
     left.navigate(window.state_dir.parent)
     assert 'Nikki online' not in left.title.text()
+
+
+def test_onedrive_context_menu_opens_for_remote_file_and_folder(window, app, monkeypatch):
+    from opencommander.online_ui import mount_path
+    from opencommander.filesystem import Entry
+    from PySide6.QtWidgets import QMenu
+    from PySide6.QtCore import QTimer
+    profile = dict(id='oc_fixture', kind='onedrive', name='OneDrive Nikki')
+    window.online_profiles = [profile]
+    pane = window.panes[0]
+    root = mount_path(window.state_dir, profile['id'])
+    pane.directory = root
+    pane.remote = True
+    pane.model.replace([Entry('file.jpg', root / 'file.jpg', False), Entry('folder', root / 'folder', True)])
+    recorded = []
+    def inspect():
+        menu = app.activePopupWidget()
+        if menu:
+            online = next((a.menu() for a in menu.actions() if a.text() == 'Online · OneDrive Nikki'), None)
+            recorded.append(online.actions()[0].text() if online else 'missing')
+            menu.close()
+    for row in range(2):
+        QTimer.singleShot(30, inspect)
+        index = pane.proxy.index(row, 0)
+        pane.table.context_menu(pane.table.visualRect(index).center())
+    assert recorded == ['Teilen mit Link …', 'Teilen mit Link …']
+
+
+def test_sidebar_shows_unmounted_drive_mounts_and_opens_without_dialog(window, app, monkeypatch):
+    from opencommander import integrations
+    mount = window.state_dir.parent / 'USB-test'
+    mount.mkdir()
+    device = dict(id='fixture-volume', name='Reise USB', path=None, mounted=False, kind='Drive', eject=False, unmount=False)
+    mounted = dict(device, id=mount.as_uri(), volume_id=device['id'], path=str(mount), mounted=True)
+    window.integration_locations = [device]
+    calls = []
+    monkeypatch.setattr(integrations, 'invoke', lambda action, identifier: calls.append((action, identifier)) or [mounted])
+    monkeypatch.setattr(window, 'connections', lambda: pytest.fail('Must open directly'))
+    window.update_places()
+    button = next(window.places.itemAt(i).widget() for i in range(window.places.count())
+                  if window.places.itemAt(i).widget() and window.places.itemAt(i).widget().objectName() == 'unmountedDevice')
+    assert 'Reise USB' in button.text()
+    button.click()
+    wait(app, lambda: window.active.directory == mount and not window.opening_devices)
+    assert calls == [('mount', 'fixture-volume')]
+    assert 'Reise USB' in window.active.title.text()
+    assert not any(window.places.itemAt(i).widget().objectName() == 'unmountedDevice'
+                   for i in range(window.places.count()) if window.places.itemAt(i).widget())
+
+
+def test_sidebar_mount_failure_keeps_device_and_does_not_navigate(window, app, monkeypatch):
+    from opencommander import integrations
+    device = dict(id='fixture-volume', name='USB fixture', path=None, mounted=False, kind='Drive')
+    window.integration_locations = [device]
+    original = window.active.directory
+    def failed(*args):
+        raise RuntimeError('Device disconnected')
+    monkeypatch.setattr(integrations, 'invoke', failed)
+    window.open_device(device)
+    wait(app, lambda: not window.opening_devices)
+    assert window.active.directory == original
+    assert 'Device disconnected' in window.status.text()

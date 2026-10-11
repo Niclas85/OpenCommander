@@ -777,7 +777,10 @@ class MainWindow(QMainWindow):
             from .online_ui import mount_path
             profile = next((row for row in self.online_profiles if p.directory == mount_path(self.state_dir, row['id']) or
                             mount_path(self.state_dir, row['id']) in p.directory.parents), None)
-            place = '  ·  ' + profile['name'] if profile else ''
+            device = next((row for row in self.integration_locations if row.get('path') and
+                           (p.directory == Path(row['path']) or Path(row['path']) in p.directory.parents)), None)
+            name = profile['name'] if profile else device['name'] if device else ''
+            place = '  ·  ' + name if name else ''
             p.title.setText(self.tr_key('left' if p.number == 1 else 'right') + place + active)
             p.title.setStyleSheet(f'color: {accent}; font-weight: 700; letter-spacing: 1px;')
         self.update_context_actions()
@@ -1376,6 +1379,7 @@ class MainWindow(QMainWindow):
         downloads = Path(QStandardPaths.writableLocation(QStandardPaths.DownloadLocation))
         if downloads.is_absolute():
             locations.append((self.tr_key('downloads'), downloads))
+        locations += [(item['name'], Path(item['path'])) for item in self.integration_locations if item['path']]
         locations += [(path.name, path) for path in mounted_locations() + getattr(self, 'local_cloud_places', [])]
         from .online_ui import mount_path
         from .provider_mounts import register
@@ -1384,7 +1388,6 @@ class MainWindow(QMainWindow):
             if remote_location(path):
                 register(path)
         locations += online_mounts
-        locations += [(item['name'], Path(item['path'])) for item in self.integration_locations if item['path']]
         trash = QPushButton('Papierkorb' if self.language == 'de' else 'Trash')
         trash.clicked.connect(self.show_trash)
         self.places.addWidget(trash)
@@ -1417,9 +1420,55 @@ class MainWindow(QMainWindow):
                 menu.exec(button.mapToGlobal(point))
             button.customContextMenuRequested.connect(options)
             self.places.addWidget(button)
+        for device in self.integration_locations:
+            if device.get('mounted') or device.get('path'):
+                continue
+            button = QPushButton('◉ ' + device['name'])
+            button.setObjectName('unmountedDevice')
+            button.setToolTip('Datenträger einbinden und öffnen' if self.language == 'de' else 'Mount and open drive')
+            button.clicked.connect(lambda checked=False, device=dict(device): self.open_device(device))
+            button.setEnabled(device['id'] not in getattr(self, 'opening_devices', set()))
+            self.places.addWidget(button)
         self.places.addStretch()
         if self.active and self.panes:
             self.activate(self.active)
+
+    def open_device(self, device):
+        if self.closing:
+            return
+        if device.get('mounted') and device.get('path'):
+            self.active.navigate(Path(device['path']))
+            return
+        from .integrations import invoke
+        pending = getattr(self, 'opening_devices', set())
+        self.opening_devices = pending
+        if device['id'] in pending:
+            return
+        pending.add(device['id'])
+        pane = self.active
+        generation = pane.generation
+        self.status.setText(('Datenträger einbinden: ' if self.language == 'de' else 'Mounting drive: ') + device['name'])
+        self.update_places()
+        task = Task(lambda: invoke('mount', device['id']))
+        def done(locations, error):
+            pending.discard(device['id'])
+            if self.closing:
+                return
+            if error:
+                self.status.setText(str(error))
+            else:
+                self.integration_locations = locations
+                mounted = next((row for row in locations if row.get('mounted') and row.get('path') and
+                                (row.get('volume_id') == device['id'] or row['id'] == device['id'])), None)
+                if mounted:
+                    if pane.generation == generation:
+                        pane.navigate(Path(mounted['path']))
+                    self.status.setText(('Datenträger bereit: ' if self.language == 'de' else 'Drive ready: ') + mounted['name'])
+                else:
+                    self.status.setText('Kein Dateipfad verfügbar. Datenträger erneut auswählen. / No file path available; select the drive again.')
+            self.update_places()
+        task.signals.result.connect(done, Qt.QueuedConnection)
+        self.start_background(task)
 
     def edit_online_profile(self, profile):
         if self.closing:
@@ -1539,7 +1588,7 @@ class MainWindow(QMainWindow):
         ''')
 
     def closeEvent(self, event):
-        if self.busy or (hasattr(self, 'connections_dialog') and self.connections_dialog.pending) or (hasattr(self, 'online_dialog') and self.online_dialog.pending):
+        if self.busy or getattr(self, 'opening_devices', set()) or (hasattr(self, 'connections_dialog') and self.connections_dialog.pending) or (hasattr(self, 'online_dialog') and self.online_dialog.pending):
             self.status.setText(self.tr_key('quit_busy'))
             event.ignore()
             return
