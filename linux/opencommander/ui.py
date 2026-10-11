@@ -555,10 +555,23 @@ class Pane(QFrame):
             retryable = bool(getattr(error, 'retryable', False) or warning)
             self.retry_loading.setVisible(bool(error or warning))
             preserved = bool(error and retryable and getattr(self, 'listed_location', None) == self.location())
+            same_location = getattr(self, 'listed_location', None) == self.location()
+            selected = {(str(entry.path), entry.member) for entry in self.selected()} if same_location else set()
+            current = self.entry_at(self.table.currentIndex()) if same_location else None
+            current_key = (str(current.path), current.member) if current else None
             if not preserved:
                 self.model.replace(entries or [])
             if not error:
                 self.listed_location = (directory, archive, prefix)
+                for row, entry in enumerate(self.model.entries):
+                    key = (str(entry.path), entry.member)
+                    index = self.proxy.mapFromSource(self.model.index(row, 0))
+                    if not index.isValid():
+                        continue
+                    if key in selected:
+                        self.table.selectionModel().select(index, QItemSelectionModel.Select | QItemSelectionModel.Rows)
+                    if key == current_key:
+                        self.table.selectionModel().setCurrentIndex(index, QItemSelectionModel.NoUpdate)
                 name = getattr(self, 'return_selection', None)
                 if name:
                     for row, entry in enumerate(self.model.entries):
@@ -792,6 +805,9 @@ class MainWindow(QMainWindow):
         footer.addWidget(self.progress)
         footer.addWidget(self.cancel_button)
         layout.addLayout(footer)
+        from .transfers_ui import TransferOverview
+        self.transfers = TransferOverview(self)
+        layout.insertWidget(layout.count()-2, self.transfers)
         self.history_dock = QDockWidget(self)
         self.history_list = QListWidget()
         self.history_list.setSpacing(8)
@@ -871,36 +887,20 @@ class MainWindow(QMainWindow):
         self.pool.start(task)
 
     def cancel_operations(self):
-        if self.closing:
-            return
-        identifiers = [job['id'] for job in self.engine.transfers.jobs()
-                       if job['id'] != self.active_transfer_id] if not self.engine.transfers.error else []
-        self.operation_queue.clear()
-        self.transfers_paused = False
-        self.cancel_requested = True
-        self.engine.pause.clear()
-        self.engine.cancel.set()
-        if identifiers:
-            from .resumable_copy import discard
-            self.run_operation(lambda: [discard(self.engine, identifier) for identifier in identifiers])
-        self.status.setText('Abbrechen … Netzwerkzugriff wird beendet. / Cancelling … waiting for network access to finish.')
-        self.update_queue_label()
+        if not self.closing:
+            self.transfers.cancel_all()
 
     def pause_transfers(self):
-        if self.closing or not self.active_transfer_id:
-            return
-        self.transfers_paused = True
-        self.engine.pause.set()
-        self.engine.cancel.set()
-        self.pause_button.setEnabled(False)
-        self.status.setText('Pause wird gespeichert … Netzwerkzugriff wird beendet. / Saving pause … waiting for network access to finish.')
+        if not self.closing:
+            self.transfers.pause_all()
 
-    def run_copy_job(self, identifier):
-        job = self.engine.transfers.get(identifier)
+    def run_copy_job(self, identifier, engine=None):
+        engine = engine or self.engine
+        job = engine.transfers.get(identifier)
         if job is None:
             return
         try:
-            self.engine.check_cancel()
+            engine.check_cancel()
             from .online_ui import mount_profile, mount_path
             from .transfer_store import mount_identity
             for required in job['profiles']:
@@ -910,62 +910,33 @@ class MainWindow(QMainWindow):
                 root = mount_path(self.state_dir, profile['id'])
                 if str(root) != required['root']:
                     raise SafetyError('Online-Mountpfad geändert / Cloud mount path changed')
-                mount_profile(self, profile, self.engine.cancel)
+                mount_profile(self, profile, engine.cancel)
                 for guard in job['guards']:
                     if guard.get('profile') == profile['id'] and guard['mount'] is None:
                         identity = mount_identity(guard['path'])
                         if identity is None or identity['root'] != str(root) or identity['filesystem'] != 'fuse.rclone':
                             raise SafetyError('Online-Laufwerk fehlt / Cloud mount missing')
                         guard['mount'] = identity
-            self.engine.transfers.save(job)
+            engine.transfers.save(job)
         except Exception as error:
-            if self.engine.cancel.is_set():
-                if self.engine.pause.is_set():
+            if engine.cancel.is_set():
+                if engine.pause.is_set():
                     job.update(status='paused', error=None)
-                    self.engine.transfers.save(job)
+                    engine.transfers.save(job)
                 else:
                     from .resumable_copy import discard
-                    discard(self.engine, identifier)
+                    discard(engine, identifier)
                 raise Cancelled('Cancelled') from error
             job.update(status='blocked', error=str(error))
-            self.engine.transfers.save(job)
+            engine.transfers.save(job)
             raise
-        return self.engine.transfer(tuple(Path(p) for p in job['sources']), Path(job['directory']), False, job['conflict'], identifier)
+        return engine.transfer(tuple(Path(p) for p in job['sources']), Path(job['directory']), job.get('move', False), job['conflict'], identifier)
 
     def resume_saved_transfers(self, automatic=False):
-        if self.closing or self.engine.transfers.error:
-            return
-        if self.busy and self.engine.cancel.is_set():
-            return  # The worker must finish pausing before another copy can start.
-        self.transfers_paused = False
-        scheduled = {row[2] for row in self.operation_queue}
-        scheduled.add(self.active_transfer_id)
-        for job in self.engine.transfers.jobs():
-            if job['id'] in scheduled or (automatic and job['status'] == 'blocked'):
-                continue
-            identifier = job['id']
-            self.run_operation(lambda identifier=identifier: self.run_copy_job(identifier), transfer_id=identifier)
-        if not self.busy and self.operation_queue:
-            callback, after, identifier = self.operation_queue.pop(0)
-            self.run_operation(callback, after, identifier)
-        self.update_queue_label()
+        self.transfers.restore(automatic)
 
     def update_queue_label(self):
-        count = len(self.operation_queue)
-        jobs = self.engine.transfers.jobs() if not self.engine.transfers.error else []
-        paused = sum(job['status'] in ('paused', 'blocked') for job in jobs)
-        parts = []
-        if count:
-            parts.append(f'{count} wartend' if self.language == 'de' else f'{count} queued')
-        if paused:
-            parts.append(f'{paused} gespeichert' if self.language == 'de' else f'{paused} saved')
-        self.queue_label.setText(' · '.join(parts))
-        self.queue_label.setToolTip('\n\n'.join(' → '.join([', '.join(job['sources']), job['directory']]) + ('\n' + job['error'] if job.get('error') else '') for job in jobs))
-        self.pause_button.setVisible(bool(self.active_transfer_id) and not self.closing)
-        self.pause_button.setEnabled(not self.engine.cancel.is_set())
-        self.resume_button.setVisible(bool(paused or self.transfers_paused) and not self.closing)
-        self.resume_button.setEnabled(not self.busy or not self.engine.cancel.is_set())
-        self.cancel_button.setVisible(self.busy or bool(jobs))
+        self.transfers.render()
 
     def run_readonly(self, callback, after):
         task = Task(callback)
@@ -980,18 +951,16 @@ class MainWindow(QMainWindow):
     def run_operation(self, callback, after=None, transfer_id=None):
         if self.closing:
             return
-        if transfer_id and self.transfers_paused and not self.busy:
-            self.operation_queue.append((callback, after, transfer_id))
-            self.update_queue_label()
+        if transfer_id:
+            self.transfers.submit(transfer_id, after)
             return
         if self.busy:
             if self.operation_running:
-                self.operation_queue.append((callback, after, transfer_id))
+                self.operation_queue.append((callback, after, None))
                 self.update_queue_label()
             return
-        self.busy = True
-        self.operation_running = True
-        self.active_transfer_id = transfer_id
+        self.busy = self.operation_running = True
+        self.transfers.generic_running = True
         for row in range(self.history_list.count()):
             card = self.history_list.itemWidget(self.history_list.item(row))
             if card:
@@ -1021,6 +990,7 @@ class MainWindow(QMainWindow):
                       'copying': ('Kopieren', 'Copying'), 'moving': ('Verschieben', 'Moving'),
                       'uploading': ('Schreiben abschließen / Upload', 'Finishing writes / upload'),
                       'verifying': ('Prüfen und abschließen', 'Verifying and finalizing'),
+                      'cleanup': ('Quelle bereinigen', 'Cleaning up source'),
                       'paused': ('Pausiert – gespeichert', 'Paused – saved'),
                       'cancelled': ('Abgebrochen', 'Cancelled'), 'complete': ('Abgeschlossen', 'Completed')}
             label = phases[phase][0 if self.language == 'de' else 1]
@@ -1070,6 +1040,7 @@ class MainWindow(QMainWindow):
             self.busy = False
             self.operation_running = False
             self.active_transfer_id = None
+            self.transfers.generic_running = False
             timer.stop()
             timer.deleteLater()
             self.engine.metrics_report = lambda _: None
@@ -1095,10 +1066,7 @@ class MainWindow(QMainWindow):
             if not error and after and not self.closing:
                 after(value)
             self.operation_finished.emit(error)
-            if self.operation_queue and not self.closing and not self.transfers_paused:
-                callback, following, identifier = self.operation_queue.pop(0)
-                self.update_queue_label()
-                self.run_operation(callback, following, identifier)
+            self.transfers.pump()
             self.update_queue_label()
             if not self.busy and not self.operation_queue:
                 self.cancel_requested = False
@@ -1121,7 +1089,7 @@ class MainWindow(QMainWindow):
         dialog.exec()
         return 'keep' if dialog.clickedButton() == keep else 'replace' if dialog.clickedButton() == replace else None
 
-    def transfer(self, move=False, paths=None, directory=None):
+    def transfer(self, move=False, paths=None, directory=None, after=None):
         if self.closing or (self.busy and not self.operation_running):
             return
         pane = self.active
@@ -1143,29 +1111,26 @@ class MainWindow(QMainWindow):
         paths = tuple(Path(path) for path in paths)
         mode = self.conflict_mode(paths, directory)
         if mode:
-            if move:
-                self.run_operation(lambda: self.engine.transfer(paths, directory, move, mode))
-            else:
-                from .transfer_store import guards_for
-                from .online_ui import mount_path
-                endpoints = paths + (directory,)
-                guards = guards_for(endpoints)
-                profiles = []
-                for profile in self.online_profiles:
-                    root = mount_path(self.state_dir, profile['id'])
-                    matching = [guard for guard in guards if Path(guard['path']) == root or root in Path(guard['path']).parents]
-                    if matching:
-                        profiles.append(dict(id=profile['id'], kind=profile['kind'], root=str(root), remote_directory=profile.get('remote_directory', '')))
-                        for guard in matching:
-                            guard['profile'] = profile['id']
-                            if not remote_location(root):
-                                guard['mount'] = None
-                try:
-                    job = self.engine.transfers.create(paths, directory, mode, guards, profiles)
-                except Exception as error:
-                    self.status.setText(str(error))
-                    return
-                self.run_operation(lambda: self.run_copy_job(job['id']), transfer_id=job['id'])
+            from .transfer_store import guards_for
+            from .online_ui import mount_path
+            endpoints = paths + (directory,)
+            guards = guards_for(endpoints)
+            profiles = []
+            for profile in self.online_profiles:
+                root = mount_path(self.state_dir, profile['id'])
+                matching = [guard for guard in guards if Path(guard['path']) == root or root in Path(guard['path']).parents]
+                if matching:
+                    profiles.append(dict(id=profile['id'], kind=profile['kind'], root=str(root), remote_directory=profile.get('remote_directory', '')))
+                    for guard in matching:
+                        guard['profile'] = profile['id']
+                        if not remote_location(root):
+                            guard['mount'] = None
+            try:
+                job = self.engine.transfers.create(paths, directory, mode, guards, profiles, move=move)
+            except Exception as error:
+                self.status.setText(str(error))
+                return
+            self.run_operation(None, after, transfer_id=job['id'])
 
     def drop_urls(self, urls, directory):
         paths = [Path(url.toLocalFile()) for url in urls if url.isLocalFile()]
@@ -1210,7 +1175,7 @@ class MainWindow(QMainWindow):
                 current = QApplication.clipboard().mimeData()
                 if move and current and [u.toString() for u in current.urls()] == before:
                     QApplication.clipboard().clear()
-            self.run_operation(lambda: self.engine.transfer(paths, directory, move, mode), finished)
+            self.transfer(move, paths, directory, finished)
 
     def selected_one(self):
         selected = self.active.selected()
@@ -1772,6 +1737,7 @@ class MainWindow(QMainWindow):
             QFrame#pane[side="1"] {{ border-top: 3px solid {blue}; }}
             QFrame#pane[side="2"] {{ border-top: 3px solid {green}; }}
             QWidget#historyCard {{ background: {inset}; border: 1px solid {border}; border-radius: 8px; }}
+            QWidget#transferItems, QScrollArea#transferScroll {{ background: {bg}; border: none; }}
             QLabel {{ background: transparent; }}
             QLabel#brand {{ color: {blue}; font-size: 25px; font-weight: 700; }}
             QLabel#badge {{ color: #6caaff; background: {inset}; padding: 5px 9px; border-radius: 4px; font-size: 10px; font-weight: 700; }}
@@ -1804,7 +1770,7 @@ class MainWindow(QMainWindow):
             QSplitter::handle {{ background: {bg}; width: 8px; }}
             QScrollBar:vertical {{ background: {inset}; width: 10px; }}
             QScrollBar::handle:vertical {{ background: {border}; min-height: 24px; border-radius: 4px; }}
-            QProgressBar {{ border: 1px solid {border}; border-radius: 4px; height: 8px; }}
+            QProgressBar {{ background: {inset}; border: 1px solid {border}; border-radius: 4px; height: 8px; }}
             QProgressBar::chunk {{ background: #6caaff; }}
             QMenu, QComboBox QAbstractItemView {{ background: {panel}; color: {fg}; }}
             QMenu::item:selected {{ background: {selection}; }}
@@ -1819,8 +1785,7 @@ class MainWindow(QMainWindow):
         if self.busy and self.active_transfer_id:
             self.closing = True
             self.transfers_paused = True
-            self.engine.pause.set()
-            self.engine.cancel.set()
+            self.transfers.pause_all()
             self.status.setText('Kopierstand wird gespeichert … / Saving copy progress …')
             QTimer.singleShot(100, self.close)
             event.ignore()
@@ -1847,11 +1812,12 @@ class MainWindow(QMainWindow):
             pane.load_cancel.set()
         if hasattr(self, 'tools_dialog'):
             self.tools_dialog.cancel.set()
-        if self.tasks or self.pool.activeThreadCount() or self.operation_pool.activeThreadCount() or self.thumbnails.pool.activeThreadCount():
+        if self.tasks or self.pool.activeThreadCount() or self.operation_pool.activeThreadCount() or self.transfers.pool.activeThreadCount() or self.thumbnails.pool.activeThreadCount():
             self.status.setText('Hintergrundzugriffe werden beendet … / Finishing background requests …')
             QTimer.singleShot(100, self.close)
             event.ignore()
             return
+        self.transfers.timer.stop()
         self.settings.setValue('geometry', self.saveGeometry())
         self.settings.sync()
         event.accept()

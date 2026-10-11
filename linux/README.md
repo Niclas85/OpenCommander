@@ -3,7 +3,7 @@
 Native Qt-Desktop-Version nach dem Vorbild der Mac-Catalyst-App. Keine Browser-
 oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 
-Aktueller Stand: **0.3.14**. Die Änderungen und der geprüfte Umfang stehen im
+Aktueller Stand: **0.3.15**. Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
 
 ## Starten
@@ -144,12 +144,29 @@ Die Medien- und Textvorschau bietet **In Papierkorb**; nach Bestätigung wird di
 aktuelle Datei entfernt. Der Medienbetrachter zeigt anschließend die nächste Datei
 oder schließt sich, wenn keine Datei mehr übrig ist. ZIP-Vorschauen sind schreibgeschützt.
 
-## Kopieren pausieren und nach Neustart fortsetzen
+## Übertragungen anzeigen, pausieren und fortsetzen
 
-**Pause** unterbricht den laufenden Kopierauftrag und hält wartende Kopien an.
-**Fortsetzen** nimmt die gespeicherten Aufträge wieder auf. Beim Schließen speichert
-OpenCommander den Kopierstand und wartet auf das Ende des aktuellen Datei-/Netzwerkzugriffs;
-beim nächsten Start laufen gespeicherte Kopien automatisch weiter. Bereits laufende
+Die aufklappbare **Übertragungen**-Leiste zeigt jeden Kopier- und Verschiebeauftrag
+mit Quelle, Ziel, Prozent, Datenmenge, Dateizahl, aktueller Datei, Zeit und Geschwindigkeit.
+Laufende, wartende, gespeicherte und abgeschlossene Aufträge bleiben getrennt sichtbar.
+Bei mehreren Aufträgen öffnet sich die Übersicht automatisch, sofern noch keine eigene
+Einstellung zum Aufklappen gespeichert wurde. Abgeschlossene Einträge lassen sich ausblenden.
+
+Standardmäßig laufen **zwei** unabhängige Aufträge gleichzeitig; **Gleichzeitig** lässt
+sich zwischen eins und vier einstellen. Überlappende Quell-/Zielpfade, lokale Pfad-Aliase
+und Namen möglicher „Beide behalten“-Kopien werden vorsichtig nacheinander bearbeitet.
+Pausierte oder wegen Fehlern gespeicherte Aufträge reservieren ihre Pfade weiter.
+Andere Mutationen wie Umbenennen oder Entpacken warten auf laufende Übertragungen.
+
+Jeder Auftrag bietet **Pause**, **Fortsetzen** und **Abbrechen**. Die Fußzeile steuert
+alle Aufträge. **Pause angefordert** und **Abbruch angefordert** erscheinen sofort;
+bei einem bereits laufenden Dateisystem-/Netzwerkzugriff muss dessen Rückkehr
+abgewartet werden. Erst **Pausiert – gespeichert** bestätigt den dauerhaften Zwischenstand.
+Die Oberfläche wartet dabei nicht im GUI-Thread. Beim Schließen werden alle laufenden
+Kopier-/Verschiebeaufträge pausiert; gespeicherte Aufträge laufen beim nächsten Start
+automatisch weiter. Aufträge mit Fehlern benötigen bewusstes Fortsetzen.
+
+Bereits laufende
 Aufträge einer älteren Programmversion werden nicht automatisch übernommen;
 ein erhaltener Zwischenordner kann nach eindeutiger Quellzuordnung gezielt als
 Wiederherstellungsauftrag vorbereitet werden. Auch dabei werden vorhandene Daten
@@ -161,7 +178,7 @@ anschließend nur der Rest kopiert. Die Prüfung kann bei Online-Dateien Lesezug
 und Zeit benötigen; der Fortschritt zeigt diese Prüfphase an. Geänderte Quellattribute,
 manipulierte Zwischenstände und fehlende/andere Laufwerke stoppen den Auftrag.
 
-**Abbrechen** entfernt den laufenden Auftrag und wartende Kopien samt unfertigen
+**Abbrechen** am Auftrag entfernt nur diesen; die Fußzeile bricht alle ab, samt unfertigen
 Zwischenständen. Fertige Ziele und verdrängte Originale bleiben erhalten. Während
 eines blockierten NAS-/Cloud-Zugriffs wird der Abbruch angezeigt; das Fenster bleibt
 bedienbar, der Zugriff muss aber erst zurückkehren. Keine erzwungenen Thread-Abbrüche.
@@ -169,7 +186,7 @@ Ist das Ziellaufwerk nicht verfügbar, bleibt der Auftrag erhalten, bis es zum s
 Entfernen wieder verbunden werden kann.
 
 Nicht erreichbare Kopien bleiben gespeichert; Details und Fehler stehen im Hinweis
-an der Warteschlangenanzeige. Nach dem Verbinden des Laufwerks oder erneuter Anmeldung
+in der jeweiligen Auftragskarte. Nach dem Verbinden des Laufwerks oder erneuter Anmeldung
 **Fortsetzen** wählen. Eigene gespeicherte Online-Verbindungen werden vor der Kopie im
 Hintergrund wieder eingebunden. Externe Mounts und NAS-Freigaben müssen verfügbar sein.
 
@@ -179,10 +196,16 @@ Zwischenordner nicht verändern oder löschen, solange ein Auftrag offen ist. Au
 enthalten Pfade und Prüfwerte, keine Passwörter oder Tokens. Undo ist nach Abschluss
 oder Abbruch möglich; nicht verifizierbare Ziele bleiben gegen automatisches Undo geschützt.
 
-Diese Fortsetzung gilt für **Kopieren**. Verschieben, Entpacken und andere Mutationen
-müssen vor dem Schließen abgeschlossen oder regulär abgebrochen sein. Nach einem
-Prozessabsturz wird ein Zwischenstand geprüft; bei einer uneindeutigen Veröffentlichung
-bleibt der Auftrag zur manuellen Prüfung stehen. Das ersetzt keine Sicherung bei Stromausfall.
+Diese Fortsetzung gilt für **Kopieren und Verschieben**. Verschieben auf demselben
+Laufwerk verwendet möglichst Umbenennen. Über Laufwerksgrenzen wird erst vollständig
+kopiert und geprüft; die Quelle wird danach in einem privaten Quell-Zwischenordner
+`.OpenCommanderMove-*` schrittweise bereinigt. Bei einer Pause während der Bereinigung
+bleibt das vollständige Ziel erhalten. Geänderte Quelldaten werden nicht gelöscht.
+Ein Abbruch während dieser Phase lässt den Auftrag zur sicheren Fertigstellung gespeichert;
+**Fortsetzen** schließt die Bereinigung ab. Entpacken und andere Mutationen müssen vor
+dem Schließen abgeschlossen oder regulär abgebrochen sein. Nach einem Prozessabsturz
+bleiben uneindeutige Veröffentlichungen oder Quell-Umbenennungen zur manuellen Prüfung
+stehen. Das ersetzt keine Sicherung bei Stromausfall.
 
 ## Online-Orte ohne Sync-App
 
@@ -279,10 +302,10 @@ SFTP führt keine entfernten Shell-Kommandos aus. FTP warnt vor unverschlüsselt
 Übertragung und benötigt Benutzer/Passwort, keine SSH-Keys.
 
 Während Kopieren/Verschieben bleiben Navigation, Öffnen, Vorschau, Eigenschaften,
-Suche und Einstellungen verfügbar. Weitere Datei-Aufträge werden mit ihren
-jetzigen Quell-/Zielpfaden in eine Warteschlange eingereiht und nacheinander
-abgearbeitet. Die Fußzeile zeigt die Anzahl wartender Aufträge. **Abbrechen**
-stoppt den aktuellen Auftrag und verwirft wartende Aufträge. Undo und Trennen
+Suche und Einstellungen verfügbar. Weitere Kopier-/Verschiebeaufträge werden mit ihren
+jetzigen Quell-/Zielpfaden gespeichert und nach der eingestellten Parallelität gestartet.
+Die aufklappbare Übersicht zeigt eigene Kontrollen und Fortschrittsdaten pro Auftrag.
+Undo und Trennen
 bleiben bis zum Abschluss gesperrt. Beim Navigieren nach oben wird der gerade
 verlassene Ordner automatisch markiert und sichtbar gemacht, auch in ZIPs.
 
@@ -434,7 +457,7 @@ ist; die Restzeit schätzt nur den verbleibenden Datentransfer. Bei Umbenennunge
 demselben Laufwerk zählen die angezeigten Bytes die logisch verschobenen Daten.
 Die Darkmode-Checkbox steht im Kopfbereich und speichert ihre Auswahl.
 
-### NAS/GVFS-Kompatibilität (0.3.14)
+### NAS/GVFS-Kompatibilität (0.3.15)
 
 Auf erkannten GVFS-/rclone-Mounts blockieren ausdrücklich nicht unterstützte
 `fsync`-/Metadatenfunktionen die Inhaltskopie nicht. Zeitstempel und Dateirechte
@@ -445,7 +468,7 @@ und Speicherplatzfehler bleiben Fehler. Lokale Dateisysteme bleiben strikt.
 GVFS-Umbenennungen ohne RENAME_NOREPLACE prüfen das Ziel vorab innerhalb derselben
 Freigabe; gegenüber anderen gleichzeitig schreibenden Clients ist dies nicht atomar.
 
-### Cloud-Start und Ladegrenzen (0.3.14)
+### Cloud-Start und Ladegrenzen (0.3.15)
 
 Eingerichtete Cloud-Mounts laden ihre Ordnerliste direkt über das Provider-Backend,
 statt beim Start auf einen möglicherweise blockierten FUSE-Daemon zu warten.
@@ -458,7 +481,7 @@ Anmeldung unter „Online-Orte“ erneut anmelden. Plattformseitig fehlendes
 No-follow-chmod wird beim Kopieren als Metadatenhinweis behandelt, ohne Links
 zu folgen oder Inhaltsfehler zu verbergen.
 
-### Archive (0.3.14)
+### Archive (0.3.15)
 
 ZIP, TAR, TGZ/TAR.GZ, TAR.BZ2, TAR.XZ/TAR.ZST, 7z und RAR lassen sich per
 Doppelklick wie Ordner öffnen. In Unterordner navigieren, einzelne Dateien ansehen

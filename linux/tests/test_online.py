@@ -325,3 +325,58 @@ def test_remote_alias_detected_without_probing_provider(tmp_path, monkeypatch):
     monkeypatch.setattr(os, 'readlink', readlink)
     assert remote_location(alias / 'folder/photo.jpg')
     assert not remote_location(tmp_path / 'local')
+
+
+def test_parallel_mount_requests_launch_one_daemon(tmp_path, monkeypatch):
+    import concurrent.futures
+    from opencommander import provider_mounts
+    main = SimpleNamespace(state_dir=tmp_path / 'state')
+    config = online_ui.private_config(main.state_dir)
+    config.write_text('[oc_parallel]\ntype = drive\n')
+    profile = dict(id='oc_parallel', kind='drive')
+    entered, release, mounted = threading.Event(), threading.Event(), threading.Event()
+    calls = []
+    monkeypatch.setattr(online_ui, 'mount_path', lambda *_: tmp_path / 'mount')
+    monkeypatch.setattr(online_ui, 'remote_location', lambda _: mounted.is_set())
+    monkeypatch.setattr(online_ui.rclone_runtime, 'binary', lambda: '/fixture/rclone')
+    monkeypatch.setattr(online_ui.shutil, 'which', lambda _: '/fixture/fusermount')
+    monkeypatch.setattr(online_ui.server, 'credential_environment', lambda *_: {})
+    monkeypatch.setattr(provider_mounts, 'register', lambda *_: None)
+    def mount(*args, **kwargs):
+        calls.append(args)
+        entered.set()
+        assert release.wait(5)
+        mounted.set()
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(online_ui.subprocess, 'run', mount)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(online_ui.mount_profile, main, profile, threading.Event())
+        assert entered.wait(5)
+        second = pool.submit(online_ui.mount_profile, main, profile, threading.Event())
+        release.set()
+        assert first.result(timeout=5) == second.result(timeout=5)
+    assert len(calls) == 1
+
+
+def test_waiting_for_same_mount_is_independently_cancellable(tmp_path, monkeypatch):
+    import concurrent.futures
+    main = SimpleNamespace(state_dir=tmp_path)
+    profile = dict(id='oc_cancel', kind='drive')
+    entered, release = threading.Event(), threading.Event()
+    def mount(*args):
+        entered.set()
+        assert release.wait(5)
+        return tmp_path
+    monkeypatch.setattr(online_ui, '_mount_profile', mount)
+    cancel = threading.Event()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(online_ui.mount_profile, main, profile, threading.Event())
+        assert entered.wait(5)
+        second = pool.submit(online_ui.mount_profile, main, profile, cancel)
+        try:
+            cancel.set()
+            with pytest.raises(RuntimeError, match='Cancelled'):
+                second.result(timeout=1)
+        finally:
+            release.set()
+        assert first.result(timeout=5) == tmp_path

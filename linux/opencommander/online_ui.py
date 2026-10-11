@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import threading
+import weakref
 import time
 import uuid
 import re
@@ -200,7 +201,31 @@ def save_hostkeys(target, keys):
     os.chmod(target, 0o600)
 
 
+_mount_locks = weakref.WeakValueDictionary()
+_mount_locks_guard = threading.Lock()
+
+
 def mount_profile(main, profile, cancel):
+    # Parallel transfers and pane navigation can request the same mount.
+    # Only one daemon may be launched; waiting remains independently cancellable.
+    key = (str(main.state_dir), profile['id'])
+    with _mount_locks_guard:
+        lock = _mount_locks.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _mount_locks[key] = lock
+    while not lock.acquire(timeout=.1):
+        if cancel.is_set():
+            raise RuntimeError('Abgebrochen / Cancelled')
+    try:
+        if cancel.is_set():
+            raise RuntimeError('Abgebrochen / Cancelled')
+        return _mount_profile(main, profile, cancel)
+    finally:
+        lock.release()
+
+
+def _mount_profile(main, profile, cancel):
     config = private_config(main.state_dir)
     settings = configparser.ConfigParser(interpolation=None)
     settings.read(config)
@@ -796,7 +821,10 @@ class OnlineDialog(QDialog):
 
     def disconnect_saved(self):
         profile = self.saved.currentData()
-        if not profile or self.pending or self.main.busy:
+        if not profile or self.pending:
+            return
+        if self.main.busy:
+            self.status.setText('Zuerst laufende Dateivorgänge pausieren oder abschließen. / Pause or finish file operations first.')
             return
         root = mount_path(self.main.state_dir, profile['id'])
         if not remote_location(root):

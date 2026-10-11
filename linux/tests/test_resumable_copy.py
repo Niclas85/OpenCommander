@@ -355,3 +355,117 @@ def test_legacy_staging_must_be_on_exact_target_volume(fixture):
     with pytest.raises(ValueError, match='Invalid legacy'):
         engine.transfers.create([file], target, 'keep', legacy_staging=source / '.OpenCommanderTransfer-invalid')
     assert not engine.transfers.jobs()
+
+
+def test_resumable_native_move_and_undo(fixture):
+    engine, source, target = fixture
+    file = source / 'move.bin'
+    file.write_bytes(b'original')
+    inode = file.stat().st_ino
+    job = engine.transfers.create([file], target, 'keep', move=True)
+    operation = run(engine, job)
+    assert not file.exists() and (target / file.name).stat().st_ino == inode
+    assert operation['label'] == 'move' and operation['records'][0]['kind'] == 'move'
+    assert not engine.transfers.jobs()
+    engine.undo(operation['id'])
+    assert file.read_bytes() == b'original' and not (target / file.name).exists()
+
+
+def force_cross_device(monkeypatch, source):
+    import errno
+    import opencommander.resumable_copy as copies
+    rename = copies.rename_new
+    def cross_device(src, dst):
+        if Path(src) == source and not Path(dst).parent.name.startswith('.OpenCommanderMove-'):
+            raise OSError(errno.EXDEV, 'cross device')
+        return rename(src, dst)
+    monkeypatch.setattr(copies, 'rename_new', cross_device)
+
+
+def test_cross_device_move_pause_restart_and_undo(fixture, monkeypatch):
+    engine, source, target = fixture
+    file = source / 'move.bin'
+    file.write_bytes(b'a' * 3 * 1024**2)
+    force_cross_device(monkeypatch, file)
+    job = engine.transfers.create([file], target, 'keep', move=True)
+    pause_after_block(engine)
+    with pytest.raises(Cancelled):
+        run(engine, job)
+    assert file.exists() and not (target / file.name).exists()
+    resumed = FileEngine(engine.state_dir)
+    operation = run(resumed, job)
+    assert not file.exists() and (target / file.name).read_bytes() == b'a' * 3 * 1024**2
+    assert not list(source.glob('.OpenCommanderMove-*'))
+    resumed.undo(operation['id'])
+    assert file.read_bytes() == b'a' * 3 * 1024**2
+
+
+def test_move_source_changed_after_copy_is_retained(fixture, monkeypatch):
+    engine, source, target = fixture
+    file = source / 'move.bin'
+    file.write_bytes(b'original')
+    force_cross_device(monkeypatch, file)
+    record = engine.record
+    def changing_record(*args, **kwargs):
+        record(*args, **kwargs)
+        file.write_bytes(b'changed')
+    monkeypatch.setattr(engine, 'record', changing_record)
+    job = engine.transfers.create([file], target, 'keep', move=True)
+    with pytest.raises(SafetyError, match='Changed source retained'):
+        run(engine, job)
+    assert file.read_bytes() == b'changed'
+    assert (target / file.name).read_bytes() == b'original'
+    assert engine.transfers.get(job['id'])['status'] == 'blocked'
+
+
+def test_move_pause_during_source_cleanup_resumes_remaining_files(fixture, monkeypatch):
+    import opencommander.resumable_copy as copies
+    engine, source, target = fixture
+    folder = source / 'folder'
+    folder.mkdir()
+    (folder / 'a').write_bytes(b'a')
+    (folder / 'b').write_bytes(b'b')
+    force_cross_device(monkeypatch, folder)
+    remove = copies.remove_move_backup
+    removed = []
+    def pause_cleanup(current, job, index, path, origin):
+        result = remove(current, job, index, path, origin)
+        if path.name == 'a':
+            removed.append(path.name)
+            current.pause.set()
+            current.cancel.set()
+        return result
+    monkeypatch.setattr(copies, 'remove_move_backup', pause_cleanup)
+    job = engine.transfers.create([folder], target, 'keep', move=True)
+    with pytest.raises(Cancelled):
+        run(engine, job)
+    saved = engine.transfers.get(job['id'])
+    assert saved['status'] == 'paused' and saved['roots'][0]['status'] == 'cleanup'
+    backup = Path(saved['roots'][0]['source_backup'])
+    assert (backup / 'b').read_bytes() == b'b'
+    assert (target / 'folder' / 'a').read_bytes() == b'a'
+    monkeypatch.setattr(copies, 'remove_move_backup', remove)
+    resumed = FileEngine(engine.state_dir)
+    operation = run(resumed, saved)
+    assert not backup.parent.exists() and not resumed.transfers.jobs()
+    resumed.undo(operation['id'])
+    assert (folder / 'a').read_bytes() == b'a' and (folder / 'b').read_bytes() == b'b'
+
+
+def test_independent_engines_serialize_shared_history(fixture):
+    import concurrent.futures
+    engine, source, target = fixture
+    forks = [engine.fork() for _ in range(3)]
+    files = []
+    for index in range(4):
+        file = source / str(index)
+        file.write_bytes(bytes([index]) * 1024**2)
+        files.append(file)
+    jobs = [engine.transfers.create([file], target, 'keep') for file in files]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        results = list(pool.map(lambda pair: run(*pair), zip([engine]+forks, jobs)))
+    restored = FileEngine(engine.state_dir)
+    assert len(restored.history) == 4 and not restored.transfers.jobs()
+    assert {operation['id'] for operation in restored.history} == {operation['id'] for operation in results}
+    assert all((target / file.name).read_bytes() == file.read_bytes() for file in files)
+    assert len({id(worker.cancel) for worker in [engine]+forks}) == 4

@@ -1,5 +1,29 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.15 – 11. Oktober 2026
+
+- Aufklappbare Übertragungsübersicht mit eigener Karte, Quelle/Ziel, Prozent, Bytes,
+  Dateizahl, Datei, Laufzeit, Geschwindigkeit und Restzeit je Auftrag.
+- Zwei Kopier-/Verschiebeaufträge standardmäßig parallel; eins bis vier einstellbar.
+  Überlappende Pfade, lokale Aliase und mögliche Behalten-Dateinamen werden serialisiert.
+- Unabhängige Pause/Fortsetzen/Abbrechen-Steuerung sowie gemeinsame Fußzeilenaktionen.
+  Angeforderte Pause und angeforderter Abbruch sofort sichtbar, gespeicherte Pause eindeutig.
+- Fortschrittsanzeige nimmt je Auftrag nur den neuesten Zustand auf dem GUI-Timer;
+  blockierter Datei-/Netzwerkzugriff und viele kleine Dateien fluten die Oberfläche nicht.
+- Unabhängige Abbruch-Events und gemeinsam serialisierte Historie pro Worker;
+  abgeschlossene Aufträge bleiben bis zum Ausblenden sichtbar.
+- Dauerhafte Queue auch für Verschieben: schnelle Umbenennung oder geprüfte Kopie
+  mit schrittweiser, pausierbarer Quellbereinigung. Geänderte Quellen bleiben erhalten.
+- Schließen pausiert alle aktiven Übertragungen. Queue und Parallelität werden beim
+  Neustart übernommen; fehlerhafte/uneindeutige Zwischenstände bleiben zur Prüfung gespeichert.
+- Gleichzeitige Verbindung desselben Online-Ortes startet nur einen Mountprozess;
+  Wartende können ihre eigene Anfrage abbrechen. Trennen während Dateivorgängen erklärt den Grund.
+- Auswahl bleibt bei Aktualisierung desselben Ordners erhalten; neue Dateien während
+  einer Kopie löschen die aktuelle Rechtsklick-/Mehrfachauswahl nicht mehr.
+- Desktop-Tests für gleichzeitige Aufträge, eigene Controls, GUI-Heartbeat, Konflikte,
+  Neustart, geschützte Providerpfade; Engine-Tests für Verschieben, Quelländerungen,
+  unterbrochene Bereinigung und gemeinsame Historie.
+
 ## 0.3.14 – 11. Oktober 2026
 
 - Google-Drive-Ausfall als API-Abfragelimit (`403 rateLimitExceeded / Quota

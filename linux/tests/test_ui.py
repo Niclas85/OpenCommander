@@ -32,6 +32,7 @@ def window(tmp_path, app):
     right.mkdir()
     (left / 'Grüße.txt').write_text('Hello from OpenCommander')
     main = MainWindow(tmp_path / 'state', left, right)
+    main.transfers.parallel.setValue(1)  # Existing cases explicitly exercise serial queue behavior.
     main.show()
     wait(app, lambda: main.panes[0].proxy.rowCount() == 1)
     yield main
@@ -1597,3 +1598,236 @@ def test_unavailable_restored_copy_remains_saved_for_retry(window, app):
     wait(app, lambda: not window.busy)
     assert (destination / 'Grüße.txt').exists()
     assert not window.engine.transfers.jobs()
+
+
+def test_parallel_transfers_have_independent_controls_and_responsive_gui(window, app, monkeypatch):
+    import threading
+    from opencommander.operations import FileEngine
+    from PySide6.QtCore import QTimer
+    source, target = window.panes
+    first, second = source.directory / 'first.bin', source.directory / 'second.bin'
+    first.write_bytes(b'a' * 2 * 1024**2)
+    second.write_bytes(b'b' * 2 * 1024**2)
+    entered = {first.name: threading.Event(), second.name: threading.Event()}
+    release = {first.name: threading.Event(), second.name: threading.Event()}
+    original = FileEngine.copy_file
+    def blocked_copy(engine, src, dst):
+        if src.name in entered and engine.resuming_copy:
+            entered[src.name].set()
+            assert release[src.name].wait(10)
+        return original(engine, src, dst)
+    monkeypatch.setattr(FileEngine, 'copy_file', blocked_copy)
+    window.transfers.parallel.setValue(2)
+    ticks = []
+    timer = QTimer(window)
+    timer.setInterval(10)
+    timer.timeout.connect(lambda: ticks.append(time.monotonic()))
+    timer.start()
+    try:
+        window.transfer(paths=[first], directory=target.directory)
+        window.transfer(paths=[second], directory=target.directory)
+        wait(app, lambda: all(event.is_set() for event in entered.values()))
+        assert len(window.transfers.active) == 2
+        cards = {Path(card.job['sources'][0]).name: card for card in window.transfers.cards.values()}
+        one, two = cards[first.name], cards[second.name]
+        window.transfers.toggle.click() if not window.transfers.toggle.isChecked() else None
+        assert window.transfers.body.isVisible()
+        QTest.mouseClick(one.pause, Qt.LeftButton)
+        assert one.state == 'pausing' and one.engine.pause.is_set() and one.engine.cancel.is_set()
+        assert not two.engine.cancel.is_set()
+        assert 'warte' in one.title.text() or 'waiting' in one.title.text()
+        window.location_settings()
+        assert window.location_settings_dialog.isVisible()
+        window.location_settings_dialog.close()
+        source.navigate(target.directory)
+        wait(app, lambda: len(ticks) >= 5)
+        assert max(b-a for a, b in zip(ticks, ticks[1:])) < .5
+        release[first.name].set()
+        wait(app, lambda: one.state == 'paused')
+        assert two.state == 'running' and not two.engine.cancel.is_set()
+        release[second.name].set()
+        wait(app, lambda: two.state == 'complete' and not window.busy)
+        assert not (target.directory / first.name).exists()
+        assert (target.directory / second.name).read_bytes() == second.read_bytes()
+        QTest.mouseClick(one.resume, Qt.LeftButton)
+        wait(app, lambda: one.state == 'complete' and not window.busy)
+        assert (target.directory / first.name).read_bytes() == first.read_bytes()
+        assert len(window.engine.history) == 2
+        window.transfers.clear_button.click()
+        assert not window.transfers.cards
+    finally:
+        for event in release.values():
+            event.set()
+        timer.stop()
+
+
+def test_parallel_conflicting_copy_and_move_wait_for_same_path(window, app, monkeypatch):
+    import threading
+    from opencommander.operations import FileEngine
+    source, target = window.panes
+    file = source.directory / 'Grüße.txt'
+    third = source.directory / 'third'
+    third.mkdir()
+    entered, release = threading.Event(), threading.Event()
+    original = FileEngine.copy_file
+    def blocked_copy(engine, src, dst):
+        if src == file and not entered.is_set():
+            entered.set()
+            assert release.wait(10)
+        return original(engine, src, dst)
+    monkeypatch.setattr(FileEngine, 'copy_file', blocked_copy)
+    window.transfers.parallel.setValue(2)
+    try:
+        window.transfer(paths=[file], directory=target.directory)
+        wait(app, entered.is_set)
+        window.transfer(True, paths=[file], directory=third)
+        assert len(window.transfers.active) == 1 and len(window.operation_queue) == 1
+        pending = next(card for card in window.transfers.cards.values() if card.job.get('move'))
+        assert pending.state == 'waiting'
+        assert file.exists()
+    finally:
+        release.set()
+    wait(app, lambda: not window.busy and not window.operation_queue)
+    assert (target.directory / file.name).exists() and (third / file.name).exists() and not file.exists()
+
+
+def test_parallel_cancel_one_preserves_other_transfer(window, app, monkeypatch):
+    import threading
+    from opencommander.operations import FileEngine
+    source, target = window.panes
+    files = [source.directory / name for name in ('cancel.bin', 'keep.bin')]
+    for file in files:
+        file.write_bytes(b'a' * 2 * 1024**2)
+    entered = [threading.Event(), threading.Event()]
+    release = threading.Event()
+    original = FileEngine.copy_file
+    def blocked_copy(engine, src, dst):
+        if src in files:
+            entered[files.index(src)].set()
+            assert release.wait(10)
+        return original(engine, src, dst)
+    monkeypatch.setattr(FileEngine, 'copy_file', blocked_copy)
+    window.transfers.parallel.setValue(2)
+    try:
+        for file in files:
+            window.transfer(paths=[file], directory=target.directory)
+        wait(app, lambda: all(event.is_set() for event in entered))
+        card = next(card for card in window.transfers.cards.values() if card.job['sources'] == [str(files[0])])
+        QTest.mouseClick(card.cancel, Qt.LeftButton)
+        assert card.state == 'cancelling' and card.engine.cancel.is_set()
+        other = next(c for c in window.transfers.active.values() if c is not card)
+        assert not other.engine.cancel.is_set()
+    finally:
+        release.set()
+    wait(app, lambda: not window.busy)
+    assert card.state == 'cancelled' and other.state == 'complete'
+    assert not (target.directory / files[0].name).exists()
+    assert (target.directory / files[1].name).exists()
+
+
+def test_parallel_close_saves_all_active_transfers(window, app, monkeypatch):
+    import threading
+    from opencommander.operations import FileEngine
+    source, target = window.panes
+    files = [source.directory / name for name in ('first.bin', 'second.bin')]
+    for file in files:
+        file.write_bytes(b'a' * 2 * 1024**2)
+    entered = [threading.Event(), threading.Event()]
+    original = FileEngine.copy_file
+    def wait_for_pause(engine, src, dst):
+        if src in files:
+            entered[files.index(src)].set()
+            assert engine.cancel.wait(10)
+        return original(engine, src, dst)
+    monkeypatch.setattr(FileEngine, 'copy_file', wait_for_pause)
+    window.transfers.parallel.setValue(2)
+    for file in files:
+        window.transfer(paths=[file], directory=target.directory)
+    wait(app, lambda: all(event.is_set() for event in entered))
+    window.close()
+    wait(app, lambda: not window.isVisible(), timeout=10)
+    assert len(window.engine.transfers.jobs()) == 2
+    assert all(job['status'] == 'paused' for job in window.engine.transfers.jobs())
+    monkeypatch.setattr(FileEngine, 'copy_file', original)
+    restored = MainWindow(window.state_dir, source.directory, target.directory)
+    restored.show()
+    try:
+        assert restored.transfers.parallel.value() == 2
+        wait(app, lambda: not restored.busy and not restored.engine.transfers.jobs(), timeout=10)
+        assert all((target.directory / file.name).read_bytes() == file.read_bytes() for file in files)
+    finally:
+        restored.close()
+        wait(app, lambda: not restored.isVisible(), timeout=10)
+        restored.deleteLater()
+
+
+def test_transfer_resource_checks_never_probe_provider_paths(tmp_path, monkeypatch):
+    import opencommander.filesystem as fs
+    from opencommander.transfers_ui import resources, conflicts
+    remote = tmp_path / 'provider'
+    remote.mkdir()
+    monkeypatch.setattr(fs, 'remote_location', lambda path: remote == Path(path) or remote in Path(path).parents)
+    probe = Path.is_symlink
+    def local_only(path):
+        assert not fs.remote_location(path), 'GUI must not stat a provider'
+        return probe(path)
+    monkeypatch.setattr(Path, 'is_symlink', local_only)
+    alias = tmp_path / 'alias'
+    alias.symlink_to(remote, target_is_directory=True)
+    copy = dict(sources=[str(remote / 'source')], directory=str(tmp_path / 'destination'))
+    move = dict(sources=[str(alias / 'source')], directory=str(tmp_path / 'other'), move=True)
+    assert conflicts(resources(copy), resources(move))
+
+
+def test_parallel_paused_job_reserves_source_against_later_move(window, app, monkeypatch):
+    import threading
+    from opencommander.operations import FileEngine
+    source, target = window.panes
+    file = source.directory / 'Grüße.txt'
+    other = source.directory / 'other'
+    other.mkdir()
+    entered = threading.Event()
+    original = FileEngine.copy_file
+    def wait_pause(engine, src, dst):
+        entered.set()
+        assert engine.cancel.wait(10)
+        return original(engine, src, dst)
+    monkeypatch.setattr(FileEngine, 'copy_file', wait_pause)
+    window.transfers.parallel.setValue(2)
+    window.transfer(paths=[file], directory=target.directory)
+    wait(app, entered.is_set)
+    card = next(iter(window.transfers.cards.values()))
+    card.pause.click()
+    wait(app, lambda: not window.busy)
+    monkeypatch.setattr(FileEngine, 'copy_file', original)
+    window.transfer(True, paths=[file], directory=other)
+    move = next(card for card in window.transfers.cards.values() if card.job.get('move'))
+    assert move.state == 'waiting' and not window.busy and file.exists()
+    card.resume.click()
+    wait(app, lambda: not window.busy and not window.operation_queue)
+    assert card.state == move.state == 'complete'
+    assert (target.directory / file.name).exists() and (other / file.name).exists()
+
+
+def test_parallel_reserves_keep_both_filename_family(tmp_path):
+    from opencommander.transfers_ui import conflicts, resources
+    a = dict(sources=[str(tmp_path / 'a' / 'photo.jpg')], directory=str(tmp_path / 'target'))
+    b = dict(sources=[str(tmp_path / 'b' / 'photo (2).jpg')], directory=str(tmp_path / 'target'))
+    assert conflicts(resources(a), resources(b))
+    b['sources'] = [str(tmp_path / 'b' / 'other.jpg')]
+    assert not conflicts(resources(a), resources(b))
+
+
+def test_refresh_preserves_selection_while_copy_changes_directory(window, app):
+    pane = window.panes[0]
+    selected = pane.directory / 'Grüße.txt'
+    pane.table.selectRow(0)
+    (pane.directory / 'new.txt').write_text('arrived during copy')
+    pane.refresh()
+    wait(app, lambda: pane.proxy.rowCount() == 2 and not pane.loading_bar.isVisible())
+    assert [entry.path for entry in pane.selected()] == [selected]
+    assert pane.entry_at(pane.table.currentIndex()).path == selected
+    selected.unlink()
+    pane.refresh()
+    wait(app, lambda: pane.proxy.rowCount() == 1 and not pane.loading_bar.isVisible())
+    assert not pane.selected()

@@ -40,11 +40,11 @@ class TransferStore:
         finally:
             db.close()
 
-    def create(self, paths, directory, conflict, guards=None, profiles=None, legacy_staging=None, legacy_totals=None):
+    def create(self, paths, directory, conflict, guards=None, profiles=None, legacy_staging=None, legacy_totals=None, move=False):
         job = dict(id=uuid.uuid4().hex, created=time.time(), status='queued',
                    sources=[os.path.abspath(path) for path in paths],
                    directory=os.path.abspath(directory), conflict=conflict,
-                   guards=guards or [], profiles=profiles or [], roots=None)
+                   guards=guards or [], profiles=profiles or [], roots=None, move=bool(move))
         if legacy_staging is not None:
             stage = Path(os.path.abspath(legacy_staging))
             if len(job['sources']) != 1 or stage.parent != Path(job['directory']) or not stage.name.startswith('.OpenCommanderTransfer-'):

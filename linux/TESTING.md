@@ -1,8 +1,8 @@
-# Linux 0.3.14 – Verbindungs- und Desktop-Prüfung
+# Linux 0.3.15 – Verbindungs- und Desktop-Prüfung
 
-Stand: 11. Oktober 2026. Erneute Live-Prüfung von Google Drive und OneDrive
-mit 0.3.14; weitere Live-Verbindungen wie unten dokumentiert. Gesamtsuite:
-253 Tests erfolgreich.
+Stand: 11. Oktober 2026. Parallelübertragungen und Desktop-Steuerung mit 0.3.15
+automatisiert geprüft; lesende Google-Drive-/OneDrive-Prüfung mit 0.3.14 wie unten dokumentiert.
+Gesamtsuite: 268 Tests erfolgreich.
 
 | Bereich | Prüfung | Ergebnis / Grenze |
 | --- | --- | --- |
@@ -25,6 +25,10 @@ mit 0.3.14; weitere Live-Verbindungen wie unten dokumentiert. Gesamtsuite:
 | Transfer | Kopieren/Verschieben, Undo, NAS-/FUSE-Metadaten und echte Fehler | Separate Testdaten, teilweise echter lokaler rclone-/SFTP-Testserver |
 | Altversion-Zwischenstände | Explizite Übernahme, fertige Datei ohne Schreiböffnung, Teilbytes, falsche Inhalte, Symlinks, vorige Originale, Mountpfad | Isolierte Testdaten; Altordner werden nicht automatisch angenommen |
 | Kopier-Fortsetzung | Pause nach geschriebenem Datenblock, Neustart in neuem Prozess, fertige Dateien, Teilbytes, Queue, GUI-Schließen, Abbruch, Undo, fehlende Mounts, manipulierte Daten, uneindeutiger Publish | Isolierte lokale Testdaten; kein laufender Nutzertransfer geändert |
+| Parallele Übertragungen | Zwei echte Kopien gleichzeitig, Pause/Abbruch einzeln, alle beim Schließen speichern, Neustart, Einstellungen/Navigation, GUI-Heartbeat | Isolierte Testdateien; blockierte Providerzugriffe mit Events nachgebildet |
+| Pfadkonflikte | Kopieren gegen Verschieben, pausierte Quellen, lokale Aliase, Behalten-Namensfamilien | Konflikte warten; Providerpfade im GUI nicht gestattet |
+| Dauerhaftes Verschieben | Native Umbenennung/Undo, Laufwerksgrenze, Pause/Neustart, Quelländerung, Pause während Bereinigung | Vollständiges Ziel erhalten, geänderte Quellen geschützt, Historie gemeinsam serialisiert |
+| Paralleles Einbinden | Gleicher Online-Ort in zwei Workern, Abbruch eines Wartenden | Nur ein Daemon gestartet, unabhängiger Abbruch |
 | GUI während Transfer | Echte lokale Kopie, parallele Einstellungen, Themenwechsel, Navigation, GUI-Heartbeat und Thread-Zustellung | Automatisierter Desktop-Test; laufende Nutzerkopie nicht unterbrochen |
 | Orte-Leiste und Verwaltung | Nur Öffnungsziele in der Leiste; Online-Orte und Verbindungen aus Einstellungen | Desktop-Tests in Deutsch und Englisch |
 | Ordnerbaum | Breite, vollständige Namen und gespeicherter Splitter | Automatisierter Desktop-Test |

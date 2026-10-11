@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import sys
 import ctypes
+import copy
 import errno
 import hashlib
 import json
@@ -146,6 +147,7 @@ class FileEngine:
         self.state_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.history_file = self.state_dir / 'history.json'
         self.history = []
+        self.history_lock = threading.RLock()
         self.load_error = None
         self.cancel = threading.Event()
         self.pause = threading.Event()
@@ -167,7 +169,24 @@ class FileEngine:
                 # Keep the original file; do not silently overwrite unreadable recovery metadata.
                 self.load_error = str(error)
 
+    def fork(self):
+        """Independent transfer state; recovery metadata remains shared and serialized."""
+        engine = copy.copy(self)
+        engine.cancel = threading.Event()
+        engine.pause = threading.Event()
+        engine.resuming_copy = None
+        engine.progress = lambda *_: None
+        engine.metrics_report = lambda _: None
+        engine.transfer_metrics = None
+        engine.bytes_done = 0
+        engine.compatibility_warnings = set()
+        return engine
+
     def save(self):
+        with self.history_lock:
+            self._save()
+
+    def _save(self):
         if self.load_error:
             raise SafetyError(f'History could not be read: {self.history_file}\n{self.load_error}')
         temp = self.state_dir / f'.history-{uuid.uuid4().hex}'
@@ -186,7 +205,8 @@ class FileEngine:
         self.bytes_done = 0
         self.compatibility_warnings.clear()
         operation = {'id': uuid.uuid4().hex, 'label': label, 'time': time.time(), 'records': []}
-        self.history.append(operation)
+        with self.history_lock:
+            self.history.append(operation)
         return operation
 
     def record(self, operation, source, destination, kind, backup=None, cancellable=False):
@@ -204,20 +224,22 @@ class FileEngine:
                 snapshot = current
             else:
                 snapshot = None
-        operation['records'].append({'source': str(source), 'destination': str(destination),
-            'kind': kind, 'backup': str(backup) if backup else None,
-            'snapshot': snapshot, 'reverted': False})
-        self.save()
+        with self.history_lock:
+            operation['records'].append({'source': str(source), 'destination': str(destination),
+                'kind': kind, 'backup': str(backup) if backup else None,
+                'snapshot': snapshot, 'reverted': False})
+            self.save()
 
     def finish(self, operation):
-        if self.compatibility_warnings:
-            operation['warnings'] = sorted(self.compatibility_warnings)
-        error = sys.exc_info()[1]
-        if error is not None:
-            operation['error'] = str(error)
-        if not operation['records']:
-            self.history.remove(operation)
-        self.save()
+        with self.history_lock:
+            if self.compatibility_warnings:
+                operation['warnings'] = sorted(self.compatibility_warnings)
+            error = sys.exc_info()[1]
+            if error is not None:
+                operation['error'] = str(error)
+            if not operation['records']:
+                self.history.remove(operation)
+            self.save()
 
     def check_cancel(self):
         if self.cancel.is_set():
@@ -379,8 +401,6 @@ class FileEngine:
 
     def transfer(self, paths, directory, move=False, conflict='keep', job_id=None):
         if job_id is not None:
-            if move:
-                raise SafetyError('Only copy jobs support pause/resume')
             from .resumable_copy import transfer
             return transfer(self, job_id)
         directory = Path(directory)

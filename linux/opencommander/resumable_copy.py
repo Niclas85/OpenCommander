@@ -5,14 +5,16 @@ destinations are never removed on error. An ambiguous interrupted publication
 stops for inspection rather than guessing which file belongs to this job.
 """
 import hashlib
+import errno
 import os
 from pathlib import Path
 import shutil
 import stat
 import tempfile
+import time
 
 from .operations import (Cancelled, SafetyError, exists, selected_roots,
-                         validate_target, unique_path)
+                         validate_target, unique_path, rename_new, safe_snapshot)
 from .transfer_store import mount_identity
 
 
@@ -60,6 +62,9 @@ def copy_file(engine, source, target):
         store.checkpoint(job['id'], index, relative, saved)
     if stat.S_ISLNK(info.st_mode):
         link = os.readlink(source)
+        if saved.get('link', link) != link:
+            raise SafetyError(f'Quellverknüpfung geändert / Source link changed: {source}')
+        saved['link'] = link
         if exists(target):
             if not target.is_symlink() or os.readlink(target) != link:
                 raise SafetyError(f'Zwischenstand geändert / Partial copy changed: {target}')
@@ -163,6 +168,77 @@ def staging_for(job, root):
     return stage
 
 
+def verify_move_source(engine, job, index, source, origin=None):
+    """Never remove a source that changed after its checkpointed copy."""
+    origin = origin or Path(job['roots'][index]['source'])
+    saved = engine.transfers.file(job['id'], index, source.relative_to(origin).as_posix())
+    engine.check_cancel()
+    info = source.lstat()
+    if not saved or not saved['complete'] or signature(info) != saved['source']:
+        raise SafetyError(f'Quelle seit Kopie geändert; bleibt erhalten / Changed source retained: {source}')
+    if stat.S_ISDIR(info.st_mode):
+        if sorted(child.name for child in source.iterdir()) != saved['children']:
+            raise SafetyError(f'Quellordner geändert; bleibt erhalten / Changed source retained: {source}')
+        for name in saved['children']:
+            verify_move_source(engine, job, index, source / name, origin)
+    elif stat.S_ISREG(info.st_mode) and digest_file(engine, source) != saved['digest']:
+        raise SafetyError(f'Quellinhalt geändert; bleibt erhalten / Changed source retained: {source}')
+    elif stat.S_ISLNK(info.st_mode) and os.readlink(source) != saved.get('link'):
+        raise SafetyError(f'Quellverknüpfung geändert; bleibt erhalten / Changed source retained: {source}')
+
+
+def remove_move_backup(engine, job, index, path, origin):
+    engine.check_cancel()
+    saved = engine.transfers.file(job['id'], index, path.relative_to(origin).as_posix())
+    info = path.lstat()
+    if not saved or not saved['complete']:
+        raise SafetyError(f'Unbekannte Quelldaten bleiben erhalten / Unrecognized source retained: {path}')
+    if path.is_dir() and not path.is_symlink():
+        if any(child.name not in saved['children'] for child in path.iterdir()):
+            raise SafetyError(f'Neue Quelldaten bleiben erhalten / New source data retained: {path}')
+        for child in sorted(path.iterdir()):
+            remove_move_backup(engine, job, index, child, origin)
+        engine.check_cancel()
+        path.rmdir()
+    else:
+        verify_move_source(engine, job, index, path, origin)
+        path.unlink()
+
+
+def finish_move(engine, job, index, root, operation):
+    source, target = Path(root['source']), Path(root['target'])
+    record = next(row for row in operation['records'] if row['destination'] == str(target))
+    if root['status'] == 'published':
+        if record['snapshot'] is None:
+            raise SafetyError('Ziel nicht verifizierbar; Quelle bleibt erhalten / Unverifiable target; source retained')
+        verify_move_source(engine, job, index, source)
+        engine.check_cancel()
+        container = Path(tempfile.mkdtemp(prefix='.OpenCommanderMove-', dir=source.parent))
+        root.update(status='source-moving', source_backup=str(container / source.name))
+        engine.transfers.save(job)
+        rename_new(source, container / source.name)
+        root['status'] = 'cleanup'
+        with engine.history_lock:
+            record['kind'] = 'move'
+            record['source_backup'] = root['source_backup']
+            engine.save()
+        engine.transfers.save(job)
+    backup = Path(root['source_backup'])
+    if backup.parent.parent != source.parent or not backup.parent.name.startswith('.OpenCommanderMove-') or backup.name != source.name or backup.parent.is_symlink():
+        raise SafetyError('Ungültiger Verschiebe-Zwischenstand / Invalid move recovery path')
+    # A restart must verify the only published original before continuing cleanup.
+    if safe_snapshot(target, engine.check_cancel) != record['snapshot'] or record['snapshot'] is None:
+        raise SafetyError('Ziel geändert; Quellkopie bleibt erhalten / Changed target; source backup retained')
+    engine.report_transfer('cleanup', source.name)
+    if exists(backup):
+        remove_move_backup(engine, job, index, backup, backup)
+    if exists(backup.parent):
+        backup.parent.rmdir()
+    with engine.history_lock:
+        record.pop('source_backup', None)
+        engine.save()
+
+
 def discard(engine, identifier):
     try:
         _discard(engine, identifier)
@@ -186,19 +262,22 @@ def _discard(engine, identifier):
         if not root.get('staging') or root['status'] == 'done':
             continue
         stage = staging_for(job, root)
-        if root['status'] == 'published':
+        if root['status'] in ('published', 'renamed'):
             operation = next((row for row in engine.history if row['id'] == job.get('operation')), None)
             if operation is None:
                 operation = engine.begin('copy')
             if not any(record['destination'] == root['target'] for record in operation['records']):
                 # Cancellation must not spend hours hashing an already published
                 # folder. Retain its history, but never allow unverified undo.
-                operation['records'].append(dict(source=root['source'], destination=root['target'],
-                    kind='copy', backup=root.get('backup'), snapshot=None, reverted=False))
-                engine.save()
+                with engine.history_lock:
+                    operation['records'].append(dict(source=root['source'], destination=root['target'],
+                        kind='move' if root['status'] == 'renamed' else 'copy', backup=root.get('backup'), snapshot=None, reverted=False))
+                    engine.save()
         # Displaced originals and ambiguous publication are retained for recovery.
-        if root['status'] == 'publishing':
+        if root['status'] in ('publishing', 'renaming', 'source-moving'):
             raise SafetyError(f'Unterbrochene Veröffentlichung prüfen / Inspect interrupted publication: {root["target"]}\n{stage}')
+        if root['status'] == 'cleanup':
+            raise SafetyError('Verschobene Daten sind am Ziel; Quellbereinigung bleibt gespeichert. Fortsetzen zum Abschließen. / Move cleanup saved; resume to finish')
         if exists(stage / 'previous'):
             continue
         shutil.rmtree(stage, ignore_errors=False) if exists(stage) else None
@@ -211,6 +290,8 @@ def transfer(engine, identifier):
     if job is None:
         return
     operation = None
+    started = time.monotonic()
+    move = job.get('move', False)
     try:
         engine.check_cancel()
         for guard in job['guards']:
@@ -223,6 +304,8 @@ def transfer(engine, identifier):
             raise SafetyError('The recovery profile cannot be a destination')
         if job['roots'] is None:
             sources = selected_roots(job['sources'])
+            if move:
+                engine.protect_state(sources)
             for source in sources:
                 validate_target(source, directory)
             totals = {sources[0]: tuple(job['legacy_totals'])} if job.get('legacy_totals') is not None else engine.plan_transfer(sources)
@@ -230,13 +313,14 @@ def transfer(engine, identifier):
             store.save(job)
         operation = next((row for row in engine.history if row['id'] == job.get('operation')), None)
         if operation is None:
-            operation = engine.begin('copy')
+            operation = engine.begin('move' if move else 'copy')
             job['operation'] = operation['id']
         else:
             engine.bytes_done = 0
             engine.compatibility_warnings.clear()
-            operation.pop('paused', None)
-            operation.pop('error', None)
+            with engine.history_lock:
+                operation.pop('paused', None)
+                operation.pop('error', None)
         engine.transfer_metrics = dict(phase='copying', name='', bytes_done=0,
             bytes_resumed=0,
             bytes_total=sum(root['size'] for root in job['roots']),
@@ -251,10 +335,16 @@ def transfer(engine, identifier):
                 engine.transfer_metrics['bytes_resumed'] += root['size']
                 engine.transfer_metrics['files_done'] += root['files']
                 continue
-            if root['status'] == 'publishing':
+            if root['status'] in ('publishing', 'renaming', 'source-moving'):
                 raise SafetyError(f'Unterbrochene Veröffentlichung prüfen / Inspect interrupted publication: {root["target"]}\n{root["staging"]}')
             if root['status'] == 'pending':
                 preferred = directory / source.name
+                if move and source == preferred:
+                    root['status'] = 'done'
+                    engine.bytes_done += root['size']
+                    engine.transfer_metrics['files_done'] += root['files']
+                    store.save(job)
+                    continue
                 target = unique_path(directory, source.name) if job['conflict'] == 'keep' or source == preferred else preferred
                 if job.get('legacy_staging'):
                     stage = Path(job['legacy_staging'])
@@ -266,6 +356,18 @@ def transfer(engine, identifier):
                     stage = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=directory))
                 root.update(status='copying', staging=str(stage), target=str(target))
                 store.save(job)
+                if move and not exists(target):
+                    root['status'] = 'renaming'
+                    store.save(job)
+                    try:
+                        rename_new(source, target)
+                    except OSError as error:
+                        if error.errno not in (errno.EXDEV, errno.EOPNOTSUPP, errno.ENOSYS):
+                            raise
+                        root['status'] = 'copying'
+                    else:
+                        root['status'] = 'renamed'
+                    store.save(job)
             stage = staging_for(job, root)
             target = Path(root['target'])
             if target.parent != directory:
@@ -282,17 +384,23 @@ def transfer(engine, identifier):
                 backup = engine.publish(stage / 'payload', target, job['conflict'] == 'replace' and source != target)
                 root.update(status='published', backup=str(backup) if backup else None)
                 store.save(job)
-            else:
+            elif root['status'] == 'published':
                 # A pause during history verification already published this root.
                 engine.resuming_copy = (job, index, source)
                 try:
                     engine.copy_file(source, target)
                 finally:
                     engine.resuming_copy = None
+            elif root['status'] in ('renamed', 'cleanup'):
+                engine.bytes_done += root['size']
+                engine.transfer_metrics['bytes_resumed'] += root['size']
+                engine.transfer_metrics['files_done'] += root['files']
             engine.check_cancel()
             engine.report_transfer('verifying', source.name)
             if not any(record['destination'] == str(target) for record in operation['records']):
-                engine.record(operation, source, target, 'copy', root.get('backup'), cancellable=True)
+                engine.record(operation, source, target, 'move' if root['status'] == 'renamed' else 'copy', root.get('backup'), cancellable=True)
+            if move and root['status'] in ('published', 'cleanup'):
+                finish_move(engine, job, index, root, operation)
             root['status'] = 'done'
             store.save(job)
             if not root.get('backup'):
@@ -313,10 +421,15 @@ def transfer(engine, identifier):
         raise
     finally:
         engine.resuming_copy = None
+        if job['status'] in ('paused', 'blocked'):
+            job['progress'] = dict(engine.transfer_metrics) if engine.transfer_metrics else None
+            job['elapsed'] = job.get('elapsed', 0) + time.monotonic() - started
+            store.save(job)
         engine.transfer_metrics = None
         if operation is not None:
             engine.finish(operation)
             if job['status'] == 'paused' and operation in engine.history:
-                operation.pop('error', None)
-                operation['paused'] = True
-                engine.save()
+                with engine.history_lock:
+                    operation.pop('error', None)
+                    operation['paused'] = True
+                    engine.save()
