@@ -19,6 +19,7 @@ mit 0.3.14; weitere Live-Verbindungen wie unten dokumentiert. Gesamtsuite:
 | Parallele Abfragen | Zwei Dateibereiche und abgebrochene wartende Abfrage | Ein Backend-Abruf für identischen Ordner; Warte- und Retry-Phasen abbrechbar |
 | Google OAuth-Client | Eigene Desktop-Client-Daten mit synthetischem Testprofil, echtes Backend nur bis zur Browser-Frage | Private Datei 0600, andere Profile erhalten, alter Token verworfen, Secret maskiert und aus UI-/Prozessdaten ferngehalten; kein echter neuer Google-Login |
 | Dateiliste bei Fehler | Vorhandene Liste, temporärer Fehler, alter Cache, automatische Wiederholung, Ordnerwechsel | Dateien bleiben mit Hinweis sichtbar; keine verspätete Wiederholung im neuen Ordner |
+| Live-GUI bei Google-Limit | Isoliertes Testprofil, reale Drive-/OneDrive-Mounts, externe Backend-Erkennung | Abfragelimit erneut aufgetreten; 708/27 sichtbare Einträge erhalten (versteckte ausgeblendet). 682 GUI-Timer-Ereignisse in 6,92 s, längste Lücke 27 ms; laufende Nutzerkopie nicht unterbrochen |
 | Cloud-Freigaben | Kontextmenü, Dialog, HTTPS-Link, Kopieren, Abbruch | Simulierter Provider; keine persönlichen Dateien öffentlich freigegeben |
 | Laufwerke | Nicht eingebunden, Einbinden, Fehler, direkte Navigation | Separate Desktop-Fixtures; keine persönlichen Datenträger eingebunden/ausgeworfen |
 | Transfer | Kopieren/Verschieben, Undo, NAS-/FUSE-Metadaten und echte Fehler | Separate Testdaten, teilweise echter lokaler rclone-/SFTP-Testserver |
