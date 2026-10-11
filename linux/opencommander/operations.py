@@ -70,7 +70,7 @@ def remove_tree(path: Path):
         path.unlink()
 
 
-def fingerprint(path: Path) -> str:
+def fingerprint(path: Path, check=None) -> str:
     digest = hashlib.sha256()
 
     def field(value):
@@ -78,6 +78,8 @@ def fingerprint(path: Path) -> str:
         digest.update(str(len(data)).encode() + b':' + data)
 
     def visit(item):
+        if check:
+            check()
         info = item.lstat()
         field(item.name)
         for value in (info.st_dev, info.st_ino, info.st_mode, info.st_mtime_ns):
@@ -93,6 +95,8 @@ def fingerprint(path: Path) -> str:
             content = hashlib.sha256()
             with item.open('rb') as stream:
                 for block in iter(lambda: stream.read(1024 * 1024), b''):
+                    if check:
+                        check()
                     content.update(block)
             digest.update(content.digest())
         else:
@@ -104,9 +108,11 @@ def fingerprint(path: Path) -> str:
     return digest.hexdigest()
 
 
-def safe_snapshot(path):
+def safe_snapshot(path, check=None):
     try:
-        return fingerprint(path)
+        return fingerprint(path, check) if check else fingerprint(path)
+    except Cancelled:
+        raise
     except (OSError, SafetyError):
         return None  # A failed verification never invalidates a completed transfer.
 
@@ -142,11 +148,15 @@ class FileEngine:
         self.history = []
         self.load_error = None
         self.cancel = threading.Event()
+        self.pause = threading.Event()
+        self.resuming_copy = None
         self.progress = lambda count, name: None
         self.bytes_done = 0
         self.metrics_report = lambda _: None
         self.transfer_metrics = None
         self.compatibility_warnings = set()
+        from .transfer_store import TransferStore
+        self.transfers = TransferStore(self.state_dir)
         if self.history_file.exists():
             try:
                 data = json.loads(self.history_file.read_text())
@@ -179,15 +189,16 @@ class FileEngine:
         self.history.append(operation)
         return operation
 
-    def record(self, operation, source, destination, kind, backup=None):
-        snapshot = safe_snapshot(destination)
+    def record(self, operation, source, destination, kind, backup=None, cancellable=False):
+        check = self.check_cancel if cancellable else None
+        snapshot = safe_snapshot(destination, check) if check else safe_snapshot(destination)
         from .provider_mounts import managed, provider_mount
         if managed(destination) or provider_mount(destination) is not None:
             # FUSE may refresh attributes on the first read following a rename.
             # Record only a settled fingerprint, keeping undo's strict comparison.
             for _ in range(3):
                 time.sleep(0.02)
-                current = safe_snapshot(destination)
+                current = safe_snapshot(destination, check) if check else safe_snapshot(destination)
                 if current is not None and current == snapshot:
                     break
                 snapshot = current
@@ -271,6 +282,9 @@ class FileEngine:
                         'NAS/Online: Dateiattribute nur teilweise übernommen / Some file attributes unsupported')
 
     def copy_file(self, source, target):
+        if self.resuming_copy is not None:
+            from .resumable_copy import copy_file
+            return copy_file(self, source, target)
         self.check_cancel()
         info = source.lstat()
         self.report_transfer('copying', source.name)
@@ -363,7 +377,12 @@ class FileEngine:
                 if resolved == state or resolved in state.parents or state in resolved.parents:
                     raise SafetyError(f'The active recovery profile cannot be modified: {path}')
 
-    def transfer(self, paths, directory, move=False, conflict='keep'):
+    def transfer(self, paths, directory, move=False, conflict='keep', job_id=None):
+        if job_id is not None:
+            if move:
+                raise SafetyError('Only copy jobs support pause/resume')
+            from .resumable_copy import transfer
+            return transfer(self, job_id)
         directory = Path(directory)
         if not directory.is_dir():
             raise NotADirectoryError(str(directory))
@@ -460,6 +479,8 @@ class FileEngine:
         if not self.history:
             return
         operation = next(op for op in self.history if op['id'] == operation_id) if operation_id else self.history[-1]
+        if not self.transfers.error and any(job.get('operation') == operation['id'] for job in self.transfers.jobs()):
+            raise SafetyError('Kopierauftrag zuerst fortsetzen oder abbrechen / Resume or cancel the copy job before undo')
         for record in list(reversed(operation['records'])):
             self.check_cancel()
             source, target = Path(record['source']), Path(record['destination'])

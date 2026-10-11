@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
 
 from .filesystem import listing, archive_listing, mounted_locations, cloud_locations, remote_location, Entry
 from .archives import is_archive, open_archive
-from .operations import FileEngine, SafetyError, exists, unique_path, checked_members
+from .operations import FileEngine, SafetyError, Cancelled, exists, unique_path, checked_members
 from .i18n import text
 from . import __version__
 from .media import media_kind, ThumbnailCache, MediaViewer
@@ -629,6 +629,9 @@ class MainWindow(QMainWindow):
         self.busy = False
         self.operation_running = False
         self.operation_queue = []
+        self.active_transfer_id = None
+        self.transfers_paused = False
+        self.cancel_requested = False
         self.closing = False
         self.active = None
         self.panes = []
@@ -759,6 +762,14 @@ class MainWindow(QMainWindow):
         self.queue_label = QLabel()
         self.queue_label.setObjectName("operationQueue")
         footer.addWidget(self.queue_label)
+        self.pause_button = QPushButton()
+        self.pause_button.clicked.connect(self.pause_transfers)
+        self.pause_button.hide()
+        footer.addWidget(self.pause_button)
+        self.resume_button = QPushButton()
+        self.resume_button.clicked.connect(self.resume_saved_transfers)
+        self.resume_button.hide()
+        footer.addWidget(self.resume_button)
         footer.addWidget(self.progress)
         footer.addWidget(self.cancel_button)
         layout.addLayout(footer)
@@ -802,6 +813,10 @@ class MainWindow(QMainWindow):
         self.history_dock.setVisible(self.settings.value('history_visible', False, type=bool))
         if self.engine.load_error:
             self.status.setText(self.engine.load_error)
+        if self.engine.transfers.error:
+            self.status.setText(self.engine.transfers.error)
+        else:
+            QTimer.singleShot(0, lambda: self.resume_saved_transfers(automatic=True))
 
     def tr_key(self, key):
         return text(self.language, key)
@@ -837,13 +852,101 @@ class MainWindow(QMainWindow):
         self.pool.start(task)
 
     def cancel_operations(self):
+        if self.closing:
+            return
+        identifiers = [job['id'] for job in self.engine.transfers.jobs()
+                       if job['id'] != self.active_transfer_id] if not self.engine.transfers.error else []
         self.operation_queue.clear()
-        self.update_queue_label()
+        self.transfers_paused = False
+        self.cancel_requested = True
+        self.engine.pause.clear()
         self.engine.cancel.set()
+        if identifiers:
+            from .resumable_copy import discard
+            self.run_operation(lambda: [discard(self.engine, identifier) for identifier in identifiers])
+        self.status.setText('Abbrechen … Netzwerkzugriff wird beendet. / Cancelling … waiting for network access to finish.')
+        self.update_queue_label()
+
+    def pause_transfers(self):
+        if self.closing or not self.active_transfer_id:
+            return
+        self.transfers_paused = True
+        self.engine.pause.set()
+        self.engine.cancel.set()
+        self.pause_button.setEnabled(False)
+        self.status.setText('Pause wird gespeichert … Netzwerkzugriff wird beendet. / Saving pause … waiting for network access to finish.')
+
+    def run_copy_job(self, identifier):
+        job = self.engine.transfers.get(identifier)
+        if job is None:
+            return
+        try:
+            self.engine.check_cancel()
+            from .online_ui import mount_profile, mount_path
+            from .transfer_store import mount_identity
+            for required in job['profiles']:
+                profile = next((dict(row) for row in self.online_profiles if row['id'] == required['id']), None)
+                if profile is None or profile['kind'] != required['kind'] or profile.get('remote_directory', '') != required['remote_directory']:
+                    raise SafetyError('Gespeicherte Online-Verbindung wurde geändert / Saved connection changed')
+                root = mount_path(self.state_dir, profile['id'])
+                if str(root) != required['root']:
+                    raise SafetyError('Online-Mountpfad geändert / Cloud mount path changed')
+                mount_profile(self, profile, self.engine.cancel)
+                for guard in job['guards']:
+                    if guard.get('profile') == profile['id'] and guard['mount'] is None:
+                        identity = mount_identity(guard['path'])
+                        if identity is None or identity['root'] != str(root) or identity['filesystem'] != 'fuse.rclone':
+                            raise SafetyError('Online-Laufwerk fehlt / Cloud mount missing')
+                        guard['mount'] = identity
+            self.engine.transfers.save(job)
+        except Exception as error:
+            if self.engine.cancel.is_set():
+                if self.engine.pause.is_set():
+                    job.update(status='paused', error=None)
+                    self.engine.transfers.save(job)
+                else:
+                    from .resumable_copy import discard
+                    discard(self.engine, identifier)
+                raise Cancelled('Cancelled') from error
+            job.update(status='blocked', error=str(error))
+            self.engine.transfers.save(job)
+            raise
+        return self.engine.transfer(tuple(Path(p) for p in job['sources']), Path(job['directory']), False, job['conflict'], identifier)
+
+    def resume_saved_transfers(self, automatic=False):
+        if self.closing or self.engine.transfers.error:
+            return
+        if self.busy and self.engine.cancel.is_set():
+            return  # The worker must finish pausing before another copy can start.
+        self.transfers_paused = False
+        scheduled = {row[2] for row in self.operation_queue}
+        scheduled.add(self.active_transfer_id)
+        for job in self.engine.transfers.jobs():
+            if job['id'] in scheduled or (automatic and job['status'] == 'blocked'):
+                continue
+            identifier = job['id']
+            self.run_operation(lambda identifier=identifier: self.run_copy_job(identifier), transfer_id=identifier)
+        if not self.busy and self.operation_queue:
+            callback, after, identifier = self.operation_queue.pop(0)
+            self.run_operation(callback, after, identifier)
+        self.update_queue_label()
 
     def update_queue_label(self):
         count = len(self.operation_queue)
-        self.queue_label.setText((f'{count} wartend' if self.language == 'de' else f'{count} queued') if count else '')
+        jobs = self.engine.transfers.jobs() if not self.engine.transfers.error else []
+        paused = sum(job['status'] in ('paused', 'blocked') for job in jobs)
+        parts = []
+        if count:
+            parts.append(f'{count} wartend' if self.language == 'de' else f'{count} queued')
+        if paused:
+            parts.append(f'{paused} gespeichert' if self.language == 'de' else f'{paused} saved')
+        self.queue_label.setText(' · '.join(parts))
+        self.queue_label.setToolTip('\n\n'.join(' → '.join([', '.join(job['sources']), job['directory']]) + ('\n' + job['error'] if job.get('error') else '') for job in jobs))
+        self.pause_button.setVisible(bool(self.active_transfer_id) and not self.closing)
+        self.pause_button.setEnabled(not self.engine.cancel.is_set())
+        self.resume_button.setVisible(bool(paused or self.transfers_paused) and not self.closing)
+        self.resume_button.setEnabled(not self.busy or not self.engine.cancel.is_set())
+        self.cancel_button.setVisible(self.busy or bool(jobs))
 
     def run_readonly(self, callback, after):
         task = Task(callback)
@@ -855,26 +958,33 @@ class MainWindow(QMainWindow):
         task.signals.result.connect(done, Qt.QueuedConnection)
         self.start_background(task)
 
-    def run_operation(self, callback, after=None):
+    def run_operation(self, callback, after=None, transfer_id=None):
         if self.closing:
+            return
+        if transfer_id and self.transfers_paused and not self.busy:
+            self.operation_queue.append((callback, after, transfer_id))
+            self.update_queue_label()
             return
         if self.busy:
             if self.operation_running:
-                self.operation_queue.append((callback, after))
+                self.operation_queue.append((callback, after, transfer_id))
                 self.update_queue_label()
             return
         self.busy = True
         self.operation_running = True
+        self.active_transfer_id = transfer_id
         for row in range(self.history_list.count()):
             card = self.history_list.itemWidget(self.history_list.item(row))
             if card:
                 card.undo_button.setEnabled(False)
         self.engine.cancel.clear()
+        self.engine.pause.clear()
         self.status.setText(self.tr_key('working'))
         self.progress.setRange(0, 0)
         self.progress.show()
         self.cancel_button.show()
         self.actions['undo'].setEnabled(False)
+        self.update_queue_label()
         task = Task(callback)
         started = time.monotonic()
         latest = [None]
@@ -891,7 +1001,9 @@ class MainWindow(QMainWindow):
             phases = {'planning': ('Dateien und Größe ermitteln', 'Counting files and size'),
                       'copying': ('Kopieren', 'Copying'), 'moving': ('Verschieben', 'Moving'),
                       'uploading': ('Schreiben abschließen / Upload', 'Finishing writes / upload'),
-                      'verifying': ('Prüfen und abschließen', 'Verifying and finalizing'), 'complete': ('Abgeschlossen', 'Completed')}
+                      'verifying': ('Prüfen und abschließen', 'Verifying and finalizing'),
+                      'paused': ('Pausiert – gespeichert', 'Paused – saved'),
+                      'cancelled': ('Abgebrochen', 'Cancelled'), 'complete': ('Abgeschlossen', 'Completed')}
             label = phases[phase][0 if self.language == 'de' else 1]
             clock = f'{int(elapsed) // 60:02d}:{int(elapsed) % 60:02d}'
             if phase == 'planning':
@@ -900,7 +1012,7 @@ class MainWindow(QMainWindow):
             else:
                 self.progress.setRange(0, 100)
                 self.progress.setValue(percent)
-                rate = count / max(elapsed, 0.001)
+                rate = max(0, count - value.get('bytes_resumed', 0)) / max(elapsed, 0.001)
                 remaining = (total - count) / rate if rate and total > count else None
                 eta = (f' · Rest ca. {int(remaining) // 60:02d}:{int(remaining) % 60:02d}' if self.language == 'de' else
                        f' · Remaining ~{int(remaining) // 60:02d}:{int(remaining) % 60:02d}') if remaining is not None else ''
@@ -931,16 +1043,22 @@ class MainWindow(QMainWindow):
                 last_progress[0] = now
                 task.signals.progress.emit(count // 1024, name)
         self.engine.progress = progress
-        task.signals.progress.connect(lambda kib, name: self.status.setText(f'{self.tr_key("working")}  {human_size(kib * 1024)}  ·  {name}'), Qt.QueuedConnection)
+        def show_progress(kib, name):
+            if not self.engine.cancel.is_set():
+                self.status.setText(f'{self.tr_key("working")}  {human_size(kib * 1024)}  ·  {name}')
+        task.signals.progress.connect(show_progress, Qt.QueuedConnection)
         def done(value, error):
             self.busy = False
             self.operation_running = False
+            self.active_transfer_id = None
             timer.stop()
             timer.deleteLater()
             self.engine.metrics_report = lambda _: None
             if latest[0] is not None:
+                if isinstance(error, Cancelled):
+                    latest[0]['phase'] = 'paused' if self.engine.pause.is_set() else 'cancelled'
                 show_metrics()
-                if error:
+                if error and not isinstance(error, Cancelled):
                     self.transfer_details.setText(self.transfer_details.text() + '\n' + str(error))
                 elif isinstance(value, dict) and value.get('warnings'):
                     self.transfer_details.setText(self.transfer_details.text() + '\n' + '\n'.join(value['warnings']))
@@ -950,16 +1068,21 @@ class MainWindow(QMainWindow):
             for action in self.actions.values():
                 action.setEnabled(True)
             self.update_context_actions()
-            self.reload_history()
-            self.refresh_all()
-            self.status.setText(str(error) if error else self.tr_key('done'))
-            if not error and after:
+            if not self.closing:
+                self.reload_history()
+                self.refresh_all()
+            self.status.setText(('Pausiert – Zwischenstand gespeichert / Paused – progress saved' if self.engine.pause.is_set() else
+                                 'Abgebrochen / Cancelled') if isinstance(error, Cancelled) else str(error) if error else self.tr_key('done'))
+            if not error and after and not self.closing:
                 after(value)
             self.operation_finished.emit(error)
-            if self.operation_queue:
-                callback, following = self.operation_queue.pop(0)
+            if self.operation_queue and not self.closing and not self.transfers_paused:
+                callback, following, identifier = self.operation_queue.pop(0)
                 self.update_queue_label()
-                self.run_operation(callback, following)
+                self.run_operation(callback, following, identifier)
+            self.update_queue_label()
+            if not self.busy and not self.operation_queue:
+                self.cancel_requested = False
         task.signals.result.connect(done, Qt.QueuedConnection)
         self.tasks.add(task)
         task.signals.result.connect(lambda *_: self.tasks.discard(task), Qt.QueuedConnection)
@@ -1001,7 +1124,29 @@ class MainWindow(QMainWindow):
         paths = tuple(Path(path) for path in paths)
         mode = self.conflict_mode(paths, directory)
         if mode:
-            self.run_operation(lambda: self.engine.transfer(paths, directory, move, mode))
+            if move:
+                self.run_operation(lambda: self.engine.transfer(paths, directory, move, mode))
+            else:
+                from .transfer_store import guards_for
+                from .online_ui import mount_path
+                endpoints = paths + (directory,)
+                guards = guards_for(endpoints)
+                profiles = []
+                for profile in self.online_profiles:
+                    root = mount_path(self.state_dir, profile['id'])
+                    matching = [guard for guard in guards if Path(guard['path']) == root or root in Path(guard['path']).parents]
+                    if matching:
+                        profiles.append(dict(id=profile['id'], kind=profile['kind'], root=str(root), remote_directory=profile.get('remote_directory', '')))
+                        for guard in matching:
+                            guard['profile'] = profile['id']
+                            if not remote_location(root):
+                                guard['mount'] = None
+                try:
+                    job = self.engine.transfers.create(paths, directory, mode, guards, profiles)
+                except Exception as error:
+                    self.status.setText(str(error))
+                    return
+                self.run_operation(lambda: self.run_copy_job(job['id']), transfer_id=job['id'])
 
     def drop_urls(self, urls, directory):
         paths = [Path(url.toLocalFile()) for url in urls if url.isLocalFile()]
@@ -1332,6 +1477,9 @@ class MainWindow(QMainWindow):
         self.theme_button.setText(self.tr_key('dark'))
         self.theme_button.setChecked(self.dark)
         self.cancel_button.setText(self.tr_key('cancel'))
+        self.pause_button.setText('Pause' if self.language == 'de' else 'Pause')
+        self.resume_button.setText('Fortsetzen' if self.language == 'de' else 'Resume')
+        self.update_queue_label()
         self.history_dock.setWindowTitle(self.tr_key('history'))
         for pane in self.panes:
             pane.retranslate()
@@ -1644,6 +1792,20 @@ class MainWindow(QMainWindow):
         ''')
 
     def closeEvent(self, event):
+        if self.busy and self.cancel_requested:
+            self.status.setText('Abbruch wird abgeschlossen … / Finishing cancellation …')
+            QTimer.singleShot(100, self.close)
+            event.ignore()
+            return
+        if self.busy and self.active_transfer_id:
+            self.closing = True
+            self.transfers_paused = True
+            self.engine.pause.set()
+            self.engine.cancel.set()
+            self.status.setText('Kopierstand wird gespeichert … / Saving copy progress …')
+            QTimer.singleShot(100, self.close)
+            event.ignore()
+            return
         if self.busy or getattr(self, 'opening_devices', set()) or (hasattr(self, 'connections_dialog') and self.connections_dialog.pending) or (hasattr(self, 'online_dialog') and self.online_dialog.pending):
             self.status.setText(self.tr_key('quit_busy'))
             event.ignore()

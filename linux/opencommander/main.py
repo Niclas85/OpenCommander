@@ -59,6 +59,28 @@ def main():
         import libarchive
         from .archives import open_archive
         from .operations import checked_members
+        from .operations import FileEngine, Cancelled
+        copy_root = Path(fixture.name)
+        copy_source = copy_root / 'resume.bin'
+        copy_source.write_bytes(b'a' * 2 * 1024**2)
+        copy_target = copy_root / 'resume-target'
+        copy_target.mkdir()
+        copy_engine = FileEngine(copy_root / 'resume-state')
+        copy_job = copy_engine.transfers.create([copy_source], copy_target, 'keep')
+        def pause_copy(*_):
+            copy_engine.pause.set()
+            copy_engine.cancel.set()
+        copy_engine.progress = pause_copy
+        try:
+            copy_engine.transfer([copy_source], copy_target, job_id=copy_job['id'])
+        except Cancelled:
+            pass
+        else:
+            raise AssertionError('Copy did not pause')
+        copy_engine = FileEngine(copy_engine.state_dir)
+        copy_engine.transfer([copy_source], copy_target, job_id=copy_job['id'])
+        assert (copy_target / copy_source.name).read_bytes() == copy_source.read_bytes()
+        assert not copy_engine.transfers.jobs()
         for kind, compression, suffix in (('ustar', 'gzip', '.tgz'), ('7zip', None, '.7z')):
             archive_path = Path(fixture.name) / ('archive-smoke' + suffix)
             with libarchive.file_writer(str(archive_path), kind, compression) as writer:
@@ -103,7 +125,7 @@ def main():
                     exit_status[0] = 1
                     print('FAIL: media preview did not load')
                 else:
-                    print('PASS: Linux desktop, JPEG viewer, isolated online-image download TAR/7z archive readers and external Drive context menu')
+                    print('PASS: Linux desktop, JPEG viewer, online-image download, TAR/7z, external Drive menu and persisted copy pause/resume')
                 window.close()
         QTimer.singleShot(2000, finish)
     result = app.exec()

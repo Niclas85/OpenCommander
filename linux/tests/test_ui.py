@@ -1402,3 +1402,124 @@ def test_places_only_open_locations_and_management_is_in_settings(window, app, m
     assert settings.connections_button.text() == ('Verbindungen verwalten …' if language == 'de' else 'Manage connections …')
     settings.connections_button.click()
     assert calls == ['online', 'connections'] and not settings.isVisible()
+
+
+def test_pause_resume_buttons_keep_pending_queue(window, app):
+    import threading
+    source, target = window.panes
+    large = source.directory / 'large.bin'
+    large.write_bytes(b'a' * 3 * 1024**2)
+    small = source.directory / 'later.txt'
+    small.write_text('queued copy')
+    original = window.engine.copy_file
+    entered = threading.Event()
+    def pause_in_copy(src, dst):
+        report = window.engine.progress
+        def blocked_progress(count, name):
+            entered.set()
+            assert window.engine.cancel.wait(5)
+            report(count, name)
+        window.engine.progress = blocked_progress
+        return original(src, dst)
+    window.engine.copy_file = pause_in_copy
+    window.transfer(paths=[large], directory=target.directory)
+    wait(app, entered.is_set)
+    window.transfer(paths=[small], directory=target.directory)
+    assert window.pause_button.isVisible()
+    window.pause_button.click()
+    wait(app, lambda: not window.busy)
+    assert window.resume_button.isVisible() and window.resume_button.isEnabled()
+    assert len(window.engine.transfers.jobs()) == 2
+    paused = next(job for job in window.engine.transfers.jobs() if job['status'] == 'paused')
+    payload = Path(paused['roots'][0]['staging']) / 'payload'
+    assert payload.stat().st_size == 1024**2
+    assert not (target.directory / small.name).exists()
+    window.engine.copy_file = original
+    window.resume_button.click()
+    wait(app, lambda: not window.busy and not window.operation_queue)
+    assert (target.directory / large.name).read_bytes() == large.read_bytes()
+    assert (target.directory / small.name).read_text() == 'queued copy'
+    assert not window.engine.transfers.jobs()
+    assert not window.resume_button.isVisible()
+
+
+def test_close_saves_current_and_queued_copies_then_restart_resumes(window, app):
+    import threading
+    source, target = window.panes
+    first = source.directory / 'first.bin'
+    first.write_bytes(b'a' * 3 * 1024**2)
+    second = source.directory / 'later.txt'
+    second.write_text('queued copy')
+    destination, state = target.directory, window.state_dir
+    entered = threading.Event()
+    original = window.engine.copy_file
+    def wait_for_close(src, dst):
+        report = window.engine.progress
+        def blocked_progress(count, name):
+            entered.set()
+            assert window.engine.cancel.wait(5)
+            report(count, name)
+        window.engine.progress = blocked_progress
+        return original(src, dst)
+    window.engine.copy_file = wait_for_close
+    window.transfer(paths=[first], directory=destination)
+    wait(app, entered.is_set)
+    window.transfer(paths=[second], directory=destination)
+    window.close()
+    wait(app, lambda: not window.isVisible(), timeout=10)
+    assert not window.busy
+    assert len(window.engine.transfers.jobs()) == 2
+    restarted = MainWindow(state, source.directory, destination)
+    restarted.show()
+    try:
+        wait(app, lambda: not restarted.busy and not restarted.engine.transfers.jobs(), timeout=10)
+        assert (destination / first.name).read_bytes() == first.read_bytes()
+        assert (destination / second.name).read_text() == 'queued copy'
+        assert not list(destination.glob('.OpenCommanderTransfer-*'))
+    finally:
+        restarted.close()
+        wait(app, lambda: not restarted.isVisible(), timeout=10)
+        restarted.deleteLater()
+
+
+def test_cancel_button_stops_real_copy_and_discards_queue(window, app):
+    import threading
+    source, target = window.panes
+    first = source.directory / 'first.bin'
+    first.write_bytes(b'a' * 2 * 1024**2)
+    second = source.directory / 'later.txt'
+    second.write_text('queued copy')
+    entered = threading.Event()
+    original = window.engine.copy_file
+    def wait_for_cancel(src, dst):
+        report = window.engine.progress
+        def blocked_progress(count, name):
+            entered.set()
+            assert window.engine.cancel.wait(5)
+            report(count, name)
+        window.engine.progress = blocked_progress
+        return original(src, dst)
+    window.engine.copy_file = wait_for_cancel
+    window.transfer(paths=[first], directory=target.directory)
+    wait(app, entered.is_set)
+    window.transfer(paths=[second], directory=target.directory)
+    window.cancel_button.click()
+    wait(app, lambda: not window.busy and not window.operation_queue)
+    assert not window.engine.transfers.jobs()
+    assert not list(target.directory.iterdir())
+    assert first.exists() and second.exists()
+
+
+def test_unavailable_restored_copy_remains_saved_for_retry(window, app):
+    source, target = window.panes
+    destination = target.directory / 'not-connected'
+    job = window.engine.transfers.create([source.directory / 'Grüße.txt'], destination, 'keep')
+    window.resume_saved_transfers()
+    wait(app, lambda: not window.busy)
+    assert window.engine.transfers.get(job['id'])['status'] == 'blocked'
+    assert window.resume_button.isVisible()
+    destination.mkdir()
+    window.resume_button.click()
+    wait(app, lambda: not window.busy)
+    assert (destination / 'Grüße.txt').exists()
+    assert not window.engine.transfers.jobs()

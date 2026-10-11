@@ -6,7 +6,7 @@ Historienansicht und FTP/FTPS/SFTP samt Online-Werkzeugen. Frühere Commits erg�
 Orte-Einstellungen, OneDrive-Online und Desktop-Bedienung. Linux übernimmt die
 benutzbaren Funktionen mit Linux-Backends, nicht den Swift-/AppKit-Code.
 
-| Funktion | Linux 0.3.11 | Prüfung / Unterschied |
+| Funktion | Linux 0.3.12 | Prüfung / Unterschied |
 | --- | --- | --- |
 | ZIP/TAR/TGZ/7z/RAR öffnen und entpacken | libarchive, sichere Prüfung und Undo | TAR/7z-Roundtrips, echtes RAR5-Fixture, Traversal-/Link-/Spezialdatei-Ablehnung |
 | Zwei Bereiche, Baum, Sortierung, Filter, Navigation | Vorhanden, auch für Online-Mounts | Bestehende UI-Tests |
@@ -16,6 +16,7 @@ benutzbaren Funktionen mit Linux-Backends, nicht den Swift-/AppKit-Code.
 | Suche, Pfadwechsel, Unicode, Muster, Groß-/Kleinschreibung | Neu, Strg-F | Grenzen/Links/Hidden/Abbruch getestet |
 | Ordnervergleich mit Inhalt | Neu, Strg-Alt-C | Gleich große unterschiedliche Dateien getestet |
 | Mehrfach-Umbenennen, Zähler, Vorschau, Rücknahme | Neu, Strg-Umschalt-M | Veraltete Vorschau, Kollision, Teilfehler und persistente Rücknahme getestet |
+| Kopieraufträge pausieren und nach Neustart fortsetzen | Private persistente Warteschlange und geprüfte Zwischenstände | Lokale Prozess-/Desktop-Tests; Netzwerkzugriffe können Abbruch verzögern |
 | Orte hinzufügen, umbenennen, ausblenden | Übernommene Linux-Einstellungen aus dem Referenzbranch | Präferenz- und Sprachtests |
 | Kompakte Historie und Info-Schaltfläche | Neu | Rücknahme und Detaildaten bleiben erhalten |
 | Online-Ladeanzeige / Abbruch | Pane-Ladebalken, Verbindungs-/Konfigurationsanzeige, Transferanzeige | Verzögerte/alte Ergebnisse getestet; Byteanzeige beim Kopieren |

@@ -1,5 +1,28 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.12 – 11. Oktober 2026
+
+- Kopieraufträge vor Beginn in privater SQLite-Warteschlange speichern, einschließlich
+  Quelle, Ziel, Konfliktmodus und wartender Aufträge. Keine Zugangsdaten im Journal.
+- Pause und Fortsetzen im Hauptfenster. Pause bewahrt private Zwischenstände auf dem
+  Ziellaufwerk; auch große Einzeldateien werden an der geprüften Byteposition fortgesetzt.
+- Beim Schließen laufende Kopien sicher pausieren und Hintergrundzugriffe abwarten.
+  Beim nächsten Start gespeicherte Kopien automatisch fortsetzen; fehlerhafte Aufträge
+  bleiben mit Fehlerhinweis erhalten und lassen sich nach Verbindungsreparatur fortsetzen.
+- Abbrechen beendet aktuelle Kopie und Warteschlange und entfernt unfertige Zwischenstände
+  im Hintergrund. Fertige Ziele und Wiederherstellungskopien bleiben erhalten.
+- Fertige Dateien im Zwischenstand per SHA-256 prüfen, Quellattribute vergleichen und
+  angefangene Dateipräfixe mit der Quelle abgleichen. Keine erneute Kopie fertiger Dateien.
+- Ziel-/Quell-Mounts identifizieren; bei fehlendem oder anderem Laufwerk stoppen,
+  statt unbemerkt in einen lokalen Ersatzordner zu schreiben. Gespeicherte eigene
+  Online-Verbindungen im Worker wieder einbinden; neue Anmeldungen bleiben Benutzeraktion.
+- Veröffentlichung, Historie und Undo behalten ihre Schutzregeln. Unterbrochene,
+  nicht eindeutig zuordenbare Veröffentlichungen stoppen zur manuellen Prüfung.
+- Undo eines noch offenen Kopierauftrags erst nach Fortsetzen oder Abbrechen erlauben.
+  Wiederaufgenommene Bytes zählen zum Gesamtfortschritt, nicht zur neuen Übertragungsrate.
+- Persistenz gilt für Kopieren; Verschieben und andere Dateimutationen behalten ihre
+  bisherige Verarbeitung und dürfen beim Schließen nicht unterbrochen werden.
+
 ## 0.3.11 – 11. Oktober 2026
 
 - Einstellungen / Orte als eigenes, nicht modales Fenster öffnen und bestehendes

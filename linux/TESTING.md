@@ -1,7 +1,7 @@
-# Linux 0.3.11 – Verbindungs- und Desktop-Prüfung
+# Linux 0.3.12 – Verbindungs- und Desktop-Prüfung
 
 Stand: 11. Oktober 2026. Live-Verbindungsprüfungen aus 0.3.10;
-Desktop-Prüfungen und Gesamtsuite mit 0.3.11. Gesamtsuite: 213 Tests erfolgreich.
+Desktop-Prüfungen und Gesamtsuite mit 0.3.12. Gesamtsuite: 231 Tests erfolgreich.
 
 | Bereich | Prüfung | Ergebnis / Grenze |
 | --- | --- | --- |
@@ -17,6 +17,7 @@ Desktop-Prüfungen und Gesamtsuite mit 0.3.11. Gesamtsuite: 213 Tests erfolgreic
 | Cloud-Freigaben | Kontextmenü, Dialog, HTTPS-Link, Kopieren, Abbruch | Simulierter Provider; keine persönlichen Dateien öffentlich freigegeben |
 | Laufwerke | Nicht eingebunden, Einbinden, Fehler, direkte Navigation | Separate Desktop-Fixtures; keine persönlichen Datenträger eingebunden/ausgeworfen |
 | Transfer | Kopieren/Verschieben, Undo, NAS-/FUSE-Metadaten und echte Fehler | Separate Testdaten, teilweise echter lokaler rclone-/SFTP-Testserver |
+| Kopier-Fortsetzung | Pause nach geschriebenem Datenblock, Neustart in neuem Prozess, fertige Dateien, Teilbytes, Queue, GUI-Schließen, Abbruch, Undo, fehlende Mounts, manipulierte Daten, uneindeutiger Publish | Isolierte lokale Testdaten; kein laufender Nutzertransfer geändert |
 | GUI während Transfer | Echte lokale Kopie, parallele Einstellungen, Themenwechsel, Navigation, GUI-Heartbeat und Thread-Zustellung | Automatisierter Desktop-Test; laufende Nutzerkopie nicht unterbrochen |
 | Orte-Leiste und Verwaltung | Nur Öffnungsziele in der Leiste; Online-Orte und Verbindungen aus Einstellungen | Desktop-Tests in Deutsch und Englisch |
 | Ordnerbaum | Breite, vollständige Namen und gespeicherter Splitter | Automatisierter Desktop-Test |
@@ -35,4 +36,5 @@ OPENCOMMANDER_BUILD_ROOT=/dev/shm/opencommander-linux-build ./linux/build.sh
 ```
 
 Der Paket-Smoke-Test prüft zusätzlich GUI-Start, JPG-Vorschau, isolierten
-Online-Bilddownload, TAR/7z und das externe Google-Drive-Kontextmenü.
+Online-Bilddownload, TAR/7z, das externe Google-Drive-Kontextmenü sowie
+persistente Kopier-Pause und Wiederaufnahme mit dem gebündelten Python/SQLite.
