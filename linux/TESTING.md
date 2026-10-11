@@ -1,12 +1,13 @@
-# Linux 0.3.13 – Verbindungs- und Desktop-Prüfung
+# Linux 0.3.14 – Verbindungs- und Desktop-Prüfung
 
-Stand: 11. Oktober 2026. Live-Verbindungsprüfungen aus 0.3.10;
-Desktop-Prüfungen und Gesamtsuite mit 0.3.13. Gesamtsuite: 236 Tests erfolgreich.
+Stand: 11. Oktober 2026. Erneute Live-Prüfung von Google Drive und OneDrive
+mit 0.3.14; weitere Live-Verbindungen wie unten dokumentiert. Gesamtsuite:
+253 Tests erfolgreich.
 
 | Bereich | Prüfung | Ergebnis / Grenze |
 | --- | --- | --- |
-| Google Drive | Bestehendes externes Laufwerk, direkte lesende Backend-Abfrage | 716 Einträge, rund 2,13 s; keine Freigabe erstellt |
-| OneDrive | Gespeichertes Konto, direkte lesende Backend-Abfrage | 30 Einträge, rund 0,88 s |
+| Google Drive | Bestehendes externes Laufwerk, direkte lesende Backend-Abfrage | `403 Quota exceeded / RATE_LIMIT_EXCEEDED` reproduziert. Neue Abfragen: 717 Einträge in 2,45 bzw. 2,12 s; keine Freigabe erstellt |
+| OneDrive | Gespeichertes Konto, direkte lesende Backend-Abfrage | 30 Einträge, rund 0,90 s |
 | NAS / SMB | Lesende Ordnerabfrage über GVFS | Erfolgreich, rund 0,55 s; geprüfter Ordner leer |
 | iCloud | Bestehende Konfiguration lesend geprüft | Ungültige Passwort-Konfiguration; erneute Anmeldung nötig |
 | Dropbox | Kein Konto vorhanden | Erkennung, Pfade, Fehler, Abbruch und Linkanfragen mit isoliertem Backend getestet |
@@ -14,6 +15,10 @@ Desktop-Prüfungen und Gesamtsuite mit 0.3.13. Gesamtsuite: 236 Tests erfolgreic
 | FTP / FTPS | Konfigurations-, Passwortübergabe-, TLS- und Fehlerpfade | Automatisiert geprüft; kein externer FTP-/FTPS-Testserver vorhanden |
 | Externe Cloud-Mounts | Drive / OneDrive / Dropbox / iCloud | Zuordnung des laufenden Prozesses, Konfiguration, Remote-Unterordner, keine kopierten Zugangsdaten |
 | Fehlerbehandlung | Abgelaufene/ungültige Anmeldung, blockiertes Backend, Abbruch, Wiederholung | Begrenzte Prozesse, verständliche Fehler ohne ungefilterte Secrets; GUI bleibt bedienbar |
+| Cloud-Abfragelimits | Google Drive, OneDrive, Dropbox, iCloud; simulierte 403/429 und temporäre Fehler | Erster Abruf nach zwei Fehlern erfolgreich, begrenzte Versuche, Cooldown, alter Cache gekennzeichnet, erneute Verbindung, kein Cache bei Anmeldefehler |
+| Parallele Abfragen | Zwei Dateibereiche und abgebrochene wartende Abfrage | Ein Backend-Abruf für identischen Ordner; Warte- und Retry-Phasen abbrechbar |
+| Google OAuth-Client | Eigene Desktop-Client-Daten mit synthetischem Testprofil, echtes Backend nur bis zur Browser-Frage | Private Datei 0600, andere Profile erhalten, alter Token verworfen, Secret maskiert und aus UI-/Prozessdaten ferngehalten; kein echter neuer Google-Login |
+| Dateiliste bei Fehler | Vorhandene Liste, temporärer Fehler, alter Cache, automatische Wiederholung, Ordnerwechsel | Dateien bleiben mit Hinweis sichtbar; keine verspätete Wiederholung im neuen Ordner |
 | Cloud-Freigaben | Kontextmenü, Dialog, HTTPS-Link, Kopieren, Abbruch | Simulierter Provider; keine persönlichen Dateien öffentlich freigegeben |
 | Laufwerke | Nicht eingebunden, Einbinden, Fehler, direkte Navigation | Separate Desktop-Fixtures; keine persönlichen Datenträger eingebunden/ausgeworfen |
 | Transfer | Kopieren/Verschieben, Undo, NAS-/FUSE-Metadaten und echte Fehler | Separate Testdaten, teilweise echter lokaler rclone-/SFTP-Testserver |

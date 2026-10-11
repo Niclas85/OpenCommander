@@ -385,7 +385,7 @@ class Pane(QFrame):
         self.stop_loading.clicked.connect(self.cancel_loading)
         self.stop_loading.hide()
         self.retry_loading = QPushButton('Erneut laden / Retry')
-        self.retry_loading.clicked.connect(self.refresh)
+        self.retry_loading.clicked.connect(lambda: self.refresh())
         self.retry_loading.hide()
         loading_row.addWidget(self.loading_bar)
         loading_row.addWidget(self.stop_loading)
@@ -491,9 +491,11 @@ class Pane(QFrame):
         self.retry_loading.show()
         self.message.setText('Abgebrochen / Cancelled')
 
-    def refresh(self):
+    def refresh(self, automatic=False):
         if getattr(self.main, "closing", False):
             return
+        if not automatic:
+            self.cloud_retry_count = 0
         self.main.thumbnails.cancel_remote(self)
         self.load_cancel.set()
         self.load_cancel = threading.Event()
@@ -536,8 +538,10 @@ class Pane(QFrame):
                 return []
             if profile:
                 from .online_ui import list_cloud
-                return [entry for entry in list_cloud(self.main, profile, directory, cancel)
-                        if hidden or not entry.name.startswith('.')]
+                from .cloud_listing import CloudRows
+                rows = list_cloud(self.main, profile, directory, cancel)
+                return CloudRows([entry for entry in rows if hidden or not entry.name.startswith('.')],
+                                 getattr(rows, 'warning', ''))
             return archive_listing(archive, prefix) if archive else listing(directory, hidden, cancel=cancel)
         task = Task(work)
         def done(entries, error):
@@ -547,8 +551,12 @@ class Pane(QFrame):
                 return
             self.loading_bar.hide()
             self.stop_loading.hide()
-            self.retry_loading.setVisible(bool(error))
-            self.model.replace(entries or [])
+            warning = getattr(entries, 'warning', '')
+            retryable = bool(getattr(error, 'retryable', False) or warning)
+            self.retry_loading.setVisible(bool(error or warning))
+            preserved = bool(error and retryable and getattr(self, 'listed_location', None) == self.location())
+            if not preserved:
+                self.model.replace(entries or [])
             if not error:
                 self.listed_location = (directory, archive, prefix)
                 name = getattr(self, 'return_selection', None)
@@ -562,8 +570,19 @@ class Pane(QFrame):
                                 self.table.scrollTo(index)
                             break
                     self.return_selection = None
-            self.message.setText(str(error) if error else self.main.tr_key('empty') if not entries else '')
+            message = str(error) if error else warning or (self.main.tr_key('empty') if not entries else '')
+            if preserved and self.model.entries:
+                message = 'Zuletzt geladene Dateiliste / Last loaded listing · ' + message
+            self.message.setText(message)
             self.selection_changed()
+            if profile and retryable and self.cloud_retry_count < 3 and not cancel.is_set():
+                self.cloud_retry_count += 1
+                delay = self.cloud_retry_count * 10
+                self.message.setText(message + f' · Erneuter Versuch in {delay} s / Retrying')
+                def retry():
+                    if generation == self.generation and not cancel.is_set() and not self.main.closing:
+                        self.refresh(automatic=True)
+                QTimer.singleShot(delay * 1000, self, retry)
         task.signals.result.connect(done, Qt.QueuedConnection)
         self.main.start_background(task)
 
@@ -1747,7 +1766,7 @@ class MainWindow(QMainWindow):
             ('#185bb5', '#147454', '#753bb0', '#885400', '#b42338'))
         check_icon = (Path(__file__).parent / 'assets/check.svg').as_posix()
         self.setStyleSheet(f'''
-            QMainWindow, QDialog, QWidget#places, QScrollArea {{ background: {bg}; border: none; }}
+            QMainWindow, QDialog, QWidget#places, QWidget#onlineBody, QScrollArea {{ background: {bg}; border: none; }}
             QWidget {{ color: {fg}; font-family: "DejaVu Sans"; font-size: 12px; }}
             QFrame#pane {{ background: {panel}; border: 1px solid {border}; border-radius: 10px; }}
             QFrame#pane[side="1"] {{ border-top: 3px solid {blue}; }}

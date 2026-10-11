@@ -3,7 +3,7 @@
 Native Qt-Desktop-Version nach dem Vorbild der Mac-Catalyst-App. Keine Browser-
 oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 
-Aktueller Stand: **0.3.13**. Die Änderungen und der geprüfte Umfang stehen im
+Aktueller Stand: **0.3.14**. Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
 
 ## Starten
@@ -434,7 +434,7 @@ ist; die Restzeit schätzt nur den verbleibenden Datentransfer. Bei Umbenennunge
 demselben Laufwerk zählen die angezeigten Bytes die logisch verschobenen Daten.
 Die Darkmode-Checkbox steht im Kopfbereich und speichert ihre Auswahl.
 
-### NAS/GVFS-Kompatibilität (0.3.13)
+### NAS/GVFS-Kompatibilität (0.3.14)
 
 Auf erkannten GVFS-/rclone-Mounts blockieren ausdrücklich nicht unterstützte
 `fsync`-/Metadatenfunktionen die Inhaltskopie nicht. Zeitstempel und Dateirechte
@@ -445,7 +445,7 @@ und Speicherplatzfehler bleiben Fehler. Lokale Dateisysteme bleiben strikt.
 GVFS-Umbenennungen ohne RENAME_NOREPLACE prüfen das Ziel vorab innerhalb derselben
 Freigabe; gegenüber anderen gleichzeitig schreibenden Clients ist dies nicht atomar.
 
-### Cloud-Start und Ladegrenzen (0.3.13)
+### Cloud-Start und Ladegrenzen (0.3.14)
 
 Eingerichtete Cloud-Mounts laden ihre Ordnerliste direkt über das Provider-Backend,
 statt beim Start auf einen möglicherweise blockierten FUSE-Daemon zu warten.
@@ -458,7 +458,7 @@ Anmeldung unter „Online-Orte“ erneut anmelden. Plattformseitig fehlendes
 No-follow-chmod wird beim Kopieren als Metadatenhinweis behandelt, ohne Links
 zu folgen oder Inhaltsfehler zu verbergen.
 
-### Archive (0.3.13)
+### Archive (0.3.14)
 
 ZIP, TAR, TGZ/TAR.GZ, TAR.BZ2, TAR.XZ/TAR.ZST, 7z und RAR lassen sich per
 Doppelklick wie Ordner öffnen. In Unterordner navigieren, einzelne Dateien ansehen
@@ -525,6 +525,31 @@ Zugangsdaten werden nicht in OpenCommander-Profile kopiert. Namespace-Overrides
 wie `--drive-shared-with-me` oder ein abweichendes Root-ID-Flag werden aus
 Sicherheitsgründen nicht automatisch für Freigabelinks übernommen. Die Liste
 wird asynchron aus dem Backend gelesen. Mount und Quelldateien bleiben bestehen.
+
+Bei temporären Cloud-Fehlern oder Abfragelimits werden lesende Ordnerabfragen
+höchstens dreimal mit Wartezeit wiederholt, insgesamt höchstens 30 Sekunden.
+Parallel angeforderte identische Listen teilen sich eine Abfrage. Bis zu 32
+Listen bleiben ausschließlich im Sitzungsspeicher. Nach einem Verbindungsfehler
+kann eine höchstens fünf Minuten alte Liste angezeigt werden: mit Alter,
+Fehlerhinweis und „Erneut laden“. Das ist kein Offline-Dateispeicher; Datei-
+aktionen benötigen weiterhin die Verbindung. Bei Anmelde-/Berechtigungsfehlern
+wird keine alte Backend-Liste verwendet. Automatische Aktualisierungen sind
+auf drei Versuche nach 10/20/30 Sekunden begrenzt und stoppen beim Ordnerwechsel,
+Abbrechen oder Schließen. Uploads und Freigaben werden nicht blind wiederholt.
+
+Google Drive kann wegen des gemeinsam genutzten rclone-OAuth-Clients `Quota
+exceeded / rateLimitExceeded` zurückgeben, obwohl der Mount weiter arbeitet.
+Die [rclone-Dokumentation](https://rclone.org/drive/#making-your-own-client-id)
+kündigt die Einstellung dieses geteilten Clients im Jahr 2026 an. Für dauerhaften
+Zugriff unter **Einstellungen / Orte → Online-Orte verwalten → Google Drive**
+eine eigene Google-OAuth-Anwendung vom Typ **Desktop-App** einrichten und
+Client-ID sowie Client-Secret eingeben; anschließend den Zugriff im Browser
+freigeben. Beides bleibt im privaten Backend-Profil; das Secret steht weder
+in den UI-Einstellungen noch in Prozessargumenten. Bei einem Wechsel des
+Clients wird ein bisheriger Token verworfen. Ohne neue Werte bleibt eine
+vorhandene eigene Client-Konfiguration erhalten. Externe rclone-Mounts verwenden
+weiter ihre externe Konfiguration; deren OAuth-Client muss im zugehörigen
+rclone-Profil geändert werden, nach Abschluss laufender Übertragungen.
 
 Der Ordnerbaum ist standardmäßig breiter, lange Namen können horizontal
 gescrollt werden. Die eingestellte Breite wird je Bereich gespeichert. Beim

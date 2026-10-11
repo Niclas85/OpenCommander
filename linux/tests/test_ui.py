@@ -1322,6 +1322,80 @@ def test_external_drive_survives_failed_desktop_scan(window, app, monkeypatch):
     assert window.external_cloud_profiles == [profile]
 
 
+def test_cloud_list_retains_files_on_transient_error_and_stops_retry_after_navigation(window, app, monkeypatch):
+    from opencommander import online_ui
+    from opencommander.cloud_listing import CloudError, CloudRows
+    from opencommander.filesystem import Entry
+    from PySide6.QtCore import QTimer
+    import opencommander.ui as ui
+    wait(app, lambda: not window.integration_scanning)
+    window.integration_timer.stop()
+    pane = window.panes[0]
+    local = pane.directory
+    root = window.state_dir.parent / 'drive'
+    profile = dict(id='external_fixture', kind='drive', name='Google Drive', external=True,
+                   mount_root=str(root), config_path='/unused.conf', remote_base='gdrive:')
+    window.external_cloud_profiles = [profile]
+    monkeypatch.setattr(ui, 'remote_location', lambda path: root == path or root in path.parents)
+    rows = CloudRows([Entry('photo.jpg', root / 'photo.jpg', False)])
+    replies = [rows, CloudError('Provider rate limit', True), CloudRows(rows, 'Gespeicherte Dateiliste')]
+    def cloud_list(*args):
+        reply = replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+    monkeypatch.setattr(online_ui, 'list_cloud', cloud_list)
+    scheduled = []
+    monkeypatch.setattr(QTimer, 'singleShot', lambda delay, *args: scheduled.append((delay, args[-1])))
+    pane.navigate(root)
+    wait(app, lambda: pane.proxy.rowCount() == 1 and not pane.loading_bar.isVisible())
+    pane.refresh()
+    wait(app, lambda: not pane.loading_bar.isVisible())
+    assert pane.proxy.rowCount() == 1 and 'Last loaded listing' in pane.message.text()
+    assert pane.retry_loading.isVisible() and scheduled[-1][0] == 10000
+    scheduled[-1][1]()
+    wait(app, lambda: not pane.loading_bar.isVisible())
+    assert pane.proxy.rowCount() == 1 and 'Gespeicherte Dateiliste' in pane.message.text()
+    assert scheduled[-1][0] == 20000
+    pane.navigate(local)
+    wait(app, lambda: getattr(pane, 'listed_location', None) == pane.location())
+    scheduled[-1][1]()
+    assert pane.directory == local and not pane.loading_bar.isVisible()
+
+
+def test_google_oauth_fields_are_provider_specific_and_stay_out_of_profile_settings(window, app, monkeypatch):
+    from opencommander import online_ui
+    from PySide6.QtWidgets import QLineEdit
+    window.online_locations()
+    dialog = window.online_dialog
+    assert dialog.google_client_id.isHidden()
+    dialog.provider.setCurrentIndex(dialog.provider.findData('drive'))
+    assert not dialog.google_client_id.isHidden()
+    assert dialog.google_client_secret.echoMode() == QLineEdit.Password
+    assert '2026' in dialog.help.text()
+    dialog.google_client_id.setText('fixture.apps.googleusercontent.com')
+    dialog.google_client_secret.setText('fixture-client-value')
+    monkeypatch.setattr(online_ui.rclone_runtime, 'ensure_cloud_backend', lambda cancel: '/fixture')
+    calls = []
+    def command(config, arguments, cancel):
+        import configparser
+        saved = configparser.ConfigParser(interpolation=None)
+        saved.read(config)
+        assert saved[arguments[2]]['client_id'] == 'fixture.apps.googleusercontent.com'
+        assert saved[arguments[2]]['client_secret'] == 'fixture-client-value'
+        calls.append(arguments)
+        return {'State': 'fixture-wait', 'Option': {'Name': 'scope'}}
+    monkeypatch.setattr(online_ui, 'command_json', command)
+    dialog.next()
+    wait(app, lambda: not dialog.pending)
+    assert calls and 'fixture-client-value' not in str(calls)
+    assert not dialog.google_client_secret.text()
+    assert 'fixture-client-value' not in str(dialog.profile)
+    assert 'fixture-client-value' not in str(window.settings.value('online_profiles'))
+    dialog.state = ''
+    dialog.close()
+
+
 def test_settings_and_gui_stay_usable_during_real_transfer(window, app):
     import threading
     from PySide6.QtCore import QTimer

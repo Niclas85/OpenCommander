@@ -297,9 +297,12 @@ def test_cloud_list_direct_metadata_and_cancellation(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError, match='Abgebrochen'):
         online_ui.list_cloud(main, profile, root, cancel)
     cancel.clear()
+    from opencommander.cloud_listing import CloudListings
+    main.cloud_listings = CloudListings()  # Test a first load without a usable cached listing.
     script.write_text('#!/usr/bin/python3\nimport time\ntime.sleep(60)\n')
     with pytest.raises(RuntimeError, match='rechtzeitig'):
         online_ui.list_cloud(main, profile, root, cancel, timeout=.2)
+    main.cloud_listings = CloudListings()
     script.write_text('#!/usr/bin/python3\nimport sys\nprint("401 unauthorized SECRET-TOKEN",file=sys.stderr)\nsys.exit(1)\n')
     with pytest.raises(RuntimeError) as error:
         online_ui.list_cloud(main, profile, root, cancel)

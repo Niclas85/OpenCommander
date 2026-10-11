@@ -17,7 +17,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt, Signal, Slot, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QComboBox, QPushButton, QProgressBar, QMessageBox)
+    QComboBox, QPushButton, QProgressBar, QMessageBox, QWidget, QScrollArea, QLayout, QSizePolicy)
 from .desktop import host_environment
 from .filesystem import remote_location
 from . import rclone_runtime
@@ -55,6 +55,22 @@ def private_config(state):
     os.close(descriptor)
     os.chmod(path, 0o600)
     return path
+
+
+def save_drive_client(config, identifier, client_id, client_secret):
+    """Persist user-supplied OAuth details only in the private backend config."""
+    if not re.fullmatch(r'[A-Za-z0-9._-]+\.apps\.googleusercontent\.com', client_id) or not client_secret or any(
+            ord(c) < 32 for c in client_secret):
+        raise ValueError('Google OAuth-Client-ID und Client-Secret gemeinsam eingeben. / Enter both Google OAuth client fields')
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.read(config)
+    section = dict(parser[identifier]) if parser.has_section(identifier) else {'type': 'drive'}
+    if section.get('type') != 'drive':
+        raise ValueError('Kein Google-Drive-Profil / Not a Google Drive profile')
+    if section.get('client_id') != client_id or section.get('client_secret') != client_secret:
+        section.pop('token', None)  # Tokens belong to the OAuth client that issued them.
+    section.update(client_id=client_id, client_secret=client_secret)
+    server.write_config(config, identifier, section)
 
 
 def oauth_browser_url(stderr):
@@ -130,41 +146,24 @@ def list_cloud(main, profile, directory, cancel, timeout=30):
     command = [binary, '--config', str(config_for(main, profile)),
                'lsjson', remote, '--no-mimetype', '--contimeout', '5s', '--timeout', '10s',
                '--retries', '1', '--low-level-retries', '1']
-    if cancel.is_set():
-        raise RuntimeError('Abgebrochen / Cancelled')
-    with subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE, text=True, env=host_environment()) as process:
-        deadline = time.monotonic() + timeout
+    from .cloud_listing import CloudListings, CloudRows
+    # One cache per window/profile session; no credentials or listings on disk.
+    main.__dict__.setdefault('cloud_listings', CloudListings())
+    key = (profile['kind'], str(config_for(main, profile)), remote, str(root))
+    rows = main.cloud_listings.read(key, command, cancel, timeout)
+    result = []
+    for row in rows:
+        name = row.get('Name')
+        if not isinstance(name, str) or name in ('.', '..') or '/' in name or '\x00' in name:
+            continue
+        if not isinstance(row.get('IsDir'), bool) or not isinstance(row.get('Size', 0), (int, float)):
+            continue
         try:
-            while True:
-                if cancel.is_set():
-                    raise RuntimeError('Abgebrochen / Cancelled')
-                if time.monotonic() >= deadline:
-                    raise RuntimeError('Cloud antwortet nicht rechtzeitig. Erneut laden oder Anmeldung prüfen. / Cloud request timed out')
-                try:
-                    output, error = process.communicate(timeout=.1)
-                    break
-                except subprocess.TimeoutExpired:
-                    continue
-            if process.returncode:
-                authentication = any(term in error.lower() for term in ('invalid_grant', 'unauthorized', '401', 'token expired', "couldn't decrypt password", 'invalid credentials', 'invalid session'))
-                raise RuntimeError('Cloud-Anmeldung abgelaufen oder ungültig. Unter Online-Orte erneut anmelden. / Sign in again' if authentication else
-                                   'Cloud-Ordner nicht erreichbar. Verbindung prüfen und erneut laden. / Cloud folder unavailable')
-            result = []
-            for row in json.loads(output):
-                name = row['Name']
-                if name in ('.', '..') or '/' in name or '\x00' in name:
-                    continue
-                try:
-                    modified = datetime.fromisoformat(row.get('ModTime', '').replace('Z', '+00:00')).timestamp()
-                except (ValueError, OverflowError):
-                    modified = 0
-                result.append(Entry(name, Path(directory) / name, row['IsDir'], max(0, row.get('Size', 0)), modified))
-            return result
-        finally:
-            if process.poll() is None:
-                process.kill()
-                process.communicate()
+            modified = datetime.fromisoformat(row.get('ModTime', '').replace('Z', '+00:00')).timestamp()
+        except (ValueError, OverflowError, AttributeError):
+            modified = 0
+        result.append(Entry(name, Path(directory) / name, row['IsDir'], max(0, row.get('Size', 0)), modified))
+    return CloudRows(result, rows.warning)
 
 
 def ssh_fingerprints(host, port):
@@ -255,7 +254,16 @@ class OnlineDialog(QDialog):
         self.config = private_config(main.state_dir)
         self.setWindowTitle('Online-Orte' if self.de else 'Online locations')
         self.resize(760, 520)
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        body = QWidget()
+        body.setObjectName('onlineBody')
+        layout = QVBoxLayout(body)
+        layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
+        scroll.setWidget(body)
+        outer.addWidget(scroll, 1)
         self.saved = QComboBox()
         self.reload()
         layout.addWidget(self.saved)
@@ -292,6 +300,16 @@ class OnlineDialog(QDialog):
             self.provider.addItem(label, kind)
         layout.addWidget(self.provider)
         self.provider.currentIndexChanged.connect(self.provider_changed)
+        self.google_client_id = QLineEdit()
+        self.google_client_id.setPlaceholderText('Eigene Google OAuth-Client-ID / Own Google OAuth client ID')
+        layout.addWidget(self.google_client_id)
+        self.google_client_secret = QLineEdit()
+        self.google_client_secret.setEchoMode(QLineEdit.Password)
+        self.google_client_secret.setPlaceholderText('Google OAuth Client-Secret (nur privates Profil / private profile only)')
+        layout.addWidget(self.google_client_secret)
+        self.google_guide = QPushButton('Eigene Google-Anmeldung einrichten: Anleitung' if self.de else 'Set up your own Google sign-in: guide')
+        self.google_guide.clicked.connect(lambda: QDesktopServices.openUrl(QUrl('https://rclone.org/drive/#making-your-own-client-id')))
+        layout.addWidget(self.google_guide)
         self.server_form = ServerForm(self)
         layout.addWidget(self.server_form)
         self.note = QLabel('Direkter Online-Zugriff über rclone/FUSE, ohne Sync-App. Anmeldung öffnet gegebenenfalls den Browser.\n'
@@ -312,12 +330,14 @@ class OnlineDialog(QDialog):
         layout.addWidget(safety)
         self.help = QLabel()
         self.help.setWordWrap(True)
+        self.help.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
         self.help.setTextFormat(Qt.PlainText)
         layout.addWidget(self.help)
         self.answer = QComboBox()
         self.answer.setEditable(True)
         self.answer.hide()
         layout.addWidget(self.answer)
+        layout = outer  # Keep login/progress/cancel reachable while reading long instructions.
         self.next_button = QPushButton('Ort einrichten' if self.de else 'Configure location')
         self.next_button.clicked.connect(self.next)
         layout.addWidget(self.next_button)
@@ -412,9 +432,15 @@ class OnlineDialog(QDialog):
                 arguments += ['explicit_tls', 'true']
             if kind == 'sftp':
                 arguments += ['known_hosts_file', str(Path.home() / '.ssh/known_hosts')]
+            client_id = self.google_client_id.text().strip() if kind == 'drive' else ''
+            client_secret = self.google_client_secret.text() if kind == 'drive' else ''
+            self.google_client_secret.clear()
             def start():
                 if self.cloud_auth:
                     rclone_runtime.ensure_cloud_backend(self.cancel)
+                if kind == 'drive' and (client_id or client_secret):
+                    save_drive_client(self.config, self.profile['id'], client_id, client_secret)
+                    return command_json(self.config, ['config', 'update', self.profile['id'], '--non-interactive'], self.cancel)
                 return command_json(self.config, arguments, self.cancel)
             self.work(start, self.question)
             if self.cloud_auth:
@@ -557,6 +583,8 @@ class OnlineDialog(QDialog):
         if self.state or self.pending:
             return
         kind = self.provider.currentData()
+        for field in (self.google_client_id, self.google_client_secret, self.google_guide):
+            field.setVisible(kind == 'drive')
         self.trust_button.hide()
         self.server_form.setVisible(kind in server.SERVER_KINDS)
         self.server_form.protocol_changed(kind)
@@ -571,6 +599,9 @@ class OnlineDialog(QDialog):
                                '3. Select and confirm your drive if asked.\n'
                                'The connection is saved and opened automatically. After restarting, click its saved name on the left. '
                                'Direct online access; directory lists cached briefly (5 seconds). Ctrl+R refreshes the view.'))
+            if kind == 'drive':
+                self.help.setText(self.help.text() + ('\nGoogle: Für dauerhaften Zugriff eine eigene OAuth-Anwendung vom Typ Desktop-App einrichten (Anleitung oben). Die gemeinsam genutzte rclone-Anwendung hat geteilte Abfragelimits und wird 2026 eingestellt. Client-ID und Secret bleiben im privaten Profil; anschließend im Browser anmelden.' if self.de else
+                    '\nGoogle: For continued access, create your own Desktop app OAuth client (guide above). The shared rclone app has shared rate limits and is being retired in 2026. Client ID and secret stay in the private profile; then sign in using your browser.'))
         elif kind == 'iclouddrive':
             self.next_button.setText('Mit Apple-ID verbinden' if self.de else 'Connect with Apple ID')
             self.help.setText('Apple-ID, reguläres Apple-Passwort und Bestätigungscode werden benötigt. '
@@ -594,6 +625,7 @@ class OnlineDialog(QDialog):
     def question(self, value):
         self.state = value.get('State', '')
         if not self.state:
+            self.main.__dict__.pop('cloud_listings', None)
             self.main.online_profiles.append(self.profile)
             # Re-authentication updates the existing shortcut, never duplicates it.
             self.main.online_profiles = list({row['id']: row for row in self.main.online_profiles}.values())
@@ -719,7 +751,12 @@ class OnlineDialog(QDialog):
         arguments = ['config', 'update', profile['id'], '--non-interactive']
         if profile['kind'] not in ('onedrive', 'drive', 'dropbox'):
             arguments += ['--all']
+        client_id = self.google_client_id.text().strip() if profile['kind'] == 'drive' else ''
+        client_secret = self.google_client_secret.text() if profile['kind'] == 'drive' else ''
+        self.google_client_secret.clear()
         def start():
+            if client_id or client_secret:
+                save_drive_client(self.config, profile['id'], client_id, client_secret)
             if self.cloud_auth:
                 rclone_runtime.ensure_cloud_backend(self.cancel)
             return command_json(self.config, arguments, self.cancel)

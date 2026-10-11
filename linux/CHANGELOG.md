@@ -1,5 +1,29 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.14 – 11. Oktober 2026
+
+- Google-Drive-Ausfall als API-Abfragelimit (`403 rateLimitExceeded / Quota
+  exceeded`) reproduziert; Anmeldung und Mount waren weiter aktiv.
+- Lesende Cloud-Ordnerabfragen bei temporären Netzwerk-/Serverfehlern oder
+  Abfragelimits höchstens dreimal mit 2/4 Sekunden Wartezeit versuchen,
+  einschließlich gemeinsamer 30-Sekunden-Grenze und abbrechbarer Wartezeit.
+- Gleichzeitig angeforderte identische Ordnerlisten zusammenfassen. Nach
+  ausgeschöpften Versuchen 10 Sekunden Abfragepause statt sofortiger Schleifen.
+- Höchstens 32 Ordnerlisten im Sitzungsspeicher halten. Bei temporären Fehlern
+  bis zu fünf Minuten alte Listen mit Alter und Fehlerhinweis zeigen; keine
+  gespeicherten Listen bei ungültiger Anmeldung oder fehlenden Zugriffsrechten.
+- Dateibereich erhält seine letzte Liste bei vorübergehenden Fehlern und
+  versucht höchstens drei automatische Aktualisierungen nach 10/20/30 Sekunden.
+  Ordnerwechsel, Abbruch und Schließen verwerfen diese Wiederholungen.
+- Google-Assistent mit Feldern für eine eigene Desktop-OAuth-Anwendung und
+  offizieller Anleitung: geteilte rclone-Anmeldung wird laut Anbieter 2026
+  eingestellt. Client-Secret nur maskiert anzeigen und im privaten Backend-
+  Profil speichern; kein Secret in Prozessargumenten oder UI-Einstellungen.
+- OAuth-Clientwechsel verwirft den bisherigen Token und verlangt neue
+  Browser-Anmeldung. Lange Anweisungen scrollbar, Aktionsbuttons bleiben sichtbar.
+- Automatisierte Prüfungen für alle vier Cloud-Anbieter, Abfragelimits,
+  Wiederverbindung, Cache, parallele Anfragen, Abbruch und private OAuth-Daten.
+
 ## 0.3.13 – 11. Oktober 2026
 
 - Bestätigte Kopier-Zwischenstände älterer Linux-Versionen gezielt in einen
