@@ -40,11 +40,21 @@ class TransferStore:
         finally:
             db.close()
 
-    def create(self, paths, directory, conflict, guards=None, profiles=None):
+    def create(self, paths, directory, conflict, guards=None, profiles=None, legacy_staging=None, legacy_totals=None):
         job = dict(id=uuid.uuid4().hex, created=time.time(), status='queued',
                    sources=[os.path.abspath(path) for path in paths],
                    directory=os.path.abspath(directory), conflict=conflict,
                    guards=guards or [], profiles=profiles or [], roots=None)
+        if legacy_staging is not None:
+            stage = Path(os.path.abspath(legacy_staging))
+            if len(job['sources']) != 1 or stage.parent != Path(job['directory']) or not stage.name.startswith('.OpenCommanderTransfer-'):
+                raise ValueError('Invalid legacy staging path')
+            job['legacy_staging'] = str(stage)
+            if legacy_totals is not None:
+                size, files = legacy_totals
+                if type(size) is not int or type(files) is not int or size < 0 or files < 0:
+                    raise ValueError('Invalid legacy copy totals')
+                job['legacy_totals'] = [size, files]
         self.save(job)
         return job
 

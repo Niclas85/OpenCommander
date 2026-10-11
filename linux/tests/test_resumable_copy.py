@@ -276,3 +276,82 @@ def test_changed_completed_staged_file_is_not_published(fixture):
     with pytest.raises(SafetyError, match='Partial copy changed'):
         run(restarted, saved)
     assert not (target / folder.name).exists()
+
+
+def test_legacy_stage_reuses_full_and_partial_files_without_rewriting_full_file(fixture, monkeypatch):
+    import opencommander.resumable_copy as copies
+    engine, source, target = fixture
+    folder = source / 'Weltreise'
+    folder.mkdir()
+    (folder / 'a').write_bytes(b'complete')
+    (folder / 'b').write_bytes(b'b' * 2 * 1024**2)
+    (folder / 'c').write_bytes(b'missing')
+    stage = target / '.OpenCommanderTransfer-legacy'
+    payload = stage / 'payload'
+    payload.mkdir(parents=True)
+    (payload / 'a').write_bytes(b'complete')
+    (payload / 'b').write_bytes(b'b' * 1024**2)
+    inode = (payload / 'a').stat().st_ino
+    original = copies.open_regular
+    def forbid_rewrite(path, flags):
+        assert path != payload / 'a' or not flags & (os.O_WRONLY | os.O_RDWR)
+        return original(path, flags)
+    monkeypatch.setattr(copies, 'open_regular', forbid_rewrite)
+    monkeypatch.setattr(engine, 'plan_transfer', lambda paths: pytest.fail('Backend totals should avoid a full FUSE scan'))
+    size = sum(file.stat().st_size for file in folder.iterdir())
+    job = engine.transfers.create([folder], target, 'keep', legacy_staging=stage, legacy_totals=(size, 3))
+    run(engine, job)
+    destination = target / folder.name
+    assert (destination / 'a').stat().st_ino == inode
+    assert all((destination / file.name).read_bytes() == file.read_bytes() for file in folder.iterdir())
+    assert not stage.exists() and not engine.transfers.jobs()
+    engine.undo()
+    assert not destination.exists()
+
+
+def test_legacy_data_mismatch_remains_unmodified_and_unpublished(fixture):
+    engine, source, target = fixture
+    folder = source / 'Weltreise'
+    folder.mkdir()
+    (folder / 'a').write_bytes(b'source')
+    stage = target / '.OpenCommanderTransfer-legacy'
+    payload = stage / 'payload'
+    payload.mkdir(parents=True)
+    (payload / 'a').write_bytes(b'wrong!')
+    job = engine.transfers.create([folder], target, 'keep', legacy_staging=stage)
+    with pytest.raises(SafetyError, match='Partial data mismatch'):
+        run(engine, job)
+    assert (payload / 'a').read_bytes() == b'wrong!'
+    assert not (target / folder.name).exists()
+    assert engine.transfers.get(job['id'])['status'] == 'blocked'
+
+
+@pytest.mark.parametrize('condition', ['previous', 'symlink'])
+def test_legacy_unknown_original_or_symlink_requires_inspection(fixture, condition):
+    engine, source, target = fixture
+    folder = source / 'Weltreise'
+    folder.mkdir()
+    (folder / 'a').write_bytes(b'a')
+    stage = target / '.OpenCommanderTransfer-legacy'
+    stage.mkdir()
+    if condition == 'previous':
+        (stage / 'payload').mkdir()
+        (stage / 'previous').write_bytes(b'original')
+    else:
+        os.symlink(folder, stage / 'payload')
+    job = engine.transfers.create([folder], target, 'keep', legacy_staging=stage)
+    with pytest.raises(SafetyError, match='requires inspection'):
+        run(engine, job)
+    assert (folder / 'a').read_bytes() == b'a'
+    assert not (target / folder.name).exists()
+    if condition == 'previous':
+        assert (stage / 'previous').read_bytes() == b'original'
+
+
+def test_legacy_staging_must_be_on_exact_target_volume(fixture):
+    engine, source, target = fixture
+    file = source / 'a'
+    file.write_bytes(b'a')
+    with pytest.raises(ValueError, match='Invalid legacy'):
+        engine.transfers.create([file], target, 'keep', legacy_staging=source / '.OpenCommanderTransfer-invalid')
+    assert not engine.transfers.jobs()

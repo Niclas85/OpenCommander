@@ -1,5 +1,19 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.13 – 11. Oktober 2026
+
+- Bestätigte Kopier-Zwischenstände älterer Linux-Versionen gezielt in einen
+  persistenten Auftrag übernehmen. Opt-in pro Auftrag mit explizitem Quellpfad
+  und unverändertem Zwischenordner auf genau dem Ziellaufwerk.
+- Altdateien werden vor Nutzung mit der Quelle verglichen; unbekannte,
+  widersprüchliche oder nicht eindeutig zuordenbare Originale stoppen den Auftrag.
+- Vollständige Dateien ohne Schreiböffnung verifizieren, damit Cloud-Mounts
+  nicht allein beim Schließen eines Schreibhandles erneut hochladen.
+- Bei vorhandenen Backend-Gesamtzahlen keine vollständige FUSE-Abfrage zur
+  erneuten Planung; Dateizugriffe und Inhaltsprüfung bleiben im Worker.
+- Tests für vollständige und teilweise Altdateien, Inhaltsabweichungen,
+  Symlinks, Original-Rücknahmekopien und falsche Ziellaufwerke.
+
 ## 0.3.12 – 11. Oktober 2026
 
 - Kopieraufträge vor Beginn in privater SQLite-Warteschlange speichern, einschließlich

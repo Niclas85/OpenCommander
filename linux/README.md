@@ -3,7 +3,7 @@
 Native Qt-Desktop-Version nach dem Vorbild der Mac-Catalyst-App. Keine Browser-
 oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 
-Aktueller Stand: **0.3.12**. Die Änderungen und der geprüfte Umfang stehen im
+Aktueller Stand: **0.3.13**. Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
 
 ## Starten
@@ -150,7 +150,10 @@ oder schließt sich, wenn keine Datei mehr übrig ist. ZIP-Vorschauen sind schre
 **Fortsetzen** nimmt die gespeicherten Aufträge wieder auf. Beim Schließen speichert
 OpenCommander den Kopierstand und wartet auf das Ende des aktuellen Datei-/Netzwerkzugriffs;
 beim nächsten Start laufen gespeicherte Kopien automatisch weiter. Bereits laufende
-Aufträge einer älteren Programmversion können nicht nachträglich gespeichert werden.
+Aufträge einer älteren Programmversion werden nicht automatisch übernommen;
+ein erhaltener Zwischenordner kann nach eindeutiger Quellzuordnung gezielt als
+Wiederherstellungsauftrag vorbereitet werden. Auch dabei werden vorhandene Daten
+vor Nutzung mit der Quelle verglichen.
 
 Fertige Dateien im privaten Zwischenordner werden geprüft und nicht erneut geschrieben.
 Bei einer angefangenen Datei wird das vorhandene Präfix mit der Quelle verglichen,
@@ -431,7 +434,7 @@ ist; die Restzeit schätzt nur den verbleibenden Datentransfer. Bei Umbenennunge
 demselben Laufwerk zählen die angezeigten Bytes die logisch verschobenen Daten.
 Die Darkmode-Checkbox steht im Kopfbereich und speichert ihre Auswahl.
 
-### NAS/GVFS-Kompatibilität (0.3.12)
+### NAS/GVFS-Kompatibilität (0.3.13)
 
 Auf erkannten GVFS-/rclone-Mounts blockieren ausdrücklich nicht unterstützte
 `fsync`-/Metadatenfunktionen die Inhaltskopie nicht. Zeitstempel und Dateirechte
@@ -442,7 +445,7 @@ und Speicherplatzfehler bleiben Fehler. Lokale Dateisysteme bleiben strikt.
 GVFS-Umbenennungen ohne RENAME_NOREPLACE prüfen das Ziel vorab innerhalb derselben
 Freigabe; gegenüber anderen gleichzeitig schreibenden Clients ist dies nicht atomar.
 
-### Cloud-Start und Ladegrenzen (0.3.12)
+### Cloud-Start und Ladegrenzen (0.3.13)
 
 Eingerichtete Cloud-Mounts laden ihre Ordnerliste direkt über das Provider-Backend,
 statt beim Start auf einen möglicherweise blockierten FUSE-Daemon zu warten.
@@ -455,7 +458,7 @@ Anmeldung unter „Online-Orte“ erneut anmelden. Plattformseitig fehlendes
 No-follow-chmod wird beim Kopieren als Metadatenhinweis behandelt, ohne Links
 zu folgen oder Inhaltsfehler zu verbergen.
 
-### Archive (0.3.12)
+### Archive (0.3.13)
 
 ZIP, TAR, TGZ/TAR.GZ, TAR.BZ2, TAR.XZ/TAR.ZST, 7z und RAR lassen sich per
 Doppelklick wie Ordner öffnen. In Unterordner navigieren, einzelne Dateien ansehen

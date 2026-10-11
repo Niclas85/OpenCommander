@@ -51,7 +51,7 @@ def copy_file(engine, source, target):
     if saved and saved['source'] != current:
         raise SafetyError(f'Quelle seit Pause geändert / Source changed since pause: {source}')
     if not saved:
-        if exists(target):
+        if exists(target) and not job.get('legacy_staging'):
             # A process may have died after mkdir/create but before its checkpoint.
             raise SafetyError(f'Unbekannter Zwischenstand / Unrecognized partial file: {target}')
         saved = dict(source=current, complete=False)
@@ -98,36 +98,21 @@ def copy_file(engine, source, target):
                             digest.update(block)
                             offset += len(block)
                             engine.report_transfer('verifying', source.name)
-                    fd = open_regular(target, os.O_WRONLY | os.O_APPEND)
-                    if os.fstat(fd).st_size != offset:
-                        os.close(fd)
-                        raise SafetyError(f'Zwischenstand geändert / Partial copy changed: {target}')
+                    # A legacy or interrupted checkpoint can contain a full file.
+                    # Its prefix was compared to the source; do not open it for
+                    # writing, since cloud mounts may upload on writable close.
+                    fd = None
+                    if offset < info.st_size:
+                        fd = open_regular(target, os.O_WRONLY | os.O_APPEND)
+                        if os.fstat(fd).st_size != offset:
+                            os.close(fd)
+                            raise SafetyError(f'Zwischenstand geändert / Partial copy changed: {target}')
                 else:
                     fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
                 engine.bytes_done += offset
                 engine.transfer_metrics['bytes_resumed'] += offset
-                with os.fdopen(fd, 'wb') as out:
-                    try:
-                        while True:
-                            engine.check_cancel()
-                            block = inp.read(1024 * 1024)
-                            if not block:
-                                break
-                            engine.check_cancel()
-                            out.write(block)
-                            digest.update(block)
-                            engine.bytes_done += len(block)
-                            engine.progress(engine.bytes_done, source.name)
-                            engine.report_transfer('copying', source.name)
-                        engine.report_transfer('uploading', source.name)
-                    finally:
-                        out.flush()
-                        if not engine.cancel.is_set() or engine.pause.is_set():
-                            try:
-                                os.fsync(out.fileno())
-                            except OSError as error:
-                                engine.unsupported_provider_feature(error, target,
-                                    'NAS/Online: Server-Dauerhaftigkeit nicht bestätigt / Server durability not confirmed')
+                if fd is not None:
+                    write_rest(engine, inp, fd, source, target, digest)
                 if signature(source.lstat()) != current or target.lstat().st_size != info.st_size:
                     engine.check_cancel()
                     raise SafetyError(f'Quelle während Kopie geändert / Source changed while copying: {source}')
@@ -142,6 +127,31 @@ def copy_file(engine, source, target):
     if not stat.S_ISDIR(info.st_mode):
         engine.transfer_metrics['files_done'] += 1
         engine.report_transfer('copying', source.name)
+
+
+def write_rest(engine, inp, fd, source, target, digest):
+    with os.fdopen(fd, 'wb') as out:
+        try:
+            while True:
+                engine.check_cancel()
+                block = inp.read(1024 * 1024)
+                if not block:
+                    break
+                engine.check_cancel()
+                out.write(block)
+                digest.update(block)
+                engine.bytes_done += len(block)
+                engine.progress(engine.bytes_done, source.name)
+                engine.report_transfer('copying', source.name)
+            engine.report_transfer('uploading', source.name)
+        finally:
+            out.flush()
+            if not engine.cancel.is_set() or engine.pause.is_set():
+                try:
+                    os.fsync(out.fileno())
+                except OSError as error:
+                    engine.unsupported_provider_feature(error, target,
+                        'NAS/Online: Server-Dauerhaftigkeit nicht bestätigt / Server durability not confirmed')
 
 
 def staging_for(job, root):
@@ -215,7 +225,7 @@ def transfer(engine, identifier):
             sources = selected_roots(job['sources'])
             for source in sources:
                 validate_target(source, directory)
-            totals = engine.plan_transfer(sources)
+            totals = {sources[0]: tuple(job['legacy_totals'])} if job.get('legacy_totals') is not None else engine.plan_transfer(sources)
             job['roots'] = [dict(source=str(source), status='pending', size=totals[source][0], files=totals[source][1]) for source in sources]
             store.save(job)
         operation = next((row for row in engine.history if row['id'] == job.get('operation')), None)
@@ -246,7 +256,14 @@ def transfer(engine, identifier):
             if root['status'] == 'pending':
                 preferred = directory / source.name
                 target = unique_path(directory, source.name) if job['conflict'] == 'keep' or source == preferred else preferred
-                stage = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=directory))
+                if job.get('legacy_staging'):
+                    stage = Path(job['legacy_staging'])
+                    if stage.parent != directory or not stage.name.startswith('.OpenCommanderTransfer-') or stage.is_symlink() or not stage.is_dir():
+                        raise SafetyError('Invalid legacy copy staging')
+                    if exists(stage / 'previous') or not exists(stage / 'payload') or stage.joinpath('payload').is_symlink():
+                        raise SafetyError('Legacy staging requires inspection; original or payload not identifiable')
+                else:
+                    stage = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=directory))
                 root.update(status='copying', staging=str(stage), target=str(target))
                 store.save(job)
             stage = staging_for(job, root)
