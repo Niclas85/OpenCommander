@@ -87,7 +87,7 @@ class ShareDialog(QDialog):
         self.resize(620, 240)
         de = main.language == 'de'
         layout = QVBoxLayout(self)
-        title = QLabel(f'{profile["label"]} · {entry.name}')
+        title = QLabel(f'{profile.get("name", profile.get("label", "Cloud"))} · {entry.name}')
         title.setTextFormat(Qt.PlainText)
         layout.addWidget(title)
         self.message = QLabel('„Link erstellen“ erstellt oder verwendet eine Freigabe. Jeder mit dem Link kann lesen; bei Ordnern auch deren Inhalt. Kein automatisches Ablaufdatum. Rechte lassen sich auf der Website des Dienstes verwalten.' if de else
@@ -160,7 +160,7 @@ def add_cloud_actions(menu, pane):
     main = pane.main
     de = main.language == 'de'
     menu.addSeparator()
-    submenu = menu.addMenu('Online · ' + profile['label'])
+    submenu = menu.addMenu('Online · ' + profile.get('name', profile.get('label', 'Cloud')))
     share = submenu.addAction('Teilen mit Link …' if de else 'Share with link …')
     supported = profile['kind'] in LINK_PROVIDERS
     share.setEnabled(supported and len(entries) == 1 and bool(relative) and not main.closing)

@@ -282,6 +282,7 @@ class Pane(QFrame):
         layout.setSpacing(8)
         title_row = QHBoxLayout()
         self.title = QLabel()
+        self.title.setTextFormat(Qt.PlainText)
         self.title.setObjectName('paneTitle')
         title_row.addWidget(self.title)
         title_row.addStretch()
@@ -392,6 +393,7 @@ class Pane(QFrame):
         elif not archive and not previous_archive and previous_directory != directory and previous_directory.parent == directory:
             self.return_selection = previous_directory.name
         self.directory, self.archive, self.prefix = directory, archive, prefix
+        self.main.activate(self)
         if remember:
             del self.navigation[self.nav_index + 1:]
             if not self.navigation or self.navigation[-1] != self.location():
@@ -772,7 +774,11 @@ class MainWindow(QMainWindow):
         for p in self.panes:
             accent = ('#6caaff' if p.number == 1 else '#60c69d') if self.dark else ('#1e66c1' if p.number == 1 else '#1f8a5b')
             active = '  •  ' + self.tr_key('active') if p == pane else ''
-            p.title.setText(self.tr_key('left' if p.number == 1 else 'right') + active)
+            from .online_ui import mount_path
+            profile = next((row for row in self.online_profiles if p.directory == mount_path(self.state_dir, row['id']) or
+                            mount_path(self.state_dir, row['id']) in p.directory.parents), None)
+            place = '  ·  ' + profile['name'] if profile else ''
+            p.title.setText(self.tr_key('left' if p.number == 1 else 'right') + place + active)
             p.title.setStyleSheet(f'color: {accent}; font-weight: 700; letter-spacing: 1px;')
         self.update_context_actions()
 
@@ -1403,10 +1409,19 @@ class MainWindow(QMainWindow):
                 button.clicked.connect(lambda checked=False, profile=profile: self.open_online_profile(profile))
             else:
                 button.clicked.connect(lambda checked=False, path=path: self.active.navigate(path))
+            button.setContextMenuPolicy(Qt.CustomContextMenu)
+            def options(point, button=button, profile=profile):
+                menu = QMenu(button)
+                edit = menu.addAction('Bearbeiten …' if self.language == 'de' else 'Edit …')
+                edit.triggered.connect(lambda: self.edit_online_profile(profile) if profile else self.location_settings())
+                menu.exec(button.mapToGlobal(point))
+            button.customContextMenuRequested.connect(options)
             self.places.addWidget(button)
         self.places.addStretch()
+        if self.active and self.panes:
+            self.activate(self.active)
 
-    def open_online_profile(self, profile):
+    def edit_online_profile(self, profile):
         if self.closing:
             return
         self.online_locations()
@@ -1416,7 +1431,51 @@ class MainWindow(QMainWindow):
         index = next((i for i in range(dialog.saved.count()) if dialog.saved.itemData(i)['id'] == profile['id']), -1)
         if index >= 0:
             dialog.saved.setCurrentIndex(index)
-            dialog.open_saved()
+            dialog.edit_saved()
+
+    def open_online_profile(self, profile):
+        if self.closing:
+            return
+        from .online_ui import mount_profile, mount_path
+        if not hasattr(self, 'server_secrets'):
+            self.server_secrets = {}
+        path = mount_path(self.state_dir, profile['id'])
+        if remote_location(path):
+            self.active.navigate(path)
+            return
+        pending = getattr(self, 'opening_online', {})
+        self.opening_online = pending
+        if profile['id'] in pending:
+            return
+        if (profile.get('server_login') and profile.get('secret_required', profile.get('auth_mode') == 'password')
+                and not profile.get('remember_secret') and profile['id'] not in self.server_secrets):
+            secret, accepted = QInputDialog.getText(self, profile['name'],
+                'Passwort / Passphrase' if self.language == 'de' else 'Password / Passphrase', QLineEdit.Password)
+            if not accepted:
+                return
+            if not secret or any(c in secret for c in '\r\n\x00'):
+                self.status.setText('Passwort/Passphrase erforderlich / Password or passphrase required')
+                return
+            self.server_secrets[profile['id']] = secret
+        cancel = threading.Event()
+        pending[profile['id']] = cancel
+        pane = self.active
+        generation = pane.generation
+        self.status.setText(('Verbinden: ' if self.language == 'de' else 'Connecting: ') + profile['name'])
+        task = Task(lambda: mount_profile(self, dict(profile), cancel))
+        def done(path, error):
+            pending.pop(profile['id'], None)
+            if self.closing:
+                return
+            if error:
+                self.status.setText(str(error) + ' · Rechtsklick auf Ort → Bearbeiten / Right-click location → Edit')
+            else:
+                if pane.generation == generation:
+                    pane.navigate(path)
+                self.status.setText(('Verbunden: ' if self.language == 'de' else 'Connected: ') + profile['name'])
+                self.update_places()
+        task.signals.result.connect(done, Qt.QueuedConnection)
+        self.start_background(task)
 
     def toggle_theme(self):
         self.dark = not self.dark
@@ -1485,6 +1544,8 @@ class MainWindow(QMainWindow):
             event.ignore()
             return
         self.closing = True
+        for cancel in getattr(self, 'opening_online', {}).values():
+            cancel.set()
         self.integration_timer.stop()
         for pane in self.panes:
             pane.refresh_timer.stop()

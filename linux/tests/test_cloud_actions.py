@@ -9,7 +9,7 @@ from opencommander.online_ui import mount_path
 
 
 def main_fixture(tmp_path, kind='drive'):
-    profile = dict(id='oc_test', kind=kind, label='Test cloud')
+    profile = dict(id='oc_test', kind=kind, name='Test cloud')
     return SimpleNamespace(state_dir=tmp_path, online_profiles=[profile], language='de', closing=False), profile
 
 

@@ -3,7 +3,7 @@
 Native Qt-Desktop-Version nach dem Vorbild der Mac-Catalyst-App. Keine Browser-
 oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 
-Aktueller Stand: **0.3.7**. Die Änderungen und der geprüfte Umfang stehen im
+Aktueller Stand: **0.3.8**. Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
 
 ## Starten
@@ -389,7 +389,7 @@ ist; die Restzeit schätzt nur den verbleibenden Datentransfer. Bei Umbenennunge
 demselben Laufwerk zählen die angezeigten Bytes die logisch verschobenen Daten.
 Die Darkmode-Checkbox steht im Kopfbereich und speichert ihre Auswahl.
 
-### NAS/GVFS-Kompatibilität (0.3.7)
+### NAS/GVFS-Kompatibilität (0.3.8)
 
 Auf erkannten GVFS-/rclone-Mounts blockieren ausdrücklich nicht unterstützte
 `fsync`-/Metadatenfunktionen die Inhaltskopie nicht. Zeitstempel und Dateirechte
@@ -400,7 +400,7 @@ und Speicherplatzfehler bleiben Fehler. Lokale Dateisysteme bleiben strikt.
 GVFS-Umbenennungen ohne RENAME_NOREPLACE prüfen das Ziel vorab innerhalb derselben
 Freigabe; gegenüber anderen gleichzeitig schreibenden Clients ist dies nicht atomar.
 
-### Cloud-Start und Ladegrenzen (0.3.7)
+### Cloud-Start und Ladegrenzen (0.3.8)
 
 Eingerichtete Cloud-Mounts laden ihre Ordnerliste direkt über das Provider-Backend,
 statt beim Start auf einen möglicherweise blockierten FUSE-Daemon zu warten.
@@ -413,7 +413,7 @@ Anmeldung unter „Online-Orte“ erneut anmelden. Plattformseitig fehlendes
 No-follow-chmod wird beim Kopieren als Metadatenhinweis behandelt, ohne Links
 zu folgen oder Inhaltsfehler zu verbergen.
 
-### Archive (0.3.7)
+### Archive (0.3.8)
 
 ZIP, TAR, TGZ/TAR.GZ, TAR.BZ2, TAR.XZ/TAR.ZST, 7z und RAR lassen sich per
 Doppelklick wie Ordner öffnen. In Unterordner navigieren, einzelne Dateien ansehen
@@ -453,3 +453,14 @@ beim Dienst angelegte Freigabe nicht zurücknehmen. Freigaben und Rechte auf
 der Website des Dienstes verwalten. Keine automatische Freigabe beim Öffnen
 des Menüs und kein persönlicher Cloud-Inhalt in automatisierten Tests.
 Backendgrundlage: https://rclone.org/commands/rclone_link/
+
+Gespeicherte Orte links werden mit einem einfachen Klick direkt geöffnet.
+Noch nicht eingebundene Online-Orte verbinden sich im Hintergrund. Die Optionen
+sind über Rechtsklick auf den Ort → „Bearbeiten“ erreichbar. Dort kann der
+Anzeigename ohne neue Anmeldung gespeichert werden; Serverdaten werden geladen.
+„Erneut anmelden“ ändert die Cloud-Anmeldung. Änderungen an eingebundenen
+Server-Verbindungen erst nach „Trennen“ speichern. Nicht gespeicherte
+Server-Passwörter werden beim Öffnen separat abgefragt.
+
+Die Kopfzeile jedes Dateibereichs zeigt bei Online-Orten den gespeicherten
+Verbindungsnamen, auch innerhalb von Unterordnern.

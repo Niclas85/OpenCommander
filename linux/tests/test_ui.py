@@ -917,7 +917,7 @@ def test_server_form_has_password_key_agent_and_saved_values(window, app):
     window.online_profiles = [profile]
     window.save_online_profiles()
     dialog.reload()
-    dialog.open_saved()
+    dialog.edit_saved()
     assert dialog.server_form.host.text() == 'nas.example.org'
     assert dialog.server_form.port.value() == 2222
     assert dialog.server_form.directory.text() == '/data'
@@ -1131,3 +1131,64 @@ def test_cloud_share_dialog_async_progress_result_and_cancel(window, app, monkey
     cancelled.close()
     wait(app, lambda: cancelled.cancel.is_set() and not window.tasks)
     assert cancelled.url.text() == ''
+
+
+def test_saved_online_place_opens_directly_without_settings(window, app, monkeypatch):
+    from opencommander import online_ui
+    import opencommander.ui as ui
+    profile = dict(id='oc_fixture', kind='drive', name='Saved cloud')
+    root = online_ui.mount_path(window.state_dir, profile['id'])
+    root.mkdir(parents=True)
+    window.online_profiles = [profile]
+    monkeypatch.setattr(window, 'online_locations', lambda: pytest.fail('Opening must not show settings'))
+    calls = []
+    monkeypatch.setattr(online_ui, 'mount_profile', lambda main, row, cancel: calls.append(row['id']) or root)
+    monkeypatch.setattr(ui, 'remote_location', lambda path: False)
+    window.update_places()
+    button = next(window.places.itemAt(i).widget() for i in range(window.places.count())
+                  if window.places.itemAt(i).widget() and window.places.itemAt(i).widget().text() == profile['name'])
+    button.click()
+    wait(app, lambda: window.active.directory == root and not window.opening_online)
+    assert calls == ['oc_fixture']
+    monkeypatch.setattr(ui, 'remote_location', lambda path: path == root)
+    window.open_online_profile(profile)
+    assert calls == ['oc_fixture']
+
+
+def test_edit_saved_place_preserves_connection_and_saves_name(window, app, monkeypatch):
+    from opencommander import online_ui
+    profile = dict(id='oc_fixture', kind='drive', name='Original cloud')
+    window.online_profiles = [profile]
+    monkeypatch.setattr(online_ui, 'mount_profile', lambda *_: pytest.fail('Editing must not connect'))
+    window.edit_online_profile(profile)
+    dialog = window.online_dialog
+    assert dialog.isVisible()
+    assert dialog.name.text() == 'Original cloud'
+    assert dialog.provider.currentData() == 'drive'
+    dialog.name.setText('Renamed cloud')
+    dialog.save_display_name()
+    assert window.online_profiles == [dict(profile, name='Renamed cloud')]
+    assert 'Renamed cloud' in window.settings.value('online_profiles')
+    dialog.close()
+
+
+def test_pane_header_shows_saved_connection_in_subfolders_and_updates_name(window, app):
+    from opencommander.online_ui import mount_path
+    profile = dict(id='oc_fixture', kind='sftp', name='OneDrive Nikki')
+    window.online_profiles = [profile]
+    root = mount_path(window.state_dir, profile['id'])
+    subfolder = root / 'Weltreise'
+    subfolder.mkdir(parents=True)
+    left, right = window.panes
+    left.navigate(root)
+    assert 'OneDrive Nikki' in left.title.text()
+    assert 'OneDrive Nikki' not in right.title.text()
+    left.navigate(subfolder)
+    assert 'OneDrive Nikki' in left.title.text()
+    profile['name'] = 'Nikki online'
+    window.save_online_profiles()
+    assert 'Nikki online' in left.title.text() and 'OneDrive Nikki' not in left.title.text()
+    window.activate(right)
+    assert 'Nikki online' in left.title.text()
+    left.navigate(window.state_dir.parent)
+    assert 'Nikki online' not in left.title.text()

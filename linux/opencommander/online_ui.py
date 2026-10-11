@@ -266,6 +266,9 @@ class OnlineDialog(QDialog):
         login_button = QPushButton('Erneut anmelden' if self.de else 'Sign in again')
         login_button.clicked.connect(self.reconnect_saved)
         row.addWidget(login_button)
+        edit_button = QPushButton('Bearbeiten' if self.de else 'Edit')
+        edit_button.clicked.connect(self.edit_saved)
+        row.addWidget(edit_button)
         disconnect_button = QPushButton('Trennen' if self.de else 'Disconnect')
         disconnect_button.clicked.connect(self.disconnect_saved)
         row.addWidget(disconnect_button)
@@ -280,6 +283,9 @@ class OnlineDialog(QDialog):
         self.name = QLineEdit()
         self.name.setPlaceholderText('Anzeigename / Display name')
         layout.addWidget(self.name)
+        save_name = QPushButton('Anzeigename speichern' if self.de else 'Save display name')
+        save_name.clicked.connect(self.save_display_name)
+        layout.addWidget(save_name)
         self.provider = QComboBox()
         for label, kind in PROVIDERS:
             self.provider.addItem(label, kind)
@@ -335,6 +341,7 @@ class OnlineDialog(QDialog):
             if not self.pending:
                 self.state = ''
                 self.profile = None
+                self.editing_profile = None
                 self.server_form.identifier = None
                 self.server_form.existing_secret = False
                 self.server_form.secret.clear()
@@ -382,6 +389,10 @@ class OnlineDialog(QDialog):
 
     def next(self):
         if self.pending:
+            return
+        editing = getattr(self, 'editing_profile', None)
+        if not self.state and editing and editing['kind'] not in server.SERVER_KINDS and self.provider.currentData() == editing['kind']:
+            self.reconnect_saved()
             return
         if not self.state:
             kind = self.provider.currentData()
@@ -650,18 +661,40 @@ class OnlineDialog(QDialog):
                 self.answer.setCurrentIndex(preferred)
         self.next_button.setText(('Verbinden und öffnen' if self.de else 'Connect and open') if is_drive else ('Weiter' if self.de else 'Next'))
 
+    def edit_saved(self):
+        profile = self.saved.currentData()
+        if not profile or self.pending:
+            return
+        self.state = ''
+        self.provider.setCurrentIndex(self.provider.findData(profile['kind']))
+        self.provider_changed()
+        self.name.setText(profile['name'])
+        self.editing_profile = dict(profile)
+        if profile['kind'] not in server.SERVER_KINDS:
+            self.next_button.setText('Erneut anmelden' if self.de else 'Sign in again')
+            self.help.setText('Gespeicherten Ort bearbeiten / Edit saved location')
+        if profile['kind'] in server.SERVER_KINDS:
+            self.server_form.load(profile)
+        self.answer.hide()
+        self.status.setText('Anzeigename speichern; für Zugangsdaten Erneut anmelden wählen. Server-Einstellungen vor dem Speichern trennen. / Save display name; sign in again to change credentials. Disconnect before saving server settings.')
+
+    def save_display_name(self):
+        profile = self.saved.currentData()
+        name = self.name.text().strip()
+        if not profile or self.pending or not name:
+            return
+        updated = dict(profile, name=name)
+        self.main.online_profiles = [updated if row['id'] == profile['id'] else row for row in self.main.online_profiles]
+        self.main.save_online_profiles()
+        self.reload()
+        index = next((i for i in range(self.saved.count()) if self.saved.itemData(i)['id'] == profile['id']), -1)
+        self.saved.setCurrentIndex(index)
+        self.status.setText('Anzeigename gespeichert / Display name saved')
+
     def open_saved(self):
         profile = self.saved.currentData()
         if profile and not self.pending:
-            if (profile.get('server_login') and profile.get('secret_required', profile.get('auth_mode') == 'password') and
-                    not profile.get('remember_secret') and
-                    profile['id'] not in getattr(self.main, 'server_secrets', {}) and
-                    not remote_location(mount_path(self.main.state_dir, profile['id']))):
-                self.reconnect_saved()
-                self.status.setText('Gespeicherte Verbindung: Passwort/Passphrase eingeben und Verbinden wählen. / Enter credentials and connect.')
-                return
-            pane = self.main.active
-            self.work(lambda: mount_profile(self.main, profile, self.cancel), lambda path: (pane.navigate(path), self.main.update_places()))
+            self.main.open_online_profile(profile)
 
     def reconnect_saved(self):
         profile = self.saved.currentData()

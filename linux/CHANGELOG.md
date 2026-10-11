@@ -1,5 +1,22 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.8 – 11. Oktober 2026
+
+- Kopfzeile jedes Dateibereichs zeigt den gespeicherten Online-Verbindungsnamen,
+  auch in Unterordnern; Umbenennen aktualisiert die Anzeige sofort.
+
+- Gespeicherte Orte per einfachem Klick direkt öffnen; bereits eingebundene
+  Orte ohne Verbindungsdialog. Fehlende Einbindungen im Hintergrund herstellen,
+  doppelte Öffnungsanfragen verhindern. Navigation während des Verbindens wird
+  nicht durch ein verspätetes Ergebnis überschrieben.
+- Rechtsklick auf Ort → Bearbeiten öffnet gezielt dessen Einstellungen.
+  Anzeigenamen separat speichern, ohne neu anzumelden; Serverdaten vorbefüllt.
+  Cloud-Anmeldung ändern bleibt eine ausdrückliche Aktion. Kein automatischer
+  Wechsel zum Konfigurationsdialog bei Verbindungsfehlern.
+- Nicht gespeicherte Server-Passwörter/Passphrasen bei Bedarf separat abfragen;
+  bestehende Schlüsselbund-/SSH-Prüfungen bleiben erhalten.
+- Cloud-Kontextmenü verwendet den tatsächlich gespeicherten Anzeigenamen.
+
 ## 0.3.7 – 10. Oktober 2026
 
 - GitGuardian-Fundstelle geprüft: deutscher Hilfetext zum iCloud-Passwortfeld,
