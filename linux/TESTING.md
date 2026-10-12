@@ -1,3 +1,41 @@
+# Linux 0.3.22 – vollständiger erneuter Testlauf
+
+12. Oktober 2026 (Europe/Zurich), Commit `594b4d5`.
+
+**315 automatisierte Tests bestanden in 63,98 s; 0 Fehler, 0 übersprungen.**
+Installiertes Paket 0.3.22 mit `--smoke-test` erfolgreich geprüft. Python-,
+JavaScript- und Shell-Syntaxprüfungen erfolgreich. Handbuch/Testplan: 75/21
+Verweise ohne fehlende Ressourcen; drei Dokument-ZIPs ohne Integritätsfehler.
+
+[Ausführlicher HTML-Testbericht](docs/testberichte/2026-10-12-0.3.22/index.html)
+mit allen 315 Ergebnissen, JUnit/Protokollen, echten Providerprüfungen und
+Zuordnung aller 158 Abnahmefälle. Die Vorlage 0.3.19 bleibt unverändert;
+SAFE-08 vollständig ausgeführt, 157 vollständige manuelle Abnahmefälle offen.
+Ein erfolgreiches zugeordnetes Testmodul ersetzt keine manuelle Gesamtabnahme.
+
+Echte Konten mit Anwendungs-rclone geprüft:
+
+- Google Drive: 717 Einträge in 2,33 s; bestehender FUSE-Zugriff im eigenen
+  Dateioperationstest >120 s blockiert. Dieser Praxistest **fehlgeschlagen**.
+  Testprozess nach Rückkehr des Kernelzugriffs beendet; eigener Testordner
+  direkt über Backend entfernt. Produktive App und Mount nicht beendet.
+- OneDrive: 30 Einträge in 0,90 s. Eigene Textdatei kopiert, umbenannt,
+  wiederherstellbar entfernt, Entfernung/Umbenennung/Inhalt direkt beim Anbieter
+  geprüft, Entfernen/Umbenennen/Kopieren zurückgenommen. 31,58 s; Testordner entfernt.
+- Dropbox: Dateiliste erreichbar; gleicher eigener FileEngine-/Backend-Test
+  in 42,65 s erfolgreich, Testordner entfernt.
+- Weiteres OneDrive-Profil: fehlende Laufwerksauswahl; echter Zugriff blockiert.
+- iCloud: Passwortkonfiguration verhindert echten Zugriff; erneuter Login nötig.
+- NAS/SMB: lesende Abfrage des Zielordners in 0,23 s erfolgreich; Ordner leer.
+
+Nur neu angelegte synthetische Testdateien/-ordner und getrennte lokale Profile
+für Dateioperationen. Keine öffentliche Freigabe, persönliche Dateimanipulation,
+Mount-Neukonfiguration oder Unterbrechung des produktiven Kopierauftrags.
+Neue persönliche OAuth-/Apple-2FA-Anmeldung, externe FTP-/FTPS-/WebDAV-Matrix,
+NTFS-Schreibtest, physischer Geräteverlust, HiDPI-Matrix und mehrstündiger
+Netzwechsel-Dauerlauf nicht durchgeführt. Lokaler echter SFTP-Testserver und
+lokale echte rclone/FUSE-Tests sind Teil der vollständig ausgeführten Suite.
+
 # Linux 0.3.21 – Bedienbarkeit aus Handbuch und Testplan
 
 Vollständige Suite: **312 Tests erfolgreich (67,23 s)**. Paket-Smoke-Test
