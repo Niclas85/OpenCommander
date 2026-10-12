@@ -24,6 +24,7 @@ from .filesystem import remote_location
 from . import rclone_runtime
 from . import server_connections as server
 from .server_ui import ServerForm
+from .places_ui import provider_icon
 
 
 PROVIDERS = [('OneDrive online', 'onedrive'), ('Google Drive online', 'drive'),
@@ -322,7 +323,7 @@ class OnlineDialog(QDialog):
         layout.addWidget(save_name)
         self.provider = QComboBox()
         for label, kind in PROVIDERS:
-            self.provider.addItem(label, kind)
+            self.provider.addItem(provider_icon(kind), label, kind)
         layout.addWidget(self.provider)
         self.provider.currentIndexChanged.connect(self.provider_changed)
         self.google_client_id = QLineEdit()
@@ -401,7 +402,7 @@ class OnlineDialog(QDialog):
     def reload(self):
         self.saved.clear()
         for profile in self.main.online_profiles:
-            self.saved.addItem(profile['name'], profile)
+            self.saved.addItem(provider_icon(profile.get('kind')), profile['name'], profile)
 
     def work(self, callback, after, finished=None):
         if self.pending:

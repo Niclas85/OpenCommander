@@ -73,8 +73,10 @@ class LocationSettingsDialog(QDialog):
         self.online_button.setText('Online-Orte verwalten …' if self.de else 'Manage online locations …')
         self.connections_button.setText('Verbindungen verwalten …' if self.de else 'Manage connections …')
         self.table.setHorizontalHeaderLabels(['Sichtbar', 'Name', 'Pfad'] if self.de else ['Visible', 'Name', 'Path'])
-        self.help_label.setText('Nur Verknüpfungen werden geändert; Dateien bleiben erhalten.' if self.de
-                               else 'Only shortcuts are changed; files are preserved.')
+        self.help_label.setText('Orte oben durch Ziehen oder per Rechtsklick umsortieren.\n'
+                               'Nur Verknüpfungen werden geändert; Dateien bleiben erhalten.' if self.de
+                               else 'Reorder places in the top bar by dragging or right-clicking.\n'
+                               'Only shortcuts are changed; files are preserved.')
         titles = ['Ordner hinzufügen…', 'Nur Verknüpfung entfernen', 'Fertig'] if self.de else ['Add folder…', 'Remove shortcut only', 'Done']
         for button, title in zip(self.buttons, titles):
             button.setText(title)

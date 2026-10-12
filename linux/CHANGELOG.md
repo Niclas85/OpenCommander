@@ -1,5 +1,17 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.19 – 12. Oktober 2026
+
+- Farbige, lokal mitgelieferte Dienstsymbole für OneDrive, Google Drive, Dropbox,
+  iCloud, FTP/FTPS und SFTP in der Orte-Leiste und der Online-Verwaltung.
+  Externe rclone-Cloud-Orte ebenfalls mit passendem Dienstsymbol anzeigen.
+- Orte einschließlich Papierkorb und Datenträger per Drag & Drop umsortieren;
+  Ziehbild und Einfügemarkierung zeigen die Position. Alternativ per Rechtsklick
+  nach links/rechts verschieben. Reihenfolge im Benutzerprofil speichern.
+- Ausgeblendete oder vorübergehend fehlende Orte behalten ihre gespeicherte
+  Position. Umsortieren öffnet keinen Ort und führt keine Dateiübertragung aus.
+  Laufwerksabfragen dürfen die Buttons während einer Ziehaktion nicht ersetzen.
+
 ## 0.3.18 – 12. Oktober 2026
 
 - Entfernen unabhängiger Dateien muss nicht mehr auf den vollständigen Abschluss

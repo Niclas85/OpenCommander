@@ -1,4 +1,29 @@
-# Linux 0.3.18 – Vertiefte Prüfung und Dropbox-Entfernen
+# Linux 0.3.19 – Orte und Dienstsymbole
+
+Stand: 12. Oktober 2026. Dienstsymbole werden als eigene lokale SVG-Grafiken
+mitgeliefert. OneDrive, Google Drive, Dropbox und iCloud in der Orte-Leiste sowie
+FTP/SFTP im Assistenten erkennen; Benutzer-Anzeigenamen bleiben erhalten.
+Die obere Leiste lässt sich mit Ziehbild und blauer Einfügemarkierung umsortieren,
+alternativ über „Nach links“/„Nach rechts“ im Kontextmenü.
+
+Vollständige Suite: **300 Tests erfolgreich (64,10 s)**. Nach der abschließenden
+Darstellungs-Korrektur zusätzlich **10 gezielte Desktop-Tests erfolgreich (3,41 s)**,
+einschließlich eines neuen Tests für ausbleibende Aktivierung nach dem Ziehen.
+Damit 301 unterschiedliche Testfälle geprüft. Hell-/Dunkeldarstellung und
+Einfügemarkierung mit synthetischen Online-Profilen visuell kontrolliert.
+Paket-Smoke-Test erfolgreich; SVG-Icon-Engine und alle sechs Dienstgrafiken
+im portablen Paket enthalten.
+
+- Reihenfolge in settings.ini gespeichert und nach erneutem Aufbau der Leiste geprüft.
+- Fehlende Orte behalten ihren gespeicherten Platz beim Wiedererscheinen.
+- Umsortieren öffnet keinen Ort; Datei-URL-Drops werden abgewiesen.
+- Ziehen verwendet ausschließlich ein internes Verknüpfungsformat und ein Ziehbild.
+- Geräte-Aktualisierungen werden bis zum Abschluss der Ziehaktion zurückgestellt.
+- Alte Buttons beim Ersetzen sofort ausgeblendet; keine überlagerten Elemente.
+- Vorhandene Online-Orte weiterhin mit direkter Öffnungsaktion; externe Cloud-Mounts
+  ebenfalls mit passendem Symbol. Keine Kontoanmeldung für diese UI-Prüfung geändert.
+
+## Vorherige Prüfung: 0.3.18 – Dropbox-Entfernen
 
 Stand: 12. Oktober 2026. Zweite Analyse nach den Verbesserungen in 0.3.17.
 Vollständige Suite nach abschließender Scheduler-Korrektur: **296 Tests erfolgreich

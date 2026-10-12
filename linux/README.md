@@ -3,7 +3,7 @@
 Native Qt-Desktop-Version nach dem Vorbild der Mac-Catalyst-App. Keine Browser-
 oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 
-Aktueller Stand: **0.3.18**. Die Änderungen und der geprüfte Umfang stehen im
+Aktueller Stand: **0.3.19**. Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
 
 ## Starten
@@ -28,6 +28,16 @@ Der hier erzeugte x86_64-Build wird auf Ubuntu 24.04 gebaut und benötigt glibc 
 oder neuer sowie eine Wayland- oder X11-Desktop-Sitzung. Für andere Architekturen
 oder ältere Distributionen auf dem Zielsystem aus dem Quellcode bauen. Es ist
 kein universell auf allen Linux-Distributionen getestetes Paket.
+
+## Orte und Dienstsymbole
+
+Online-Orte zeigen farbige Symbole für OneDrive, Google Drive, Dropbox und iCloud;
+FTP/FTPS und SFTP haben eigene Server-Symbole. Die Symbole werden lokal mitgeliefert.
+Orte in der oberen Leiste durch Ziehen vor oder hinter einen anderen Ort umsortieren.
+Eine blaue Markierung zeigt die Einfügeposition. Alternativ per Rechtsklick
+„Nach links“ oder „Nach rechts“ wählen. Auch Papierkorb und Datenträger lassen
+sich verschieben. Die Reihenfolge bleibt nach Neustarts und erneutem Verbinden
+erhalten; die Aktion ändert ausschließlich Verknüpfungen.
 
 ## Aus dem Quellcode
 

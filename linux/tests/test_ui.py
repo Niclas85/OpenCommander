@@ -2104,3 +2104,120 @@ def test_cancel_queued_preview_removal_restores_viewer_controls(window, app, mon
     assert not window.operation_queue
     wait(app, lambda: not window.busy)
     viewer.close()
+
+
+def test_place_drop_reorders_persists_and_does_not_open(window, app, monkeypatch):
+    from PySide6.QtGui import QDragEnterEvent
+    from PySide6.QtCore import QPoint, QSettings
+    from opencommander.places_ui import PLACE_MIME, load_order
+    buttons = window.place_buttons
+    source, target = buttons[-1], buttons[0]
+    clicked = QSignalSpy(source.clicked)
+    mime = QMimeData()
+    mime.setData(PLACE_MIME, source.place_key.encode())
+
+    class Enter(QDragEnterEvent):
+        def source(self):
+            return source
+
+    class Drop(QDropEvent):
+        def source(self):
+            return source
+
+    enter = Enter(QPoint(1, 10), Qt.MoveAction, mime, Qt.LeftButton, Qt.NoModifier)
+    target.dragEnterEvent(enter)
+    assert enter.isAccepted() and target.drop_before is True
+    drop = Drop(QPointF(1, 10), Qt.MoveAction, mime, Qt.LeftButton, Qt.NoModifier)
+    target.dropEvent(drop)
+    assert drop.isAccepted() and clicked.count() == 0
+    assert window.place_buttons[0] is source
+    saved = QSettings(str(window.state_dir / 'settings.ini'), QSettings.IniFormat)
+    assert load_order(saved.value('place_order'))[0] == source.place_key
+    # Device scans and language/theme rebuilds retain the new order.
+    window.update_places()
+    assert window.place_buttons[0].place_key == source.place_key
+    assert clicked.count() == 0
+
+
+def test_places_reject_file_transfer_drops(window):
+    mime = QMimeData()
+    mime.setUrls([QUrl.fromLocalFile(str(window.panes[0].directory / 'Grüße.txt'))])
+    drop = QDropEvent(QPointF(1, 10), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+    before = [button.place_key for button in window.place_buttons]
+    window.place_buttons[0].dropEvent(drop)
+    assert not drop.isAccepted()
+    assert before == [button.place_key for button in window.place_buttons]
+    assert not window.busy
+
+
+def test_online_place_icons_keep_names_and_unavailable_order(window, app, monkeypatch, tmp_path):
+    from opencommander.online_ui import mount_path
+    profiles = [dict(id='oc_' + str(index), name=name, kind=kind)
+                for index, (name, kind) in enumerate([
+                    ('OneDrive Nikki', 'onedrive'), ('Drive Reisen', 'drive'),
+                    ('Dropbox Fotos', 'dropbox'), ('iCloud', 'iclouddrive')])]
+    window.online_profiles = profiles
+    window.external_cloud_profiles = [dict(id='external_fixture', name='Google extern', kind='drive',
+                                           external=True, mount_root=str(tmp_path / 'external'))]
+    window.update_places()
+    for profile in profiles:
+        button = next(b for b in window.place_buttons if b.text() == profile['name'])
+        assert not button.icon().pixmap(24, 24).isNull()
+    assert not next(b for b in window.place_buttons if b.text() == 'Google extern').icon().isNull()
+    source = 'online:' + profiles[2]['id']
+    window.reorder_place(source, 'trash', True)
+    window.online_profiles = profiles[:2] + profiles[3:]
+    window.update_places()
+    window.reorder_place('trash', 'online:' + profiles[0]['id'], False)
+    window.online_profiles = profiles
+    window.update_places()
+    assert window.place_buttons[0].place_key == source
+    opened = []
+    monkeypatch.setattr(window, 'open_online_profile', opened.append)
+    next(b for b in window.place_buttons if b.place_key == source).click()
+    assert opened == [profiles[2]]
+
+
+def test_place_rebuild_waits_for_active_drag(window):
+    before = list(window.place_buttons)
+    window.place_drag_active = True
+    window.update_places()
+    assert window.places_update_pending and window.place_buttons == before
+    window.place_drag_active = False
+    window.update_places()
+    assert window.place_buttons != before
+
+
+def test_place_drag_release_never_activates_shortcut(window, app, monkeypatch):
+    from PySide6.QtCore import QPoint
+    from PySide6.QtGui import QMouseEvent
+    from opencommander import places_ui
+    source = window.place_buttons[0]
+    clicked = QSignalSpy(source.clicked)
+    captured = {}
+
+    class Drag:
+        def __init__(self, parent):
+            assert parent is source
+        def setMimeData(self, mime):
+            captured['mime'] = mime
+        def setPixmap(self, pixmap):
+            assert not pixmap.isNull()
+        def setHotSpot(self, point):
+            pass
+        def exec(self, action):
+            assert action == Qt.MoveAction
+            window.update_places()
+            assert window.place_drag_active and window.places_update_pending
+
+    monkeypatch.setattr(places_ui, 'QDrag', Drag)
+    QTest.mousePress(source, Qt.LeftButton, pos=QPoint(2, 2))
+    move = QMouseEvent(QEvent.MouseMove, QPointF(30, 2), QPointF(30, 2),
+                       Qt.NoButton, Qt.LeftButton, Qt.NoModifier)
+    source.mouseMoveEvent(move)
+    QTest.mouseRelease(source, Qt.LeftButton, pos=QPoint(30, 2))
+    assert clicked.count() == 0
+    assert captured['mime'].hasFormat(places_ui.PLACE_MIME)
+    assert not captured['mime'].hasUrls()
+    assert not window.place_drag_active
+    app.processEvents()

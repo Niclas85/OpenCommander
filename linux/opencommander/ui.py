@@ -30,6 +30,7 @@ from .media import media_kind, ThumbnailCache, MediaViewer
 from .controls import ModeToggle
 from .formatting import human_duration
 from .location_preferences import load_preferences, configured_locations
+from .places_ui import PlaceButton, load_order, ordered_places, provider_icon
 from shiboken6 import isValid
 
 
@@ -670,6 +671,7 @@ class MainWindow(QMainWindow):
         self.engine = FileEngine(self.state_dir)
         self.settings = QSettings(str(self.state_dir / 'settings.ini'), QSettings.IniFormat)
         self.location_preferences = load_preferences(self.settings.value('locations', '[]'))
+        self.place_order = load_order(self.settings.value('place_order', '[]'))
         try:
             profiles = json.loads(self.settings.value('online_profiles', '[]'))
             self.online_profiles = [row for row in profiles if isinstance(row, dict) and isinstance(row.get('id'), str) and row['id'].startswith('oc_') and row['id'][3:].isalnum() and isinstance(row.get('name'), str)] if isinstance(profiles, list) else []
@@ -1658,9 +1660,13 @@ class MainWindow(QMainWindow):
         self.connections_dialog.refresh()
 
     def update_places(self):
+        if getattr(self, 'place_drag_active', False):
+            self.places_update_pending = True
+            return
         while self.places.count():
             item = self.places.takeAt(0)
             if item.widget():
+                item.widget().hide()
                 item.widget().deleteLater()
         locations = [(self.tr_key('root'), Path('/')), (self.tr_key('home'), Path.home())]
         downloads = Path(QStandardPaths.writableLocation(QStandardPaths.DownloadLocation))
@@ -1675,9 +1681,11 @@ class MainWindow(QMainWindow):
             if remote_location(path):
                 register(path)
         locations += online_mounts
-        trash = QPushButton('Papierkorb' if self.language == 'de' else 'Trash')
+        locations += [(row['name'], Path(row['mount_root'])) for row in self.external_cloud_profiles]
+        trash = PlaceButton(self, 'Papierkorb' if self.language == 'de' else 'Trash', 'trash')
+        trash.setIcon(self.style().standardIcon(QStyle.SP_TrashIcon))
         trash.clicked.connect(self.show_trash)
-        self.places.addWidget(trash)
+        rows = [dict(key='trash', button=trash)]
         self.known_locations = locations
         locations = [(name, Path(path)) for name, path in configured_locations(locations, self.location_preferences)]
         seen = set()
@@ -1685,34 +1693,89 @@ class MainWindow(QMainWindow):
             if path in seen:
                 continue
             seen.add(path)
-            button = QPushButton(name)
+            button = PlaceButton(self, name, self.place_key(path))
             button.setToolTip(str(path))
             button.setObjectName('place')
             profile = next((row for row in self.online_profiles if mount_path(self.state_dir, row['id']) == path), None)
+            from .external_cloud import root_for
+            icon_profile = profile or next((row for row in self.external_cloud_profiles if root_for(self, row) == path), None)
+            if icon_profile:
+                button.setIcon(provider_icon(icon_profile.get('kind')))
+            else:
+                device = next((row for row in self.integration_locations if row.get('path') == str(path)), None)
+                standard = QStyle.SP_DriveHDIcon if device else QStyle.SP_DirHomeIcon if path == Path.home() else QStyle.SP_DirIcon
+                button.setIcon(self.style().standardIcon(standard))
             if profile:
                 button.clicked.connect(lambda checked=False, profile=profile: self.open_online_profile(profile))
             else:
                 button.clicked.connect(lambda checked=False, path=path: self.active.navigate(path))
-            button.setContextMenuPolicy(Qt.CustomContextMenu)
-            def options(point, button=button, profile=profile):
-                menu = QMenu(button)
-                edit = menu.addAction('Bearbeiten …' if self.language == 'de' else 'Edit …')
-                edit.triggered.connect(lambda: self.edit_online_profile(profile) if profile else self.location_settings())
-                menu.exec(button.mapToGlobal(point))
-            button.customContextMenuRequested.connect(options)
-            self.places.addWidget(button)
+            button.edit_place = lambda profile=profile: self.edit_online_profile(profile) if profile else self.location_settings()
+            rows.append(dict(key=button.place_key, button=button))
         for device in self.integration_locations:
             if device.get('mounted') or device.get('path'):
                 continue
-            button = QPushButton('◉ ' + device['name'])
+            button = PlaceButton(self, device['name'], 'device:' + device['id'])
+            button.setIcon(self.style().standardIcon(QStyle.SP_DriveHDIcon))
             button.setObjectName('unmountedDevice')
             button.setToolTip('Datenträger einbinden und öffnen' if self.language == 'de' else 'Mount and open drive')
             button.clicked.connect(lambda checked=False, device=dict(device): self.open_device(device))
             button.setEnabled(device['id'] not in getattr(self, 'opening_devices', set()))
+            rows.append(dict(key=button.place_key, button=button))
+        self.place_buttons = [row['button'] for row in ordered_places(rows, self.place_order)]
+        for button in self.place_buttons:
+            hint = 'Zum Umsortieren ziehen; Rechtsklick für Optionen.' if self.language == 'de' else 'Drag to reorder; right-click for options.'
+            button.setToolTip((button.toolTip() + '\n' + hint).strip())
+            button.setContextMenuPolicy(Qt.CustomContextMenu)
+            button.customContextMenuRequested.connect(lambda point, button=button: self.place_menu(button, point))
             self.places.addWidget(button)
         self.places.addStretch()
         if self.active and self.panes:
             self.activate(self.active)
+
+    def place_key(self, path):
+        from .online_ui import mount_path
+        path = Path(path)
+        profile = next((row for row in self.online_profiles if mount_path(self.state_dir, row['id']) == path), None)
+        if profile:
+            return 'online:' + profile['id']
+        device = next((row for row in self.integration_locations if row.get('path') == str(path)), None)
+        if device:
+            return 'device:' + (device.get('volume_id') or device['id'])
+        return 'path:' + str(path)
+
+    def reorder_place(self, source, target, before=True):
+        buttons = self.place_buttons
+        moving = next((button for button in buttons if button.place_key == source), None)
+        anchor = next((button for button in buttons if button.place_key == target), None)
+        if moving is None or anchor is None or moving is anchor:
+            return
+        buttons.remove(moving)
+        buttons.insert(buttons.index(anchor) + (0 if before else 1), moving)
+        # Keep unavailable/hidden places in their saved slots, so reconnecting does
+        # not reset their order. Newly discovered places join at the end.
+        visible = [button.place_key for button in buttons]
+        remaining = iter(visible)
+        order = [next(remaining) if key in visible else key for key in self.place_order]
+        order.extend(remaining)
+        self.place_order = order
+        self.settings.setValue('place_order', json.dumps(order))
+        self.settings.sync()
+        self.places.removeWidget(moving)
+        self.places.insertWidget(buttons.index(moving), moving)
+
+    def place_menu(self, button, point):
+        menu = QMenu(button)
+        index = self.place_buttons.index(button)
+        for title, offset in [('Nach links' if self.language == 'de' else 'Move left', -1),
+                              ('Nach rechts' if self.language == 'de' else 'Move right', 1)]:
+            action = menu.addAction(title)
+            action.setEnabled(0 <= index + offset < len(self.place_buttons))
+            action.triggered.connect(lambda checked=False, offset=offset: self.reorder_place(
+                button.place_key, self.place_buttons[index + offset].place_key, offset < 0))
+        if hasattr(button, 'edit_place'):
+            menu.addSeparator()
+            menu.addAction('Bearbeiten …' if self.language == 'de' else 'Edit …', button.edit_place)
+        menu.exec(button.mapToGlobal(point))
 
     def open_device(self, device):
         if self.closing:
