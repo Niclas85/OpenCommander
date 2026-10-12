@@ -1,5 +1,36 @@
 # Linux 0.3.19 – Orte und Dienstsymbole
 
+## Ausfüllbarer Testplan (keine neue Anwendungstest-Ausführung)
+
+[HTML-Testplan](docs/testplan/index.html): 158 Fälle in 16 Funktionsbereichen,
+85 P0-, 72 P1- und ein P2-Fall. Enthält Voraussetzungen, Schritte, Soll-Ergebnisse,
+Provider-/Transfermatrix, Testdaten, Fehler-Schweregrade und Freigabekriterien.
+Alle Fälle beginnen als **Nicht ausgeführt**; frühere Suite-Ergebnisse werden
+nicht als manuelle Abnahme übernommen. Pro Backend/Variante einen eigenen Lauf
+exportieren. CSV-Vorlage und JSON-Falldaten liegen im gleichen Verzeichnis.
+
+Am 12. Oktober 2026 wurde ausschließlich das neue Dokument geprüft:
+
+- Browser: Suche/Einzelfallfilter, Aufklappen, Ergebniserfassung, Statuszähler,
+  Speicherung über Reload, neuer leerer Lauf und JSON-Import mit Bestätigung.
+- CSV und JSON tatsächlich über die Dokumentoberfläche exportiert; CSV enthält
+  alle 158 Fälle und den eingegebenen Probewert. JSON-Rückimport stellt ihn wieder her.
+- Probewerte abschließend zurückgesetzt: 0/158 bewertet. Keine Produktivdateien,
+  Konten, Mounts oder laufenden Anwendungsübertragungen verändert.
+- Desktopansicht 1280 px visuell geprüft; kein horizontaler Dokumentüberlauf,
+  keine Warnungen/Fehler in der Browserkonsole.
+- Eindeutige IDs, Anker, bestehende Testmodul-Zuordnungen, Offline-Ressourcenfreiheit,
+  CSV-Zeilen und ZIP-Integrität geprüft; Python-, JavaScript- und Shell-Syntax gültig.
+- Druckdarstellung vorbereitet; PDF-Export und direkte file://-Ausführung wurden
+  nicht im Browser getestet. Responsives CSS vorhanden; kein eigener Mobil-Abnahmelauf.
+
+Reproduzierbar erzeugen:
+
+```bash
+python3 linux/docs/tools/build_testplan.py
+python3 -m http.server 8766 --bind 127.0.0.1 --directory linux/docs/testplan
+```
+
 ## HTML-Anwenderhandbuch
 
 18 Kapitel, 18 reale Qt-Screenshots mit isolierten Beispieldaten; rund 5.600 Wörter.

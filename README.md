@@ -222,3 +222,5 @@ Die GitHub-Actions-Pipeline prueft Android-Build, Lint, Sprachschluessel und
 Dateisicherheitsregressionen sowie auf macOS die Swift-Dateioperationen,
 den portablen NTFS-Kern und den iOS-Simulator-Build. Geraetetests fuer Androids
 Storage Access Framework, Cloud-Anbieter und Mac Catalyst bleiben erforderlich.
+
+Der [ausfüllbare Linux-Testplan](linux/docs/testplan/index.html) umfasst 158 Testfälle mit Voraussetzungen, Prüfschritten, Soll-Ergebnissen und einer Cloud-/NAS-Variantenmatrix.

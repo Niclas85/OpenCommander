@@ -11,6 +11,8 @@ Aktueller Stand: **0.3.19**. Die Änderungen und der geprüfte Umfang stehen im
 und Druckansicht. Offline nutzbar: `docs/handbuch/index.html` im Browser öffnen.
 Im portablen Paket wird das Handbuch unter demselben relativen Pfad mitgeliefert.
 
+**[Ausfüllbaren HTML-Testplan öffnen](docs/testplan/index.html)** — 158 Fälle für Linux 0.3.19, mit Soll-Ergebnissen, Variantenmatrix und CSV/JSON-Export.
+
 ## Starten
 
 Das fertige Archiv `OpenCommander-linux-x86_64.tar.gz` entpacken und die Datei

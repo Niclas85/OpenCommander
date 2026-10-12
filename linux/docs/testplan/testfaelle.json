@@ -1,0 +1,2626 @@
+[
+  {
+    "id": "START-01",
+    "group": "Installation, Start und Integration",
+    "priority": "P0",
+    "title": "Portables Paket starten",
+    "prerequisites": "Saubere Linux-Testumgebung; separates Benutzerkonto für Desktop-Zuordnung; portable Version und Quellstand 0.3.19.",
+    "steps": [
+      "Paket vollständig entpacken",
+      "Aus einem Pfad mit Leerzeichen starten",
+      "Versionsanzeige prüfen"
+    ],
+    "expected": "Fenster startet ohne Traceback; Version 0.3.19; beide Dateibereiche nutzbar. Fehlende Bibliotheken werden als Installationsproblem dokumentiert.",
+    "automation": "test_desktop.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "START-02",
+    "group": "Installation, Start und Integration",
+    "priority": "P1",
+    "title": "Installation im Benutzerkonto",
+    "prerequisites": "Saubere Linux-Testumgebung; separates Benutzerkonto für Desktop-Zuordnung; portable Version und Quellstand 0.3.19.",
+    "steps": [
+      "install-local.sh im Testkonto ausführen",
+      "Über Anwendungsmenü starten",
+      "Dateimanager-Zuordnung prüfen"
+    ],
+    "expected": "Startmenüeintrag funktioniert ohne Root; die Installation setzt nicht ungefragt den Standard-Dateimanager.",
+    "automation": "test_desktop.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "START-03",
+    "group": "Installation, Start und Integration",
+    "priority": "P0",
+    "title": "Erster Start: Standardprogramm zustimmen",
+    "prerequisites": "Saubere Linux-Testumgebung; separates Benutzerkonto für Desktop-Zuordnung; portable Version und Quellstand 0.3.19.",
+    "steps": [
+      "Mit frischem Profil normal starten",
+      "Frage bestätigen",
+      "Einen Ordner über den Desktop öffnen"
+    ],
+    "expected": "Frage erscheint einmal; inode/directory-Zuordnung zeigt auf OpenCommander; Ordner wird geöffnet. Vorherige Zuordnung für Rückbau notieren.",
+    "automation": "test_desktop.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "START-04",
+    "group": "Installation, Start und Integration",
+    "priority": "P1",
+    "title": "Standardprogramm ablehnen",
+    "prerequisites": "Saubere Linux-Testumgebung; separates Benutzerkonto für Desktop-Zuordnung; portable Version und Quellstand 0.3.19.",
+    "steps": [
+      "Frisches Profil verwenden",
+      "Frage ablehnen",
+      "Neu starten",
+      "Ordner im Desktop öffnen"
+    ],
+    "expected": "Bisherige Zuordnung bleibt erhalten; Ablehnung bleibt gespeichert; kein wiederholter Dialog bei jedem Start.",
+    "automation": "test_desktop.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "START-05",
+    "group": "Installation, Start und Integration",
+    "priority": "P1",
+    "title": "Zweite Instanz und Ordnerübergabe",
+    "prerequisites": "Saubere Linux-Testumgebung; separates Benutzerkonto für Desktop-Zuordnung; portable Version und Quellstand 0.3.19.",
+    "steps": [
+      "App mit Testprofil starten",
+      "Dieselbe Installation erneut mit Testordner aufrufen",
+      "Zweites unabhängiges Profil starten"
+    ],
+    "expected": "Gleiches Profil verwendet vorhandene Instanz und öffnet den Ordner; anderes Profil darf unabhängig starten; keine parallelen Schreiber im selben Journal.",
+    "automation": "test_desktop.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "START-06",
+    "group": "Installation, Start und Integration",
+    "priority": "P1",
+    "title": "Startargumente und Sonderzeichen",
+    "prerequisites": "Saubere Linux-Testumgebung; separates Benutzerkonto für Desktop-Zuordnung; portable Version und Quellstand 0.3.19.",
+    "steps": [
+      "Ordner mit Umlauten, Leerzeichen und Shell-Sonderzeichen anlegen",
+      "Per absolutem Pfad und file://-URL öffnen",
+      "Ungültige URL übergeben"
+    ],
+    "expected": "Gültige Pfade werden unverändert geöffnet; keine Befehlsausführung; ungültige Eingabe führt zu verständlicher Ablehnung ohne Absturz.",
+    "automation": "test_desktop.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "START-07",
+    "group": "Installation, Start und Integration",
+    "priority": "P1",
+    "title": "Einstellungen nach Neustart",
+    "prerequisites": "Saubere Linux-Testumgebung; separates Benutzerkonto für Desktop-Zuordnung; portable Version und Quellstand 0.3.19.",
+    "steps": [
+      "Sprache, Theme, Fenstergröße, Pane-Pfade und Baumweite ändern",
+      "Geordnet schließen",
+      "Erneut starten"
+    ],
+    "expected": "Unterstützte Einstellungen bleiben erhalten; fehlender letzter Ordner verursacht keinen endlosen Startzustand.",
+    "automation": "test_desktop.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "START-08",
+    "group": "Installation, Start und Integration",
+    "priority": "P1",
+    "title": "Versionswechsel mit bestehendem Profil",
+    "prerequisites": "Saubere Linux-Testumgebung; separates Benutzerkonto für Desktop-Zuordnung; portable Version und Quellstand 0.3.19.",
+    "steps": [
+      "Kopie eines bereinigten Testprofils mit Historie und pausiertem Auftrag verwenden",
+      "Neue Version starten",
+      "Historie und Warteschlange öffnen"
+    ],
+    "expected": "Profil lesbar; keine verschwundenen Aufträge oder History-Daten; keine zweite aktive Instanz desselben Profils.",
+    "automation": "test_desktop.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "START-09",
+    "group": "Installation, Start und Integration",
+    "priority": "P2",
+    "title": "Fehlende optionale Komponenten",
+    "prerequisites": "Saubere Linux-Testumgebung; separates Benutzerkonto für Desktop-Zuordnung; portable Version und Quellstand 0.3.19.",
+    "steps": [
+      "In Test-VM ffmpeg bzw. Desktop-GIO/Schlüsselbund getrennt nicht verfügbar machen",
+      "Betroffene Funktionen öffnen"
+    ],
+    "expected": "Funktion fällt gezielt aus oder erklärt Voraussetzung; lokale Dateiverwaltung bleibt nutzbar; kein stiller unsicherer Ersatz.",
+    "automation": "test_desktop.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "NAV-01",
+    "group": "Navigation und Dateibereiche",
+    "priority": "P0",
+    "title": "Unabhängige Bereiche und aktives Ziel",
+    "prerequisites": "Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.",
+    "steps": [
+      "Links und rechts andere Ordner öffnen",
+      "Jeweils Bereich aktivieren",
+      "Auswahl und Pfad beobachten"
+    ],
+    "expected": "Aktiver Bereich ist klar erkennbar; Navigation ändert nicht ungewollt den anderen Bereich; Aktionen verwenden richtigen Quellbereich.",
+    "automation": "test_ui.py, test_integrations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "NAV-02",
+    "group": "Navigation und Dateibereiche",
+    "priority": "P1",
+    "title": "Ordnerbaum und lange Namen",
+    "prerequisites": "Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.",
+    "steps": [
+      "Drei Ebenen mit langen Namen aufklappen",
+      "Baum verbreitern",
+      "Horizontal scrollen",
+      "Neu starten"
+    ],
+    "expected": "Namen sind lesbar erreichbar; Splitter funktioniert; Breite bleibt gespeichert; keine überlagerten Bedienelemente.",
+    "automation": "test_ui.py, test_integrations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "NAV-03",
+    "group": "Navigation und Dateibereiche",
+    "priority": "P0",
+    "title": "Eine Ebene hoch und Herkunft markieren",
+    "prerequisites": "Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.",
+    "steps": [
+      "In Unterordner wechseln",
+      "Alt+Hoch benutzen",
+      "Dasselbe per Schaltfläche wiederholen"
+    ],
+    "expected": "Der gerade verlassene Ordner wird im Elternordner markiert und in den sichtbaren Bereich gescrollt.",
+    "automation": "test_ui.py, test_integrations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "NAV-04",
+    "group": "Navigation und Dateibereiche",
+    "priority": "P1",
+    "title": "Zurück und Vorwärts",
+    "prerequisites": "Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.",
+    "steps": [
+      "Drei Ordner besuchen",
+      "Zweimal zurück",
+      "Einmal vorwärts",
+      "Neuen Ordner besuchen"
+    ],
+    "expected": "Chronologie und Pfadanzeige stimmen; Vorwärtszweig wird nach neuer Navigation korrekt verworfen.",
+    "automation": "test_ui.py, test_integrations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "NAV-05",
+    "group": "Navigation und Dateibereiche",
+    "priority": "P1",
+    "title": "Pfad direkt eingeben",
+    "prerequisites": "Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.",
+    "steps": [
+      "Strg+L",
+      "Gültigen Unicode-Pfad einfügen",
+      "Nicht vorhandenen und unlesbaren Pfad testen"
+    ],
+    "expected": "Gültiger Ordner lädt; Fehler wird erklärt; alter Inhalt erscheint nicht als Inhalt des neuen Pfads.",
+    "automation": "test_ui.py, test_integrations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "NAV-06",
+    "group": "Navigation und Dateibereiche",
+    "priority": "P1",
+    "title": "Sortieren und Filtern",
+    "prerequisites": "Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.",
+    "steps": [
+      "Nach Name, Größe und Datum in beide Richtungen sortieren",
+      "Filter setzen und löschen"
+    ],
+    "expected": "Sortierung nachvollziehbar; sichtbare Treffer korrekt; Filteränderung führt nicht zu Aktionen auf unsichtbar verwechselten Dateien.",
+    "automation": "test_ui.py, test_integrations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "NAV-07",
+    "group": "Navigation und Dateibereiche",
+    "priority": "P1",
+    "title": "Mehrfachauswahl",
+    "prerequisites": "Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.",
+    "steps": [
+      "Einzeln, mit Strg, mit Umschalt und Strg+A auswählen",
+      "Auswahl außerhalb und innerhalb des Filters prüfen"
+    ],
+    "expected": "Markierung und Anzahl entsprechen Auswahl; Operationen verwenden nur beabsichtigte Einträge.",
+    "automation": "test_ui.py, test_integrations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "NAV-08",
+    "group": "Navigation und Dateibereiche",
+    "priority": "P1",
+    "title": "Versteckte Dateien und Aktualisierung",
+    "prerequisites": "Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.",
+    "steps": [
+      "Strg+H umschalten",
+      "Extern im Testordner Datei anlegen",
+      "Strg+R"
+    ],
+    "expected": "Versteckte Dateien folgen Einstellung; Aktualisierung zeigt externe Änderung; keine doppelte Zeile.",
+    "automation": "test_ui.py, test_integrations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "NAV-09",
+    "group": "Navigation und Dateibereiche",
+    "priority": "P0",
+    "title": "Kontextmenü auf Datei und leerer Fläche",
+    "prerequisites": "Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.",
+    "steps": [
+      "Datei rechtsklicken",
+      "Leere Fläche rechtsklicken",
+      "Neuen Ordner dort anlegen"
+    ],
+    "expected": "Dateimenü bezieht sich auf angeklickten Eintrag; leeres Menü bietet passende Ordner-/Einfügeaktionen, keine versehentliche Aktion auf alter Auswahl.",
+    "automation": "test_ui.py, test_integrations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "NAV-10",
+    "group": "Navigation und Dateibereiche",
+    "priority": "P1",
+    "title": "Laden abbrechen und weiter navigieren",
+    "prerequisites": "Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.",
+    "steps": [
+      "Langsame Testquelle öffnen",
+      "Laden stoppen",
+      "Sofort lokalen Ort öffnen",
+      "Alte Anfrage später fertig werden lassen"
+    ],
+    "expected": "GUI bleibt bedienbar; verspätetes Ergebnis überschreibt den aktuellen lokalen Ordner nicht; Wiederholen ist möglich.",
+    "automation": "test_ui.py, test_integrations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "NAV-11",
+    "group": "Navigation und Dateibereiche",
+    "priority": "P1",
+    "title": "Verbindung im Bereichstitel",
+    "prerequisites": "Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.",
+    "steps": [
+      "Benannten Online-Ort öffnen",
+      "In Unterordner wechseln",
+      "Zum lokalen Ort wechseln"
+    ],
+    "expected": "Konto-/Ortsname und aktueller Pfad passen zum Bereich; keine rohen Profil-IDs als alleinige Orientierung; lokaler Titel wird wieder korrekt.",
+    "automation": "test_ui.py, test_integrations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PLACE-01",
+    "group": "Orte, Symbole und Reihenfolge",
+    "priority": "P0",
+    "title": "Ort direkt öffnen",
+    "prerequisites": "Lokale Favoriten, zwei Test-Cloudprofile und ein entfernbares Testlaufwerk; keine Produktivverbindung ändern.",
+    "steps": [
+      "Jeden sichtbaren Ort einmal anklicken"
+    ],
+    "expected": "Ordner öffnet sich im aktiven Bereich; keine Verbindungsoptionen statt Dateiliste. Einstellungen sind separat erreichbar.",
+    "automation": "test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PLACE-02",
+    "group": "Orte, Symbole und Reihenfolge",
+    "priority": "P1",
+    "title": "Dienstsymbole zuordnen",
+    "prerequisites": "Lokale Favoriten, zwei Test-Cloudprofile und ein entfernbares Testlaufwerk; keine Produktivverbindung ändern.",
+    "steps": [
+      "OneDrive, Google Drive, Dropbox, iCloud und SFTP/FTP anzeigen",
+      "Hell und dunkel vergleichen"
+    ],
+    "expected": "Passendes Symbol mit lesbarem Kontonamen; Unterscheidung auch über Beschriftung, nicht nur Farbe; keine Netzwerkabfrage für Symbole.",
+    "automation": "test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PLACE-03",
+    "group": "Orte, Symbole und Reihenfolge",
+    "priority": "P1",
+    "title": "Mit Ziehbild umordnen",
+    "prerequisites": "Lokale Favoriten, zwei Test-Cloudprofile und ein entfernbares Testlaufwerk; keine Produktivverbindung ändern.",
+    "steps": [
+      "Ort nach links und rechts ziehen",
+      "Einfügemarkierung beobachten",
+      "Loslassen"
+    ],
+    "expected": "Sichtbares Ziehbild und eindeutige Einfügeposition; neue Reihenfolge; Ziehen öffnet keinen Ort.",
+    "automation": "test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PLACE-04",
+    "group": "Orte, Symbole und Reihenfolge",
+    "priority": "P1",
+    "title": "Reihenfolge per Kontextmenü",
+    "prerequisites": "Lokale Favoriten, zwei Test-Cloudprofile und ein entfernbares Testlaufwerk; keine Produktivverbindung ändern.",
+    "steps": [
+      "Ersten, mittleren und letzten Ort rechtsklicken",
+      "Nach links/rechts verwenden"
+    ],
+    "expected": "Reihenfolge korrekt; nicht mögliche Richtung deaktiviert oder wirkungslos ohne Fehler; Tastaturbedienung möglich.",
+    "automation": "test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PLACE-05",
+    "group": "Orte, Symbole und Reihenfolge",
+    "priority": "P1",
+    "title": "Reihenfolge dauerhaft speichern",
+    "prerequisites": "Lokale Favoriten, zwei Test-Cloudprofile und ein entfernbares Testlaufwerk; keine Produktivverbindung ändern.",
+    "steps": [
+      "Orte umordnen",
+      "App neu starten",
+      "Gerät abziehen und wieder anschließen"
+    ],
+    "expected": "Reihenfolge bleibt; vorübergehend fehlender Ort erhält seinen gespeicherten Platz zurück.",
+    "automation": "test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PLACE-06",
+    "group": "Orte, Symbole und Reihenfolge",
+    "priority": "P1",
+    "title": "Geräteaktualisierung während Ziehen",
+    "prerequisites": "Lokale Favoriten, zwei Test-Cloudprofile und ein entfernbares Testlaufwerk; keine Produktivverbindung ändern.",
+    "steps": [
+      "Ort ziehen und halten",
+      "Testgerät anschließen",
+      "Ziehen abschließen"
+    ],
+    "expected": "Kein Absturz oder gelöschtes Drag-Objekt; anschließende Aktualisierung übernimmt Gerät ohne Reihenfolge zu verlieren.",
+    "automation": "test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PLACE-07",
+    "group": "Orte, Symbole und Reihenfolge",
+    "priority": "P1",
+    "title": "Datei nicht als Ort verschieben",
+    "prerequisites": "Lokale Favoriten, zwei Test-Cloudprofile und ein entfernbares Testlaufwerk; keine Produktivverbindung ändern.",
+    "steps": [
+      "Testdatei auf Orte-Leiste ziehen",
+      "Escape bei einer Orts-Ziehaktion drücken"
+    ],
+    "expected": "Datei-Drop wird nicht als Ortsumsortierung akzeptiert; keine Dateioperation; abgebrochene Umsortierung lässt Reihenfolge unverändert.",
+    "automation": "test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PLACE-08",
+    "group": "Orte, Symbole und Reihenfolge",
+    "priority": "P1",
+    "title": "Favorit bearbeiten, ausblenden, entfernen",
+    "prerequisites": "Lokale Favoriten, zwei Test-Cloudprofile und ein entfernbares Testlaufwerk; keine Produktivverbindung ändern.",
+    "steps": [
+      "Testfavorit umbenennen",
+      "Ausblenden/einblenden",
+      "Verknüpfung entfernen"
+    ],
+    "expected": "Nur Anzeige/Verknüpfung verändert; Daten bleiben; Verbindungsverwaltung über Einstellungen erreichbar.",
+    "automation": "test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "FILE-01",
+    "group": "Dateiaktionen und Konflikte",
+    "priority": "P0",
+    "title": "Kopieren mit F5",
+    "prerequisites": "D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.",
+    "steps": [
+      "Datei und Ordner auswählen",
+      "F5",
+      "Ziel und Abschluss prüfen"
+    ],
+    "expected": "Inhalte und Struktur identisch; Quelle unverändert; Hashes stimmen; Historie enthält richtigen Vorgang.",
+    "automation": "test_operations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "FILE-02",
+    "group": "Dateiaktionen und Konflikte",
+    "priority": "P0",
+    "title": "Verschieben mit F6",
+    "prerequisites": "D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.",
+    "steps": [
+      "Datei und Ordner auswählen",
+      "F6",
+      "Innerhalb und zwischen Testdateisystemen wiederholen"
+    ],
+    "expected": "Einträge nur am Ziel nach erfolgreichem Abschluss; Daten unverändert; Quelllöschung erst nach sicherem Transfer.",
+    "automation": "test_operations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "FILE-03",
+    "group": "Dateiaktionen und Konflikte",
+    "priority": "P0",
+    "title": "Drag-and-drop folgt Toggle",
+    "prerequisites": "D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.",
+    "steps": [
+      "Toggle Kopieren setzen und ziehen",
+      "Toggle Verschieben setzen und andere Datei ziehen"
+    ],
+    "expected": "Beide Modi tun genau das Gewählte ohne zusätzlichen Ausführen-Schritt; sichtbares Ziehobjekt; Zielbereich klar.",
+    "automation": "test_operations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "FILE-04",
+    "group": "Dateiaktionen und Konflikte",
+    "priority": "P1",
+    "title": "F5/F6 unabhängig vom Toggle",
+    "prerequisites": "D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.",
+    "steps": [
+      "Toggle Verschieben setzen",
+      "F5",
+      "Toggle Kopieren setzen",
+      "F6"
+    ],
+    "expected": "F5 kopiert und F6 verschiebt unabhängig vom Drag-Modus.",
+    "automation": "test_operations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "FILE-05",
+    "group": "Dateiaktionen und Konflikte",
+    "priority": "P1",
+    "title": "Zwischenablage",
+    "prerequisites": "D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.",
+    "steps": [
+      "Strg+C/Strg+V in anderen Bereich",
+      "Strg+X/Strg+V",
+      "Einfügen per Kontextmenü"
+    ],
+    "expected": "Copy/Cut korrekt; fehlende oder unzulässige Quelle führt zu Meldung; keine unerwartete Mehrfachausführung.",
+    "automation": "test_operations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "FILE-06",
+    "group": "Dateiaktionen und Konflikte",
+    "priority": "P0",
+    "title": "Lokaler Namenskonflikt",
+    "prerequisites": "D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.",
+    "steps": [
+      "Gleichnamige unterschiedliche Dateien vorbereiten",
+      "Je einen Durchlauf Behalten, Ersetzen und Abbrechen"
+    ],
+    "expected": "Behalten erhält beide Inhalte unter eindeutigen Namen; Ersetzen hat nachvollziehbare Wiederherstellung; Abbrechen verändert keine Nutzdaten.",
+    "automation": "test_operations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "FILE-07",
+    "group": "Dateiaktionen und Konflikte",
+    "priority": "P0",
+    "title": "Online-Namenskonflikt",
+    "prerequisites": "D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.",
+    "steps": [
+      "Datei auf Online-Ziel mit vorhandenem Namen kopieren",
+      "Zweite Kopie starten"
+    ],
+    "expected": "Online-Pfade verwenden sicherheitshalber Behalten mit eindeutigem Namen; vorhandener Inhalt bleibt erhalten; keine stille Überschreibung.",
+    "automation": "test_operations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "FILE-08",
+    "group": "Dateiaktionen und Konflikte",
+    "priority": "P1",
+    "title": "Umbenennen und neuer Ordner",
+    "prerequisites": "D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.",
+    "steps": [
+      "F2 mit Unicode verwenden",
+      "Bestehenden Namen und ungültigen Namen versuchen",
+      "Strg+Umschalt+N"
+    ],
+    "expected": "Gültige Aktionen sichtbar; Kollision/ungültiger Name verständlich abgelehnt; kein Datenverlust.",
+    "automation": "test_operations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "FILE-09",
+    "group": "Dateiaktionen und Konflikte",
+    "priority": "P0",
+    "title": "Gefährliche Pfadkombinationen",
+    "prerequisites": "D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.",
+    "steps": [
+      "Ordner in eigenen Unterordner kopieren/verschieben",
+      "Identische Quelle und Ziel",
+      "Ziel über Symlink-Alias wählen"
+    ],
+    "expected": "Selbstrekursion und gefährliche Überschneidungen werden abgewiesen; keine unendliche Ordnerkette.",
+    "automation": "test_operations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "FILE-10",
+    "group": "Dateiaktionen und Konflikte",
+    "priority": "P1",
+    "title": "Öffnen und Öffnen mit",
+    "prerequisites": "D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.",
+    "steps": [
+      "Text und Bild per Enter öffnen",
+      "Rechtsklick Öffnen mit",
+      "Alternative Anwendung wählen"
+    ],
+    "expected": "Passende Anwendung/Viewer öffnet; Auswahl wirkt auf angeklickte Datei; Abbrechen verändert keine Zuordnung ungefragt.",
+    "automation": "test_operations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "FILE-11",
+    "group": "Dateiaktionen und Konflikte",
+    "priority": "P0",
+    "title": "Fehlende Rechte und voller Datenträger",
+    "prerequisites": "D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.",
+    "steps": [
+      "Kopie nach R",
+      "Auf kleines Test-Volume bis Platzmangel kopieren"
+    ],
+    "expected": "Klarer Fehler mit betroffener Datei; kein falscher Erfolg; Quelle intakt; teilweiser Stand nachvollziehbar und kontrolliert wiederaufnehmbar/abbrechbar.",
+    "automation": "test_operations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "FILE-12",
+    "group": "Dateiaktionen und Konflikte",
+    "priority": "P0",
+    "title": "NAS-Metadatenfehler als Regression",
+    "prerequisites": "D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.",
+    "steps": [
+      "D1 inklusive JPG/WebP von Cloud auf SMB/GVFS kopieren",
+      "Inhalt unabhängig prüfen"
+    ],
+    "expected": "Nicht unterstütztes chmod/follow_symlinks/fsync führt nicht allein zum Verlust einer gültigen Kopie; echte Schreibfehler bleiben Fehler; Hashes stimmen.",
+    "automation": "test_operations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "JOB-01",
+    "group": "Warteschlange, Parallelität und Bedienbarkeit",
+    "priority": "P0",
+    "title": "Fortschritt vollständig",
+    "prerequisites": "D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.",
+    "steps": [
+      "Große Datei und viele kleine Dateien kopieren",
+      "Planen, Kopieren und Abschluss beobachten"
+    ],
+    "expected": "Prozent, Bytes, Dateien, Zeit, Geschwindigkeit und brauchbare Restzeit; unbekannte Werte als unbekannt; 100 % erst nach bestätigtem Abschluss.",
+    "automation": "test_resumable_copy.py, test_ui.py, test_formatting.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "JOB-02",
+    "group": "Warteschlange, Parallelität und Bedienbarkeit",
+    "priority": "P1",
+    "title": "Zeitformate und Grenzwerte",
+    "prerequisites": "D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.",
+    "steps": [
+      "Kontrollierte Testwerte unter/über 60 s, 60 min und 24 h anzeigen lassen"
+    ],
+    "expected": "Lesbare Sekunden/Minuten/Stunden/Tage; kein riesiger Sekundenwert; keine negative Zeit, Division durch null oder absurde feste Restzeit bei Stillstand.",
+    "automation": "test_resumable_copy.py, test_ui.py, test_formatting.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "JOB-03",
+    "group": "Warteschlange, Parallelität und Bedienbarkeit",
+    "priority": "P0",
+    "title": "Mehrere Aufträge und Parallelität",
+    "prerequisites": "D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.",
+    "steps": [
+      "Vier unabhängige Jobs einstellen",
+      "Parallelität 1, 2 und 4 prüfen"
+    ],
+    "expected": "Jeweils maximal konfigurierte Zahl läuft; andere sichtbar wartend; Abschluss startet nächste passende Arbeit; keine verlorenen Jobs.",
+    "automation": "test_resumable_copy.py, test_ui.py, test_formatting.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "JOB-04",
+    "group": "Warteschlange, Parallelität und Bedienbarkeit",
+    "priority": "P0",
+    "title": "Überlappende Pfade schützen",
+    "prerequisites": "D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.",
+    "steps": [
+      "Kopieren und Verschieben mit überlappender Quelle/Ziel einreihen",
+      "Unabhängigen Job ergänzen"
+    ],
+    "expected": "Unsichere Überschneidung wartet mit nachvollziehbarem Grund; unabhängiger Job kann starten; keine gleichzeitigen widersprüchlichen Änderungen.",
+    "automation": "test_resumable_copy.py, test_ui.py, test_formatting.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "JOB-05",
+    "group": "Warteschlange, Parallelität und Bedienbarkeit",
+    "priority": "P0",
+    "title": "Pausierte Aufträge reservieren Pfade",
+    "prerequisites": "D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.",
+    "steps": [
+      "Kopie pausieren",
+      "Quelle entfernen/verschieben anfordern",
+      "Kopierauftrag abbrechen"
+    ],
+    "expected": "Konflikt wartet solange Reservation gilt; unabhängiges Entfernen bleibt möglich; Abbruch gibt betroffenen Pfad frei, ohne andere pausierte Jobs zu starten.",
+    "automation": "test_resumable_copy.py, test_ui.py, test_formatting.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "JOB-06",
+    "group": "Warteschlange, Parallelität und Bedienbarkeit",
+    "priority": "P0",
+    "title": "GUI während langsamer Kopie",
+    "prerequisites": "D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.",
+    "steps": [
+      "Große Online-Kopie starten",
+      "Einstellungen, Orte, Menüs und lokalen Ordner öffnen",
+      "Fenster bewegen"
+    ],
+    "expected": "Klicks werden sichtbar zeitnah verarbeitet; kein dauernd eingefrorenes Fenster. Messziel: Rückmeldung ≤ 250 ms, spätestens 1 s; Abweichung als Befund erfassen.",
+    "automation": "test_resumable_copy.py, test_ui.py, test_formatting.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "JOB-07",
+    "group": "Warteschlange, Parallelität und Bedienbarkeit",
+    "priority": "P0",
+    "title": "Einzelne Pause reagiert",
+    "prerequisites": "D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.",
+    "steps": [
+      "Aktiven Job pausieren",
+      "Andere Jobs beobachten",
+      "Gespeicherten Status abwarten"
+    ],
+    "expected": "Sofort sichtbare Anforderung; keine weiteren neuen Dateien nach wirksamer Pause; gespeicherter Zustand klar; andere Jobs laufen. Blockierender I/O darf nicht die GUI blockieren.",
+    "automation": "test_resumable_copy.py, test_ui.py, test_formatting.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "JOB-08",
+    "group": "Warteschlange, Parallelität und Bedienbarkeit",
+    "priority": "P0",
+    "title": "Abbrechen reagiert",
+    "prerequisites": "D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.",
+    "steps": [
+      "Aktiven und wartenden Job jeweils abbrechen",
+      "Unabhängige Kopie beobachten"
+    ],
+    "expected": "Anforderung sichtbar; nur gewählter Auftrag betroffen; Aufräumstatus oder ausstehende Bereinigung bei unerreichbarem Ziel klar; keine falsche Sofort-Erfolgsmeldung.",
+    "automation": "test_resumable_copy.py, test_ui.py, test_formatting.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "JOB-09",
+    "group": "Warteschlange, Parallelität und Bedienbarkeit",
+    "priority": "P0",
+    "title": "Alle pausieren und fortsetzen",
+    "prerequisites": "D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.",
+    "steps": [
+      "Drei laufende/wartende Jobs",
+      "Alle pausieren",
+      "Alle fortsetzen"
+    ],
+    "expected": "Alle geeigneten Aufträge wechseln nachvollziehbar; keine doppelten Worker; Parallelitätsgrenze bleibt gültig.",
+    "automation": "test_resumable_copy.py, test_ui.py, test_formatting.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "JOB-10",
+    "group": "Warteschlange, Parallelität und Bedienbarkeit",
+    "priority": "P1",
+    "title": "Einzelnen Vorgang minimieren",
+    "prerequisites": "D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.",
+    "steps": [
+      "Zwei Jobs starten",
+      "Eine Karte einklappen",
+      "Andere öffnen",
+      "Wieder ausklappen"
+    ],
+    "expected": "Nur gewählte Karte kompakt; Status und nötige Steuerung erreichbar; keine Unterbrechung; Zustand bleibt nach vorgesehenem Neustart erhalten.",
+    "automation": "test_resumable_copy.py, test_ui.py, test_formatting.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "JOB-11",
+    "group": "Warteschlange, Parallelität und Bedienbarkeit",
+    "priority": "P1",
+    "title": "Viele Karten und globale Ansicht",
+    "prerequisites": "D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.",
+    "steps": [
+      "20 Testaufträge anlegen",
+      "Liste scrollen",
+      "Gesamte Übersicht ein-/ausklappen",
+      "Fertige Einträge ausblenden/leeren"
+    ],
+    "expected": "Alle Aufträge erreichbar; keine verdeckten Tasten; Liste bleibt flüssig; Historie und aktive Jobs werden nicht versehentlich gelöscht.",
+    "automation": "test_resumable_copy.py, test_ui.py, test_formatting.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "JOB-12",
+    "group": "Warteschlange, Parallelität und Bedienbarkeit",
+    "priority": "P0",
+    "title": "Unabhängig löschen während Kopie",
+    "prerequisites": "D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.",
+    "steps": [
+      "Lange Kopie starten",
+      "Andere lokale/Dropbox-Testdatei entfernen"
+    ],
+    "expected": "Löschauftrag läuft unabhängig, sofern Pfade frei sind; Fortschritt/Fehler sichtbar; Kopie unverändert; Listen aktualisieren.",
+    "automation": "test_resumable_copy.py, test_ui.py, test_formatting.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "JOB-13",
+    "group": "Warteschlange, Parallelität und Bedienbarkeit",
+    "priority": "P0",
+    "title": "Schnelle wiederholte Steuerung",
+    "prerequisites": "D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.",
+    "steps": [
+      "Pause mehrfach klicken",
+      "Fortsetzen mehrfach",
+      "Abbrechen während Zustandswechsel"
+    ],
+    "expected": "Keine doppelte Ausführung, Inkonsistenz oder unbedienbare Karte; ungültige Aktionen deaktiviert oder sicher ignoriert.",
+    "automation": "test_resumable_copy.py, test_ui.py, test_formatting.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "REC-01",
+    "group": "Neustart, Unterbrechung und Datenintegrität",
+    "priority": "P0",
+    "title": "Geordnet schließen und später fortsetzen",
+    "prerequisites": "Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Test-VM.",
+    "steps": [
+      "Kopie starten",
+      "Fenster schließen",
+      "Auf gespeicherte Pause warten",
+      "App erneut öffnen"
+    ],
+    "expected": "Auftrag mit Quelle/Ziel erhalten; Fortsetzung gemäß gespeicherter Zustandslogik; kein Neubeginn bereits verifizierter fertiger Dateien; finale Hashes korrekt.",
+    "automation": "test_resumable_copy.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "REC-02",
+    "group": "Neustart, Unterbrechung und Datenintegrität",
+    "priority": "P0",
+    "title": "Explizit pausiert neu starten",
+    "prerequisites": "Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Test-VM.",
+    "steps": [
+      "Job pausieren",
+      "Gespeichert abwarten",
+      "Neu starten",
+      "Fortsetzen wählen"
+    ],
+    "expected": "Keine ungeklärte Zustandsänderung; Bediener erkennt gespeicherten Stand und Startverhalten; genau eine Fortsetzung, korrekte Enddaten.",
+    "automation": "test_resumable_copy.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "REC-03",
+    "group": "Neustart, Unterbrechung und Datenintegrität",
+    "priority": "P0",
+    "title": "Unerwarteter Prozessabbruch",
+    "prerequisites": "Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Test-VM.",
+    "steps": [
+      "Testkopie starten",
+      "Isolierten Prozess während Datenübertragung beenden",
+      "Testinstanz neu starten"
+    ],
+    "expected": "Journal bleibt lesbar; kein falscher Abschluss; wiederaufnehmbare Arbeit sichtbar; Quelle intakt; Fortsetzung erzeugt korrekte Daten.",
+    "automation": "test_resumable_copy.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "REC-04",
+    "group": "Neustart, Unterbrechung und Datenintegrität",
+    "priority": "P0",
+    "title": "Lokale Teildatei fortsetzen",
+    "prerequisites": "Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Test-VM.",
+    "steps": [
+      "Große lokale Datei teilweise kopieren",
+      "Pausieren",
+      "Fortsetzen"
+    ],
+    "expected": "Bereits vorhandenes Präfix wird geprüft; geeignete Teildatei weitergeführt; kein still übernommener falscher Inhalt.",
+    "automation": "test_resumable_copy.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "REC-05",
+    "group": "Neustart, Unterbrechung und Datenintegrität",
+    "priority": "P0",
+    "title": "rclone-Teildatei ohne Append",
+    "prerequisites": "Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Test-VM.",
+    "steps": [
+      "Kopie auf rclone-Testmount unterbrechen",
+      "Fortsetzen auf Backend ohne Append-Unterstützung"
+    ],
+    "expected": "Betroffene Teildatei wird bei Bedarf neu geschrieben; fertige verifizierte Dateien bleiben; kein ESPIPE/EPERM-Abbruch nur wegen Append.",
+    "automation": "test_resumable_copy.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "REC-06",
+    "group": "Neustart, Unterbrechung und Datenintegrität",
+    "priority": "P0",
+    "title": "Manipulierter Zwischenstand",
+    "prerequisites": "Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Test-VM.",
+    "steps": [
+      "Pausieren",
+      "Ein Byte im ausschließlich zugehörigen Test-Staging ändern",
+      "Fortsetzen"
+    ],
+    "expected": "Integritätsabweichung verhindert unsichere Fortsetzung; klare Meldung; kein ungeprüftes Ziel und keine Quelllöschung.",
+    "automation": "test_resumable_copy.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "REC-07",
+    "group": "Neustart, Unterbrechung und Datenintegrität",
+    "priority": "P0",
+    "title": "Quelle während Pause geändert",
+    "prerequisites": "Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Test-VM.",
+    "steps": [
+      "Pausieren",
+      "Testquelle ändern/ersetzen",
+      "Fortsetzen"
+    ],
+    "expected": "Änderung wird erkannt; kein alter und neuer Inhalt unbemerkt vermischt; Vorgang blockiert oder fordert sicheren Neuansatz.",
+    "automation": "test_resumable_copy.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "REC-08",
+    "group": "Neustart, Unterbrechung und Datenintegrität",
+    "priority": "P0",
+    "title": "Quelle oder Ziel nicht verfügbar",
+    "prerequisites": "Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Test-VM.",
+    "steps": [
+      "Pausieren",
+      "Testlaufwerk trennen/Netz sperren",
+      "Fortsetzen",
+      "Wieder verbinden"
+    ],
+    "expected": "Wartender/fehlerhafter Zustand mit Grund; keine lokale Ersatzkopie in leeren Mountpunkt; nach Wiederverbindung kontrollierte Fortsetzung.",
+    "automation": "test_resumable_copy.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "REC-09",
+    "group": "Neustart, Unterbrechung und Datenintegrität",
+    "priority": "P0",
+    "title": "Anderes Laufwerk am gleichen Pfad",
+    "prerequisites": "Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Test-VM.",
+    "steps": [
+      "Pause",
+      "Testmedium entfernen",
+      "Anderes Testmedium am gleichen Mountpfad einhängen",
+      "Fortsetzen"
+    ],
+    "expected": "Identitätsprüfung verhindert Schreiben auf falsches Medium; Auftrag und Daten bleiben erhalten.",
+    "automation": "test_resumable_copy.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "REC-10",
+    "group": "Neustart, Unterbrechung und Datenintegrität",
+    "priority": "P0",
+    "title": "Verschieben: Cleanup unterbrechen",
+    "prerequisites": "Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Test-VM.",
+    "steps": [
+      "Dateisystemübergreifenden Move im isolierten Test nach Zielverifikation beim Quell-Aufräumen unterbrechen",
+      "Neu starten"
+    ],
+    "expected": "Bereits verifiziertes Ziel bleibt; offener Cleanup nachvollziehbar; geänderte Quelle nicht blind gelöscht; keine doppelte oder verlorene Enddatei.",
+    "automation": "test_resumable_copy.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "REC-11",
+    "group": "Neustart, Unterbrechung und Datenintegrität",
+    "priority": "P0",
+    "title": "Abbruch bei offline befindlichem Ziel",
+    "prerequisites": "Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Test-VM.",
+    "steps": [
+      "Aktiven Job unterbrechen",
+      "Testziel unerreichbar machen",
+      "Abbrechen",
+      "Ziel wieder verbinden"
+    ],
+    "expected": "Ausstehende Bereinigung gespeichert und kenntlich; kein Löschen fremder Ordner; nach Erreichbarkeit nur zugehöriger Zwischenstand bereinigt.",
+    "automation": "test_resumable_copy.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "REC-12",
+    "group": "Neustart, Unterbrechung und Datenintegrität",
+    "priority": "P1",
+    "title": "Beschädigtes Testjournal",
+    "prerequisites": "Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Test-VM.",
+    "steps": [
+      "Kopie des Testprofils sichern",
+      "Journal in Testkopie beschädigen",
+      "Starten"
+    ],
+    "expected": "Keine Endlosschleife oder stille Nutzdatenlöschung; Fehler und Wiederherstellungsbedarf erkennbar; Original-Testbackup bleibt nutzbar.",
+    "automation": "test_resumable_copy.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TRASH-01",
+    "group": "Papierkorb, Historie und Rückgängig",
+    "priority": "P0",
+    "title": "Entfernen und Bestätigung",
+    "prerequisites": "D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.",
+    "steps": [
+      "Mehrere Dateien entfernen",
+      "Zuerst abbrechen",
+      "Dann bestätigen"
+    ],
+    "expected": "Abbruch unverändert; bestätigte Dateien verschwinden aus Originalordner und liegen wiederherstellbar im OpenCommander-Papierkorb.",
+    "automation": "test_operations.py, test_ui.py, test_cloud_listing.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TRASH-02",
+    "group": "Papierkorb, Historie und Rückgängig",
+    "priority": "P0",
+    "title": "Dropbox-Datei bleibt nicht stehen",
+    "prerequisites": "D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.",
+    "steps": [
+      "Testdatei in Dropbox entfernen",
+      "GUI aktualisieren",
+      "Direkt beim Provider listen"
+    ],
+    "expected": "Datei am Originalpfad tatsächlich weg; GUI zeigt kein Phantom; Wiederherstellungskopie vorhanden. Keine bloße lokale Erfolgsmeldung.",
+    "automation": "test_operations.py, test_ui.py, test_cloud_listing.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TRASH-03",
+    "group": "Papierkorb, Historie und Rückgängig",
+    "priority": "P0",
+    "title": "Cache-Rennen nach Entfernen",
+    "prerequisites": "D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.",
+    "steps": [
+      "Langsame Liste starten",
+      "Parallel Testdatei entfernen",
+      "Alte Listenanfrage fertig werden lassen"
+    ],
+    "expected": "Veraltete Antwort setzt entfernte Datei nicht erneut ein; neue Abfrage oder invalidierter Cache zeigt aktuellen Stand.",
+    "automation": "test_operations.py, test_ui.py, test_cloud_listing.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TRASH-04",
+    "group": "Papierkorb, Historie und Rückgängig",
+    "priority": "P0",
+    "title": "Aus Papierkorb wiederherstellen",
+    "prerequisites": "D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.",
+    "steps": [
+      "Vorgang mit mehreren entfernten Dateien wählen",
+      "Wiederherstellen"
+    ],
+    "expected": "Gesamter gewählter Entfernungsvorgang wird korrekt zurückgenommen; Inhalt/Hashes gleich; keine Verwechslung mit System-/Provider-Papierkorb.",
+    "automation": "test_operations.py, test_ui.py, test_cloud_listing.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TRASH-05",
+    "group": "Papierkorb, Historie und Rückgängig",
+    "priority": "P0",
+    "title": "Undo für jede mutierende Operation",
+    "prerequisites": "D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.",
+    "steps": [
+      "Kopieren, Verschieben, Ersetzen, Umbenennen, Ordner anlegen, ZIP erzeugen und Entpacken jeweils separat ausführen",
+      "Jeweils zugehörigen Historieneintrag rückgängig"
+    ],
+    "expected": "Ursprünglicher Zustand soweit dokumentiert wiederhergestellt; betroffene Pfade stimmen; andere Vorgänge unverändert. Jede Variante als eigenen Lauf erfassen.",
+    "automation": "test_operations.py, test_ui.py, test_cloud_listing.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TRASH-06",
+    "group": "Papierkorb, Historie und Rückgängig",
+    "priority": "P0",
+    "title": "Undo mit nachträglich geändertem Ziel",
+    "prerequisites": "D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.",
+    "steps": [
+      "Kopieren/ersetzen",
+      "Zieldatei extern ändern",
+      "Undo",
+      "Zusätzlich belegten ursprünglichen Quellpfad testen"
+    ],
+    "expected": "Neuere Daten werden nicht überschrieben oder gelöscht; Konflikt klar; Teilzustand bleibt nachvollziehbar.",
+    "automation": "test_operations.py, test_ui.py, test_cloud_listing.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TRASH-07",
+    "group": "Papierkorb, Historie und Rückgängig",
+    "priority": "P0",
+    "title": "Undo abbrechen und erneut versuchen",
+    "prerequisites": "D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.",
+    "steps": [
+      "Großen Undo mit Verifikation starten",
+      "Abbrechen",
+      "App neu starten",
+      "Erneut versuchen"
+    ],
+    "expected": "Kein falscher vollständiger Undo; gespeicherter Teilfortschritt konsistent; später sichere Fortsetzung oder klarer Konflikt.",
+    "automation": "test_operations.py, test_ui.py, test_cloud_listing.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TRASH-08",
+    "group": "Papierkorb, Historie und Rückgängig",
+    "priority": "P1",
+    "title": "Historieninformationen und Bilder",
+    "prerequisites": "D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.",
+    "steps": [
+      "Gemischte Vorgänge ausführen",
+      "Historie aufklappen",
+      "Bildvorgang wählen"
+    ],
+    "expected": "Aktion, Quelle/Ziel, Zeit, Ergebnis/Warnungen und passende Vorschau soweit verfügbar; Undo dem richtigen Vorgang zugeordnet.",
+    "automation": "test_operations.py, test_ui.py, test_cloud_listing.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TRASH-09",
+    "group": "Papierkorb, Historie und Rückgängig",
+    "priority": "P1",
+    "title": "Große Historie",
+    "prerequisites": "D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.",
+    "steps": [
+      "Testprofil mit 1.000 Vorgängen öffnen",
+      "Zum Ende und zurück scrollen",
+      "Historie aus-/einblenden"
+    ],
+    "expected": "Reaktionsfähige Oberfläche; nur nötige sichtbare Karten aufgebaut; korrekte Einträge/Undo auch weit unten.",
+    "automation": "test_operations.py, test_ui.py, test_cloud_listing.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TRASH-10",
+    "group": "Papierkorb, Historie und Rückgängig",
+    "priority": "P1",
+    "title": "Papierkorb offline und Rechtefehler",
+    "prerequisites": "D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.",
+    "steps": [
+      "Entfernung auf schreibgeschützter oder unerreichbarer Testquelle versuchen"
+    ],
+    "expected": "Fehler sichtbar; Original bleibt, soweit Entfernung nicht erfolgt; kein Erfolg nur wegen vorhandenem Historieneintrag.",
+    "automation": "test_operations.py, test_ui.py, test_cloud_listing.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "AUTH-01",
+    "group": "Cloud-Anmeldung und Profilverwaltung",
+    "priority": "P0",
+    "title": "OAuth für drei Dienste",
+    "prerequisites": "Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.",
+    "steps": [
+      "OneDrive, Google Drive und Dropbox jeweils neu verbinden",
+      "Browseranmeldung abschließen",
+      "Ort öffnen"
+    ],
+    "expected": "Browser öffnet sich automatisch und wird nach Möglichkeit aktiviert; verständliche Anleitung; Konto und Dateiliste korrekt. Jeden Dienst separat protokollieren.",
+    "automation": "test_cloud_login.py, test_online.py, test_server_connections.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "AUTH-02",
+    "group": "Cloud-Anmeldung und Profilverwaltung",
+    "priority": "P1",
+    "title": "Anmeldebrowser wieder nach vorn",
+    "prerequisites": "Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.",
+    "steps": [
+      "Browser während Anmeldung verdecken",
+      "Assistentenknopf zum Vorholen benutzen"
+    ],
+    "expected": "Passender Login wird wieder angeboten; keine beliebige externe URL geöffnet; Einschränkungen des Window-Managers sichtbar dokumentieren.",
+    "automation": "test_cloud_login.py, test_online.py, test_server_connections.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "AUTH-03",
+    "group": "Cloud-Anmeldung und Profilverwaltung",
+    "priority": "P0",
+    "title": "Abgebrochene und abgelehnte Anmeldung",
+    "prerequisites": "Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.",
+    "steps": [
+      "OAuth abbrechen, Zugriff ablehnen und Zeitüberschreitung simulieren",
+      "Neu anmelden"
+    ],
+    "expected": "Keine halbfertige Verbindung als erfolgreich; GUI bleibt bedienbar; sauberer neuer Anlauf ohne alten fremden Callback.",
+    "automation": "test_cloud_login.py, test_online.py, test_server_connections.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "AUTH-04",
+    "group": "Cloud-Anmeldung und Profilverwaltung",
+    "priority": "P0",
+    "title": "OneDrive-Auswahl",
+    "prerequisites": "Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.",
+    "steps": [
+      "Konto mit mehreren angebotenen Drives verwenden",
+      "Persönlichen Hauptspeicher auswählen",
+      "Erwarteten Testordner öffnen"
+    ],
+    "expected": "Gewählter Speicher enthält eigene Daten; technische Bundles/Archive werden nicht still zum Hauptspeicher; Auswahl bleibt erhalten.",
+    "automation": "test_cloud_login.py, test_online.py, test_server_connections.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "AUTH-05",
+    "group": "Cloud-Anmeldung und Profilverwaltung",
+    "priority": "P0",
+    "title": "iCloud mit Zwei-Faktor-Anmeldung",
+    "prerequisites": "Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.",
+    "steps": [
+      "Apple-ID und reguläres Passwort im Testkonto eingeben",
+      "Gerätecode bzw. SMS-Pfad verwenden"
+    ],
+    "expected": "Assistent erklärt Unterschied zu OAuth und app-spezifischen Passwörtern; unterstützte Anmeldung funktioniert oder konkrete Provider-Hürde erscheint; kein Versprechen eines reinen Browser-Logins.",
+    "automation": "test_cloud_login.py, test_online.py, test_server_connections.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "AUTH-06",
+    "group": "Cloud-Anmeldung und Profilverwaltung",
+    "priority": "P1",
+    "title": "iCloud-Fehler und Webzugriff",
+    "prerequisites": "Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.",
+    "steps": [
+      "Falschen Code, abgelaufene Sitzung und nicht freigegebenen Webzugriff testen"
+    ],
+    "expected": "Nächster notwendiger Schritt verständlich; keine Endlosschleife; keine vertraulichen Werte in Meldungen.",
+    "automation": "test_cloud_login.py, test_online.py, test_server_connections.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "AUTH-07",
+    "group": "Cloud-Anmeldung und Profilverwaltung",
+    "priority": "P0",
+    "title": "Verbindungen nach Neustart",
+    "prerequisites": "Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.",
+    "steps": [
+      "Alle erfolgreich eingerichteten Testkonten",
+      "App schließen",
+      "Wieder starten",
+      "Jeden Ort öffnen"
+    ],
+    "expected": "Namen, Kontozuordnung und Anmeldedaten vorhanden; erneute Anmeldung nur bei tatsächlich ungültiger/abgelaufener Autorisierung.",
+    "automation": "test_cloud_login.py, test_online.py, test_server_connections.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "AUTH-08",
+    "group": "Cloud-Anmeldung und Profilverwaltung",
+    "priority": "P1",
+    "title": "Name ändern und Verknüpfung entfernen",
+    "prerequisites": "Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.",
+    "steps": [
+      "Online-Ort umbenennen",
+      "Verknüpfung entfernen",
+      "Verwaltung öffnen"
+    ],
+    "expected": "Name überall konsistent; kein unnötiger Login; Entfernen der Verknüpfung löscht keine Cloud-Dateien.",
+    "automation": "test_cloud_login.py, test_online.py, test_server_connections.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "AUTH-09",
+    "group": "Cloud-Anmeldung und Profilverwaltung",
+    "priority": "P1",
+    "title": "Google eigene OAuth-Konfiguration",
+    "prerequisites": "Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.",
+    "steps": [
+      "Nur Client-ID setzen",
+      "Vollständiges Testpaar setzen",
+      "Client wechseln",
+      "Leere Werte speichern"
+    ],
+    "expected": "Unvollständiges Paar erklärt; Clientwechsel erzwingt passende Autorisierung; leere Eingaben überschreiben vorhandene Werte nicht versehentlich.",
+    "automation": "test_cloud_login.py, test_online.py, test_server_connections.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "AUTH-10",
+    "group": "Cloud-Anmeldung und Profilverwaltung",
+    "priority": "P0",
+    "title": "Trennen und erneutes Verbinden",
+    "prerequisites": "Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.",
+    "steps": [
+      "Inaktiven Testmount trennen",
+      "Wieder öffnen",
+      "Während reserviertem Transfer Trennen versuchen"
+    ],
+    "expected": "Sicheres Trennen im Leerlauf; belegter Mount wird nicht gewaltsam entfernt; Busy-Zustand wird bei Erfolg und Fehler freigegeben.",
+    "automation": "test_cloud_login.py, test_online.py, test_server_connections.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "CLOUD-01",
+    "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+    "priority": "P0",
+    "title": "Erste Liste und Warmstart",
+    "prerequisites": "Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.",
+    "steps": [
+      "Ort erstmals öffnen",
+      "Unterordner öffnen",
+      "Zurück",
+      "Wieder öffnen"
+    ],
+    "expected": "Ladezustand und Stopp erreichbar; richtige aktuelle Liste; keine unbegrenzte Blockade. Kalte und warme Ladezeit getrennt erfassen.",
+    "automation": "test_cloud_listing.py, test_cloud_actions.py, test_external_cloud.py, test_online.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "CLOUD-02",
+    "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+    "priority": "P0",
+    "title": "Google-Drive-Hänger als Regression",
+    "prerequisites": "Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.",
+    "steps": [
+      "Drive mehrfach öffnen",
+      "Während verzögerter Antwort navigieren",
+      "Erneut laden"
+    ],
+    "expected": "Keine dauerhaft leere, unbedienbare Ansicht; Timeout/Fehler mit Wiederholen; lokale Bereiche weiter bedienbar.",
+    "automation": "test_cloud_listing.py, test_cloud_actions.py, test_external_cloud.py, test_online.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "CLOUD-03",
+    "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+    "priority": "P0",
+    "title": "Online-Grundoperationen",
+    "prerequisites": "Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.",
+    "steps": [
+      "D1 hochladen, herunterladen, umbenennen, Ordner anlegen, entfernen und wiederherstellen",
+      "Provider unabhängig prüfen"
+    ],
+    "expected": "Dateien/Inhalte und Namen stimmen; Änderungen auch beim Provider sichtbar; Cache allein zählt nicht als Erfolg.",
+    "automation": "test_cloud_listing.py, test_cloud_actions.py, test_external_cloud.py, test_online.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "CLOUD-04",
+    "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+    "priority": "P0",
+    "title": "Netzausfall und Wiederkehr",
+    "prerequisites": "Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.",
+    "steps": [
+      "Während Listen und Kopieren nur Testnetz unterbrechen",
+      "Lokalen Ordner bedienen",
+      "Netz wiederherstellen"
+    ],
+    "expected": "Begrenzte Wartezeit, sichtbarer Status; keine GUI-Sperre; kontrollierter Retry; keine doppelten Dateieinträge oder Quellverluste.",
+    "automation": "test_cloud_listing.py, test_cloud_actions.py, test_external_cloud.py, test_online.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "CLOUD-05",
+    "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+    "priority": "P0",
+    "title": "Abgelaufene Autorisierung",
+    "prerequisites": "Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.",
+    "steps": [
+      "Token eines dedizierten Testkontos widerrufen",
+      "Liste öffnen"
+    ],
+    "expected": "Anmeldefehler klar; keine alte Cacheliste als frisch/live ausgeben; erneute Anmeldung zugänglich.",
+    "automation": "test_cloud_listing.py, test_cloud_actions.py, test_external_cloud.py, test_online.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "CLOUD-06",
+    "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+    "priority": "P1",
+    "title": "Rate-Limit und temporäre Fehler",
+    "prerequisites": "Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.",
+    "steps": [
+      "Über Testadapter 429/temporären Backendfehler liefern",
+      "Retry beobachten",
+      "Wegnavigieren"
+    ],
+    "expected": "Begrenzte Wiederholungen mit Wartezeit; kein Request-Sturm; ältere Ersatzliste nur mit Alters-/Warnhinweis; Navigation beendet Retry.",
+    "automation": "test_cloud_listing.py, test_cloud_actions.py, test_external_cloud.py, test_online.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "CLOUD-07",
+    "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+    "priority": "P1",
+    "title": "Parallele identische Listen",
+    "prerequisites": "Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.",
+    "steps": [
+      "Beide Bereiche auf selben Online-Ordner",
+      "Gleichzeitig aktualisieren"
+    ],
+    "expected": "Anfragen sinnvoll zusammengeführt; beide Bereiche korrekt; kein gegenseitiges Überschreiben nach Navigation.",
+    "automation": "test_cloud_listing.py, test_cloud_actions.py, test_external_cloud.py, test_online.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "CLOUD-08",
+    "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+    "priority": "P1",
+    "title": "Externe rclone-Einbindung",
+    "prerequisites": "Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.",
+    "steps": [
+      "Separaten eigenen Testmount mit bekanntem Provider öffnen",
+      "Namen/Icon/Kontextmenü prüfen"
+    ],
+    "expected": "Provider erkannt, soweit unterstützte eigene Mount-Konfiguration lesbar; keine fremden Konfigurationsgeheimnisse abgefragt.",
+    "automation": "test_cloud_listing.py, test_cloud_actions.py, test_external_cloud.py, test_online.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "CLOUD-09",
+    "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+    "priority": "P0",
+    "title": "Teilen bei Drive, OneDrive, Dropbox",
+    "prerequisites": "Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.",
+    "steps": [
+      "Einzelne Testdatei rechtsklicken",
+      "Link erstellen ausdrücklich bestätigen",
+      "Link in abgemeldeter Testbrowser-Sitzung prüfen"
+    ],
+    "expected": "Geeignete Online-Aktion vorhanden; HTTPS-Link zum richtigen Objekt mit erklärten Rechten; Kontorichtlinienfehler verständlich. Testfreigabe anschließend beim Provider zurücknehmen.",
+    "automation": "test_cloud_listing.py, test_cloud_actions.py, test_external_cloud.py, test_online.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "CLOUD-10",
+    "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+    "priority": "P0",
+    "title": "Keine Freigabe ohne Zustimmung",
+    "prerequisites": "Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.",
+    "steps": [
+      "Menü nur öffnen",
+      "Dialog abbrechen",
+      "Mehrfachauswahl, Wurzel und Link/Symlink prüfen"
+    ],
+    "expected": "Keine Freigabe allein durch Menüöffnung; unzulässige Auswahl nicht freigebbar; Abbruch nach bereits gestarteter Provider-Aktion kann vorhandenen Link nicht garantiert widerrufen und wird so kommuniziert.",
+    "automation": "test_cloud_listing.py, test_cloud_actions.py, test_external_cloud.py, test_online.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "CLOUD-11",
+    "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+    "priority": "P1",
+    "title": "iCloud, Weböffnung und Online-Pfad",
+    "prerequisites": "Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.",
+    "steps": [
+      "iCloud-Menü öffnen",
+      "Im Browser öffnen",
+      "Online-Pfad kopieren"
+    ],
+    "expected": "Unterstützte Funktionen korrekt; keine vorgetäuschte iCloud-Linkfreigabe; Weböffnung darf zur Provider-Startseite führen, nicht zwingend zur exakten Datei.",
+    "automation": "test_cloud_listing.py, test_cloud_actions.py, test_external_cloud.py, test_online.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "CLOUD-12",
+    "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+    "priority": "P0",
+    "title": "Writeback-Mount korrekt beurteilen",
+    "prerequisites": "Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.",
+    "steps": [
+      "Externen Full-Cache-Testmount verwenden",
+      "Upload bei langsamer Leitung ausführen",
+      "Backend unabhängig prüfen"
+    ],
+    "expected": "Lokaler Kopierabschluss wird nicht als Beweis vollständiger Provider-Synchronisation gewertet; Test gilt erst bei bestätigtem Online-Inhalt. Abweichende UI-Aussagen als Fehler melden.",
+    "automation": "test_cloud_listing.py, test_cloud_actions.py, test_external_cloud.py, test_online.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SERVER-01",
+    "group": "SFTP, FTP, FTPS und Netzwerkorte",
+    "priority": "P0",
+    "title": "SFTP mit Passwort",
+    "prerequisites": "Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.",
+    "steps": [
+      "Host, Port, Benutzer und Startordner einrichten",
+      "Passwort anmelden",
+      "Datei hin/zurück kopieren"
+    ],
+    "expected": "Verbindung zum richtigen Server/Ordner; Integrität korrekt; Passwort nicht als Klartext im neuen Serverprofil.",
+    "automation": "test_server_connections.py, test_integrations.py, test_properties.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SERVER-02",
+    "group": "SFTP, FTP, FTPS und Netzwerkorte",
+    "priority": "P0",
+    "title": "SFTP mit privatem Schlüssel",
+    "prerequisites": "Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.",
+    "steps": [
+      "Gültigen OpenSSH/PEM-Schlüssel mit passenden Rechten wählen",
+      "Verbinden",
+      "Datei übertragen"
+    ],
+    "expected": "Schlüsselauthentisierung funktioniert; privater Schlüssel unverändert; keine Ausgabe von Schlüsselinhalt.",
+    "automation": "test_server_connections.py, test_integrations.py, test_properties.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SERVER-03",
+    "group": "SFTP, FTP, FTPS und Netzwerkorte",
+    "priority": "P1",
+    "title": "Verschlüsselter Schlüssel und Agent",
+    "prerequisites": "Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.",
+    "steps": [
+      "Verschlüsselten OpenSSH-Schlüssel bzw. vorhandenen SSH-Agent verwenden",
+      "Nach Ablauf erneut verbinden"
+    ],
+    "expected": "Passphrase-/Agent-Ablauf erklärt; unterstützte zeitlich begrenzte Freigabe; keine dauerhaft ungeschützte Schlüsselkopie.",
+    "automation": "test_server_connections.py, test_integrations.py, test_properties.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SERVER-04",
+    "group": "SFTP, FTP, FTPS und Netzwerkorte",
+    "priority": "P0",
+    "title": "Unbekannter/geänderter Hostschlüssel",
+    "prerequisites": "Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.",
+    "steps": [
+      "Neuen Testserver aufrufen",
+      "Fingerabdruck prüfen",
+      "Danach Testserver-Schlüssel wechseln"
+    ],
+    "expected": "Neuer Schlüssel benötigt bewusste Verifikation; geänderter Schlüssel wird abgewiesen, nicht automatisch akzeptiert.",
+    "automation": "test_server_connections.py, test_integrations.py, test_properties.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SERVER-05",
+    "group": "SFTP, FTP, FTPS und Netzwerkorte",
+    "priority": "P1",
+    "title": "Ungültige Schlüssel und Eingaben",
+    "prerequisites": "Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.",
+    "steps": [
+      "PPK, fehlenden Schlüssel, falsches Passwort, ungültigen Port und Host mit Schema eingeben"
+    ],
+    "expected": "Konkreter Hinweis zur Korrektur/Konvertierung; kein Absturz; keine erfolgreiche Verbindung zu falschem Ziel.",
+    "automation": "test_server_connections.py, test_integrations.py, test_properties.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SERVER-06",
+    "group": "SFTP, FTP, FTPS und Netzwerkorte",
+    "priority": "P0",
+    "title": "Passwort speichern optional",
+    "prerequisites": "Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.",
+    "steps": [
+      "Einmal nur Sitzung",
+      "Neustart",
+      "Einmal Schlüsselbund aktivieren",
+      "Schlüsselbund sperren/nicht verfügbar machen"
+    ],
+    "expected": "Sitzungspasswort nicht dauerhaft gespeichert; optionale sichere Ablage funktioniert; bei fehlendem Schlüsselbund kein stiller Klartext-Ersatz.",
+    "automation": "test_server_connections.py, test_integrations.py, test_properties.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SERVER-07",
+    "group": "SFTP, FTP, FTPS und Netzwerkorte",
+    "priority": "P0",
+    "title": "FTP und FTPS",
+    "prerequisites": "Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.",
+    "steps": [
+      "FTP-Testserver verbinden",
+      "Warnung lesen",
+      "Explizites FTPS mit gültigem Zertifikat verbinden",
+      "Ungültiges Zertifikat testen"
+    ],
+    "expected": "FTP-Klartextrisiko erklärt; FTPS überprüft Zertifikat; ungültiges Zertifikat nicht still akzeptiert; keine vorgetäuschte SCP-Unterstützung.",
+    "automation": "test_server_connections.py, test_integrations.py, test_properties.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SERVER-08",
+    "group": "SFTP, FTP, FTPS und Netzwerkorte",
+    "priority": "P0",
+    "title": "SMB/NAS und WebDAV über GIO",
+    "prerequisites": "Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.",
+    "steps": [
+      "Je einen Testort verbinden",
+      "Authentisieren",
+      "Verzeichnis und Dateiaktionen testen"
+    ],
+    "expected": "Desktop-Anmeldung funktioniert; URI/Startordner korrekt; unerreichbarer Host meldet Fehler ohne GUI-Hänger.",
+    "automation": "test_server_connections.py, test_integrations.py, test_properties.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SERVER-09",
+    "group": "SFTP, FTP, FTPS und Netzwerkorte",
+    "priority": "P1",
+    "title": "Serverprofil bearbeiten",
+    "prerequisites": "Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.",
+    "steps": [
+      "Port/Benutzer/Startordner am Testprofil ändern",
+      "Neu verbinden",
+      "Anzeige prüfen"
+    ],
+    "expected": "Neue Werte wirksam, keine Vermischung alter Sitzung; Anzeigename kann ohne Geheimnisverlust geändert werden.",
+    "automation": "test_server_connections.py, test_integrations.py, test_properties.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "DEVICE-01",
+    "group": "Datenträger und Dateisysteme",
+    "priority": "P0",
+    "title": "Datenträger entdecken",
+    "prerequisites": "Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.",
+    "steps": [
+      "USB-Testmedium anschließen",
+      "Orte beobachten",
+      "Öffnen"
+    ],
+    "expected": "Medium zeitnah sichtbar (Ziel ≤ 10 s bei gesunder Desktop-Erkennung); richtiger Name und Inhalt; kein manueller App-Neustart nötig.",
+    "automation": "test_integrations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "DEVICE-02",
+    "group": "Datenträger und Dateisysteme",
+    "priority": "P1",
+    "title": "Mount und Auswerfen",
+    "prerequisites": "Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.",
+    "steps": [
+      "Nicht eingehängtes Testmedium öffnen",
+      "Nach Nutzung sicher auswerfen"
+    ],
+    "expected": "Desktop-Mount funktioniert; Auswerfen nur sicher im Leerlauf; Ort aktualisiert sich; Fehler verständlich.",
+    "automation": "test_integrations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "DEVICE-03",
+    "group": "Datenträger und Dateisysteme",
+    "priority": "P0",
+    "title": "Datenträger während Kopie verlieren",
+    "prerequisites": "Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.",
+    "steps": [
+      "Kopie auf Testmedium starten",
+      "Kontrollierten Disconnect simulieren"
+    ],
+    "expected": "Fehler/Unterbrechung sichtbar; kein falscher Abschluss; Quelle erhalten; kein Schreiben in leeres lokales Mountverzeichnis.",
+    "automation": "test_integrations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "DEVICE-04",
+    "group": "Datenträger und Dateisysteme",
+    "priority": "P0",
+    "title": "NTFS lesen und schreiben",
+    "prerequisites": "Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.",
+    "steps": [
+      "Gesundes beschreibbares NTFS-Testvolume nutzen",
+      "Kopieren/rename/delete/undo",
+      "Read-only-Volume wiederholen"
+    ],
+    "expected": "Schreiben nur bei geeignetem Treiber/Mountrechten; Read-only klar gemeldet. OpenCommander repariert keine Superblocks und erzwingt keinen Schreibzugriff.",
+    "automation": "test_integrations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "DEVICE-05",
+    "group": "Datenträger und Dateisysteme",
+    "priority": "P1",
+    "title": "Mountfehler verständlich anzeigen",
+    "prerequisites": "Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.",
+    "steps": [
+      "In VM absichtlich nicht mountbares Testvolume öffnen"
+    ],
+    "expected": "Systemfehler erkennbar; keine Dauerblockade oder Wiederholungsflut; übrige Orte bedienbar; keine automatische zerstörerische Reparatur.",
+    "automation": "test_integrations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "DEVICE-06",
+    "group": "Datenträger und Dateisysteme",
+    "priority": "P1",
+    "title": "Dateisystemvarianten",
+    "prerequisites": "Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.",
+    "steps": [
+      "D1 auf ext4, exFAT, NTFS und SMB testen",
+      "Namen mit Groß-/Kleinschreibung und Unicode vergleichen"
+    ],
+    "expected": "Grenzen des jeweiligen Systems werden erklärt; Kollisionen nicht still überschrieben; Hashes bei gültigen Namen gleich.",
+    "automation": "test_integrations.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "MEDIA-01",
+    "group": "Vorschau, Thumbnails und Medien",
+    "priority": "P0",
+    "title": "JPG-Absturzregression",
+    "prerequisites": "D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.",
+    "steps": [
+      "Mehrere gültige JPG/JPEG lokal öffnen",
+      "Pfeiltasten vor/zurück",
+      "Schließen"
+    ],
+    "expected": "Bild erscheint ohne Absturz; Reihenfolge entspricht unterstützten Medien der Ansicht; Fokus kehrt sinnvoll zurück.",
+    "automation": "test_media.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "MEDIA-02",
+    "group": "Vorschau, Thumbnails und Medien",
+    "priority": "P0",
+    "title": "Online-JPG und Thumbnails",
+    "prerequisites": "D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.",
+    "steps": [
+      "JPG in jedem Cloud-Testordner anzeigen",
+      "Miniatur abwarten",
+      "Vorschau öffnen"
+    ],
+    "expected": "Thumbnail und Bild korrekt oder konkreter Ladefehler; UI bleibt bedienbar; keine leere dauerhafte Vorschau ohne Status.",
+    "automation": "test_media.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "MEDIA-03",
+    "group": "Vorschau, Thumbnails und Medien",
+    "priority": "P1",
+    "title": "Bildformate und defekte Dateien",
+    "prerequisites": "D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.",
+    "steps": [
+      "PNG/WebP/GIF sowie beschädigte und nur umbenannte Bilddatei öffnen"
+    ],
+    "expected": "Unterstützte Decoder zeigen korrekt; ungültige Datei verständlich abgefangen; kein Crash/unkontrollierter Speicherverbrauch.",
+    "automation": "test_media.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "MEDIA-04",
+    "group": "Vorschau, Thumbnails und Medien",
+    "priority": "P0",
+    "title": "Video online mit Ladeanzeige",
+    "prerequisites": "D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.",
+    "steps": [
+      "Unter 2 GiB liegendes Online-Testvideo öffnen",
+      "Laden beobachten",
+      "Abspielen/Seek"
+    ],
+    "expected": "Ladefortschritt sichtbar; Wiedergabe nach nötiger Bereitstellung; Play/Zeitleiste reagieren; kein Versprechen sofortigen Streamings.",
+    "automation": "test_media.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "MEDIA-05",
+    "group": "Vorschau, Thumbnails und Medien",
+    "priority": "P1",
+    "title": "Bedienelemente nach Medientyp",
+    "prerequisites": "D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.",
+    "steps": [
+      "Bild, Video und Audio nacheinander öffnen",
+      "Leertaste prüfen"
+    ],
+    "expected": "Play und Zeitleiste bei Video, nicht bei Bildern; Audio über unterstützte Steuerung; kein alter Videozustand auf Bild.",
+    "automation": "test_media.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "MEDIA-06",
+    "group": "Vorschau, Thumbnails und Medien",
+    "priority": "P0",
+    "title": "Schneller Wechsel und Schließen",
+    "prerequisites": "D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.",
+    "steps": [
+      "Langsames Online-Bild öffnen",
+      "Mehrfach Pfeiltasten",
+      "Während Laden schließen"
+    ],
+    "expected": "Alte Worker-Ergebnisse überschreiben neues Bild nicht; Download beendet/begrenzt; keine Hintergrundwiedergabe nach Schließen.",
+    "automation": "test_media.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "MEDIA-07",
+    "group": "Vorschau, Thumbnails und Medien",
+    "priority": "P0",
+    "title": "Löschen in der Vorschau",
+    "prerequisites": "D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.",
+    "steps": [
+      "Testbild entfernen",
+      "Abbrechen/Bestätigen prüfen",
+      "Parallel anderen Kopierjob abschließen lassen"
+    ],
+    "expected": "Nur eigener Löschabschluss schaltet Vorschau weiter; Abbruch lässt Bild und Bedienelemente intakt; Datei in Papierkorb wiederherstellbar.",
+    "automation": "test_media.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "MEDIA-08",
+    "group": "Vorschau, Thumbnails und Medien",
+    "priority": "P1",
+    "title": "Vorschau letzter/erster Eintrag",
+    "prerequisites": "D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.",
+    "steps": [
+      "Nur ein Medium im Ordner",
+      "Öffnen/entfernen",
+      "Am Anfang/Ende navigieren"
+    ],
+    "expected": "Keine ungültigen Indizes oder Endlosschleifen; leerer Zustand sinnvoll; nicht zu fremdem Ordner wechseln.",
+    "automation": "test_media.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "MEDIA-09",
+    "group": "Vorschau, Thumbnails und Medien",
+    "priority": "P1",
+    "title": "Größen- und Zeitlimits",
+    "prerequisites": "D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.",
+    "steps": [
+      "Testbilder über Thumbnail-/Preview-Limit und Video über 2 GiB wählen",
+      "Downloadstillstand simulieren"
+    ],
+    "expected": "Klare Grenze/Timeout; begrenzter Speicher und temporäre Dateien; kein unendliches Laden. Aktuell: Thumbnail 32 MiB, Bildvorschau 128 MiB; Decoderlimit separat.",
+    "automation": "test_media.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "MEDIA-10",
+    "group": "Vorschau, Thumbnails und Medien",
+    "priority": "P1",
+    "title": "Text und Binärvorschau",
+    "prerequisites": "D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.",
+    "steps": [
+      "UTF-8-Text, Text über 2 MiB und Binärdatei öffnen"
+    ],
+    "expected": "Begrenzte Textvorschau; ungeeignete Datei sicher erklärt/extern öffnbar; kein Laden beliebig großer Datei in GUI-Thread.",
+    "automation": "test_media.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "MEDIA-11",
+    "group": "Vorschau, Thumbnails und Medien",
+    "priority": "P1",
+    "title": "Archiv-Medien",
+    "prerequisites": "D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.",
+    "steps": [
+      "Bild in ZIP öffnen",
+      "Pfeiltasten/Schließen",
+      "Löschen suchen"
+    ],
+    "expected": "Temporäre schreibgeschützte Vorschau; kein scheinbares Löschen aus Archiv; Extraktion nur über dafür vorgesehenen Ablauf.",
+    "automation": "test_media.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "MEDIA-12",
+    "group": "Vorschau, Thumbnails und Medien",
+    "priority": "P1",
+    "title": "Thumbnail-Last und Cache",
+    "prerequisites": "D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.",
+    "steps": [
+      "Ordner mit vielen Online-Bildern scrollen",
+      "Ordner wechseln",
+      "Nochmals öffnen"
+    ],
+    "expected": "Begrenzte parallele Arbeit; sichtbare Einträge priorisiert; keine veralteten Bilder anderer Dateien; Cache verhindert unnötige Wiederholung soweit vorgesehen.",
+    "automation": "test_media.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "ARCH-01",
+    "group": "Archive und sichere Extraktion",
+    "priority": "P0",
+    "title": "Unterstützte Formate öffnen",
+    "prerequisites": "D4 in dediziertem Testverzeichnis; bösartige Archive nur als nicht ausführbare Testdaten.",
+    "steps": [
+      "ZIP, TAR, TGZ/TAR.GZ, TAR.BZ2, TAR.XZ, TAR.ZST, 7z und RAR jeweils öffnen"
+    ],
+    "expected": "Mit enthaltenem libarchive unterstützte Varianten lesbar; Baum, Namen und Größen plausibel; jedes Format einzeln protokollieren.",
+    "automation": "test_archives.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "ARCH-02",
+    "group": "Archive und sichere Extraktion",
+    "priority": "P0",
+    "title": "Gezielt und vollständig entpacken",
+    "prerequisites": "D4 in dediziertem Testverzeichnis; bösartige Archive nur als nicht ausführbare Testdaten.",
+    "steps": [
+      "Einzelne Mitglieder wählen und entpacken",
+      "Ohne Auswahl ganze Ansicht/aktuellen Präfix entpacken"
+    ],
+    "expected": "Ziel anderer Bereich; richtige Auswahl/Struktur; keine unbeabsichtigte Gesamtentpackung bei Auswahl; Hashes korrekt.",
+    "automation": "test_archives.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "ARCH-03",
+    "group": "Archive und sichere Extraktion",
+    "priority": "P1",
+    "title": "ZIP erstellen",
+    "prerequisites": "D4 in dediziertem Testverzeichnis; bösartige Archive nur als nicht ausführbare Testdaten.",
+    "steps": [
+      "Dateien und leere Unterordner auswählen",
+      "ZIP erzeugen",
+      "Erneut öffnen"
+    ],
+    "expected": "ZIP im aktiven Verzeichnis mit eindeutigem Namen; Inhalt korrekt; keine Behauptung einer RAR/7z-Erzeugungsfunktion.",
+    "automation": "test_archives.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "ARCH-04",
+    "group": "Archive und sichere Extraktion",
+    "priority": "P1",
+    "title": "Konflikte und Undo beim Extrahieren",
+    "prerequisites": "D4 in dediziertem Testverzeichnis; bösartige Archive nur als nicht ausführbare Testdaten.",
+    "steps": [
+      "Gleichnamige Zieldatei vorbereiten",
+      "Entpacken",
+      "Rückgängig"
+    ],
+    "expected": "Konflikt sicher behandelt; fremde Daten geschützt; Undo dem Extraktionsvorgang zugeordnet.",
+    "automation": "test_archives.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "ARCH-05",
+    "group": "Archive und sichere Extraktion",
+    "priority": "P0",
+    "title": "Traversal und absolute Pfade",
+    "prerequisites": "D4 in dediziertem Testverzeichnis; bösartige Archive nur als nicht ausführbare Testdaten.",
+    "steps": [
+      "Archive mit ../, absoluten Pfaden, unsicheren Duplikaten und Symlink-/Hardlink-Ausbruch extrahieren versuchen"
+    ],
+    "expected": "Kein Schreiben außerhalb erlaubten Ziels; gefährliche Mitglieder sicher abgewiesen; keine Ausführung von Archivinhalt.",
+    "automation": "test_archives.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "ARCH-06",
+    "group": "Archive und sichere Extraktion",
+    "priority": "P0",
+    "title": "Archivbomben und Sonderdateien",
+    "prerequisites": "D4 in dediziertem Testverzeichnis; bösartige Archive nur als nicht ausführbare Testdaten.",
+    "steps": [
+      "Über Grenzwerten deklarierte Archive sowie Gerätedateien/Sondertypen testen"
+    ],
+    "expected": "Grenzen erzwungen (100.000 Einträge, 4 GiB entpackt, Preview 128 MiB); kein unbeschränkter RAM-/Plattenverbrauch; Fehler erklärbar.",
+    "automation": "test_archives.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "ARCH-07",
+    "group": "Archive und sichere Extraktion",
+    "priority": "P1",
+    "title": "Kaputt, leer und verschlüsselt",
+    "prerequisites": "D4 in dediziertem Testverzeichnis; bösartige Archive nur als nicht ausführbare Testdaten.",
+    "steps": [
+      "Leeres, abgeschnittenes und passwortgeschütztes Archiv öffnen"
+    ],
+    "expected": "Kein Absturz; leerer Zustand bzw. klare Nichtunterstützung/Fehler; kein nicht vorhandener Passwort-Assistent suggeriert.",
+    "automation": "test_archives.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "ARCH-08",
+    "group": "Archive und sichere Extraktion",
+    "priority": "P1",
+    "title": "Read-only im Archiv",
+    "prerequisites": "D4 in dediziertem Testverzeichnis; bösartige Archive nur als nicht ausführbare Testdaten.",
+    "steps": [
+      "Archivbereich aktivieren",
+      "Umbenennen, Verschieben, Einfügen und Datei-Eigenschaften prüfen"
+    ],
+    "expected": "Nicht unterstützte Schreibaktionen gesperrt; Eigenschaften beziehen sich auf Mitglied; Öffnen extern verändert Archiv nicht still.",
+    "automation": "test_archives.py, test_operations.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TOOLS-01",
+    "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+    "priority": "P1",
+    "title": "Rekursive Suche",
+    "prerequisites": "D1 mit definierten Suchtreffern, gleichen/abweichenden Dateien und umbenennbaren Kopien.",
+    "steps": [
+      "Teilnamen, Wildcards und Groß-/Kleinschreibung testen",
+      "Anderen absoluten Suchstart wählen"
+    ],
+    "expected": "Nur erwartete Treffer; versteckte Dateien gemäß Einstellung; Doppelklick öffnet richtigen Elternordner/Eintrag.",
+    "automation": "test_commander_tools.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TOOLS-02",
+    "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+    "priority": "P1",
+    "title": "Suche abbrechen und Fehler",
+    "prerequisites": "D1 mit definierten Suchtreffern, gleichen/abweichenden Dateien und umbenennbaren Kopien.",
+    "steps": [
+      "Großen Baum mit unlesbarem Ordner und Symlink-Zyklus durchsuchen",
+      "Abbrechen"
+    ],
+    "expected": "Keine Verfolgung endloser Verzeichnislinks; Fehler/Teilergebnis klar; 100.000-Grenze beachtet; Abbruch reaktionsfähig.",
+    "automation": "test_commander_tools.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TOOLS-03",
+    "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+    "priority": "P0",
+    "title": "Verzeichnisvergleich",
+    "prerequisites": "D1 mit definierten Suchtreffern, gleichen/abweichenden Dateien und umbenennbaren Kopien.",
+    "steps": [
+      "Gleiche, inhaltlich andere, nur links/rechts und unlesbare Dateien vergleichen"
+    ],
+    "expected": "SHA-256 unterscheidet Inhalte, auch bei gleicher Größe; Kategorien korrekt; kein automatisches Synchronisieren oder Löschen.",
+    "automation": "test_commander_tools.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TOOLS-04",
+    "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+    "priority": "P1",
+    "title": "Vergleich online und Abbruch",
+    "prerequisites": "D1 mit definierten Suchtreffern, gleichen/abweichenden Dateien und umbenennbaren Kopien.",
+    "steps": [
+      "Cloud-Testordner vergleichen",
+      "Während Lesen abbrechen"
+    ],
+    "expected": "Möglicher Download erkennbar; UI bleibt bedienbar; kein vollständiger Gleichheitsbefund aus abgebrochenem Lauf.",
+    "automation": "test_commander_tools.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TOOLS-05",
+    "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+    "priority": "P0",
+    "title": "Mehrfach-Umbenennung mit Vorschau",
+    "prerequisites": "D1 mit definierten Suchtreffern, gleichen/abweichenden Dateien und umbenennbaren Kopien.",
+    "steps": [
+      "Muster [N], [E], [C], Startnummer, Ziffernbreite und Suchen/Ersetzen ausprobieren",
+      "Vorschau",
+      "Anwenden"
+    ],
+    "expected": "Vorschau exakt wie Endnamen; Erweiterung korrekt; Aktion nur nach gültiger Vorschau; richtige Historie.",
+    "automation": "test_commander_tools.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TOOLS-06",
+    "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+    "priority": "P0",
+    "title": "Umbenennungs-Konflikte",
+    "prerequisites": "D1 mit definierten Suchtreffern, gleichen/abweichenden Dateien und umbenennbaren Kopien.",
+    "steps": [
+      "Doppelte Zielnamen, belegte Ziele, ungültige Zeichen und zyklische Namenswechsel vorbereiten"
+    ],
+    "expected": "Unsicherer Plan abgelehnt oder sicher aufgelöst; keine stille Überschreibung; Ausgangsdaten erhalten.",
+    "automation": "test_commander_tools.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TOOLS-07",
+    "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+    "priority": "P0",
+    "title": "Veraltete Vorschau",
+    "prerequisites": "D1 mit definierten Suchtreffern, gleichen/abweichenden Dateien und umbenennbaren Kopien.",
+    "steps": [
+      "Vorschau erzeugen",
+      "Regel ändern bzw. Datei extern ändern",
+      "Anwenden versuchen"
+    ],
+    "expected": "Alte Vorschau nicht blind angewendet; erneute Prüfung/Vorschau erforderlich.",
+    "automation": "test_commander_tools.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TOOLS-08",
+    "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+    "priority": "P0",
+    "title": "Teilfehler und Rücknahme",
+    "prerequisites": "D1 mit definierten Suchtreffern, gleichen/abweichenden Dateien und umbenennbaren Kopien.",
+    "steps": [
+      "Bei Batch-Rename im Test Rechtefehler nach Teilmenge injizieren",
+      "Zustand und History prüfen",
+      "Undo"
+    ],
+    "expected": "Bereits ausgeführte Schritte soweit möglich zurückgerollt; verbleibender Teilzustand ehrlich protokolliert; keine verloren gegangenen Dateien.",
+    "automation": "test_commander_tools.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "TOOLS-09",
+    "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+    "priority": "P1",
+    "title": "Werkzeuggrenzen",
+    "prerequisites": "D1 mit definierten Suchtreffern, gleichen/abweichenden Dateien und umbenennbaren Kopien.",
+    "steps": [
+      "Mehr als 10.000 Rename-Kandidaten und aktive Archivansicht testen"
+    ],
+    "expected": "Grenzen und nicht unterstützte Aktionen klar; keine unkontrollierte Massenoperation.",
+    "automation": "test_commander_tools.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PROP-01",
+    "group": "Eigenschaften, Einstellungen und Ergonomie",
+    "priority": "P0",
+    "title": "Eigenschaften des angeklickten Eintrags",
+    "prerequisites": "D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.",
+    "steps": [
+      "Andere Datei markieren",
+      "Auf Ziel rechtsklicken Eigenschaften",
+      "Lokal/NAS/Cloud wiederholen"
+    ],
+    "expected": "Name, Typ, Größe, Pfad und Datum gehören zum tatsächlich angeklickten Eintrag; keine veralteten Werte.",
+    "automation": "test_properties.py, test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PROP-02",
+    "group": "Eigenschaften, Einstellungen und Ergonomie",
+    "priority": "P1",
+    "title": "NAS-Metadaten",
+    "prerequisites": "D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.",
+    "steps": [
+      "Datei über SMB/GVFS mit bekanntem Datum/Rechten prüfen",
+      "Providerdaten vergleichen"
+    ],
+    "expected": "Remote-Metadaten soweit verfügbar richtig; nicht ermittelbare Felder als unbekannt, nicht als 0 oder falsche lokale Rechte.",
+    "automation": "test_properties.py, test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PROP-03",
+    "group": "Eigenschaften, Einstellungen und Ergonomie",
+    "priority": "P1",
+    "title": "Ordnergröße freiwillig berechnen",
+    "prerequisites": "D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.",
+    "steps": [
+      "Eigenschaften großer Teststruktur öffnen",
+      "Größe berechnen",
+      "Fehler/Timeout simulieren"
+    ],
+    "expected": "Kein ungefragtes tiefes Scannen beim Öffnen; Links nicht rekursiv verfolgen; Teilresultat/Grenze/Fehlerzahl klar; UI frei.",
+    "automation": "test_properties.py, test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PROP-04",
+    "group": "Eigenschaften, Einstellungen und Ergonomie",
+    "priority": "P1",
+    "title": "Dunkelmodus und Sprache",
+    "prerequisites": "D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.",
+    "steps": [
+      "Dunkelmodus-Checkbox umschalten",
+      "Deutsch/Englisch wechseln",
+      "Dialoge öffnen",
+      "Neustart"
+    ],
+    "expected": "Lesbare Kontraste; passende Texte; keine abgeschnittenen kritischen Knöpfe; Einstellungen bleiben.",
+    "automation": "test_properties.py, test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PROP-05",
+    "group": "Eigenschaften, Einstellungen und Ergonomie",
+    "priority": "P1",
+    "title": "Tastaturbefehle und Fokus",
+    "prerequisites": "D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.",
+    "steps": [
+      "F1/F2/F5/F6, Entf, Strg+A/C/X/V/Z/F/L/R/H, Strg+Umschalt+N/M, Strg+Alt+C, Strg+Komma, Enter, Space/Ctrl+Y und Alt-Pfeile testen"
+    ],
+    "expected": "Befehle entsprechen Handbuch; F1 zeigt Kurz-Hilfe. In Eingabefeldern löschen/kopieren Tasten Text und keine ausgewählte Datei versehentlich.",
+    "automation": "test_properties.py, test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PROP-06",
+    "group": "Eigenschaften, Einstellungen und Ergonomie",
+    "priority": "P1",
+    "title": "Skalierung und kleine Fenster",
+    "prerequisites": "D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.",
+    "steps": [
+      "Testauflösungen/Skalierungen durchgehen",
+      "Dialoge, Queue und lange Namen anzeigen"
+    ],
+    "expected": "Bedienelemente erreichbar; Inhalte scrollbar statt abgeschnitten; wichtige Buttons nicht außerhalb des Bildschirms.",
+    "automation": "test_properties.py, test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PROP-07",
+    "group": "Eigenschaften, Einstellungen und Ergonomie",
+    "priority": "P1",
+    "title": "Tastatur und sichtbarer Fokus",
+    "prerequisites": "D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.",
+    "steps": [
+      "Ohne Maus Einstellungen, Orte, Dialoge und Auftragssteuerung bedienen",
+      "Escape/Tab nutzen"
+    ],
+    "expected": "Fokus erkennbar, Reihenfolge sinnvoll, kein Fokusverlust; nicht unterstützte Tastaturpfade als Ergonomiefehler dokumentieren.",
+    "automation": "test_properties.py, test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "PROP-08",
+    "group": "Eigenschaften, Einstellungen und Ergonomie",
+    "priority": "P1",
+    "title": "Fehlertexte und Statusfarben",
+    "prerequisites": "D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.",
+    "steps": [
+      "Offline/Permission/Quota-Fehler auslösen",
+      "Hell/Dunkel prüfen"
+    ],
+    "expected": "Konkreter Pfad/Vorgang und nächster Schritt; kein Erfolg ausschließlich durch Farbe; keine technischen Geheimnisse/rohen Tokens.",
+    "automation": "test_properties.py, test_location_preferences.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SAFE-01",
+    "group": "Sicherheit, Leistung und Dauerbetrieb",
+    "priority": "P0",
+    "title": "Zugangsdaten und Dateirechte",
+    "prerequisites": "Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.",
+    "steps": [
+      "Berechtigungen von Testprofil, rclone-Konfig und Journal prüfen",
+      "Redigierte Logs/Prozessargumente auf Test-Secrets untersuchen"
+    ],
+    "expected": "Keine Passwörter/Tokens in Exporten, Kommandozeile oder öffentlichen Logs; private Konfiguration nur für Benutzer; Cloud-Konfigschutz nicht fälschlich als Verschlüsselung bezeichnen.",
+    "automation": "test_operations.py, test_resumable_copy.py, test_external_cloud.py, test_server_connections.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SAFE-02",
+    "group": "Sicherheit, Leistung und Dauerbetrieb",
+    "priority": "P0",
+    "title": "Runtime-Download und Prüfsumme",
+    "prerequisites": "Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.",
+    "steps": [
+      "In Testprofil rclone-Bereitstellung starten",
+      "Falsche Prüfsumme/Downloadfehler simulieren"
+    ],
+    "expected": "Nur validierte offizielle HTTPS-Artefakte akzeptiert; Fehler stoppt Ausführung; System-rclone unverändert.",
+    "automation": "test_operations.py, test_resumable_copy.py, test_external_cloud.py, test_server_connections.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SAFE-03",
+    "group": "Sicherheit, Leistung und Dauerbetrieb",
+    "priority": "P0",
+    "title": "Unvertrauenswürdige Mount-Metadaten",
+    "prerequisites": "Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.",
+    "steps": [
+      "Fremde/unerwartete Mount-Konfiguration und Namespace-Optionen als Fixture einspeisen"
+    ],
+    "expected": "Keine fremden Konfigdateien auslesen oder unerlaubte Remote-Pfade ableiten; unbekannte Quelle sicher begrenzt.",
+    "automation": "test_operations.py, test_resumable_copy.py, test_external_cloud.py, test_server_connections.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SAFE-04",
+    "group": "Sicherheit, Leistung und Dauerbetrieb",
+    "priority": "P1",
+    "title": "20.000 Dateien anzeigen",
+    "prerequisites": "Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.",
+    "steps": [
+      "D2-Liste kalt/warm öffnen",
+      "Sortieren, filtern, scrollen",
+      "CPU/RAM und Latenz erfassen"
+    ],
+    "expected": "Keine dauerhafte GUI-Blockade; UI-Messziel ≤ 1 s; Messwerte mit Hardware/Backend dokumentieren, keine pauschale Cloud-Geschwindigkeitsgarantie.",
+    "automation": "test_operations.py, test_resumable_copy.py, test_external_cloud.py, test_server_connections.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SAFE-05",
+    "group": "Sicherheit, Leistung und Dauerbetrieb",
+    "priority": "P1",
+    "title": "Große Historie und viele Aufträge messen",
+    "prerequisites": "Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.",
+    "steps": [
+      "1.000 History-Einträge und 20 Jobs laden",
+      "Scrollen, minimieren, Einstellungen öffnen"
+    ],
+    "expected": "Sichtbare Widgets begrenzt; nach Stabilisierung kein stetiges Speicherwachstum; keine blockierten Hauptaktionen.",
+    "automation": "test_operations.py, test_resumable_copy.py, test_external_cloud.py, test_server_connections.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SAFE-06",
+    "group": "Sicherheit, Leistung und Dauerbetrieb",
+    "priority": "P0",
+    "title": "Dauerlauf mit Netzwechseln",
+    "prerequisites": "Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.",
+    "steps": [
+      "Vier unabhängige Testjobs über mindestens 2 h betreiben",
+      "In VM Netzverluste und Pause/Fortsetzen einstreuen"
+    ],
+    "expected": "Kein Crash, Datenverlust oder festhängender GUI-Zustand; alle Enddaten verifiziert; blockierte Jobs haben erklärbaren Zustand.",
+    "automation": "test_operations.py, test_resumable_copy.py, test_external_cloud.py, test_server_connections.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SAFE-07",
+    "group": "Sicherheit, Leistung und Dauerbetrieb",
+    "priority": "P1",
+    "title": "Wiederholtes Öffnen/Schließen",
+    "prerequisites": "Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.",
+    "steps": [
+      "50-mal Preview, Eigenschaften und Einstellungen öffnen/schließen",
+      "Threads, Tempdateien und RAM vergleichen"
+    ],
+    "expected": "Nach Ruhephase keine pro Durchlauf wachsenden Worker/Handles; private Media-Temps bereinigt; Transfer-Recoverydaten bewusst erhalten.",
+    "automation": "test_operations.py, test_resumable_copy.py, test_external_cloud.py, test_server_connections.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SAFE-08",
+    "group": "Sicherheit, Leistung und Dauerbetrieb",
+    "priority": "P0",
+    "title": "Automatisierte Regression",
+    "prerequisites": "Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.",
+    "steps": [
+      "Im Repository QT_QPA_PLATFORM=offscreen linux/.venv/bin/python -m pytest linux/tests -q ausführen",
+      "Ausgabe archivieren"
+    ],
+    "expected": "Suite ohne Fehler oder vollständige dokumentierte Abweichungen. Dieser Plan führt den Befehl nicht selbst aus; automatische Tests ersetzen keine echten Provider-Läufe.",
+    "automation": "test_operations.py, test_resumable_copy.py, test_external_cloud.py, test_server_connections.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  },
+  {
+    "id": "SAFE-09",
+    "group": "Sicherheit, Leistung und Dauerbetrieb",
+    "priority": "P1",
+    "title": "Handbuch offline und Paketvollständigkeit",
+    "prerequisites": "Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.",
+    "steps": [
+      "HTML-Handbuch ohne Netzwerk öffnen",
+      "Suche, Bilder, Navigation, Druckansicht und links testen",
+      "Paketinhalt prüfen"
+    ],
+    "expected": "Dokumentation nutzbar; Screenshots und Ressourcen vorhanden; Beschreibungen passend zu ausgelieferter Version; Planstatus nicht mit Produktprüfung verwechseln.",
+    "automation": "test_operations.py, test_resumable_copy.py, test_external_cloud.py, test_server_connections.py, test_ui.py",
+    "status": "Nicht ausgeführt",
+    "actual": "",
+    "evidence": ""
+  }
+]
