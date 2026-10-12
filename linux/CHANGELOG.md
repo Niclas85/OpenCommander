@@ -1,5 +1,20 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.23 – 12. Oktober 2026
+
+- iCloud-Passwort im allgemeinen rclone-Konfigurationsassistenten im erwarteten
+  Speicherformat übergeben; vorhandene Passwortwerte nicht anzeigen. Bestätigung
+  mit Apple-Code bleibt erforderlich.
+- Unvollständige OAuth-/OneDrive-Laufwerkswahl und iCloud-Verifikation erkennen,
+  bevor eine Verbindung als eingerichtet gespeichert oder eingebunden wird.
+  Beim Öffnen eines unvollständigen gespeicherten Orts den passenden
+  Anmeldeassistenten öffnen. Providerfehler ohne Folgeschritt gelten nicht als Erfolg.
+- Google-Projektquoten gesondert erklären: eigene Google-Client-ID im
+  Verbindungsassistenten eintragen und erneut anmelden. Nach diesem Limit
+  mindestens 60 Sekunden keine weiteren Listenabfragen desselben Ordners starten.
+- Bestehende externe Einbindungen und ausstehende Schreibcache-Uploads werden
+  nicht automatisch neu gestartet oder verworfen.
+
 ## 0.3.22 – 12. Oktober 2026
 
 - Übertragungsdetails nur einmal anzeigen: aufgeklappt in den Auftragskarten,

@@ -189,3 +189,18 @@ def test_inflight_listing_before_deletion_cannot_restore_removed_file(monkeypatc
         assert request.result(3) == []
     assert len(calls) == 2
     assert listing.cache['dropbox'][1] == []
+
+
+def test_google_project_quota_has_actionable_help_and_no_immediate_retries(monkeypatch):
+    listing = CloudListings()
+    calls = []
+    def limited(*args):
+        calls.append(1)
+        raise cloud_listing.provider_error('403 rateLimitExceeded defaultPerMinutePerProject PRIVATE_FIXTURE')
+    monkeypatch.setattr(cloud_listing, 'query', limited)
+    for _ in range(2):
+        with pytest.raises(CloudError, match='Google-Client-ID') as error:
+            listing.read('google', [], FastCancel())
+        assert 'PRIVATE_FIXTURE' not in str(error.value)
+        assert error.value.cooldown == 60
+    assert len(calls) == 1

@@ -83,11 +83,16 @@ def oauth_browser_url(stderr):
     return match.group() if match else None
 
 
-def command_json(config, arguments, cancel, result=None, timeout=180, browser_callback=None):
+def command_json(config, arguments, cancel, result=None, timeout=180, browser_callback=None, password_result=False):
     executable = rclone_runtime.binary()
     if not executable:
         raise RuntimeError('Für Online-Orte bitte rclone und FUSE installieren / Install rclone and FUSE')
     env = host_environment()
+    # rclone's *all-set wrapper writes answers verbatim, unlike the backend
+    # authentication states. IsPassword answers need the stored wire format.
+    if password_result and '--state' in arguments and arguments[arguments.index('--state') + 1].startswith('*all-set,'):
+        from .cloud_config import obscure
+        result = obscure(result, cancel)
     if result is not None:
         env['RCLONE_RESULT'] = result
     arguments = list(arguments)
@@ -121,7 +126,11 @@ def command_json(config, arguments, cancel, result=None, timeout=180, browser_ca
             if process.returncode:
                 # rclone errors can echo configuration/token fragments; never expose them.
                 raise RuntimeError('Online-Konfiguration fehlgeschlagen. Provider, rclone-Version und Netzwerk prüfen. / Online configuration failed.')
-            return json.loads(output)
+            value = json.loads(output)
+            if not value.get('State') and not value.get('Error') and len(arguments) >= 3 and arguments[:2] in (['config', 'create'], ['config', 'update']):
+                from .cloud_config import validate
+                validate(config, arguments[2])
+            return value
         finally:
             if process.poll() is None:
                 process.kill()
@@ -228,6 +237,9 @@ def mount_profile(main, profile, cancel):
 
 def _mount_profile(main, profile, cancel):
     config = private_config(main.state_dir)
+    if profile['kind'] in ('drive', 'onedrive', 'dropbox', 'iclouddrive'):
+        from .cloud_config import validate
+        validate(config, profile['id'])
     settings = configparser.ConfigParser(interpolation=None)
     settings.read(config)
     section = settings[profile['id']]
@@ -568,12 +580,17 @@ class OnlineDialog(QDialog):
         arguments = ['config', 'update', self.profile['id'], '--continue', '--non-interactive', '--state', self.state]
         if self.profile['kind'] not in ('onedrive', 'drive', 'dropbox'):
             arguments += ['--all']
+        password_result = getattr(self, 'answer_is_password', False)
+        if password_result and not answer and getattr(self, 'password_default', ''):
+            answer = self.password_default
+            password_result = False  # Reuse the existing stored value verbatim.
         if self.answer.lineEdit():
             self.answer.lineEdit().clear()
         def authenticate():
             cancel = self.cancel
             return command_json(self.config, arguments, cancel, result=answer, timeout=600,
-                                browser_callback=lambda url: self.browser_requested.emit(cancel, url))
+                                browser_callback=lambda url: self.browser_requested.emit(cancel, url),
+                                password_result=password_result)
         self.work(authenticate, self.question)
         if self.cloud_auth and answer == 'true':
             self.status.setText('Bitte im Browser anmelden. Das Fenster bleibt währenddessen geöffnet. / Sign in in your browser.')
@@ -654,6 +671,9 @@ class OnlineDialog(QDialog):
                               'Connections are saved; credentials are requested again after restarting unless saved in the keyring.')
 
     def question(self, value):
+        if value.get('Error') and not value.get('State'):
+            self.status.setText('Anmeldung nicht abgeschlossen. Bitte erneut anmelden. / Sign-in did not complete; try again.')
+            return
         self.state = value.get('State', '')
         if not self.state:
             self.main.__dict__.pop('cloud_listings', None)
@@ -676,6 +696,10 @@ class OnlineDialog(QDialog):
                 self.work(lambda: mount_profile(self.main, profile, self.cancel), opened)
             return
         option = value.get('Option') or {}
+        # Each question owns its password semantics, including automatic answers.
+        # A new login must not inherit the previous password question's flag.
+        self.answer_is_password = bool(option.get('IsPassword'))
+        self.password_default = ''
         auto = automatic_auth_answer(self.profile['kind'], option) if self.cloud_auth and not value.get('Error') else None
         if auto is not None:
             self.continue_auth(auto)
@@ -711,6 +735,11 @@ class OnlineDialog(QDialog):
                               'Select “OneDrive – personal files” for your ordinary files. Other entries are additional or internal areas. '
                               '“Connect and open” saves the connection.')
         default = str(option.get('DefaultStr', ''))
+        self.answer_is_password = bool(option.get('IsPassword'))
+        from .cloud_config import obscured
+        self.password_default = default if self.answer_is_password and self.state.startswith('*all-set,') and obscured(default) else ''
+        if self.answer_is_password:
+            default = ''
         index = self.answer.findData(default)
         if index >= 0:
             self.answer.setCurrentIndex(index)
@@ -719,6 +748,7 @@ class OnlineDialog(QDialog):
         secret = option.get('IsPassword') or any(key in option.get('Name', '').lower() for key in ('token', 'secret', 'pass', '2fa'))
         if self.answer.lineEdit():
             self.answer.lineEdit().setEchoMode(QLineEdit.Password if secret else QLineEdit.Normal)
+            self.answer.lineEdit().setPlaceholderText(('Leer lassen: gespeichertes Passwort behalten' if self.de else 'Leave empty to keep the saved password') if self.password_default else '')
         if is_drive and examples:
             preferred = next((i for i, row in enumerate(examples) if row.get('Help', '').casefold().startswith('onedrive (')), None)
             if preferred is not None:

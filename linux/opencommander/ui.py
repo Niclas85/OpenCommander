@@ -1901,6 +1901,17 @@ class MainWindow(QMainWindow):
                 return
             if error:
                 self.status.setText(str(error) + ' · Rechtsklick auf Ort → Bearbeiten / Right-click location → Edit')
+                from .cloud_config import CloudSetupError
+                if isinstance(error, CloudSetupError):
+                    self.online_locations()
+                    dialog = self.online_dialog
+                    if not dialog.pending:
+                        dialog.reload()
+                        index = next((i for i in range(dialog.saved.count()) if dialog.saved.itemData(i)['id'] == profile['id']), -1)
+                        if index >= 0:
+                            dialog.saved.setCurrentIndex(index)
+                            dialog.edit_saved()
+                            dialog.reconnect_saved()
             else:
                 if pane.generation == generation:
                     pane.navigate(path)

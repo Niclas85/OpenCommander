@@ -3,7 +3,7 @@
 Native Qt-Desktop-Version nach dem Vorbild der Mac-Catalyst-App. Keine Browser-
 oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 
-Aktueller Stand: **0.3.22**. Die Änderungen und der geprüfte Umfang stehen im
+Aktueller Stand: **0.3.23**. Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
 
 **[Ausführliches HTML-Anwenderhandbuch öffnen](docs/handbuch/index.html)** —

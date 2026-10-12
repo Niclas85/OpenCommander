@@ -10,9 +10,10 @@ from .desktop import host_environment
 
 
 class CloudError(RuntimeError):
-    def __init__(self, message, retryable=False):
+    def __init__(self, message, retryable=False, cooldown=10):
         super().__init__(message)
         self.retryable = retryable
+        self.cooldown = cooldown
 
 
 class CloudRows(list):
@@ -24,6 +25,10 @@ class CloudRows(list):
 def provider_error(stderr):
     # Only classify stderr: never display provider output or credential fragments.
     value = stderr.lower()
+    if 'defaultperminuteperproject' in value:
+        return CloudError('Google-Anfragelimit der gemeinsamen Anwendung erreicht. Unter Einstellungen → Online-Orte '
+                          'eine eigene Google-Client-ID verwenden und erneut anmelden. Bitte mindestens eine Minute warten. / '
+                          'Google application quota exceeded; configure your own Google client ID and sign in again.', True, 60)
     if any(term in value for term in ('invalid_grant', 'unauthorized', '401', 'token expired',
                                       "couldn't decrypt password", 'invalid credentials', 'invalid session')):
         return CloudError('Cloud-Anmeldung abgelaufen oder ungültig. Unter Einstellungen → Online-Orte erneut anmelden. / Sign in again')
@@ -118,14 +123,14 @@ class CloudListings:
                         raise
                     with self.lock:
                         cached = self.cache.get(key)
-                    if cached and time.monotonic() - cached[0] < 300:
+                    if error.cooldown > 10 or (cached and time.monotonic() - cached[0] < 300):
                         with self.lock:
-                            self.cooldowns[key] = (time.monotonic() + 10, error)
+                            self.cooldowns[key] = (time.monotonic() + error.cooldown, error)
                         return self.stale(key, cached, error)
                     remaining = deadline - time.monotonic()
                     if attempt == 2 or remaining <= 2 ** (attempt + 1):
                         with self.lock:
-                            self.cooldowns[key] = (time.monotonic() + 10, error)
+                            self.cooldowns[key] = (time.monotonic() + error.cooldown, error)
                         raise
                     if cancel.wait(min(2 ** (attempt + 1), remaining)):
                         raise RuntimeError('Abgebrochen / Cancelled')

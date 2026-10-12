@@ -2411,3 +2411,80 @@ def test_expanded_transfer_has_one_summary_and_visible_controls(window, app):
         window.engine.transfers.delete(job['id'])
         card.state = 'cancelled'
         window.transfers.clear_completed()
+
+
+def test_terminal_cloud_auth_error_does_not_save_or_mount(window, app, monkeypatch):
+    from opencommander import online_ui
+    window.online_locations()
+    dialog = window.online_dialog
+    dialog.profile = {'id': 'oc_incomplete', 'kind': 'onedrive', 'name': 'Incomplete'}
+    dialog.cloud_auth = True
+    mounted = []
+    monkeypatch.setattr(online_ui, 'mount_profile', lambda *args: mounted.append(args))
+    before = list(window.online_profiles)
+    dialog.question({'Error': 'provider internal error', 'State': ''})
+    assert window.online_profiles == before
+    assert not mounted
+    assert 'nicht abgeschlossen' in dialog.status.text()
+    assert 'provider internal error' not in dialog.status.text()
+    dialog.close()
+
+
+def test_icloud_password_field_does_not_reuse_plaintext_default(window, app, monkeypatch):
+    from opencommander import online_ui, cloud_config
+    import threading
+    window.online_locations()
+    dialog = window.online_dialog
+    dialog.profile = {'id': 'oc_fixture', 'kind': 'iclouddrive', 'name': 'Fixture'}
+    dialog.cloud_auth = True
+    option = {'Name': 'password', 'IsPassword': True, 'DefaultStr': 'short'}
+    dialog.question({'State': '*all-set,password', 'Option': option})
+    assert not dialog.answer.currentText() and not dialog.password_default
+    calls = []
+    monkeypatch.setattr(dialog, 'work', lambda operation, done: operation())
+    monkeypatch.setattr(online_ui, 'command_json', lambda *a, **kw: calls.append(kw))
+    dialog.continue_auth('new value')
+    assert calls[-1]['password_result'] is True
+    encoded = cloud_config.obscure('test input', threading.Event())
+    dialog.question({'State': '*all-set,password', 'Option': dict(option, DefaultStr=encoded)})
+    assert not dialog.answer.currentText() and dialog.password_default == encoded
+    dialog.continue_auth('')
+    assert calls[-1]['password_result'] is False and calls[-1]['result'] == encoded
+    dialog.state = ''
+    dialog.close()
+
+
+def test_incomplete_cloud_place_opens_repair_assistant(window, app, monkeypatch):
+    from opencommander import online_ui, cloud_config
+    profile = {'id': 'oc_incomplete', 'kind': 'onedrive', 'name': 'Incomplete'}
+    window.online_profiles = [profile]
+    def incomplete(*args):
+        raise cloud_config.CloudSetupError('Sign-in incomplete')
+    monkeypatch.setattr(online_ui, 'mount_profile', incomplete)
+    window.online_locations()
+    dialog = window.online_dialog
+    repaired = []
+    monkeypatch.setattr(dialog, 'reconnect_saved', lambda: repaired.append(dict(dialog.editing_profile)))
+    window.open_online_profile(profile)
+    wait(app, lambda: bool(repaired))
+    assert repaired == [profile]
+    assert not window.opening_online
+    dialog.close()
+
+
+def test_automatic_cloud_answer_does_not_inherit_previous_password_question(window, app, monkeypatch):
+    from opencommander import online_ui
+    window.online_locations()
+    dialog = window.online_dialog
+    dialog.profile = {'id': 'oc_fixture', 'kind': 'iclouddrive', 'name': 'Fixture'}
+    dialog.cloud_auth = True
+    dialog.answer_is_password = True
+    dialog.password_default = 'previous question value'
+    calls = []
+    monkeypatch.setattr(dialog, 'work', lambda operation, done: operation())
+    monkeypatch.setattr(online_ui, 'command_json', lambda *a, **kw: calls.append(kw))
+    dialog.question({'State': '*all-set,service', 'Option': {'Name': 'service'}})
+    assert calls[-1]['result'] == 'drive'
+    assert calls[-1]['password_result'] is False
+    dialog.state = ''
+    dialog.close()

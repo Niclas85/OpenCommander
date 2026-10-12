@@ -332,7 +332,7 @@ def test_parallel_mount_requests_launch_one_daemon(tmp_path, monkeypatch):
     from opencommander import provider_mounts
     main = SimpleNamespace(state_dir=tmp_path / 'state')
     config = online_ui.private_config(main.state_dir)
-    config.write_text('[oc_parallel]\ntype = drive\n')
+    config.write_text('[oc_parallel]\ntype = drive\ntoken = {"access_token":"synthetic-fixture"}\n')
     profile = dict(id='oc_parallel', kind='drive')
     entered, release, mounted = threading.Event(), threading.Event(), threading.Event()
     calls = []

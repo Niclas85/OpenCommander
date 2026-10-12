@@ -1,3 +1,46 @@
+# Linux 0.3.23 – Cloud-Konfiguration und erneuter Regressionstest
+
+12. Oktober 2026. **325 automatisierte Tests bestanden in 72,50 Sekunden;
+keine Fehler, keine übersprungenen Tests.** Paketbau und Paket-Smoke-Test
+bestanden. Neue Fälle prüfen echte rclone-iCloud-Passwortschritte mit
+synthetischen Daten, unvollständige OAuth-/OneDrive-/Apple-Konfigurationen,
+GUI-Reparaturassistent, Passwortvoreinstellungen und Google-Projektquoten.
+Ein echter lokaler FUSE-Alias-Test bestätigt die Wiederaufnahme ausstehender
+Full-Cache-Uploads beim Wechsel vom systemweiten zum privaten rclone-Runtime.
+Dabei werden ausschließlich lokale temporäre Beispieldaten verwendet.
+
+Echte Konten erneut geprüft:
+
+- Bestehendes OneDrive: 30 Einträge in 0,93 Sekunden gelesen. Der vollständige
+  eigene Dateioperationstest aus 0.3.22 bleibt der letzte erfolgreiche Schreibtest.
+- Zweites OneDrive-Profil: fehlende OAuth-Anmeldung korrekt als unvollständig
+  erkannt; Benutzeranmeldung erforderlich, kein bestandener Live-Test.
+- iCloud: alte ungültige Passwortkonfiguration korrekt erkannt. Die Speicherung
+  im Assistenten ist korrigiert; echte Apple-Anmeldung und 2FA bleiben offen.
+- Google: separate aktuelle Einbindung konnte eine synthetische Datei kopieren;
+  Umbenennen fehlgeschlagen. Die API meldet `defaultPerMinutePerProject` /
+  `rateLimitExceeded`. Neue Meldung erklärt eigene Google-Client-ID; der
+  Google-Live-Test ist ausdrücklich nicht bestanden. Bereinigung des eigenen
+  UUID-Testordners wird ebenfalls vom Google-Limit verhindert; kein allgemeines
+  Löschkommando ausführen. Produktive Einbindung
+  bleibt unverändert, da ein Kopierauftrag und ca. 48 GiB ausstehende lokale
+  Full-Cache-Uploads existieren. Sicherer Dienstwechsel erst nach gespeicherter
+  Pause und mit unverändertem Cache-Verzeichnis.
+
+**Vorfall beim externen Google-Testskript:** Nach erfolgloser Aushängung griff
+Python-TemporaryDirectory-Bereinigung auf den noch eingebundenen Cloud-Ordner
+zu. Testeinbindung getrennt, weitere schreibende Cloud-Tests gestoppt. Die
+Google-Änderungsübersicht identifizierte 35 unbeabsichtigt in den Papierkorb
+verschobene Einträge im Testzeitfenster; keine endgültigen Löschungen. Alle 35
+wurden wiederhergestellt. Google ordnete beim Wiederherstellen vor den Eltern
+27 Einträge zunächst anders zu; diese Elternzuordnungen wurden explizit anhand
+der vorherigen Änderungsmetadaten wiederhergestellt. Für alle 35 Einträge sind
+Papierkorbstatus und ursprüngliche Elternzuordnung serverseitig geprüft. Individuelle
+IDs/Pfade und Wiederherstellungsprotokolle bleiben privat außerhalb des Repos.
+Das externe Testskript ist kein Bestandteil der Anwendung. Zukünftige
+kontobasierte FUSE-Tests dürfen keine automatische rekursive Bereinigung des
+Mountpunkts verwenden; fehlgeschlagene Aushängung muss die Bereinigung stoppen.
+
 # Linux 0.3.22 – vollständiger erneuter Testlauf
 
 12. Oktober 2026 (Europe/Zurich), Commit `594b4d5`.
