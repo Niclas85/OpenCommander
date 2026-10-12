@@ -1,3 +1,28 @@
+# Linux 0.3.20 – Fortschritt beim Fortsetzen
+
+Vollständige Suite: **307 Tests erfolgreich (64,15 s)**. Paket-Smoke-Test
+erfolgreich (Desktop, JPEG/Online-Bild, TAR/7z, externes Drive-Menü und
+gespeicherte Kopierpause/Fortsetzung).
+
+Gezielte neue Regressionen verwenden ausschließlich temporäre lokale Testdaten:
+
+- Simulierter EIO-Schreibfehler nach fertiger erster Datei; nach Neustart bleibt
+  deren Byte-/Dateizähler erhalten. Kein erneuter Schreibzugriff auf diese Datei.
+- Fehlende zweite Datei wird vor Inhaltsprüfung der fertigen ersten Datei kopiert.
+- Pause mitten in der Prüfung behält den inzwischen fertigen Gesamtstand;
+  Fortsetzen zählt keine Datei/Bytes doppelt.
+- Manipulierter fertiger Zwischenstand gleicher Größe und mit zurückgesetzter
+  Änderungszeit wird weiterhin durch Inhaltsprüfung abgewiesen.
+- Fehlendes Laufwerk löscht weder den gespeicherten Fortschritt noch den Fehler.
+- Auftragskarte zeigt während blockierter Vorprüfung gespeicherten Fortschritt,
+  Prüfphase und früheren Fehler; Historie behält frühere Fehler nach Erfolg.
+
+Der laufende produktive Auftrag wurde nur im lokalen SQLite-Journal lesend
+untersucht. Zum Untersuchungszeitpunkt: 15.428 fertige reguläre Dateien,
+95.877.522.511 Byte. Kein Schreiben auf Cloud-Daten, kein Prozessabbruch,
+keine Mount-/Journaländerung. Ursprünglicher Fehlertext war bereits durch die
+alte Fortsetzung gelöscht und lässt sich damit nicht verlässlich zuordnen.
+
 # Linux 0.3.19 – Orte und Dienstsymbole
 
 ## Ausfüllbarer Testplan (keine neue Anwendungstest-Ausführung)

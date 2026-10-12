@@ -1,5 +1,20 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.20 – 12. Oktober 2026
+
+- Fortsetzen beginnt mit dem bereits dauerhaft gespeicherten Datei-/Bytestand,
+  statt den Gesamtfortschritt auf null zurückzusetzen. Fertige Dateien werden
+  weder doppelt gezählt noch erneut geschrieben.
+- Noch fehlende Daten vor vollständigen vorhandenen Teilbäumen bearbeiten.
+  Die unveränderte vollständige Inhaltsprüfung der fertigen Dateien folgt vor
+  Veröffentlichung des Zielordners; Prüfung bekommt eine eigene Phase und Zähler.
+- Gespeicherten Fortschritt während Verbindungsprüfung und bei nicht verfügbarem
+  Mount beibehalten. Keine irreführende Restzeit während der Integritätsprüfung.
+- Letzten Fehler nach Fortsetzen weiterhin anzeigen; bis zu 20 Fehler mit Zeit
+  im Auftragsjournal und nach Erfolg in der Historie erhalten.
+- Angefangene einzelne Dateien auf rclone-Mounts ohne Append-Unterstützung müssen
+  gegebenenfalls neu geschrieben werden; fertige Dateien bleiben unangetastet.
+
 ## 0.3.19 – 12. Oktober 2026
 
 - Ausführliches deutsches HTML-Anwenderhandbuch mit 18 Kapiteln und 18 Screenshots,

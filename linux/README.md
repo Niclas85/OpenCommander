@@ -3,7 +3,7 @@
 Native Qt-Desktop-Version nach dem Vorbild der Mac-Catalyst-App. Keine Browser-
 oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 
-Aktueller Stand: **0.3.19**. Die Änderungen und der geprüfte Umfang stehen im
+Aktueller Stand: **0.3.20**. Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
 
 **[Ausführliches HTML-Anwenderhandbuch öffnen](docs/handbuch/index.html)** —
@@ -606,3 +606,14 @@ rclone-Profil geändert werden, nach Abschluss laufender Übertragungen.
 Der Ordnerbaum ist standardmäßig breiter, lange Namen können horizontal
 gescrollt werden. Die eingestellte Breite wird je Bereich gespeichert. Beim
 Drag-and-drop zeigt eine Karte am Mauszeiger Dateiname, Anzahl und Modus.
+
+### Fortsetzen nach einem Fehler (0.3.20)
+
+Der gespeicherte Byte-/Dateistand bleibt sichtbar. Zuerst werden noch fehlende
+Daten kopiert, danach fertige Teilbäume vor Veröffentlichung vollständig geprüft.
+Die Prüfung hat einen eigenen Zähler und schreibt fertige Dateien nicht erneut.
+Auf langsamen Cloud-Speichern kann diese Inhaltsprüfung weiterhin dauern. Nur
+eine angefangene einzelne Datei muss auf rclone ohne Append gegebenenfalls neu
+geschrieben werden. Der letzte Fehler bleibt nach Fortsetzen sichtbar und wird
+nach Abschluss in der Historie erhalten. Laufende ältere Sitzungen übernehmen
+diese Änderung erst nach gespeichertem Pausieren, Schließen und Neustart.

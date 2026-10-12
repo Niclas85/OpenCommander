@@ -2221,3 +2221,44 @@ def test_place_drag_release_never_activates_shortcut(window, app, monkeypatch):
     assert not captured['mime'].hasUrls()
     assert not window.place_drag_active
     app.processEvents()
+
+
+def test_resume_card_keeps_progress_during_preflight_and_retains_error(window, app, monkeypatch):
+    import threading
+    job = window.engine.transfers.create([window.panes[0].directory / 'Grüße.txt'],
+                                        window.panes[1].directory, 'keep')
+    job.update(status='blocked', error='Test: provider unavailable',
+               progress=dict(phase='copying', name='Grüße.txt', bytes_done=1024,
+                             bytes_total=2048, files_done=1, files_total=2))
+    window.engine.transfers.save(job)
+    card = window.transfers.add(job)
+    entered, release = threading.Event(), threading.Event()
+    def preflight(identifier, engine):
+        entered.set()
+        assert release.wait(10)
+        engine.transfers.delete(identifier)
+        return {}
+    monkeypatch.setattr(window, 'run_copy_job', preflight)
+    window.change_language('de')
+    try:
+        card.resume.click()
+        wait(app, entered.is_set)
+        window.transfers.render()
+        assert card.progress.value() == 50
+        assert 'Gespeicherten Stand prüfen' in card.details.text()
+        assert 'Letzter Fehler vor Fortsetzung: Test: provider unavailable' in card.details.text()
+        assert '0.0 B/s' in card.details.text() or '0 B/s' in card.details.text()
+        card.pending_metrics[0] = dict(card.metrics, resume_files_total=1,
+            resume_files_checked=0, resume_bytes_total=1024, resume_bytes_checked=512)
+        window.transfers.render()
+        assert 'Geprüft: 0 / 1 gespeicherte Dateien' in card.details.text()
+    finally:
+        release.set()
+        wait(app, lambda: not window.busy)
+
+
+def test_history_keeps_previous_transfer_failure_after_success():
+    from opencommander.history_ui import describe
+    operation = dict(records=[], transfer_errors=[dict(time=123, message='Test: offline')])
+    assert 'Früherer Übertragungsfehler: Test: offline' in describe(operation)
+    assert 'Earlier transfer error: Test: offline' in describe(operation, False)

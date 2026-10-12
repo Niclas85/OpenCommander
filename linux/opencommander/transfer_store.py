@@ -82,6 +82,20 @@ class TransferStore:
                              (identifier, root, relative)).fetchone()
             return json.loads(row[0]) if row else None
 
+    def completed_totals(self, identifier):
+        """Count durable checkpoints locally, without touching mounted files."""
+        import stat
+        totals = {}
+        with self.lock, self.connection() as db:
+            for root, raw in db.execute('SELECT root, data FROM files WHERE job=?', (identifier,)):
+                data = json.loads(raw)
+                mode, size, _ = data['source']
+                if data.get('complete') and not stat.S_ISDIR(mode):
+                    count = totals.setdefault(root, [0, 0])
+                    count[0] += size if stat.S_ISREG(mode) else 0
+                    count[1] += 1
+        return totals
+
     def delete(self, identifier):
         with self.lock, self.connection() as db:
             db.execute('DELETE FROM files WHERE job=?', (identifier,))

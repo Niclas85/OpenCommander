@@ -168,6 +168,8 @@ class TransferCard(QFrame):
             self.progress.setRange(0, 0 if phase == 'planning' and self.state == 'running' else 100)
             self.progress.setValue(percent)
             phases = {'planning': ('Dateien und Größe ermitteln', 'Counting files and size'),
+                      'resuming': ('Gespeicherten Stand prüfen · kein erneutes Kopieren', 'Checking saved progress · not copying again'),
+                      'checking_partial': ('Angefangene Datei prüfen', 'Checking partial file'),
                       'verifying': ('Prüfen und abschließen', 'Verifying and finalizing'),
                       'uploading': ('Schreiben abschließen / Upload', 'Finishing writes / upload'),
                       'cleanup': ('Quelle bereinigen', 'Cleaning up source')}
@@ -175,17 +177,25 @@ class TransferCard(QFrame):
             if minimized:
                 self.title.setText(f'{kind} · {name} · {state} · {percent}% · {human_size(count)} / {human_size(total)}')
             rate = max(0, count - value.get('bytes_resumed', 0)) / max(time.monotonic() - self.started, .001) if self.started else getattr(self, 'last_rate', 0) if self.state == 'complete' else 0
-            remaining = max(0, total-count) / rate if rate and total > count and self.state == 'running' else None
+            remaining = max(0, total-count) / rate if rate and total > count and self.state == 'running' and phase == 'copying' else None
             clock = lambda seconds: human_duration(seconds, language)
             eta = f' · {"Rest ca." if de else "Remaining ~"} {clock(remaining)}' if remaining is not None else ''
             details = (f'{label} · {percent}% · {human_size(count)} / {human_size(total)} · '
                        f'{value["files_done"]} / {value["files_total"]} {"Dateien" if de else "files"} · '
                        f'{"Zeit" if de else "Time"} {clock(elapsed)} · {human_size(rate)}/s{eta}\n{value["name"]}')
+            if phase == 'resuming' and value.get('resume_files_total'):
+                details += (f'\n{"Geprüft" if de else "Checked"}: '
+                            f'{value.get("resume_files_checked", 0)} / {value["resume_files_total"]} '
+                            f'{"gespeicherte Dateien" if de else "saved files"} · '
+                            f'{human_size(value.get("resume_bytes_checked", 0))} / '
+                            f'{human_size(value.get("resume_bytes_total", 0))}')
         else:
             self.progress.setRange(0, 0 if self.state == 'running' else 100)
             self.progress.setValue(0)
         if self.error:
             details += '\n' + self.error
+        elif self.job.get('last_error'):
+            details += '\n' + ('Letzter Fehler vor Fortsetzung: ' if de else 'Last error before resume: ') + self.job['last_error']
         self.details.setText(details)
         self.title.setToolTip(self.route.text() + '\n' + details)
         self.progress.setToolTip(details)
@@ -270,6 +280,9 @@ class TransferOverview(QWidget):
         if not job or identifier in self.active:
             return
         card = self.add(job)
+        card.job = job
+        if job.get('error'):
+            card.job['last_error'] = job['error']
         card.after = after
         card.state, card.error = 'queued', ''
         if identifier not in {row[2] for row in self.window.operation_queue}:
@@ -334,7 +347,10 @@ class TransferOverview(QWidget):
         card.state = 'cancelling' if discard else 'running'
         card.started = time.monotonic()
         card.previous_elapsed = card.job.get('elapsed', 0)
-        card.metrics = None
+        # Keep saved progress while mount checks or worker startup are pending.
+        if card.metrics:
+            card.metrics = dict(card.metrics, bytes_resumed=card.metrics['bytes_done'],
+                                phase=card.metrics['phase'] if discard else 'resuming')
         identifier = card.job['id']
         self.active[identifier] = card
         w.status.setText(w.tr_key('working'))

@@ -30,6 +30,8 @@ def describe(operation, german=True):
         lines.append('')
     if operation.get('error'):
         lines.append(('Fehler: ' if german else 'Error: ') + operation['error'])
+    for failure in operation.get('transfer_errors', []):
+        lines.append(('Früherer Übertragungsfehler: ' if german else 'Earlier transfer error: ') + failure['message'])
     for warning in operation.get('warnings', []):
         lines.append(('Hinweis: ' if german else 'Note: ') + warning)
     return '\n'.join(lines).strip()

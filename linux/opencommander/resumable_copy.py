@@ -30,7 +30,7 @@ def open_regular(path, flags):
     return fd
 
 
-def digest_file(engine, path):
+def digest_file(engine, path, resuming=False):
     digest = hashlib.sha256()
     with os.fdopen(open_regular(path, os.O_RDONLY), 'rb') as stream:
         while True:
@@ -39,6 +39,9 @@ def digest_file(engine, path):
             if not block:
                 return digest.hexdigest()
             digest.update(block)
+            if resuming:
+                engine.transfer_metrics['resume_bytes_checked'] += len(block)
+                engine.report_transfer('resuming', path.name)
 
 
 def copy_file(engine, source, target):
@@ -46,10 +49,17 @@ def copy_file(engine, source, target):
     job, index, origin = engine.resuming_copy
     relative = source.relative_to(origin).as_posix()
     saved = store.file(job['id'], index, relative)
+    credited = bool(saved and saved.get('complete'))
     engine.check_cancel()
+    deferred = getattr(engine, 'deferred_copy_checks', None)
+    if credited and deferred is not None:
+        # Resume unfinished work first. Completed subtrees stay read-only and
+        # are fully verified below before anything is published or removed.
+        deferred.append((source, target))
+        return
+    engine.report_transfer('resuming' if credited else 'copying', source.name)
     info = source.lstat()
     current = signature(info)
-    engine.report_transfer('copying', source.name)
     if saved and saved['source'] != current:
         raise SafetyError(f'Quelle seit Pause geändert / Source changed since pause: {source}')
     if not saved:
@@ -83,10 +93,8 @@ def copy_file(engine, source, target):
         engine.copy_metadata(source, target)
     elif stat.S_ISREG(info.st_mode):
         if saved['complete']:
-            if target.lstat().st_size != info.st_size or digest_file(engine, target) != saved['digest']:
+            if target.lstat().st_size != info.st_size or digest_file(engine, target, resuming=True) != saved['digest']:
                 raise SafetyError(f'Zwischenstand geändert / Partial copy changed: {target}')
-            engine.bytes_done += info.st_size
-            engine.transfer_metrics['bytes_resumed'] += info.st_size
         else:
             digest = hashlib.sha256()
             offset = 0
@@ -102,7 +110,7 @@ def copy_file(engine, source, target):
                                 raise SafetyError(f'Unvollständige Datei stimmt nicht überein / Partial data mismatch: {target}')
                             digest.update(block)
                             offset += len(block)
-                            engine.report_transfer('verifying', source.name)
+                            engine.report_transfer('checking_partial', source.name)
                     # A legacy or interrupted checkpoint can contain a full file.
                     # Its prefix was compared to the source; do not open it for
                     # writing, since cloud mounts may upload on writable close.
@@ -146,8 +154,11 @@ def copy_file(engine, source, target):
     saved['complete'] = True
     store.checkpoint(job['id'], index, relative, saved)
     if not stat.S_ISDIR(info.st_mode):
-        engine.transfer_metrics['files_done'] += 1
-        engine.report_transfer('copying', source.name)
+        if credited:
+            engine.transfer_metrics['resume_files_checked'] += 1
+        else:
+            engine.transfer_metrics['files_done'] += 1
+        engine.report_transfer('resuming' if credited else 'copying', source.name)
 
 
 def write_rest(engine, inp, fd, source, target, digest):
@@ -340,16 +351,33 @@ def transfer(engine, identifier):
         engine.transfer_metrics = dict(phase='copying', name='', bytes_done=0,
             bytes_resumed=0,
             bytes_total=sum(root['size'] for root in job['roots']),
-            files_total=sum(root['files'] for root in job['roots']), files_done=0)
+            files_total=sum(root['files'] for root in job['roots']), files_done=0,
+            resume_files_total=0, resume_files_checked=0,
+            resume_bytes_total=0, resume_bytes_checked=0)
+        completed = store.completed_totals(identifier)
+        credited_roots = set()
+        for index, root in enumerate(job['roots']):
+            if root['status'] in ('done', 'renamed', 'cleanup'):
+                size, files = root['size'], root['files']
+                credited_roots.add(index)
+            elif root['status'] in ('copying', 'published'):
+                size, files = completed.get(index, (0, 0))
+                engine.transfer_metrics['resume_files_total'] += files
+                engine.transfer_metrics['resume_bytes_total'] += size
+            else:
+                size = files = 0
+            engine.bytes_done += size
+            engine.transfer_metrics['files_done'] += files
+        engine.transfer_metrics['bytes_resumed'] = engine.bytes_done
+        if job.get('error'):
+            job['last_error'] = job['error']
+        engine.report_transfer('resuming' if engine.transfer_metrics['resume_files_total'] else 'copying')
         job.update(status='running', error=None)
         store.save(job)
         for index, root in enumerate(job['roots']):
             engine.check_cancel()
             source = Path(root['source'])
             if root['status'] == 'done':
-                engine.bytes_done += root['size']
-                engine.transfer_metrics['bytes_resumed'] += root['size']
-                engine.transfer_metrics['files_done'] += root['files']
                 continue
             if root['status'] in ('publishing', 'renaming', 'source-moving'):
                 raise SafetyError(f'Unterbrochene Veröffentlichung prüfen / Inspect interrupted publication: {root["target"]}\n{root["staging"]}')
@@ -390,9 +418,16 @@ def transfer(engine, identifier):
                 raise SafetyError('Invalid copy destination')
             if root['status'] == 'copying':
                 engine.resuming_copy = (job, index, source)
+                engine.deferred_copy_checks = []
                 try:
                     engine.copy_file(source, stage / 'payload')
+                    pending_checks = engine.deferred_copy_checks
+                    engine.deferred_copy_checks = None
+                    for saved_source, saved_target in pending_checks:
+                        engine.check_cancel()
+                        engine.copy_file(saved_source, saved_target)
                 finally:
+                    engine.deferred_copy_checks = None
                     engine.resuming_copy = None
                 engine.check_cancel()
                 root['status'] = 'publishing'
@@ -408,9 +443,9 @@ def transfer(engine, identifier):
                 finally:
                     engine.resuming_copy = None
             elif root['status'] in ('renamed', 'cleanup'):
-                engine.bytes_done += root['size']
-                engine.transfer_metrics['bytes_resumed'] += root['size']
-                engine.transfer_metrics['files_done'] += root['files']
+                if index not in credited_roots:
+                    engine.bytes_done += root['size']
+                    engine.transfer_metrics['files_done'] += root['files']
             engine.check_cancel()
             engine.report_transfer('verifying', source.name)
             if not any(record['destination'] == str(target) for record in operation['records']):
@@ -433,16 +468,22 @@ def transfer(engine, identifier):
         raise
     except Exception as error:
         job.update(status='blocked', error=str(error))
+        job['last_error'] = str(error)
+        job['errors'] = (job.get('errors', []) + [dict(time=time.time(), message=str(error))])[-20:]
         store.save(job)
         raise
     finally:
         engine.resuming_copy = None
         if job['status'] in ('paused', 'blocked'):
-            job['progress'] = dict(engine.transfer_metrics) if engine.transfer_metrics else None
+            if engine.transfer_metrics is not None:
+                job['progress'] = dict(engine.transfer_metrics)
             job['elapsed'] = job.get('elapsed', 0) + time.monotonic() - started
             store.save(job)
         engine.transfer_metrics = None
         if operation is not None:
+            if job.get('errors'):
+                with engine.history_lock:
+                    operation['transfer_errors'] = list(job['errors'])
             engine.finish(operation)
             if job['status'] == 'paused' and operation in engine.history:
                 with engine.history_lock:

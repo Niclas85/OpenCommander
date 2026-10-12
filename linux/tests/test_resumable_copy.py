@@ -506,3 +506,129 @@ def test_rclone_resume_restarts_only_verified_partial_file(fixture, monkeypatch)
     assert (target / 'folder' / 'a.txt').read_bytes() == b'complete'
     assert (target / 'folder' / 'b.bin').read_bytes() == (folder / 'b.bin').read_bytes()
     assert any('Partial file restarted' in value for value in operation['warnings'])
+
+
+def test_error_resume_preserves_completed_progress_and_never_rewrites_finished_files(fixture, monkeypatch):
+    import errno
+    engine, source, target = fixture
+    folder = source / 'journey'
+    folder.mkdir()
+    (folder / 'a.bin').write_bytes(b'a' * 2 * 1024**2)
+    (folder / 'b.bin').write_bytes(b'b' * 2 * 1024**2)
+    job = engine.transfers.create([folder], target, 'keep')
+    original_open = os.open
+    def fail_second(path, flags, *args, **kwargs):
+        if Path(path).name == 'b.bin' and flags & os.O_WRONLY:
+            raise OSError(errno.EIO, 'simulated provider write failure')
+        return original_open(path, flags, *args, **kwargs)
+    monkeypatch.setattr(os, 'open', fail_second)
+    with pytest.raises(OSError, match='simulated provider'):
+        run(engine, job)
+    saved = engine.transfers.get(job['id'])
+    assert saved['status'] == 'blocked'
+    assert 'simulated provider' in saved['last_error']
+    assert saved['progress']['bytes_done'] == 2 * 1024**2
+    writes = []
+    events = []
+    from opencommander import resumable_copy
+    original_digest = resumable_copy.digest_file
+    def digest(*args, **kwargs):
+        events.append(('verify', Path(args[1]).name))
+        return original_digest(*args, **kwargs)
+    monkeypatch.setattr(resumable_copy, 'digest_file', digest)
+    def observe(path, flags, *args, **kwargs):
+        if flags & os.O_WRONLY:
+            writes.append(Path(path).name)
+            events.append(('write', Path(path).name))
+        return original_open(path, flags, *args, **kwargs)
+    monkeypatch.setattr(os, 'open', observe)
+    resumed = FileEngine(engine.state_dir)
+    metrics = []
+    resumed.metrics_report = metrics.append
+    operation = run(resumed, saved)
+    assert 'a.bin' not in writes and writes.count('b.bin') == 1
+    assert events.index(('write', 'b.bin')) < events.index(('verify', 'a.bin'))
+    assert metrics[0]['bytes_done'] == 2 * 1024**2
+    assert metrics[0]['files_done'] == 1
+    assert metrics[0]['bytes_resumed'] == 2 * 1024**2
+    checking = [m for m in metrics if m['phase'] == 'resuming']
+    assert any(m['resume_bytes_checked'] == 1024**2 for m in checking)
+    assert any(m['resume_files_checked'] == 1 for m in checking)
+    assert all(m['bytes_done'] >= 2 * 1024**2 for m in metrics)
+    assert metrics[-1]['bytes_done'] == metrics[-1]['bytes_total'] == 4 * 1024**2
+    assert metrics[-1]['files_done'] == metrics[-1]['files_total'] == 2
+    assert len(operation['transfer_errors']) == 1
+    assert 'simulated provider' in operation['transfer_errors'][0]['message']
+    assert all((target / 'journey' / p.name).read_bytes() == p.read_bytes() for p in folder.iterdir())
+
+
+def test_pause_during_resume_verification_keeps_saved_baseline(fixture):
+    engine, source, target = fixture
+    folder = source / 'journey'
+    folder.mkdir()
+    (folder / 'a.bin').write_bytes(b'a' * 3 * 1024**2)
+    (folder / 'b.bin').write_bytes(b'b' * 2 * 1024**2)
+    job = engine.transfers.create([folder], target, 'keep')
+    pause_after_block(engine, 'b.bin')
+    with pytest.raises(Cancelled):
+        run(engine, job)
+    resumed = FileEngine(engine.state_dir)
+    def pause_check(value):
+        if value.get('resume_bytes_checked', 0) >= 1024**2:
+            resumed.pause.set()
+            resumed.cancel.set()
+    resumed.metrics_report = pause_check
+    with pytest.raises(Cancelled):
+        run(resumed, resumed.transfers.get(job['id']))
+    saved = resumed.transfers.get(job['id'])
+    assert saved['status'] == 'paused'
+    assert saved['progress']['bytes_done'] == 5 * 1024**2
+    assert saved['progress']['files_done'] == 2
+    assert saved['progress']['resume_bytes_checked'] == 1024**2
+    final = FileEngine(engine.state_dir)
+    values = []
+    final.metrics_report = values.append
+    run(final, saved)
+    assert values[0]['bytes_done'] == 5 * 1024**2
+    assert values[-1]['bytes_done'] == 5 * 1024**2
+
+
+def test_completed_checkpoint_tampering_is_still_detected(fixture):
+    engine, source, target = fixture
+    folder = source / 'journey'
+    folder.mkdir()
+    (folder / 'a.bin').write_bytes(b'a' * 1024)
+    (folder / 'b.bin').write_bytes(b'b' * 2 * 1024**2)
+    job = engine.transfers.create([folder], target, 'keep')
+    pause_after_block(engine, 'b.bin')
+    with pytest.raises(Cancelled):
+        run(engine, job)
+    saved = engine.transfers.get(job['id'])
+    finished = Path(saved['roots'][0]['staging']) / 'payload/a.bin'
+    before = finished.stat()
+    finished.write_bytes(b'x' * before.st_size)
+    os.utime(finished, ns=(before.st_atime_ns, before.st_mtime_ns))
+    with pytest.raises(SafetyError, match='Partial copy changed'):
+        run(FileEngine(engine.state_dir), saved)
+    assert not (target / 'journey').exists()
+
+
+def test_unavailable_mount_does_not_erase_saved_progress(fixture, monkeypatch):
+    import opencommander.resumable_copy as copies
+    engine, source, target = fixture
+    file = source / 'a.bin'
+    file.write_bytes(b'a' * 2 * 1024**2)
+    job = engine.transfers.create([file], target, 'keep', guards_for([file, target]))
+    pause_after_block(engine)
+    with pytest.raises(Cancelled):
+        run(engine, job)
+    saved = engine.transfers.get(job['id'])
+    before = saved['progress'].copy()
+    monkeypatch.setattr(copies, 'mount_identity', lambda _: None)
+    resumed = FileEngine(engine.state_dir)
+    with pytest.raises(SafetyError, match='Drive missing'):
+        run(resumed, saved)
+    failed = resumed.transfers.get(job['id'])
+    assert failed['progress'] == before
+    assert failed['status'] == 'blocked'
+    assert 'Drive missing' in failed['last_error']

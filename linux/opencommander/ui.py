@@ -1022,6 +1022,8 @@ class MainWindow(QMainWindow):
                       'copying': ('Kopieren', 'Copying'), 'moving': ('Verschieben', 'Moving'),
                       'uploading': ('Schreiben abschließen / Upload', 'Finishing writes / upload'),
                       'verifying': ('Prüfen und abschließen', 'Verifying and finalizing'),
+                      'resuming': ('Gespeicherten Stand prüfen · kein erneutes Kopieren', 'Checking saved progress · not copying again'),
+                      'checking_partial': ('Angefangene Datei prüfen', 'Checking partial file'),
                       'cleanup': ('Quelle bereinigen', 'Cleaning up source'),
                       'paused': ('Pausiert – gespeichert', 'Paused – saved'),
                       'cancelled': ('Abgebrochen', 'Cancelled'), 'complete': ('Abgeschlossen', 'Completed')}
