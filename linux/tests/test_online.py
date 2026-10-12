@@ -414,3 +414,25 @@ def test_rclone_cache_off_partial_resume(tmp_path):
         if mount is not None:
             result = subprocess.run(['fusermount3', '-u', str(mount)], capture_output=True, timeout=10)
             assert result.returncode == 0
+
+
+def test_new_mount_limits_retry_wait_without_writeback(tmp_path, monkeypatch):
+    main = SimpleNamespace(state_dir=tmp_path / 'state')
+    config = online_ui.private_config(main.state_dir)
+    config.write_text('[oc_fixture]\ntype = alias\nremote = /tmp\n')
+    calls = []
+    def launch(command, **kwargs):
+        calls.append(command)
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(online_ui.subprocess, 'run', launch)
+    monkeypatch.setattr(online_ui.rclone_runtime, 'binary', lambda: '/usr/bin/rclone')
+    monkeypatch.setattr(online_ui.shutil, 'which', lambda name: '/usr/bin/' + name)
+    monkeypatch.setattr(online_ui.server, 'credential_environment', lambda *args: {})
+    monkeypatch.setattr(online_ui, 'remote_location', lambda path: bool(calls))
+    from opencommander import provider_mounts
+    monkeypatch.setattr(provider_mounts, 'register', lambda path: None)
+    online_ui.mount_profile(main, dict(id='oc_fixture', kind='alias'), threading.Event())
+    command = calls[0]
+    assert command[command.index('--low-level-retries') + 1] == '2'
+    assert command[command.index('--timeout') + 1] == '20s'
+    assert command[command.index('--vfs-cache-mode') + 1] == 'off'

@@ -2351,3 +2351,29 @@ def test_location_settings_removal_guidance_and_theme_sync(window):
     assert len(dialog.rows) == 1 and not dialog.rows[0]['custom']
     assert window.state_dir.exists()
     dialog.close()
+
+
+def test_pause_request_is_immediate_and_explains_unsaved_wait(window):
+    import threading
+    from types import SimpleNamespace
+    job = window.engine.transfers.create([window.panes[0].directory / 'Grüße.txt'],
+                                        window.panes[1].directory, 'keep')
+    card = window.transfers.add(job)
+    card.engine = SimpleNamespace(pause=threading.Event(), cancel=threading.Event())
+    card.state = 'running'
+    card.started = time.monotonic()
+    window.transfers.active[job['id']] = card
+    try:
+        window.transfers.pause_one(job['id'])
+        assert card.engine.pause.is_set() and card.engine.cancel.is_set()
+        assert card.state == 'pausing' and not card.pause.isEnabled()
+        card.pause_requested_at -= 65
+        card._render_key = None
+        assert 'Wartezeit' in card.render() and 'gesicherten Stand' in card.details.text()
+        assert '1 min' in card.details.text()
+        assert window.engine.transfers.get(job['id'])['status'] != 'paused'
+    finally:
+        window.transfers.active.pop(job['id'])
+        window.engine.transfers.delete(job['id'])
+        card.state = 'cancelled'
+        window.transfers.clear_completed()

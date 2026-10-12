@@ -55,6 +55,7 @@ class TransferCard(QFrame):
         self.state = job['status'] if job['status'] != 'running' else 'paused'
         self.metrics = job.get('progress')
         self.started = None
+        self.pause_requested_at = None
         self.previous_elapsed = job.get('elapsed', 0)
         self.error = job.get('error') or ''
         self.reserved = resources(job)
@@ -157,6 +158,8 @@ class TransferCard(QFrame):
                                 ('Show details' if minimized else 'Show compact view – transfer keeps running'))
         self.minimize.setAccessibleName(self.minimize.toolTip())
         self.pause.setText('Pause')
+        self.pause.setToolTip('Stoppt vor dem nächsten Datenblock. Laufender Netzwerkzugriff und Upload-Abschluss müssen noch enden.' if de else
+                              'Stops before the next data block. Pending network access and upload finalization must finish first.')
         self.resume.setText('Fortsetzen' if de else 'Resume')
         self.cancel.setText('Abbrechen' if de else 'Cancel')
         self.pause.setVisible(self.state in ('running', 'pausing'))
@@ -199,6 +202,14 @@ class TransferCard(QFrame):
         else:
             self.progress.setRange(0, 0 if self.state == 'running' else 100)
             self.progress.setValue(0)
+        if self.state == 'pausing' and self.pause_requested_at is not None:
+            waiting = human_duration(time.monotonic() - self.pause_requested_at, language)
+            details += (f'\nPause wird vorbereitet · Wartezeit {waiting}\n'
+                        'Es werden keine weiteren Datenblöcke gestartet. Der laufende Dateizugriff bzw. Upload-Abschluss muss enden. '
+                        'Erst „Pausiert – gespeichert“ bestätigt den gesicherten Stand. Andere Bereiche bleiben bedienbar.' if de else
+                        f'\nPreparing pause · Waiting {waiting}\n'
+                        'No further data blocks will start. Pending file access or upload finalization must finish. '
+                        'Only “Paused – saved” confirms the saved state. Other areas remain available.')
         if self.error:
             details += '\n' + self.error
         elif self.job.get('last_error'):
@@ -361,6 +372,7 @@ class TransferOverview(QWidget):
         card.engine = engine
         card.state = 'cancelling' if discard else 'running'
         card.started = time.monotonic()
+        card.pause_requested_at = None
         card.previous_elapsed = card.job.get('elapsed', 0)
         # Keep saved progress while mount checks or worker startup are pending.
         if card.metrics:
@@ -434,6 +446,7 @@ class TransferOverview(QWidget):
         card = self.cards[identifier]
         if identifier in self.active and card.state == 'running':
             card.state = 'pausing'
+            card.pause_requested_at = time.monotonic()
             card.engine.pause.set()
             card.engine.cancel.set()
         elif identifier not in self.active and card.state in ('queued', 'waiting'):

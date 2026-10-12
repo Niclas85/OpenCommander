@@ -255,6 +255,9 @@ def _mount_profile(main, profile, cancel):
     result = subprocess.run([rclone_runtime.binary(), '--config', str(config), 'mount', profile['id'] + ':' + profile.get('remote_directory', ''), str(mount),
                              '--daemon', '--daemon-wait', '15s', '--vfs-cache-mode', 'off',
                              '--dir-cache-time', '5s', '--contimeout', '10s', '--timeout', '20s',
+                             # Avoid ten internal attempts keeping a FUSE read blocked
+                             # for minutes after Pause. Recovery remains checkpointed.
+                             '--low-level-retries', '2', '--retries', '1',
                              '--umask', '077'], capture_output=True, timeout=25, env=env)
     if result.returncode or not remote_location(mount):
         raise RuntimeError('Online-Ort nicht eingebunden. Anmeldung, FUSE oder SSH-Hostschlüssel prüfen. / Mount failed.')

@@ -1,5 +1,14 @@
 # Linux-Änderungsprotokoll
 
+## Noch nicht veröffentlicht
+
+- Neue verwaltete rclone-Einbindungen begrenzen interne Wiederholungen auf zwei
+  statt standardmäßig zehn; Verbindungs-/Inaktivitätslimits bleiben 10/20 Sekunden.
+  Dies verkürzt insbesondere Fehlerwartezeiten, garantiert aber keine maximale
+  Pausendauer. Bestehende Mounts ändern sich erst bei sicherer neuer Einbindung.
+- Pause zeigt ihre eigene Wartezeit und erklärt ausstehende Dateizugriffe bzw.
+  Upload-Abschlüsse sowie den Unterschied zu „Pausiert – gespeichert“.
+
 ## 0.3.21 – 12. Oktober 2026
 
 - F1 öffnet eine nicht blockierende, wiederverwendete Hilfe mit Tastenkürzeln und
