@@ -2262,3 +2262,92 @@ def test_history_keeps_previous_transfer_failure_after_success():
     operation = dict(records=[], transfer_errors=[dict(time=123, message='Test: offline')])
     assert 'Früherer Übertragungsfehler: Test: offline' in describe(operation)
     assert 'Earlier transfer error: Test: offline' in describe(operation, False)
+
+
+def test_help_is_nonmodal_reused_and_links_to_offline_chapter(window, app, monkeypatch):
+    from opencommander import help_ui
+    opened = []
+    monkeypatch.setattr(help_ui.QDesktopServices, 'openUrl', lambda url: opened.append(url) or True)
+    window.help()
+    dialog = window.help_dialog
+    assert dialog.isVisible() and not dialog.isModal()
+    window.help()
+    assert window.help_dialog is dialog
+    dialog.buttons['uebertragungen'].click()
+    assert opened[-1].isLocalFile()
+    assert opened[-1].fragment() == 'uebertragungen'
+    assert Path(opened[-1].toLocalFile()).is_file()
+    monkeypatch.setattr(help_ui, 'handbook_path', lambda: window.state_dir / 'missing.html')
+    dialog.retranslate()
+    assert not dialog.buttons['anfang'].isEnabled()
+    assert 'fehlt' in dialog.notice.text() if window.language == 'de' else 'missing' in dialog.notice.text()
+    assert 'F5 / F6' in dialog.shortcuts.toPlainText()
+    dialog.close()
+
+
+def test_handbook_path_in_portable_installation(tmp_path, monkeypatch):
+    from opencommander import help_ui
+    monkeypatch.setattr(help_ui.sys, 'frozen', True, raising=False)
+    monkeypatch.setattr(help_ui.sys, 'executable', str(tmp_path / 'opencommander'))
+    assert help_ui.handbook_path() == tmp_path / 'docs/handbuch/index.html'
+
+
+def test_filter_has_clear_empty_state_and_escape_does_not_remove_files(window, app):
+    pane = window.panes[0]
+    window.change_language('de')
+    pane.filter.setText('no-such-file')
+    assert pane.proxy.rowCount() == 0
+    assert pane.filter_hint.isVisible() and pane.clear_filter.isVisible()
+    assert 'Keine Treffer' in pane.filter_hint.text()
+    pane.filter.setFocus()
+    QTest.keyClick(pane.filter, Qt.Key_Escape)
+    assert pane.filter.text() == ''
+    assert not pane.filter_hint.isVisible()
+    assert pane.proxy.rowCount() == 1
+    assert (pane.directory / 'Grüße.txt').exists()
+    pane.filter.setText('Grüße')
+    assert '1 von 1' in pane.filter_hint.text()
+    pane.clear_filter.click()
+    assert not pane.filter.text()
+    assert 'Strg+F' in pane.filter.toolTip()
+
+
+def test_transfer_details_copy_includes_saved_error_and_route(window):
+    job = window.engine.transfers.create([window.panes[0].directory / 'Grüße.txt'],
+                                        window.panes[1].directory, 'keep')
+    job.update(status='paused', last_error='Test: Verbindung unterbrochen')
+    window.engine.transfers.save(job)
+    card = window.transfers.add(job)
+    card.copy_details.click()
+    text = QApplication.clipboard().text()
+    assert job['id'] in text and job['sources'][0] in text
+    assert job['directory'] in text and job['last_error'] in text
+    assert 'OpenCommander Linux' in text
+    card.minimize.click()
+    assert card.copy_details.isHidden()
+    window.engine.transfers.delete(job['id'])
+    card.state = 'cancelled'
+    window.transfers.clear_completed()
+
+
+def test_location_settings_removal_guidance_and_theme_sync(window):
+    from opencommander.location_settings import LocationSettingsDialog
+    window.change_language('de')
+    window.location_preferences = [dict(name='Custom', path=str(window.state_dir), enabled=True, custom=True)]
+    dialog = LocationSettingsDialog(window, [('Builtin', window.panes[0].directory)])
+    window.location_settings_dialog = dialog
+    dialog.show()
+    dialog.table.selectRow(1)
+    assert not dialog.buttons[1].isEnabled()
+    assert 'ausblenden' in dialog.buttons[1].toolTip()
+    dialog.table.selectRow(0)
+    assert dialog.buttons[1].isEnabled()
+    before = window.dark
+    window.toggle_theme()
+    assert dialog.theme_checkbox.isChecked() == window.dark != before
+    dialog.theme_checkbox.click()
+    assert dialog.theme_checkbox.isChecked() == window.dark == before
+    dialog.buttons[1].click()
+    assert len(dialog.rows) == 1 and not dialog.rows[0]['custom']
+    assert window.state_dir.exists()
+    dialog.close()

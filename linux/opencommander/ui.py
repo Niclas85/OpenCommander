@@ -371,6 +371,21 @@ class Pane(QFrame):
         self.filter = QLineEdit()
         self.filter.setClearButtonEnabled(True)
         right_layout.addWidget(self.filter)
+        filter_row = QHBoxLayout()
+        self.filter_hint = QLabel()
+        self.filter_hint.setTextFormat(Qt.PlainText)
+        self.filter_hint.setWordWrap(True)
+        self.filter_hint.setObjectName('muted')
+        self.clear_filter = QPushButton()
+        self.clear_filter.clicked.connect(self.filter.clear)
+        filter_row.addWidget(self.filter_hint, 1)
+        filter_row.addWidget(self.clear_filter)
+        right_layout.addLayout(filter_row)
+        clear_action = QAction(self.filter)
+        clear_action.setShortcut(QKeySequence('Esc'))
+        clear_action.setShortcutContext(Qt.WidgetShortcut)
+        clear_action.triggered.connect(self.filter.clear)
+        self.filter.addAction(clear_action)
         self.model = EntryModel(self)
         self.proxy = EntryProxy(self)
         self.proxy.setSourceModel(self.model)
@@ -632,6 +647,14 @@ class Pane(QFrame):
 
     def selection_changed(self, *args):
         selected = self.selected()
+        filtered = bool(self.filter.text())
+        de = self.main.language == 'de'
+        total, shown = self.model.rowCount(), self.proxy.rowCount()
+        self.filter_hint.setVisible(filtered)
+        self.clear_filter.setVisible(filtered)
+        self.filter_hint.setText((f'{shown} von {total} Einträgen · Filter aktiv' if de else
+                                  f'{shown} of {total} entries · Filter active') if shown else
+                                 ('Keine Treffer für diesen Filter.' if de else 'No matches for this filter.'))
         self.selected_label.setText(f'{len(selected)} {self.main.tr_key("selected")}  ·  '
             f'{self.proxy.rowCount()} {self.main.tr_key("items")}')
         if self.main.active is self:
@@ -658,6 +681,11 @@ class Pane(QFrame):
 
     def retranslate(self):
         self.filter.setPlaceholderText(self.main.tr_key('filter'))
+        de = self.main.language == 'de'
+        self.filter.setAccessibleName('Dateien im aktuellen Ordner filtern' if de else 'Filter files in this folder')
+        self.filter.setToolTip('Filtert nur diese Liste. Strg+F sucht auch in Unterordnern. Esc löscht den Filter.' if de else
+                               'Filters this list only. Ctrl+F also searches subfolders. Esc clears the filter.')
+        self.clear_filter.setText('Filter löschen' if de else 'Clear filter')
         self.model.headerDataChanged.emit(Qt.Horizontal, 0, 3)
         self.selection_changed()
 
@@ -1523,7 +1551,14 @@ class MainWindow(QMainWindow):
             self.properties_dialog.show()
 
     def help(self):
-        QMessageBox.information(self, 'OpenCommander · Linux', self.tr_key('help_text'))
+        from .help_ui import HelpDialog
+        dialog = getattr(self, 'help_dialog', None)
+        if dialog is None or not isValid(dialog):
+            dialog = self.help_dialog = HelpDialog(self)
+        dialog.retranslate()
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
 
     def refresh_all(self):
         for pane in self.panes:
@@ -1554,7 +1589,9 @@ class MainWindow(QMainWindow):
         self.actions['open_with'].setText('Öffnen mit …' if self.language == 'de' else 'Open with …')
         self.mode.set_labels(self.tr_key('copy'), self.tr_key('move'))
         self.hidden_checkbox.setText(self.tr_key('hidden'))
-        self.mode_label.setText('Aktion:' if self.language == 'de' else 'Action:')
+        self.mode_label.setText('Beim Ziehen:' if self.language == 'de' else 'When dragging:')
+        self.mode.setToolTip('Gilt für Drag & Drop. F5 kopiert, F6 verschiebt unabhängig davon.' if self.language == 'de' else
+                             'Used for drag and drop. F5 always copies and F6 always moves.')
         self.theme_button.setText(self.tr_key('dark'))
         self.theme_button.setChecked(self.dark)
         self.cancel_button.setText(self.tr_key('cancel'))
@@ -1879,6 +1916,11 @@ class MainWindow(QMainWindow):
         self.activate(self.active)
         self.theme_button.setText(self.tr_key('dark'))
         self.theme_button.setChecked(self.dark)
+        dialog = getattr(self, 'location_settings_dialog', None)
+        if dialog is not None and isValid(dialog):
+            dialog.theme_checkbox.blockSignals(True)
+            dialog.theme_checkbox.setChecked(self.dark)
+            dialog.theme_checkbox.blockSignals(False)
 
     def apply_theme(self):
         bg, panel, inset, fg, muted, border, selection = (

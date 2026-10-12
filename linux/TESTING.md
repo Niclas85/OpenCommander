@@ -1,3 +1,25 @@
+# Linux 0.3.21 – Bedienbarkeit aus Handbuch und Testplan
+
+Vollständige Suite: **312 Tests erfolgreich (67,23 s)**. Paket-Smoke-Test
+erfolgreich; Hilfe-Modul im Bundle, alle Handbuchkapitel und lokalen Ressourcen
+vorhanden und statisch geprüft.
+Fünf neue gezielte Fälle prüfen:
+
+- F1-Hilfe ist nicht modal, wird wiederverwendet und öffnet das richtige lokale
+  Handbuchkapitel; verständlicher Fallback bei fehlender HTML-Datei.
+- Handbuchpfad im portablen Paket relativ zum tatsächlich gestarteten Programm.
+- Aktiver Filter ohne Treffer, Rücksetzen per Esc/Knopf und unveränderte Dateien.
+- Kopierbarer Auftragsbericht mit Version, Auftrag, Pfaden und gespeichertem Fehler;
+  Knopf in kompakter Ansicht ausgeblendet.
+- Entfernen nur eigener Ortsverknüpfungen, Hinweis auf Ausblenden für eingebaute
+  Orte und konsistente Theme-Checkboxen ohne doppelte Umschaltung.
+
+Alle 20 Handbuchbilder aus temporärem Profil und synthetischen Dateien neu
+aufgenommen; keine echte Kontoanmeldung oder Netzwerkoperation. Neue F1-Hilfe
+(720 × 560) und Filter-Leerzustand (1500 × 960) visuell kontrolliert.
+Handbuchtexte auf 0.3.21 aktualisiert. Der separate Testplan bleibt ausdrücklich
+auf seinen ursprünglichen Stand 0.3.19 bezogen.
+
 # Linux 0.3.20 – Fortschritt beim Fortsetzen
 
 Vollständige Suite: **307 Tests erfolgreich (64,15 s)**. Paket-Smoke-Test

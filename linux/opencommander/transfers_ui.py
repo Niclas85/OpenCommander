@@ -5,7 +5,7 @@ from pathlib import Path
 from collections import Counter
 
 from PySide6.QtCore import Qt, QThreadPool, QTimer
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
                               QToolButton, QScrollArea, QProgressBar, QSpinBox, QFrame, QSizePolicy)
 from .operations import Cancelled
 from .formatting import human_duration
@@ -95,6 +95,9 @@ class TransferCard(QFrame):
         self.details.setWordWrap(True)
         self.details.setTextInteractionFlags(Qt.TextSelectableByMouse)
         layout.addWidget(self.details)
+        self.copy_details = QPushButton()
+        self.copy_details.clicked.connect(self.copy_report)
+        layout.addWidget(self.copy_details, 0, Qt.AlignLeft)
         self.minimize.setChecked(manager.window.settings.value(
             'transfer_minimized/' + job['id'], False, type=bool))
         self.minimize.toggled.connect(self.set_minimized)
@@ -104,6 +107,7 @@ class TransferCard(QFrame):
     def set_minimized(self, minimized, save=True):
         self.route.setVisible(not minimized)
         self.details.setVisible(not minimized)
+        self.copy_details.setVisible(not minimized)
         self.minimize.setArrowType(Qt.DownArrow if minimized else Qt.UpArrow)
         if save:
             self.manager.window.settings.setValue('transfer_minimized/' + self.job['id'], minimized)
@@ -125,6 +129,9 @@ class TransferCard(QFrame):
             return self.details.text()
         self._render_key = render_key
         de = language == 'de'
+        self.copy_details.setText('Details kopieren' if de else 'Copy details')
+        self.copy_details.setToolTip('Status und Fehler in die Zwischenablage kopieren. Enthält Quell- und Zielpfade.' if de else
+                                    'Copy status and error to the clipboard. Includes source and destination paths.')
         states = {
             'queued': ('Wartend', 'Queued'), 'waiting': ('Wartet auf freien Quell-/Zielpfad', 'Waiting for source/destination'),
             'running': ('Läuft', 'Running'), 'pausing': ('Pause angefordert · warte auf Dateizugriff', 'Pause requested · waiting for file access'),
@@ -200,6 +207,14 @@ class TransferCard(QFrame):
         self.title.setToolTip(self.route.text() + '\n' + details)
         self.progress.setToolTip(details)
         return details
+
+    def copy_report(self):
+        from . import __version__
+        details = self.render()
+        QApplication.clipboard().setText(f'OpenCommander Linux {__version__}\n'
+            f'ID: {self.job["id"]}\n{self.title.text()}\n{self.route.text()}\n{details}')
+        self.manager.window.status.setText('Details kopiert (mit Dateipfaden).' if self.manager.window.language == 'de' else
+                                           'Details copied (including file paths).')
 
 
 class TransferOverview(QWidget):

@@ -3,11 +3,11 @@
 Native Qt-Desktop-Version nach dem Vorbild der Mac-Catalyst-App. Keine Browser-
 oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 
-Aktueller Stand: **0.3.20**. Die Änderungen und der geprüfte Umfang stehen im
+Aktueller Stand: **0.3.21**. Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
 
 **[Ausführliches HTML-Anwenderhandbuch öffnen](docs/handbuch/index.html)** —
-18 Kapitel mit 18 Screenshots, lokaler Suche, Bildvergrößerung, Hell-/Dunkelmodus
+18 Kapitel mit 20 Screenshots, lokaler Suche, Bildvergrößerung, Hell-/Dunkelmodus
 und Druckansicht. Offline nutzbar: `docs/handbuch/index.html` im Browser öffnen.
 Im portablen Paket wird das Handbuch unter demselben relativen Pfad mitgeliefert.
 

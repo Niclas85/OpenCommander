@@ -2,7 +2,8 @@ import json
 from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QTableWidget,
-    QTableWidgetItem, QPushButton, QLabel, QFileDialog, QComboBox, QCheckBox)
+    QTableWidgetItem, QPushButton, QLabel, QFileDialog, QComboBox, QCheckBox,
+    QAbstractItemView, QHeaderView)
 
 
 class LocationSettingsDialog(QDialog):
@@ -34,9 +35,14 @@ class LocationSettingsDialog(QDialog):
         layout.addLayout(language_row)
         self.theme_checkbox = QCheckBox()
         self.theme_checkbox.setChecked(main.dark)
-        self.theme_checkbox.toggled.connect(lambda _: main.toggle_theme())
+        self.theme_checkbox.toggled.connect(lambda checked: main.toggle_theme() if checked != main.dark else None)
         layout.addWidget(self.theme_checkbox)
         self.table = QTableWidget(0, 3)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        self.table.setColumnWidth(1, 190)
         self.table.setHorizontalHeaderLabels(['Sichtbar', 'Name', 'Pfad'] if self.de else ['Visible', 'Name', 'Path'])
         layout.addWidget(self.table)
         self.help_label = QLabel()
@@ -60,6 +66,8 @@ class LocationSettingsDialog(QDialog):
         self.retranslate()
         self.refresh()
         self.table.itemChanged.connect(self.save)
+        self.table.itemSelectionChanged.connect(self.update_remove)
+        self.update_remove()
 
     def change_language(self):
         self.main.change_language(self.language_combo.currentData())
@@ -80,6 +88,16 @@ class LocationSettingsDialog(QDialog):
         titles = ['Ordner hinzufügen…', 'Nur Verknüpfung entfernen', 'Fertig'] if self.de else ['Add folder…', 'Remove shortcut only', 'Done']
         for button, title in zip(self.buttons, titles):
             button.setText(title)
+        self.update_remove()
+
+    def update_remove(self):
+        index = self.table.currentRow()
+        removable = 0 <= index < len(self.rows) and self.rows[index]['custom']
+        self.buttons[1].setEnabled(removable)
+        self.buttons[1].setToolTip(('Selbst hinzugefügte Verknüpfung entfernen; Dateien bleiben erhalten.' if removable else
+                                   'Nur selbst hinzugefügte Orte sind entfernbar. Andere Orte über „Sichtbar“ ausblenden.') if self.de else
+                                  ('Remove this custom shortcut; files are preserved.' if removable else
+                                   'Only custom locations can be removed. Hide other locations using Visible.'))
 
     def refresh(self):
         self.table.blockSignals(True)
@@ -89,12 +107,13 @@ class LocationSettingsDialog(QDialog):
             visible.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsUserCheckable)
             visible.setCheckState(Qt.Checked if row['enabled'] else Qt.Unchecked)
             path = QTableWidgetItem(row['path'])
+            path.setToolTip(row['path'])
             path.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
             self.table.setItem(index, 0, visible)
             self.table.setItem(index, 1, QTableWidgetItem(row['name']))
             self.table.setItem(index, 2, path)
-        self.table.resizeColumnsToContents()
         self.table.blockSignals(False)
+        self.update_remove()
 
     def save(self, *args):
         for index, row in enumerate(self.rows):

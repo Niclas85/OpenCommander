@@ -113,10 +113,10 @@ Der Dialog **Verbindungen** integriert USB-Einbinden/Auswerfen, SMB/SFTP/WebDAV
 sowie Google Drive und OneDrive über GNOME/GVFS. Bereits vorhandene rclone-Mounts
 werden automatisch erkannt. Voraussetzungen und Provider-Grenzen stehen in der Linux-Anleitung.
 Installationshinweise, Tests und Unterschiede zur Mac-Version stehen in
-[linux/README.md](linux/README.md). Der dokumentierte Linux-Stand ist **0.3.20**;
+[linux/README.md](linux/README.md). Der dokumentierte Linux-Stand ist **0.3.21**;
 Details zu Änderungen und Prüfungen stehen im [Linux-Änderungsprotokoll](linux/CHANGELOG.md).
 Das [ausführliche HTML-Anwenderhandbuch](linux/docs/handbuch/index.html) erklärt
-die Bedienung in 18 Kapiteln mit 18 Screenshots und funktioniert offline.
+die Bedienung in 18 Kapiteln mit 20 Screenshots und funktioniert offline.
 
 ### macOS
 

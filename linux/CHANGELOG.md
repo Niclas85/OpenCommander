@@ -1,5 +1,22 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.21 – 12. Oktober 2026
+
+- F1 öffnet eine nicht blockierende, wiederverwendete Hilfe mit Tastenkürzeln und
+  direkten Kapiteleinstiegen ins mitgelieferte Offline-Handbuch. Fehlendes
+  Handbuch oder ein fehlgeschlagener Browserstart wird im Hilfefenster erklärt.
+- Aktive Dateifilter zeigen Treffer-/Gesamtzahl bzw. einen eindeutigen
+  Keine-Treffer-Hinweis. Direkter Löschknopf und Esc im Filterfeld setzen zurück;
+  Tooltip erklärt den Unterschied zur rekursiven Suche mit Strg+F.
+- „Beim Ziehen“ erklärt den Geltungsbereich des Kopieren-/Verschieben-Schalters;
+  Hinweis auf die unabhängigen Tastenkürzel F5/F6.
+- Auftragsdetails samt letztem Fehler, Version und Quelle/Ziel in die
+  Zwischenablage kopieren. Keine automatische Übermittlung; Dateipfade enthalten.
+- In Orts-Einstellungen Entfernen nur für eigene Verknüpfungen aktivieren;
+  Ausblenden für eingebaute Orte erklären, Pfadspalte an Fensterbreite anpassen.
+  Dunkelmodus-Checkbox zwischen Hauptfenster und Einstellungen synchronisieren.
+- Handbuch aktualisiert und 20 echte Qt-Screenshots aus isolierten Beispieldaten.
+
 ## 0.3.20 – 12. Oktober 2026
 
 - Fortsetzen beginnt mit dem bereits dauerhaft gespeicherten Datei-/Bytestand,
