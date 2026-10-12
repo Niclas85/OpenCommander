@@ -69,7 +69,8 @@ class TransferCard(QFrame):
         self.title.setObjectName('transferTitle')
         self.title.setTextFormat(Qt.PlainText)
         self.title.setWordWrap(True)
-        top.addWidget(self.title, 1)
+        layout.addWidget(self.title)
+        top.addStretch()
         self.minimize = QToolButton()
         self.minimize.setCheckable(True)
         self.minimize.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
@@ -96,6 +97,13 @@ class TransferCard(QFrame):
         self.details.setWordWrap(True)
         self.details.setTextInteractionFlags(Qt.TextSelectableByMouse)
         layout.addWidget(self.details)
+        # Long cloud paths must wrap within the viewport, rather than forcing
+        # the whole card (including its controls) beyond the visible width.
+        for label in (self.title, self.route, self.details):
+            policy = label.sizePolicy()
+            policy.setHorizontalPolicy(QSizePolicy.Ignored)
+            label.setSizePolicy(policy)
+            label.setMinimumWidth(0)
         self.copy_details = QPushButton()
         self.copy_details.clicked.connect(self.copy_report)
         layout.addWidget(self.copy_details, 0, Qt.AlignLeft)
@@ -191,8 +199,8 @@ class TransferCard(QFrame):
             clock = lambda seconds: human_duration(seconds, language)
             eta = f' · {"Rest ca." if de else "Remaining ~"} {clock(remaining)}' if remaining is not None else ''
             details = (f'{label} · {percent}% · {human_size(count)} / {human_size(total)} · '
-                       f'{value["files_done"]} / {value["files_total"]} {"Dateien" if de else "files"} · '
-                       f'{"Zeit" if de else "Time"} {clock(elapsed)} · {human_size(rate)}/s{eta}\n{value["name"]}')
+                           f'{value["files_done"]} / {value["files_total"]} {"Dateien" if de else "files"}\n'
+                           f'{"Zeit insgesamt (aktiv)" if de else "Total active time"} {clock(elapsed)} · {human_size(rate)}/s{eta}\n{value["name"]}')
             if phase == 'resuming' and value.get('resume_files_total'):
                 details += (f'\n{"Geprüft" if de else "Checked"}: '
                             f'{value.get("resume_files_checked", 0)} / {value["resume_files_total"]} '
@@ -231,6 +239,8 @@ class TransferCard(QFrame):
 class TransferOverview(QWidget):
     def __init__(self, window):
         super().__init__(window)
+        self.setObjectName('transferOverview')
+        self.setAttribute(Qt.WA_StyledBackground, True)
         self.window = window
         self.cards = {}
         self.active = {}
@@ -245,6 +255,8 @@ class TransferOverview(QWidget):
         self.toggle.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         layout.addWidget(self.toggle)
         self.body = QWidget()
+        self.body.setObjectName('transferBody')
+        self.body.setAttribute(Qt.WA_StyledBackground, True)
         body = QVBoxLayout(self.body)
         body.setContentsMargins(0, 0, 0, 0)
         options = QHBoxLayout()
@@ -286,6 +298,8 @@ class TransferOverview(QWidget):
         self.toggle.setArrowType(Qt.DownArrow if expanded else Qt.RightArrow)
         if save:
             self.window.settings.setValue('transfer_expanded', expanded)
+        if hasattr(self, 'timer'):
+            self.render()
 
     def limit_changed(self, value):
         self.window.settings.setValue('transfer_parallel', value)
@@ -572,4 +586,9 @@ class TransferOverview(QWidget):
         if active > 1:
             w.transfer_details.setText(self.toggle.text())
             w.transfer_details.show()
+            w.progress.hide()
+        # Expanded cards already contain progress and details. Keep the legacy
+        # summary only when the overview is collapsed (or for generic actions).
+        if self.cards and self.toggle.isChecked() and not self.generic_running:
+            w.transfer_details.hide()
             w.progress.hide()

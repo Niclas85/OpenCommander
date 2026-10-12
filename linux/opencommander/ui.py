@@ -1937,7 +1937,7 @@ class MainWindow(QMainWindow):
             QFrame#pane[side="1"] {{ border-top: 3px solid {blue}; }}
             QFrame#pane[side="2"] {{ border-top: 3px solid {green}; }}
             QWidget#historyCard {{ background: {inset}; border: 1px solid {border}; border-radius: 8px; }}
-            QWidget#transferItems, QScrollArea#transferScroll {{ background: {bg}; border: none; }}
+            QWidget#transferOverview, QWidget#transferBody, QWidget#transferItems, QScrollArea#transferScroll {{ background: {bg}; border: none; }}
             QLabel {{ background: transparent; }}
             QLabel#transferTitle {{ font-weight: 600; }}
             QLabel#transferTitle[transferState="complete"] {{ color: {green}; }}

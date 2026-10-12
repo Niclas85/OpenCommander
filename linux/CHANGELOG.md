@@ -1,6 +1,11 @@
 # Linux-Änderungsprotokoll
 
-## Noch nicht veröffentlicht
+## 0.3.22 – 12. Oktober 2026
+
+- Übertragungsdetails nur einmal anzeigen: aufgeklappt in den Auftragskarten,
+  eingeklappt als Zusammenfassung. Lange Online-Pfade verbreitern die Karte
+  nicht mehr; Bedienknöpfe stehen in einer eigenen Zeile. Zeitangabe ausdrücklich
+  als aktive Gesamtzeit bezeichnen und von Fortschritt/Dateizähler trennen.
 
 - Neue verwaltete rclone-Einbindungen begrenzen interne Wiederholungen auf zwei
   statt standardmäßig zehn; Verbindungs-/Inaktivitätslimits bleiben 10/20 Sekunden.

@@ -1881,7 +1881,7 @@ def test_transfer_duration_and_idle_rendering(window, monkeypatch):
                         phase='copying', name='Grüße.txt')
     window.change_language('de')
     window.transfers.render()
-    assert 'Zeit 2 h 3 min 5 s' in card.details.text()
+    assert 'Zeit insgesamt (aktiv) 2 h 3 min 5 s' in card.details.text()
     assert not window.transfers.timer.isActive()
     calls = []
     original = card.details.setText
@@ -1891,7 +1891,7 @@ def test_transfer_duration_and_idle_rendering(window, monkeypatch):
     assert not calls
     window.change_language('en')
     window.transfers.render()
-    assert 'Time 2 h 3 min 5 s' in card.details.text()
+    assert 'Total active time 2 h 3 min 5 s' in card.details.text()
     assert calls
     window.engine.transfers.delete(job['id'])
     card.state = 'cancelled'
@@ -2372,6 +2372,40 @@ def test_pause_request_is_immediate_and_explains_unsaved_wait(window):
         assert 'Wartezeit' in card.render() and 'gesicherten Stand' in card.details.text()
         assert '1 min' in card.details.text()
         assert window.engine.transfers.get(job['id'])['status'] != 'paused'
+    finally:
+        window.transfers.active.pop(job['id'])
+        window.engine.transfers.delete(job['id'])
+        card.state = 'cancelled'
+        window.transfers.clear_completed()
+
+
+def test_expanded_transfer_has_one_summary_and_visible_controls(window, app):
+    job = window.engine.transfers.create([window.panes[0].directory / 'Grüße.txt'],
+                                        window.panes[1].directory, 'keep')
+    job['sources'] = ['/cloud/' + 'very-long-folder-name-' * 35 + '/Weltreise']
+    card = window.transfers.add(job)
+    card.state = 'running'
+    card.started = time.monotonic()
+    card.metrics = dict(phase='copying', bytes_done=100, bytes_resumed=0,
+                        bytes_total=200, files_done=1, files_total=2, name='photo.jpg')
+    window.transfers.active[job['id']] = card
+    try:
+        window.resize(980, 800)
+        window.transfers.toggle.setChecked(True)
+        window.transfers.render()
+        for _ in range(5):
+            app.processEvents()
+        assert not window.transfer_details.isVisible()
+        assert not window.progress.isVisible()
+        assert card.width() <= window.transfers.scroll.viewport().width()
+        for control in (card.pause, card.cancel, card.minimize):
+            assert control.isVisible()
+            assert control.geometry().right() < card.width()
+        assert 'Zeit insgesamt (aktiv)' in card.details.text()
+        window.transfers.toggle.setChecked(False)
+        assert window.transfer_details.isVisible()
+        assert window.progress.isVisible()
+        assert '50%' in window.transfer_details.text()
     finally:
         window.transfers.active.pop(job['id'])
         window.engine.transfers.delete(job['id'])
