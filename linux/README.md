@@ -6,6 +6,11 @@ oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 Aktueller Stand: **0.3.19**. Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
 
+**[Ausführliches HTML-Anwenderhandbuch öffnen](docs/handbuch/index.html)** —
+18 Kapitel mit 18 Screenshots, lokaler Suche, Bildvergrößerung, Hell-/Dunkelmodus
+und Druckansicht. Offline nutzbar: `docs/handbuch/index.html` im Browser öffnen.
+Im portablen Paket wird das Handbuch unter demselben relativen Pfad mitgeliefert.
+
 ## Starten
 
 Das fertige Archiv `OpenCommander-linux-x86_64.tar.gz` entpacken und die Datei

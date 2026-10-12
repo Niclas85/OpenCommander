@@ -115,6 +115,8 @@ werden automatisch erkannt. Voraussetzungen und Provider-Grenzen stehen in der L
 Installationshinweise, Tests und Unterschiede zur Mac-Version stehen in
 [linux/README.md](linux/README.md). Der dokumentierte Linux-Stand ist **0.3.19**;
 Details zu Änderungen und Prüfungen stehen im [Linux-Änderungsprotokoll](linux/CHANGELOG.md).
+Das [ausführliche HTML-Anwenderhandbuch](linux/docs/handbuch/index.html) erklärt
+die Bedienung in 18 Kapiteln mit 18 Screenshots und funktioniert offline.
 
 ### macOS
 

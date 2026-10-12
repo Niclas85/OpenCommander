@@ -1,5 +1,36 @@
 # Linux 0.3.19 – Orte und Dienstsymbole
 
+## HTML-Anwenderhandbuch
+
+18 Kapitel, 18 reale Qt-Screenshots mit isolierten Beispieldaten; rund 5.600 Wörter.
+Transferwerte und Verbindungen sind ausdrücklich als Demonstrationszustände markiert.
+Keine echten Anmeldungen, Cloud-Freigaben oder Nutzerdateiänderungen zur Aufnahme.
+
+- Desktop (1440 × 1000), schmale Standardansicht und Mobilansicht (390 × 844)
+  im Browser visuell geprüft; kein horizontaler Dokumentüberlauf.
+- Suche nach Pause/iCloud, Kapitelverweise, Theme-Wechsel samt Speicherung,
+  Bilddialog, Schließen und Originalgröße mit horizontaler Bildnavigation geprüft.
+- 47 Links und 26 lokale Ressourcenreferenzen geprüft; keine fehlenden Anker,
+  keine fehlenden Bilddateien und keine externen CSS-/JS-/Bildabhängigkeiten.
+- Zusätzlich eine eigenständige HTML-Datei erzeugt: CSS, JavaScript und alle
+  23 Bild-/Symbolverweise eingebettet; Base64-Inhalte und fehlende externe
+  Abhängigkeiten statisch geprüft. ZIP-Ausgabe auf Integrität geprüft.
+- Keine Browser-Konsolenfehler; JavaScript-Syntax, Python-Generatoren und
+  Shell-Syntax der Paketierung geprüft. Druckstylesheet und Druck-Handler enthalten;
+  ein PDF-Export wurde nicht ausgeführt.
+- Browserprüfung über lokalen HTTP-Server. Ein direkter file://-Aufruf ist in der
+  eingebetteten Browserumgebung gesperrt; die Offline-Dateistruktur wurde statisch geprüft.
+
+Reproduzieren (Screenshot-Aufnahme verwendet nur ein temporäres Profil):
+
+```bash
+QT_QPA_PLATFORM=offscreen PYTHONPATH=linux linux/.venv/bin/python linux/docs/tools/capture_handbook.py
+python3 linux/docs/tools/build_handbook.py
+python3 -m http.server 8765 --bind 127.0.0.1 --directory linux/docs/handbuch
+```
+
+## Anwendungsprüfung
+
 Stand: 12. Oktober 2026. Dienstsymbole werden als eigene lokale SVG-Grafiken
 mitgeliefert. OneDrive, Google Drive, Dropbox und iCloud in der Orte-Leiste sowie
 FTP/SFTP im Assistenten erkennen; Benutzer-Anzeigenamen bleiben erhalten.

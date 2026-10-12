@@ -2,6 +2,9 @@
 
 ## 0.3.19 – 12. Oktober 2026
 
+- Ausführliches deutsches HTML-Anwenderhandbuch mit 18 Kapiteln und 18 Screenshots,
+  lokaler Volltextsuche, responsivem Layout, Bildvergrößerung und Druckansicht.
+  Offline im Browser nutzbar und Bestandteil künftiger portabler Pakete.
 - Farbige, lokal mitgelieferte Dienstsymbole für OneDrive, Google Drive, Dropbox,
   iCloud, FTP/FTPS und SFTP in der Orte-Leiste und der Online-Verwaltung.
   Externe rclone-Cloud-Orte ebenfalls mit passendem Dienstsymbol anzeigen.
