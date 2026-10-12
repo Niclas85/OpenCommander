@@ -1,5 +1,30 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.18 – 12. Oktober 2026
+
+- Entfernen unabhängiger Dateien muss nicht mehr auf den vollständigen Abschluss
+  einer langen Kopie warten. Eigener Worker mit eigenen Abbruch-/Fortschrittsdaten;
+  laufende Kopien und gemeinsam serialisierte Wiederherstellungshistorie bleiben geschützt.
+- Quell-/Zielpfade aller laufenden, wartenden und pausierten Übertragungen reserviert.
+  Betroffene Löschaktionen warten mit sichtbarem Hinweis; auch nach Abbrechen eines
+  Konfliktauftrags können sie bei weiterhin pausierter Kopierqueue ausgeführt werden.
+- Wartende Dateiaktionen in Anzahl und Tooltip der Queue berücksichtigen.
+- Cloud-Dateilisten nach Mutationen invalidieren, einschließlich Fehler-Cooldown.
+  Bereits vorher gestartete Abfragen dürfen keine alten Ergebnisse erneut zwischenspeichern.
+- Bestätigt entfernte Dateien aus der Ansicht nehmen, bevor das neue Listing eintrifft;
+  bei fehlgeschlagenem Entfernen wird keine erfolgreiche Löschung dargestellt.
+- Vorschau-Löschen reagiert nur auf den eigenen Auftrag; Abschluss einer fremden
+  Übertragung entfernt nicht mehr versehentlich das noch angezeigte Medium.
+  Abbruch einer wartenden Löschung gibt die Vorschau-Bedienelemente wieder frei.
+- Historie mit leichten Listeneinträgen für alle Vorgänge, Widgets nur für sichtbare
+  Karten. Beim Scrollen unsichtbare Widgets freigeben; Position beim Neuladen erhalten.
+- Busy-Status beim Trennen von Online-Orten erst im GUI-Ergebnis-Callback zurücksetzen,
+  auch bei Fehler; kein ungeschütztes Umschalten des Schedulers aus dem Worker.
+- Regressionstests für paralleles Entfernen, geschützte Pausenpfade, eigene Vorschau-
+  Zuordnung, Cache-Invalidierung samt laufender Abfrage, große Historie und Trennfehler.
+- Echter Dropbox-Test mit ausschließlich neu angelegter synthetischer Datei:
+  Entfernen beim Provider geprüft, Rücknahmekopie geprüft, Undo geprüft, Testordner aufgeräumt.
+
 ## 0.3.17 – 11. Oktober 2026
 
 - Zeit und Restzeit mit expliziten Einheiten: Sekunden, Minuten, Stunden und Tage.

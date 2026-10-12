@@ -12,7 +12,7 @@ import zipfile
 
 from PySide6.QtCore import (Qt, Signal, QObject, QRunnable, QThreadPool, QAbstractTableModel,
     QModelIndex, QSortFilterProxyModel, QUrl, QMimeData, QTimer, QDir, QFileSystemWatcher,
-    QSettings, QStandardPaths, QSize, QPoint, QItemSelectionModel)
+    QSettings, QStandardPaths, QSize, QPoint, QItemSelectionModel, QEvent)
 from PySide6.QtGui import (QAction, QKeySequence, QDrag, QDesktopServices, QImageReader,
     QPixmap, QIcon, QColor, QPainter, QPen)
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -832,6 +832,10 @@ class MainWindow(QMainWindow):
         layout.insertWidget(layout.count()-2, self.transfers)
         self.history_dock = QDockWidget(self)
         self.history_list = QListWidget()
+        self.history_cards = {}
+        self.history_operations = {}
+        self.history_list.viewport().installEventFilter(self)
+        self.history_list.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.history_list.setSpacing(8)
         self.history_list.setFlow(QListWidget.LeftToRight)
         self.history_list.setWrapping(False)
@@ -976,19 +980,23 @@ class MainWindow(QMainWindow):
         if transfer_id:
             self.transfers.submit(transfer_id, after)
             return
-        if self.busy:
-            if self.operation_running:
+        reserved_action = hasattr(callback, 'reserved')
+        allowed = self.transfers.can_run_file_action(callback) if reserved_action else not self.busy
+        if (self.busy and not self.operation_running) or not allowed:
+            if self.operation_running or (reserved_action and not self.busy):
                 self.operation_queue.append((callback, after, None))
                 self.update_queue_label()
+                self.status.setText(getattr(callback, 'label', 'Dateivorgang / File operation') + ' · Wartet auf laufenden Vorgang / Waiting for current operation')
             return
+        engine = getattr(callback, 'engine', self.engine)
+        self.transfers.generic_engine = engine
         self.busy = self.operation_running = True
         self.transfers.generic_running = True
-        for row in range(self.history_list.count()):
-            card = self.history_list.itemWidget(self.history_list.item(row))
+        for card in self.history_cards.values():
             if card:
                 card.undo_button.setEnabled(False)
-        self.engine.cancel.clear()
-        self.engine.pause.clear()
+        engine.cancel.clear()
+        engine.pause.clear()
         self.status.setText(self.tr_key('working'))
         self.progress.setRange(0, 0)
         self.progress.show()
@@ -1036,7 +1044,7 @@ class MainWindow(QMainWindow):
         def report_metrics(value):
             latest[0] = value  # Coalesce immutable snapshots without queued GUI signals.
         self.transfer_details.hide()
-        self.engine.metrics_report = report_metrics
+        engine.metrics_report = report_metrics
         timer.timeout.connect(show_metrics)
         timer.start()
         last_progress = [0.0]
@@ -1045,9 +1053,9 @@ class MainWindow(QMainWindow):
             if now - last_progress[0] >= 0.1:
                 last_progress[0] = now
                 task.signals.progress.emit(count // 1024, name)
-        self.engine.progress = progress
+        engine.progress = progress
         def show_progress(kib, name):
-            if not self.engine.cancel.is_set():
+            if not engine.cancel.is_set():
                 self.status.setText(f'{self.tr_key("working")}  {human_size(kib * 1024)}  ·  {name}')
         task.signals.progress.connect(show_progress, Qt.QueuedConnection)
         def done(value, error):
@@ -1055,18 +1063,19 @@ class MainWindow(QMainWindow):
             self.operation_running = False
             self.active_transfer_id = None
             self.transfers.generic_running = False
+            self.transfers.sync_busy()
             timer.stop()
             timer.deleteLater()
-            self.engine.metrics_report = lambda _: None
+            engine.metrics_report = lambda _: None
             if latest[0] is not None:
                 if isinstance(error, Cancelled):
-                    latest[0]['phase'] = 'paused' if self.engine.pause.is_set() else 'cancelled'
+                    latest[0]['phase'] = 'paused' if engine.pause.is_set() else 'cancelled'
                 show_metrics()
                 if error and not isinstance(error, Cancelled):
                     self.transfer_details.setText(self.transfer_details.text() + '\n' + str(error))
                 elif isinstance(value, dict) and value.get('warnings'):
                     self.transfer_details.setText(self.transfer_details.text() + '\n' + '\n'.join(value['warnings']))
-            self.engine.progress = lambda *_: None
+            engine.progress = lambda *_: None
             self.progress.hide()
             self.cancel_button.hide()
             for action in self.actions.values():
@@ -1074,11 +1083,15 @@ class MainWindow(QMainWindow):
             self.update_context_actions()
             if not self.closing:
                 self.reload_history()
+                if hasattr(self, 'cloud_listings'):
+                    self.cloud_listings.invalidate()
                 self.refresh_all()
-            self.status.setText(('Pausiert – Zwischenstand gespeichert / Paused – progress saved' if self.engine.pause.is_set() else
+            self.status.setText(('Pausiert – Zwischenstand gespeichert / Paused – progress saved' if engine.pause.is_set() else
                                  'Abgebrochen / Cancelled') if isinstance(error, Cancelled) else str(error) if error else self.tr_key('done'))
             if not error and after and not self.closing:
                 after(value)
+            if getattr(callback, 'finished', None):
+                callback.finished(value, error)
             self.operation_finished.emit(error)
             self.transfers.pump()
             self.update_queue_label()
@@ -1215,13 +1228,36 @@ class MainWindow(QMainWindow):
         if accepted:
             self.run_operation(lambda: self.engine.mkdir(directory, name))
 
+    def run_trash(self, paths, finished=None):
+        from .transfers_ui import resources
+        paths = [Path(path) for path in paths]
+        if not paths:
+            return
+        engine = self.engine.fork()
+        def action():
+            return engine.trash(paths)
+        action.engine = engine
+        action.reserved = list(dict.fromkeys(pair for path in paths for pair in resources(
+            dict(sources=[str(path)], directory=str(path.parent), move=True))))
+        action.label = ('Entfernen' if self.language == 'de' else 'Remove') + f' · {len(paths)} ' + ('Elemente' if self.language == 'de' else 'items')
+        action.finished = finished
+        def removed(operation):
+            # Only hide entries acknowledged by a completed recovery operation.
+            removed_paths = {record['source'] for record in operation['records']}
+            for pane in self.panes:
+                entries = [entry for entry in pane.model.entries if str(entry.path) not in removed_paths]
+                if len(entries) != len(pane.model.entries):
+                    pane.model.replace(entries)
+                    pane.selection_changed()
+        self.run_operation(action, removed)
+
     def trash_selected(self):
         if self.closing or (self.busy and not self.operation_running) or self.active.archive:
             return
         paths = [entry.path for entry in self.active.selected()]
         if paths and QMessageBox.question(self, self.tr_key('trash'), self.tr_key('confirm_trash'),
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No) == QMessageBox.Yes:
-            self.run_operation(lambda: self.engine.trash(paths))
+            self.run_trash(paths)
 
     def zip_selected(self):
         if self.closing or (self.busy and not self.operation_running) or self.active.archive:
@@ -1282,28 +1318,59 @@ class MainWindow(QMainWindow):
             self.history_dirty = True
             return
         self.history_dirty = False
-        from .history_ui import HistoryCard
+        position = self.history_list.horizontalScrollBar().value()
         self.history_list.clear()
+        self.history_cards.clear()
+        self.history_operations = {operation['id']: operation for operation in self.engine.history}
         for operation in reversed(self.engine.history):
             item = QListWidgetItem()
             item.setData(Qt.UserRole, operation['id'])
-            card = HistoryCard(self, operation)
             item.setSizeHint(QSize(350, 220))
             self.history_list.addItem(item)
-            self.history_list.setItemWidget(item, card)
         self.actions['undo'].setEnabled(bool(self.engine.history) and not self.busy)
+        self.history_list.horizontalScrollBar().setValue(position)
         QTimer.singleShot(0, self.load_history_previews)
+
+    def eventFilter(self, watched, event):
+        if hasattr(self, 'history_list') and watched is self.history_list.viewport() and event.type() in (QEvent.Resize, QEvent.Show):
+            QTimer.singleShot(0, self.load_history_previews)
+        return super().eventFilter(watched, event)
 
     def load_history_previews(self, *args):
         if not self.history_dock.isVisible():
             return
+        from .history_ui import HistoryCard
         visible = self.history_list.viewport().rect()
-        for row in range(self.history_list.count()):
+        count = self.history_list.count()
+        # Fixed-size horizontal cards: binary-search the first visible item.
+        # Scroll cost depends on visible cards, rather than the full history.
+        low, high = 0, count
+        while low < high:
+            middle = (low + high) // 2
+            rect = self.history_list.visualItemRect(self.history_list.item(middle))
+            if rect.right() < visible.left():
+                low = middle + 1
+            else:
+                high = middle
+        rows = set()
+        for row in range(low, count):
             item = self.history_list.item(row)
-            if visible.intersects(self.history_list.visualItemRect(item)):
-                card = self.history_list.itemWidget(item)
-                if card:
-                    card.request_preview()
+            rect = self.history_list.visualItemRect(item)
+            if rect.left() > visible.right():
+                break
+            if visible.intersects(rect):
+                rows.add(row)
+                if row not in self.history_cards:
+                    operation = self.history_operations.get(item.data(Qt.UserRole))
+                    if operation is None:
+                        continue
+                    card = HistoryCard(self, operation)
+                    self.history_list.setItemWidget(item, card)
+                    self.history_cards[row] = card
+                self.history_cards[row].request_preview()
+        for row in self.history_cards.keys() - rows:
+            self.history_list.removeItemWidget(self.history_list.item(row))
+            self.history_cards.pop(row)
 
     def toggle_history(self):
         self.history_dock.setVisible(not self.history_dock.isVisible())
@@ -1427,10 +1494,10 @@ class MainWindow(QMainWindow):
         if entry and not entry.member:
             delete = QPushButton('In Papierkorb' if self.language == 'de' else 'Move to trash')
             def remove():
-                if not self.busy and QMessageBox.question(dialog, self.tr_key('trash'),
+                if not self.closing and not (self.busy and not self.operation_running) and QMessageBox.question(dialog, self.tr_key('trash'),
                         self.tr_key('confirm_trash') + '\n' + str(entry.path),
                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No) == QMessageBox.Yes:
-                    self.run_operation(lambda: self.engine.trash([entry.path]), lambda _: dialog.close() if isValid(dialog) else None)
+                    self.run_trash([entry.path], lambda value, error: dialog.close() if not error and isValid(dialog) else None)
             delete.clicked.connect(remove)
             layout.addWidget(delete)
         self.preview_dialog = dialog

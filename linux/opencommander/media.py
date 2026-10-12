@@ -278,7 +278,7 @@ class MediaViewer(QDialog):
         self.cancel_download.setVisible(remote)
         self.cancel_download.setEnabled(True)
         self.download_progress.setRange(0, 0)
-        self.delete_button.setEnabled(not entry.member and not self.main.busy)
+        self.delete_button.setEnabled(not entry.member and not self.main.closing and not (self.main.busy and not self.main.operation_running))
         self.player.stop()
         self.player.setSource(QUrl())
         self.clear_media_cache()
@@ -348,7 +348,7 @@ class MediaViewer(QDialog):
         self.main.pool.start(task)
 
     def trash_current(self):
-        if self.closed or self.deleting or self.main.busy:
+        if self.closed or self.deleting or self.main.closing or (self.main.busy and not self.main.operation_running):
             return
         entry = self.entries[self.index]
         if entry.member:
@@ -366,8 +366,7 @@ class MediaViewer(QDialog):
         self.delete_button.setEnabled(False)
         self.previous.setEnabled(False)
         self.next.setEnabled(False)
-        def finished(error):
-            self.main.operation_finished.disconnect(finished)
+        def finished(value, error):
             self.deleting = False
             if self.closed:
                 return
@@ -381,8 +380,7 @@ class MediaViewer(QDialog):
                 return
             self.index = min(self.index, len(self.entries) - 1)
             self.load()
-        self.main.operation_finished.connect(finished)
-        self.main.run_operation(lambda: self.main.engine.trash([entry.path]))
+        self.main.run_trash([entry.path], finished)
 
     def fit_image(self):
         if not self.current_image.isNull():

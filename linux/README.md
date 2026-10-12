@@ -3,7 +3,7 @@
 Native Qt-Desktop-Version nach dem Vorbild der Mac-Catalyst-App. Keine Browser-
 oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 
-Aktueller Stand: **0.3.17**. Die Änderungen und der geprüfte Umfang stehen im
+Aktueller Stand: **0.3.18**. Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
 
 ## Starten
@@ -96,6 +96,7 @@ Dateimanager-Kommando anderer Anwendungen oder die Verwaltung des Desktops.
 - Gespeicherte Rückgängig-Historie, auch nach Neustart, mit eigenem
   Rückgängig-Button pro Vorgang.
   Die Historie zeigt Zeit, Quell-/Zielpfade, gesicherte Originale und Fehlerhinweise.
+  Nur sichtbare Karten werden aufgebaut; beim Scrollen bleiben alle Einträge erreichbar.
   Sichtbare Medien-Einträge laden eine Vorschau der ersten passenden Datei; fehlt
   die Datei inzwischen, bleibt das Symbol. Die Rücknahme prüft weiterhin Änderungen.
 - Zugriff auf bereits eingebundene Laufwerke, `/media`, `/run/media`, `/mnt` und
@@ -161,7 +162,13 @@ Standardmäßig laufen **zwei** unabhängige Aufträge gleichzeitig; **Gleichzei
 sich zwischen eins und vier einstellen. Überlappende Quell-/Zielpfade, lokale Pfad-Aliase
 und Namen möglicher „Beide behalten“-Kopien werden vorsichtig nacheinander bearbeitet.
 Pausierte oder wegen Fehlern gespeicherte Aufträge reservieren ihre Pfade weiter.
-Andere Mutationen wie Umbenennen oder Entpacken warten auf laufende Übertragungen.
+**Entfernen** unabhängiger Dateien ist während einer Kopie möglich, einschließlich
+Dropbox/anderer Online-Orte und der Vorschau. Quell-/Zielpfade laufender, wartender
+und pausierter Aufträge bleiben geschützt. Betroffene Löschaktionen zeigen den
+Wartegrund und werden nach Freigabe des Pfads ausgeführt. Andere Mutationen wie
+Umbenennen oder Entpacken warten weiterhin auf laufende Übertragungen.
+Löschaktionen werden als wiederherstellbare OpenCommander-Papierkorb-Verschiebungen
+ausgeführt; die Rücknahmekopie belegt weiterhin Speicher auf dem betreffenden Laufwerk.
 
 Jeder Auftrag bietet **Pause**, **Fortsetzen** und **Abbrechen**. Die Fußzeile steuert
 alle Aufträge. **Pause angefordert** und **Abbruch angefordert** erscheinen sofort;

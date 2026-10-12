@@ -403,7 +403,7 @@ class OnlineDialog(QDialog):
         for profile in self.main.online_profiles:
             self.saved.addItem(profile['name'], profile)
 
-    def work(self, callback, after):
+    def work(self, callback, after, finished=None):
         if self.pending:
             return
         from .ui import Task
@@ -419,6 +419,8 @@ class OnlineDialog(QDialog):
         self.status.setText('Bitte warten … / Please wait …')
         task = Task(callback)
         def done(value, error):
+            if finished:
+                finished()
             self.pending = False
             self.browser_url = None
             self.browser_button.hide()
@@ -834,18 +836,17 @@ class OnlineDialog(QDialog):
                 pane.navigate(Path.home())
         self.main.busy = True
         def unmount():
-            try:
-                binary = shutil.which('fusermount3') or shutil.which('fusermount')
-                if not binary:
-                    raise RuntimeError('FUSE fehlt / FUSE unavailable')
-                result = subprocess.run([binary, '-u', str(root)], capture_output=True,
-                                        timeout=15, env=host_environment())
-                if result.returncode:
-                    raise RuntimeError('Ort noch in Benutzung; nicht getrennt / Location still in use; not disconnected')
-            finally:
-                # Clear even on failure; no forced unmount or interruption of writes.
-                self.main.busy = False
-        self.work(unmount, lambda _: (self.main.update_places(), self.status.setText('Getrennt / Disconnected')))
+            binary = shutil.which('fusermount3') or shutil.which('fusermount')
+            if not binary:
+                raise RuntimeError('FUSE fehlt / FUSE unavailable')
+            result = subprocess.run([binary, '-u', str(root)], capture_output=True,
+                                    timeout=15, env=host_environment())
+            if result.returncode:
+                raise RuntimeError('Ort noch in Benutzung; nicht getrennt / Location still in use; not disconnected')
+        # Busy belongs to the GUI scheduler; release it on the GUI thread on
+        # both success and failure, after the worker's result is delivered.
+        self.work(unmount, lambda _: (self.main.update_places(), self.status.setText('Getrennt / Disconnected')),
+                  finished=lambda: setattr(self.main, 'busy', False))
 
     def reject(self):
         if self.pending:

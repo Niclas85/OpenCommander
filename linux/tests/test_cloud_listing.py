@@ -150,3 +150,42 @@ def test_own_google_client_is_private_preserves_other_profiles_and_invalidates_o
         online_ui.save_drive_client(config, 'oc_other', client, secret)
     with pytest.raises(ValueError):
         online_ui.save_drive_client(config, 'oc_drive', client, '')
+
+
+def test_mutation_invalidates_old_list_and_cooldown(monkeypatch):
+    listing = CloudListings()
+    responses = [[{'Name': 'deleted.txt'}], CloudError('Rate limited', True), []]
+    def query(*args):
+        value = responses.pop(0)
+        if isinstance(value, Exception):
+            raise value
+        return value
+    monkeypatch.setattr(cloud_listing, 'query', query)
+    assert listing.read('dropbox', [], threading.Event())
+    stale = listing.read('dropbox', [], threading.Event())
+    assert stale.warning
+    listing.invalidate()
+    assert not listing.read('dropbox', [], threading.Event())
+    assert not responses
+
+
+def test_inflight_listing_before_deletion_cannot_restore_removed_file(monkeypatch):
+    listing = CloudListings()
+    entered, release = threading.Event(), threading.Event()
+    calls = []
+    def query(*args):
+        calls.append(1)
+        if len(calls) == 1:
+            entered.set()
+            assert release.wait(3)
+            return [{'Name': 'deleted.txt'}]
+        return []
+    monkeypatch.setattr(cloud_listing, 'query', query)
+    with concurrent.futures.ThreadPoolExecutor(1) as pool:
+        request = pool.submit(listing.read, 'dropbox', [], threading.Event())
+        assert entered.wait(3)
+        listing.invalidate()
+        release.set()
+        assert request.result(3) == []
+    assert len(calls) == 2
+    assert listing.cache['dropbox'][1] == []

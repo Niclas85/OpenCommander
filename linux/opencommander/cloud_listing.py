@@ -74,6 +74,14 @@ class CloudListings:
         self.locks = weakref.WeakValueDictionary()
         self.cache = OrderedDict()
         self.cooldowns = {}
+        self.revision = 0
+
+    def invalidate(self):
+        """File mutations invalidate fallback lists and any older in-flight result."""
+        with self.lock:
+            self.revision += 1
+            self.cache.clear()
+            self.cooldowns.clear()
 
     def read(self, key, command, cancel, timeout=30):
         requested = time.monotonic()
@@ -98,6 +106,8 @@ class CloudListings:
             if cooldown and now < cooldown[0]:
                 return self.stale(key, cached, cooldown[1])
             for attempt in range(3):
+                with self.lock:
+                    revision = self.revision
                 try:
                     rows = query(command, cancel, deadline)
                 except CloudError as error:
@@ -106,6 +116,8 @@ class CloudListings:
                             self.cache.pop(key, None)
                             self.cooldowns.pop(key, None)
                         raise
+                    with self.lock:
+                        cached = self.cache.get(key)
                     if cached and time.monotonic() - cached[0] < 300:
                         with self.lock:
                             self.cooldowns[key] = (time.monotonic() + 10, error)
@@ -119,6 +131,8 @@ class CloudListings:
                         raise RuntimeError('Abgebrochen / Cancelled')
                 else:
                     with self.lock:
+                        if revision != self.revision:
+                            continue
                         self.cache[key] = (time.monotonic(), rows)
                         self.cache.move_to_end(key)
                         self.cooldowns.pop(key, None)
@@ -126,6 +140,7 @@ class CloudListings:
                             old, _ = self.cache.popitem(last=False)
                             self.cooldowns.pop(old, None)
                     return CloudRows(rows)
+            raise CloudError('Dateiliste während Dateiänderungen erneut laden / Reload listing after file changes', True)
         finally:
             serial.release()
 

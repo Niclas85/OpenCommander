@@ -494,6 +494,7 @@ class FileEngine:
                 self.record(operation, source, target, 'move')
         finally:
             self.finish(operation)
+        return operation
 
     def undo(self, operation_id=None):
         if not self.history:

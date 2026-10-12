@@ -1910,3 +1910,197 @@ def test_hidden_history_defers_widget_rebuild(window, app):
     assert not window.history_dirty
     assert window.history_list.count() == 1
     assert window.history_list.itemWidget(window.history_list.item(0)) is not None
+
+
+def test_independent_removal_runs_during_copy_and_preserves_worker_state(window, app, monkeypatch):
+    import threading
+    from opencommander.operations import FileEngine
+    from opencommander.cloud_listing import CloudListings
+    source, target = window.panes
+    file = source.directory / 'Grüße.txt'
+    removed = source.directory / 'remove.txt'
+    removed.write_text('recover this independently')
+    entered, release = threading.Event(), threading.Event()
+    original = FileEngine.copy_file
+    def copying(engine, src, dst):
+        if src == file:
+            entered.set()
+            assert release.wait(5)
+        return original(engine, src, dst)
+    monkeypatch.setattr(FileEngine, 'copy_file', copying)
+    window.cloud_listings = CloudListings()
+    window.transfer(paths=[file], directory=target.directory)
+    wait(app, entered.is_set)
+    try:
+        window.run_trash([removed])
+        wait(app, lambda: not window.transfers.generic_running)
+        assert not removed.exists()
+        assert window.busy and window.transfers.active
+        assert not window.engine.cancel.is_set()
+        assert window.cloud_listings.revision > 0
+        record = next(op for op in window.engine.history if op['label'] == 'trash')
+        assert Path(record['records'][0]['destination']).read_text() == 'recover this independently'
+    finally:
+        release.set()
+    wait(app, lambda: not window.busy)
+    assert (target.directory / file.name).read_bytes() == file.read_bytes()
+    window.undo(record['id'])
+    wait(app, lambda: not window.busy)
+    assert removed.read_text() == 'recover this independently'
+
+
+def test_removing_copy_source_waits_until_copy_completes(window, app, monkeypatch):
+    import threading
+    from opencommander.operations import FileEngine
+    source, target = window.panes
+    file = source.directory / 'Grüße.txt'
+    entered, release = threading.Event(), threading.Event()
+    original = FileEngine.copy_file
+    def copying(engine, src, dst):
+        entered.set()
+        assert release.wait(5)
+        return original(engine, src, dst)
+    monkeypatch.setattr(FileEngine, 'copy_file', copying)
+    window.transfer(paths=[file], directory=target.directory)
+    wait(app, entered.is_set)
+    try:
+        window.run_trash([file])
+        assert len(window.operation_queue) == 1
+        assert 'Wartet' in window.status.text()
+        assert 'wartend' in window.transfers.toggle.text()
+        assert file.exists()
+    finally:
+        release.set()
+    wait(app, lambda: not window.busy and not window.operation_queue)
+    assert not file.exists()
+    assert (target.directory / file.name).read_text() == 'Hello from OpenCommander'
+
+
+def test_paused_transfer_source_is_protected_from_removal(window, app):
+    source, target = window.panes
+    file = source.directory / 'Grüße.txt'
+    job = window.engine.transfers.create([file], target.directory, 'keep')
+    card = window.transfers.add(job)
+    card.state = 'paused'
+    window.run_trash([file])
+    app.processEvents()
+    assert file.exists() and len(window.operation_queue) == 1
+    assert not window.transfers.generic_running
+    window.transfers_paused = True
+    window.transfers.cancel_one(job['id'])
+    wait(app, lambda: not window.busy and not window.operation_queue)
+    assert not file.exists()
+    assert window.transfers_paused  # Cancelling the conflicting job releases removal, not the copy pause.
+    window.transfers.clear_completed()
+
+
+def test_large_history_creates_only_visible_cards_and_releases_old_cards(window, app):
+    original = window.engine.history[:]
+    window.engine.history[:] = [dict(id=f'fixture-{i}', label='copy', time=1700000000+i,
+                                    records=[], inputs=[]) for i in range(1000)]
+    try:
+        window.reload_history()
+        window.history_dock.show()
+        wait(app, lambda: bool(window.history_cards))
+        assert window.history_list.count() == 1000
+        assert len(window.history_cards) <= 6
+        item = window.history_list.item(900)
+        window.history_list.scrollToItem(item)
+        window.load_history_previews()
+        wait(app, lambda: 900 in window.history_cards)
+        assert len(window.history_cards) <= 6
+        assert 0 not in window.history_cards
+        from opencommander.history_ui import HistoryCard
+        app.sendPostedEvents(None, QEvent.DeferredDelete)
+        assert len(window.history_list.findChildren(HistoryCard)) <= 6
+    finally:
+        window.engine.history[:] = original
+        window.reload_history()
+
+
+def test_failed_online_disconnect_releases_scheduler_in_gui_thread(window, app, monkeypatch):
+    from types import SimpleNamespace
+    from PySide6.QtCore import QThread
+    from opencommander import online_ui
+    profile = dict(id='oc_disconnect_fixture', kind='dropbox', name='Fixture')
+    window.online_profiles = [profile]
+    dialog = online_ui.OnlineDialog(window)
+    monkeypatch.setattr(online_ui, 'remote_location', lambda _: True)
+    monkeypatch.setattr(online_ui.shutil, 'which', lambda _: '/fixture/fusermount3')
+    observed = []
+    def unmount(*args, **kwargs):
+        observed.append((QThread.currentThread(), window.busy))
+        return SimpleNamespace(returncode=1)
+    monkeypatch.setattr(online_ui.subprocess, 'run', unmount)
+    dialog.disconnect_saved()
+    wait(app, lambda: not dialog.pending)
+    assert observed[0][0] != app.thread() and observed[0][1]
+    assert not window.busy
+    assert 'nicht getrennt' in dialog.status.text()
+    dialog.close()
+
+
+def test_media_removal_waits_for_its_own_operation(window, app, monkeypatch):
+    import threading
+    from PySide6.QtGui import QImage, QColor
+    from PySide6.QtWidgets import QMessageBox
+    from opencommander.media import MediaViewer
+    from opencommander.filesystem import Entry
+    from opencommander.operations import FileEngine
+    directory = window.panes[0].directory
+    entries = []
+    for name in ['first.jpg', 'second.jpg']:
+        path = directory / name
+        image = QImage(20, 20, QImage.Format_RGB32)
+        image.fill(QColor('blue'))
+        assert image.save(str(path))
+        entries.append(Entry(name, path, False, path.stat().st_size))
+    viewer = MediaViewer(window, entries, 0)
+    viewer.show()
+    entered, release = threading.Event(), threading.Event()
+    original = FileEngine.trash
+    def removing(engine, paths):
+        entered.set()
+        assert release.wait(5)
+        return original(engine, paths)
+    monkeypatch.setattr(FileEngine, 'trash', removing)
+    monkeypatch.setattr(QMessageBox, 'question', lambda *args: QMessageBox.Yes)
+    viewer.trash_current()
+    wait(app, entered.is_set)
+    try:
+        window.operation_finished.emit(None)  # Completion of an unrelated copy.
+        app.processEvents()
+        assert viewer.deleting and len(viewer.entries) == 2
+        assert entries[0].path.exists()
+    finally:
+        release.set()
+    wait(app, lambda: not viewer.deleting)
+    assert len(viewer.entries) == 1 and viewer.entries[0].name == 'second.jpg'
+    assert not entries[0].path.exists()
+    viewer.close()
+
+
+def test_cancel_queued_preview_removal_restores_viewer_controls(window, app, monkeypatch):
+    from PySide6.QtGui import QImage, QColor
+    from PySide6.QtWidgets import QMessageBox
+    from opencommander.media import MediaViewer
+    from opencommander.filesystem import Entry
+    source, target = window.panes
+    path = source.directory / 'queued.jpg'
+    image = QImage(20, 20, QImage.Format_RGB32)
+    image.fill(QColor('green'))
+    assert image.save(str(path))
+    job = window.engine.transfers.create([path], target.directory, 'keep')
+    card = window.transfers.add(job)
+    card.state = 'paused'
+    viewer = MediaViewer(window, [Entry(path.name, path, False, path.stat().st_size)], 0)
+    viewer.show()
+    monkeypatch.setattr(QMessageBox, 'question', lambda *args: QMessageBox.Yes)
+    viewer.trash_current()
+    assert viewer.deleting and window.operation_queue
+    window.cancel_operations()
+    assert not viewer.deleting
+    assert path.exists() and len(viewer.entries) == 1
+    assert not window.operation_queue
+    wait(app, lambda: not window.busy)
+    viewer.close()

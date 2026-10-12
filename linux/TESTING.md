@@ -1,4 +1,53 @@
-# Linux 0.3.17 – Performance-, Stabilitäts- und Desktop-Prüfung
+# Linux 0.3.18 – Vertiefte Prüfung und Dropbox-Entfernen
+
+Stand: 12. Oktober 2026. Zweite Analyse nach den Verbesserungen in 0.3.17.
+Vollständige Suite nach abschließender Scheduler-Korrektur: **296 Tests erfolgreich
+(60,86 s)**. Hell-/Dunkeldarstellung mit zwei parallelen Aufträgen, kompakter
+Karte, Pause, Historie und Vorschau erneut visuell geprüft. Auch der Abbruch einer
+wartenden Vorschau-Löschung gibt die Bedienelemente wieder frei. Paket-Smoke-Test
+erfolgreich: Desktop, JPEG/Online-Bild, TAR/7z, externes Drive-Menü und gespeicherte
+Pause/Fortsetzung.
+
+| Befund | Änderung und Nachweis |
+| --- | --- |
+| Alle Dateiaktionen warteten hinter vollständigen Kopien; unabhängiges Entfernen konnte stundenlang warten | Separater Engine-Worker für Entfernen, reservierte Pfade, sichtbarer Wartegrund, eigene Cancel-/Fortschrittsdaten; echte Kopie im Test läuft unverändert weiter |
+| Pausierte Kopien könnten bei Erweiterung der Parallelität ihre Quelle verlieren | Auch wartende/pausierte/fehlerhafte Aufträge reservieren ihre Pfade; Entfernen wartet bis Freigabe. Abbruch des betroffenen Kopierjobs gibt den Pfad frei, ohne andere Kopien fortzusetzen |
+| Alter Cloud-Cache konnte nach Entfernen wieder erscheinen | Mutation invalidiert Cache/Cooldown; laufende ältere Abfrage wird neu abgefragt, statt alte Daten einzusetzen |
+| Vorschau wartete auf beliebiges globales operation_finished-Signal | Eigener Abschluss-Callback pro Löschaktion; fremder Kopierabschluss ändert das Medium nicht |
+| Sichtbare Historie erzeugte alle Widgets und untersuchte beim Scrollen jeden Eintrag | Leichte Listeneinträge, Suche nach sichtbarer Region, begrenzte Widgets; Test mit 1.000 Vorgängen und Scrollen bis Eintrag 900 |
+| Online-Trennen änderte GUI-Schedulerstatus aus dem Worker | Erfolgs-/Fehlerabschluss im GUI-Thread; Test mit fehlgeschlagenem Trennen |
+
+### Reale Dropbox-Prüfung
+
+Bestehendes Konto lesend erreichbar: ein Eintrag in 0,31 s, kein Fehlerhinweis.
+Danach neu angelegter privater Testordner mit synthetischer Textdatei: Datei vor
+Entfernen direkt über Dropbox-Backend gelistet, in OpenCommander-Papierkorb verschoben,
+ursprünglicher Pfad direkt beim Provider nicht mehr gelistet, Rücknahmekopie mit
+richtigem Inhalt geprüft, per Undo wiederhergestellt und erneut beim Provider gelistet.
+Testlauf 13,12 s; eigener Testordner anschließend entfernt. Keine vorhandene
+Nutzerdatei wurde für diese Prüfung verändert. Die laufende „Weltreise“-Kopie
+wurde nicht pausiert, neu gestartet oder umkonfiguriert.
+
+Entfernen bleibt eine wiederherstellbare Verschiebung in den OpenCommander-Papierkorb.
+Die Sicherung liegt weiterhin auf dem betreffenden Laufwerk; sie entspricht nicht
+permanentem Löschen oder dem nativen Papierkorb des Cloud-Anbieters.
+
+### Historien-Messung
+
+1.000 synthetische Vorgänge in Qt/offscreen, gleiche sichtbare Fenstergröße,
+Ausgangsmethode von Commit 6f5762b. Aufbau der sichtbaren Historienliste:
+
+| Methode | Laufzeit | Erzeugte Karten |
+| --- | --- | --- |
+| 0.3.17 | 1,943 s | 1.000 |
+| Optimierte Ansicht | 0,055 s | 4 sichtbare Karten |
+
+Einzelmessung des Aufbaus, keine allgemeine Geschwindigkeitsgarantie.
+Alle 1.000 Vorgänge bleiben durch Scrollen zugänglich; unsichtbare Widgets werden
+freigegeben. Die JSON-Verlaufsspeicherung bleibt vollständig erhalten.
+
+## Vorherige Analyse: 0.3.17
+
 
 Stand: 11. Oktober 2026. Die Prüfung umfasst Dateimodell, Auftragssteuerung,
 Abbruch/Fortsetzung, Historie, Vorschau und Providerzugriffe der Linux-App.
@@ -53,9 +102,9 @@ wurde dafür übertragen oder gelöscht.
 - Auf rclone wird bei Fortsetzung die unvollständige Datei neu geschrieben, auch wenn
   der externe Mount Append mit Cache unterstützen könnte. Fertige Dateien bleiben
   nach Prüfung erhalten; lokale Teilkopien werden weiterhin byteweise fortgesetzt.
-- Geöffnete große Historien werden weiterhin vollständig als Karten aufgebaut.
-  Verlaufsspeicherung und Konfliktprüfung sehr großer Mehrfachauswahlen sind weitere
-  mögliche Engpässe. Langzeittests mit sehr großen Verläufen stehen aus.
+- Die Historie erzeugt ab 0.3.18 nur sichtbare Karten. Das Laden/Speichern der
+  vollständigen JSON-Historie und die Konfliktprüfung sehr großer Mehrfachauswahlen
+  bleiben mögliche Engpässe; sehr große Verläufe benötigen weitere Langzeittests.
 - Google-Quoten, Konto-/Serverregeln und Anmeldestatus bleiben externe Einflüsse.
   Die bisherigen realen Kontoprüfungen stehen unten mit ihrem tatsächlichen Umfang.
   In dieser Runde wurde kein neuer Login und keine öffentliche Freigabe ausgelöst.
@@ -71,7 +120,7 @@ automatisierten Regressionstests werden mit der vollständigen Suite erneut ausg
 | OneDrive | Gespeichertes Konto, direkte lesende Backend-Abfrage | 30 Einträge, rund 0,90 s |
 | NAS / SMB | Lesende Ordnerabfrage über GVFS | Erfolgreich, rund 0,55 s; geprüfter Ordner leer |
 | iCloud | Bestehende Konfiguration lesend geprüft | Ungültige Passwort-Konfiguration; erneute Anmeldung nötig |
-| Dropbox | Kein Konto vorhanden | Erkennung, Pfade, Fehler, Abbruch und Linkanfragen mit isoliertem Backend getestet |
+| Dropbox | Bestehendes Konto, neue synthetische Testdatei in eigenem Testordner (0.3.18) | Entfernen direkt beim Provider geprüft, Rücknahmekopie, Undo und Aufräumen erfolgreich; keine vorhandene Nutzerdatei verändert |
 | SFTP | Lokaler Testserver mit Passwort, Schlüssel und verschlüsseltem Schlüssel | Erfolgreich; keine persönlichen Server geändert |
 | FTP / FTPS | Konfigurations-, Passwortübergabe-, TLS- und Fehlerpfade | Automatisiert geprüft; kein externer FTP-/FTPS-Testserver vorhanden |
 | Externe Cloud-Mounts | Drive / OneDrive / Dropbox / iCloud | Zuordnung des laufenden Prozesses, Konfiguration, Remote-Unterordner, keine kopierten Zugangsdaten |

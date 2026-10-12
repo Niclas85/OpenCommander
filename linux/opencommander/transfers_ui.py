@@ -284,23 +284,32 @@ class TransferOverview(QWidget):
         w.operation_running = w.busy
         w.active_transfer_id = next(iter(self.active), None)
         w.actions['undo'].setEnabled(bool(w.engine.history) and not w.busy)
-        for row in range(w.history_list.count()):
-            card = w.history_list.itemWidget(w.history_list.item(row))
-            if card and w.busy:
+        for card in w.history_cards.values():
+            if w.busy:
                 card.undo_button.setEnabled(False)
+
+    def can_run_file_action(self, callback):
+        reserved = getattr(callback, 'reserved', None)
+        if reserved is None or self.generic_running:
+            return False
+        # Saved/paused transfers also retain their sources and destinations.
+        return not any(conflicts(reserved, card.reserved) for card in self.cards.values()
+                       if card.state not in ('complete', 'cancelled'))
 
     def pump(self):
         w = self.window
-        if w.closing or w.transfers_paused or self.generic_running or (w.busy and not w.operation_running):
+        if w.closing or self.generic_running or (w.busy and not w.operation_running):
             self.sync_busy()
             self.render()
             return
         for callback, after, identifier in list(w.operation_queue):
             if identifier is None:
-                if not self.active:
+                if (self.can_run_file_action(callback) if hasattr(callback, 'reserved') else not self.active and not w.transfers_paused):
                     w.operation_queue.remove((callback, after, identifier))
                     w.run_operation(callback, after)
                 break
+            if w.transfers_paused:
+                continue
             if len(self.active) >= self.parallel.value():
                 break
             card = self.cards[identifier]
@@ -380,6 +389,8 @@ class TransferOverview(QWidget):
         w.status.setText(card.title.text())
         if not w.closing:
             w.reload_history()
+            if hasattr(w, 'cloud_listings'):
+                w.cloud_listings.invalidate()
             w.refresh_all()
         if not error and getattr(card, 'after', None) and not w.closing:
             card.after(value)
@@ -439,12 +450,16 @@ class TransferOverview(QWidget):
 
     def cancel_all(self):
         w = self.window
+        queued = list(w.operation_queue)
         w.operation_queue.clear()
+        for callback, _, identifier in queued:
+            if identifier is None and getattr(callback, 'finished', None):
+                callback.finished(None, Cancelled('Abgebrochen / Cancelled'))
         w.transfers_paused = False
         w.cancel_requested = True
         if self.generic_running:
-            w.engine.pause.clear()
-            w.engine.cancel.set()
+            self.generic_engine.pause.clear()
+            self.generic_engine.cancel.set()
         for job in w.engine.transfers.jobs():
             self.add(job)
         for identifier, card in self.cards.items():
@@ -468,7 +483,7 @@ class TransferOverview(QWidget):
         de = w.language == 'de'
         counts = Counter(card.state for card in self.cards.values())
         active = len(self.active)
-        queued = sum(row[2] is not None for row in w.operation_queue)
+        queued = len(w.operation_queue)
         paused = counts['paused'] + counts['blocked']
         parts = []
         if active:
@@ -480,6 +495,7 @@ class TransferOverview(QWidget):
         self.toggle.setText(('Übertragungen' if de else 'Transfers') + ' · ' + (' · '.join(parts) or f'{counts["complete"]} {"abgeschlossen" if de else "completed"}'))
         self.parallel_label.setText('Gleichzeitig:' if de else 'Parallel:')
         self.clear_button.setText('Abgeschlossene ausblenden' if de else 'Hide completed')
+        w.queue_label.setToolTip('\n'.join(getattr(row[0], 'label', 'Dateivorgang / File operation') for row in w.operation_queue if row[2] is None))
         w.queue_label.setText(' · '.join(parts[1:] if active else parts) or (f'{len(w.operation_queue)} wartend' if w.operation_queue else ''))
         w.pause_button.setVisible(bool(active) and not w.closing)
         w.pause_button.setText('Alle pausieren' if de else 'Pause all')
