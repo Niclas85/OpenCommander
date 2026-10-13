@@ -1063,20 +1063,25 @@ def test_remote_jpg_thumbnails_and_viewer_navigation(window, app, monkeypatch):
 
 
 def test_copy_progress_has_totals_and_keeps_summary(window, app):
-    from PySide6.QtCore import Qt
     left, right = window.panes
     left.table.selectRow(0)
     window.activate(left)
     window.transfer(False)
     wait(app, lambda: not window.busy)
-    details = window.transfer_details.text()
+    card = next(iter(window.transfers.cards.values()))
+    assert card.minimize.isChecked()
+    assert '100%' in card.title.text()
+    assert card.details.isHidden()
+    card.minimize.click()
+    app.processEvents()
+    details = card.details.text()
     assert '100%' in details
     assert '1 / 1' in details
     assert '/s' in details
-    assert 'Zeit ' in details or 'Time ' in details
+    assert 'Zeit insgesamt (aktiv)' in details or 'Total active time' in details
     assert ' s' in details
-    assert window.transfer_details.isVisible()
-    assert (right.directory / 'Grüße.txt').exists()
+    assert card.details.isVisible()
+    assert (right.directory / 'Grüße.txt').read_bytes() == (left.directory / 'Grüße.txt').read_bytes()
 
 
 def test_refresh_keeps_media_neighbors_until_new_listing(window, app, monkeypatch):
