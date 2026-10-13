@@ -2488,3 +2488,24 @@ def test_automatic_cloud_answer_does_not_inherit_previous_password_question(wind
     assert calls[-1]['password_result'] is False
     dialog.state = ''
     dialog.close()
+
+
+def test_resume_card_shows_verification_progress_separately_from_copied_bytes(window, app):
+    job = window.engine.transfers.create([window.panes[0].directory / 'Grüße.txt'],window.panes[1].directory,'keep')
+    job.update(status='blocked', progress=dict(phase='resuming', name='saved.jpg',
+        bytes_done=1000, bytes_total=1000, files_done=20, files_total=20,
+        resume_files_total=20, resume_files_checked=5, resume_bytes_total=1000,
+        resume_bytes_checked=250, verification_source='provider'))
+    window.engine.transfers.save(job)
+    window.change_language('de')
+    card = window.transfers.add(job)
+    card.render()
+    assert card.progress.value() == 25
+    assert 'Prüfung 25%' in card.details.text()
+    assert 'Bereits kopiert:' in card.details.text()
+    assert '20 / 20 Dateien' in card.details.text()
+    assert 'Geprüft: 5 / 20' in card.details.text()
+    assert 'Direkte Cloud-Prüfsumme bestätigt' in card.details.text()
+    assert '99%' not in card.details.text() and '0 B/s' not in card.details.text()
+    card.minimize.setChecked(True)
+    assert 'Prüfung 25%' in card.title.text()

@@ -1,5 +1,21 @@
 # Linux-Änderungsprotokoll
 
+## 0.3.24 – 13. Oktober 2026
+
+- Bei EIO während der Prüfung fertiger Dateien auf externem Google-Drive-FUSE
+  eine direkte Server-SHA-256 als Ausweichweg prüfen. Nur für die erkannte
+  vollständige Remote-Wurzel mit bekanntem Full-/Writes-Cache-Verzeichnis und
+  ohne lokalen Daten-/Metadateneintrag der betroffenen Datei. Größe und
+  SHA-256 müssen dem Checkpoint entsprechen; neue Cache-Daten während der
+  Abfrage verhindern die Übernahme. Fehlende oder abweichende Prüfsummen
+  werden nicht als Erfolg behandelt. Fertige Dateien werden nicht neu geschrieben.
+- Direkte Prüfung mit privatem aktuellen rclone, 20-Sekunden-Gesamtlimit,
+  begrenzten Wiederholungen und abbrechbarem Prozess. Anbieterfehler ohne
+  Zugangsdaten anzeigen. Keine Mount-Neustarts und kein Löschen des Schreibcaches.
+- Während der Wiederaufnahme Fortschrittsbalken als Prüffortschritt anzeigen;
+  bereits kopierte Bytes/Dateien separat nennen. Keine irreführende Kopiergeschwindigkeit
+  von 0 B/s während der Prüfung. Kompaktansicht zeigt ebenfalls den Prüffortschritt.
+
 ## 0.3.23 – 12. Oktober 2026
 
 - iCloud-Passwort im allgemeinen rclone-Konfigurationsassistenten im erwarteten

@@ -202,11 +202,26 @@ class TransferCard(QFrame):
                            f'{value["files_done"]} / {value["files_total"]} {"Dateien" if de else "files"}\n'
                            f'{"Zeit insgesamt (aktiv)" if de else "Total active time"} {clock(elapsed)} · {human_size(rate)}/s{eta}\n{value["name"]}')
             if phase == 'resuming' and value.get('resume_files_total'):
+                checked = value.get('resume_bytes_checked', 0)
+                check_total = value.get('resume_bytes_total', 0)
+                check_percent = min(100, int(checked * 100 / check_total)) if check_total else min(100, int(
+                    value.get('resume_files_checked', 0) * 100 / value['resume_files_total']))
+                self.progress.setValue(check_percent)
+                checking = 'Prüfung' if de else 'Verification'
+                copied = 'Bereits kopiert' if de else 'Already copied'
+                details = (f'{label} · {checking} {check_percent}%\n'
+                           f'{copied}: {human_size(count)} / {human_size(total)} · '
+                           f'{value["files_done"]} / {value["files_total"]} {"Dateien" if de else "files"}\n'
+                           f'{"Zeit insgesamt (aktiv)" if de else "Total active time"} {clock(elapsed)}\n{value["name"]}')
+                if minimized:
+                    self.title.setText(f'{kind} · {name} · {state} · {checking} {check_percent}% · {human_size(count)} {copied.lower()}')
                 details += (f'\n{"Geprüft" if de else "Checked"}: '
                             f'{value.get("resume_files_checked", 0)} / {value["resume_files_total"]} '
                             f'{"gespeicherte Dateien" if de else "saved files"} · '
                             f'{human_size(value.get("resume_bytes_checked", 0))} / '
                             f'{human_size(value.get("resume_bytes_total", 0))}')
+                if value.get('verification_source') == 'provider':
+                    details += ('\nDirekte Cloud-Prüfsumme bestätigt' if de else '\nDirect cloud checksum verified')
         else:
             self.progress.setRange(0, 0 if self.state == 'running' else 100)
             self.progress.setValue(0)

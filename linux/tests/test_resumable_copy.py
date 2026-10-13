@@ -632,3 +632,43 @@ def test_unavailable_mount_does_not_erase_saved_progress(fixture, monkeypatch):
     assert failed['progress'] == before
     assert failed['status'] == 'blocked'
     assert 'Drive missing' in failed['last_error']
+
+
+@pytest.mark.parametrize('proof', ['matching', 'different', 'unavailable'])
+def test_saved_file_eio_uses_only_matching_remote_digest_without_rewriting(fixture, monkeypatch, proof):
+    import errno
+    import hashlib
+    from opencommander import resumable_copy, cloud_verify
+    engine, source, target = fixture
+    file = target / 'saved.jpg'
+    payload = b'previously completed bytes'
+    file.write_bytes(payload)
+    expected = hashlib.sha256(payload).hexdigest()
+    engine.transfer_metrics = {'resume_bytes_checked': 10}
+    def broken(*args, **kwargs):
+        engine.transfer_metrics['resume_bytes_checked'] += 3
+        raise OSError(errno.EIO, 'simulated FUSE read error')
+    monkeypatch.setattr(resumable_copy, 'digest_file', broken)
+    monkeypatch.setattr(cloud_verify, 'server_digest', lambda *a: expected if proof == 'matching' else '0' * 64 if proof == 'different' else None)
+    if proof == 'matching':
+        resumable_copy.verify_saved_file(engine, file, len(payload), expected)
+        assert engine.transfer_metrics['resume_bytes_checked'] == 10 + len(payload)
+        assert engine.transfer_metrics['verification_source'] == 'provider'
+    else:
+        with pytest.raises(SafetyError if proof == 'different' else OSError):
+            resumable_copy.verify_saved_file(engine, file, len(payload), expected)
+    assert file.read_bytes() == payload
+
+
+def test_saved_file_permission_error_never_uses_remote_fallback(fixture, monkeypatch):
+    import errno
+    from opencommander import resumable_copy, cloud_verify
+    engine, source, target = fixture
+    file = target / 'saved.jpg';file.write_bytes(b'fixture')
+    engine.transfer_metrics = {'resume_bytes_checked': 0}
+    monkeypatch.setattr(resumable_copy, 'digest_file', lambda *a, **k: (_ for _ in ()).throw(OSError(errno.EACCES, 'permission denied')))
+    calls = []
+    monkeypatch.setattr(cloud_verify, 'server_digest', lambda *a: calls.append(a))
+    with pytest.raises(OSError):
+        resumable_copy.verify_saved_file(engine, file, 7, '0' * 64)
+    assert not calls

@@ -44,6 +44,27 @@ def digest_file(engine, path, resuming=False):
                 engine.report_transfer('resuming', path.name)
 
 
+def verify_saved_file(engine, target, size, expected):
+    engine.transfer_metrics.pop('verification_source', None)
+    baseline = engine.transfer_metrics['resume_bytes_checked']
+    try:
+        if target.lstat().st_size != size or digest_file(engine, target, resuming=True) != expected:
+            raise SafetyError(f'Zwischenstand geändert / Partial copy changed: {target}')
+    except OSError as error:
+        if error.errno != errno.EIO:
+            raise
+        from .cloud_verify import server_digest
+        engine.check_cancel()
+        digest = server_digest(engine, target, size)
+        if digest is None:
+            raise
+        if digest != expected:
+            raise SafetyError(f'Cloud-Zwischenstand geändert / Cloud partial copy changed: {target}') from None
+        engine.transfer_metrics['resume_bytes_checked'] = baseline + size
+        engine.transfer_metrics['verification_source'] = 'provider'
+        engine.report_transfer('resuming', target.name)
+
+
 def copy_file(engine, source, target):
     store = engine.transfers
     job, index, origin = engine.resuming_copy
@@ -93,8 +114,7 @@ def copy_file(engine, source, target):
         engine.copy_metadata(source, target)
     elif stat.S_ISREG(info.st_mode):
         if saved['complete']:
-            if target.lstat().st_size != info.st_size or digest_file(engine, target, resuming=True) != saved['digest']:
-                raise SafetyError(f'Zwischenstand geändert / Partial copy changed: {target}')
+            verify_saved_file(engine, target, info.st_size, saved['digest'])
         else:
             digest = hashlib.sha256()
             offset = 0

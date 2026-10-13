@@ -1,3 +1,31 @@
+# Linux 0.3.24 – EIO bei Prüfung des Google-Zwischenstands
+
+13. Oktober 2026. **338 Tests bestanden in 136,67 Sekunden; keine Fehler,
+keine übersprungenen Tests.** Paketbau und Paket-Smoke-Test erfolgreich.
+
+Ein produktiver Auftrag meldete EIO beim Lesen einer fertigen JPG-Datei über
+Google-FUSE. Die Datei wurde ausschließlich lesend mit dem privaten aktuellen
+rclone direkt beim Anbieter geprüft: 4.357.632 Bytes, reguläre Datei, Server-
+SHA-256 identisch mit dem gespeicherten Kopier-Checkpoint. Die betroffene Datei
+war bereits aus dem lokalen VFS-Cache entfernt; kein ausstehender lokaler
+Daten-/Metadateneintrag vorhanden. Der neue Ausweichweg wurde mit dieser Datei
+im echten Konto erfolgreich lesend geprüft. Keine Dateimanipulation, keine
+Mount-Unterbrechung, kein neuer Kopierlauf. Andere Cloud-Dateien wurden dabei
+nicht als erfolgreich abgenommen.
+
+Neue Regressionen prüfen passende/abweichende/fehlende Server-Prüfsummen,
+Größen- und Typprüfung, lokale ausstehende Cache-Daten, während der Abfrage
+neu auftauchende Cache-Daten, Pause/Abbruch vor und während einer hängenden
+Abfrage, unveränderte fertige Zieldateien und getrennte Anzeige von Kopier-
+und Prüffortschritt. Andere Lesefehler (z.B. Zugriffsrechte) bleiben Fehler.
+
+Eine konsistente private SQLite-Sicherung des bestehenden Auftragsjournals
+liegt außerhalb des Repos. Alle 18.846 fertigen Nicht-Ordner-Checkpoints bleiben
+erhalten. Zum Diagnosezeitpunkt rund 45 GiB ausstehende Full-Cache-Uploads;
+Cache und laufende Version 0.3.21 unverändert. 0.3.24 für den nächsten sicheren
+Start installiert, kein erzwungener Neustart. Der Ausweichweg ersetzt weder
+fehlende Uploads noch die weiterhin erforderliche Google-OAuth-Konfiguration.
+
 # Linux 0.3.23 – Cloud-Konfiguration und erneuter Regressionstest
 
 12. Oktober 2026. **325 automatisierte Tests bestanden in 72,50 Sekunden;
