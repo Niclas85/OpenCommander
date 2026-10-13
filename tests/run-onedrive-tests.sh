@@ -4,6 +4,8 @@ task_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 task_output=$(mktemp -d -t opencommander-onedrive-tests)
 trap 'rm -f "$task_output/onedrive-tests"; rmdir "$task_output"' EXIT HUP INT TERM
 xcrun swiftc -parse-as-library \
+    "$task_root/ios/OpenCommander/CloudConnection.swift" \
+    "$task_root/ios/OpenCommander/SharedDirectoryReads.swift" \
     "$task_root/ios/OpenCommander/OneDriveClient.swift" \
     "$task_root/ios/OpenCommander/RemoteConnection.swift" \
     "$task_root/ios/OpenCommander/RemoteFileClient.swift" \

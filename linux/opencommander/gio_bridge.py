@@ -22,7 +22,8 @@ def locations(monitor):
             continue
         root = mount.get_root()
         drive = mount.get_drive()
-        result.append(dict(id=root.get_uri(), name=mount.get_name(), path=root.get_path(),
+        volume = mount.get_volume()
+        result.append(dict(id=root.get_uri(), volume_id=identity(volume) if volume else None, name=mount.get_name(), path=root.get_path(),
                            mounted=True, eject=mount.can_eject(), unmount=mount.can_unmount(),
                            kind='USB' if drive and drive.is_removable() else
                            'Network / Cloud' if root.get_uri().split(':')[0] != 'file' else 'Drive / Cloud'))

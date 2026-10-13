@@ -2,6 +2,9 @@ TEXT = {
 'en': {
  'mkdir':'New folder', 'copy':'Copy', 'move':'Move', 'rename':'Rename', 'trash':'Remove', 'zip':'Create ZIP',
  'extract':'Extract', 'undo':'Undo', 'history':'History', 'new_folder':'New folder',
+ 'undo_backup_unavailable':'Undo stopped: previous version missing, changed or cannot be verified.',
+ 'undo_changed':'Undo stopped: file changed or cannot be verified.',
+ 'undo_occupied':'Undo stopped: original path is occupied.',
  'open':'Open', 'preview':'Preview', 'refresh':'Refresh', 'hidden':'Hidden files',
  'dark':'Dark', 'light':'Light', 'help':'Help', 'folder':'Choose folder', 'root':'Filesystem',
  'home':'Home', 'downloads':'Downloads', 'tree':'Folders', 'files':'Files', 'name':'Name',
@@ -25,6 +28,9 @@ TEXT = {
 'de': {
  'mkdir':'Neuer Ordner', 'copy':'Kopieren', 'move':'Verschieben', 'rename':'Umbenennen', 'trash':'Entfernen', 'zip':'ZIP erstellen',
  'extract':'Entpacken', 'undo':'Rückgängig', 'history':'Historie', 'new_folder':'Neuer Ordner',
+ 'undo_backup_unavailable':'Rückgängig gestoppt: Die Vorgängersicherung fehlt, wurde verändert oder lässt sich nicht prüfen.',
+ 'undo_changed':'Rückgängig gestoppt: Die Datei wurde verändert oder lässt sich nicht prüfen.',
+ 'undo_occupied':'Rückgängig gestoppt: Der ursprüngliche Pfad ist bereits belegt.',
  'open':'Öffnen', 'preview':'Vorschau', 'refresh':'Aktualisieren', 'hidden':'Versteckte Dateien',
  'dark':'Dunkel', 'light':'Hell', 'help':'Hilfe', 'folder':'Ordner wählen', 'root':'Dateisystem',
  'home':'Persönlicher Ordner', 'downloads':'Downloads', 'tree':'Ordner', 'files':'Dateien', 'name':'Name',
@@ -49,3 +55,19 @@ TEXT = {
 
 def text(language, key):
     return TEXT.get(language, TEXT['en']).get(key, TEXT['en'].get(key, key))
+
+
+def operation_error(error, language):
+    """Render known Undo failures in the current UI language, preserving paths.
+
+    Also supports previously saved English history strings. Unknown errors are
+    not guessed or reclassified based on filenames or arbitrary substrings.
+    """
+    value = str(error)
+    first, separator, remainder = value.partition('\n')
+    keys = {
+        TEXT['en']['undo_backup_unavailable']: 'undo_backup_unavailable',
+        TEXT['en']['undo_changed']: 'undo_changed',
+        TEXT['en']['undo_occupied']: 'undo_occupied',
+    }
+    return text(language, keys[first]) + separator + remainder if first in keys else value

@@ -1,6 +1,41 @@
 import UIKit
 import QuickLookThumbnailing
 
+#if targetEnvironment(macCatalyst)
+/// A directory menu for the unused area of a list. Existing row menus still
+/// own file selections; returning nil on rows leaves their semantics intact.
+final class CommanderDirectoryMenu: NSObject, UIContextMenuInteractionDelegate {
+    private weak var table: UITableView?
+    private let makeMenu: () -> UIMenu?
+    init(table: UITableView, makeMenu: @escaping () -> UIMenu?) {
+        self.table = table; self.makeMenu = makeMenu
+        super.init()
+        table.addInteraction(UIContextMenuInteraction(delegate: self))
+    }
+    func contextMenuInteraction(_ interaction: UIContextMenuInteraction,
+                                configurationForMenuAtLocation location: CGPoint) -> UIContextMenuConfiguration? {
+        guard let table, table.indexPathForRow(at: location) == nil else { return nil }
+        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in self?.makeMenu() }
+    }
+}
+#endif
+
+final class CommanderFilterField: UITextField {
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        autocorrectionType = .no
+        spellCheckingType = .no
+        autocapitalizationType = .none
+        smartQuotesType = .no
+        smartDashesType = .no
+    }
+    required init?(coder: NSCoder) { super.init(coder: coder) }
+    override var keyCommands: [UIKeyCommand]? {
+        [UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(clearFilter))]
+    }
+    @objc private func clearFilter() { text = ""; sendActions(for: .editingChanged) }
+}
+
 class TreeNode {
     let entry: FileEntry
     let depth: Int
@@ -23,6 +58,9 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     var visibleEntries: [FileEntry] = []
     private var allEntries: [FileEntry] = []
     private var nameFilter = ""
+    private weak var filterInput: CommanderFilterField?
+    private weak var filterStatus: UILabel?
+    private weak var clearFilterButton: UIButton?
     private var sortField = 0
     private var sortAscending = true
     private weak var resizingColumns: UIStackView?
@@ -41,6 +79,11 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     private var listingPending = false
     private var expandedTreeKeys = Set<String>()
     private var treeGeneration = 0
+    private var dropHoverWork: DispatchWorkItem?
+    private var dropHoverKey: String?
+    private var dropScrollTimer: Timer?
+    private weak var dropHoverTable: UITableView?
+    private var currentDropSession: UIDropSession?
 #if targetEnvironment(macCatalyst)
     var onlineNavigation: UINavigationController?
     private weak var paneShell: UIStackView?
@@ -76,6 +119,7 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     }
     private var cloudObserver: CloudDirectoryObserver?
     private var cloudRefreshWork: DispatchWorkItem?
+    private var directoryMenu: CommanderDirectoryMenu?
 #endif
     private static let listingQueue: OperationQueue = {
         let queue = OperationQueue()
@@ -102,6 +146,7 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     }
 
     deinit {
+        dropHoverWork?.cancel(); dropScrollTimer?.invalidate()
 #if targetEnvironment(macCatalyst)
         cloudObserver?.stop()
         cloudRefreshWork?.cancel()
@@ -260,7 +305,8 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         
         let fileColumn = createColumn(title: L10n.get("files"), accent: accent, theme: theme)
 #if targetEnvironment(macCatalyst)
-        let filter = UITextField()
+        let filter = CommanderFilterField()
+        filterInput = filter
         filter.placeholder = L10n.get("filter_names")
         filter.text = nameFilter
         filter.accessibilityIdentifier = "Filter-\(title)"
@@ -272,6 +318,13 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
             self?.applyListingOrder()
         }, for: .editingChanged)
         fileColumn.addArrangedSubview(filter)
+        let filterNote = UILabel(); filterNote.font = .systemFont(ofSize: 11); filterNote.numberOfLines = 0
+        filterNote.accessibilityIdentifier = "FilterStatus-\(title)"; filterStatus = filterNote
+        let clear = UIButton(type: .system); clear.setTitle(L10n.get("filter_clear"), for: .normal)
+        clear.accessibilityIdentifier = "ClearFilter-\(title)"; clearFilterButton = clear
+        clear.addAction(UIAction { [weak self] _ in self?.filterInput?.text = ""; self?.nameFilter = ""; self?.applyListingOrder() }, for: .touchUpInside)
+        let filterRow = UIStackView(arrangedSubviews: [filterNote, clear]); filterRow.spacing = 8
+        fileColumn.addArrangedSubview(filterRow)
         let sortRow = UIStackView()
         sortRow.distribution = .fill
         for (index, key) in ["sort_name", "sort_size", "sort_type", "sort_date"].enumerated() {
@@ -291,6 +344,30 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         fileColumn.addArrangedSubview(sortRow)
 #endif
         fileList = UITableView()
+#if targetEnvironment(macCatalyst)
+        directoryMenu = CommanderDirectoryMenu(table: fileList) { [weak self] in
+            guard let self, let controller = self.viewController else { return nil }
+            controller.activePane = self; controller.view.endEditing(true)
+            let writable = self.currentDirectory.canWriteDirectory() && !controller.operationInProgress
+            let mutations: UIMenuElement.Attributes = writable ? [] : .disabled
+            let idle: UIMenuElement.Attributes = controller.operationInProgress ? .disabled : []
+            return UIMenu(children: [
+                UIAction(title: L10n.get("new_folder"), image: UIImage(systemName: "folder.badge.plus"), attributes: mutations) { [weak self] _ in
+                    guard let self else { return }; controller.activePane = self; controller.createFolder()
+                },
+                UIAction(title: L10n.get("paste"), image: UIImage(systemName: "doc.on.clipboard"), attributes: mutations) { [weak self] _ in
+                    guard let self else { return }; controller.activePane = self; controller.pasteClipboard()
+                },
+                UIAction(title: L10n.get("refresh"), image: UIImage(systemName: "arrow.clockwise")) { [weak self] _ in
+                    self?.reloadTreeKeepingExpansion(); self?.refreshFiles()
+                },
+                UIAction(title: L10n.get("commander_search"), image: UIImage(systemName: "magnifyingglass"), attributes: idle) { [weak self] _ in
+                    guard let self else { return }; controller.activePane = self; controller.showCommanderSearch()
+                },
+                UIAction(title: L10n.get("directory_copy_path")) { [weak self] _ in UIPasteboard.general.string = self?.currentDirectory.url.path }
+            ])
+        }
+#endif
         fileList.accessibilityIdentifier = "FileList-\(title)"
         fileList.backgroundColor = theme.fileBackground
         fileList.separatorStyle = .singleLine
@@ -373,6 +450,10 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         let label = UILabel()
         label.text = title
         label.textColor = UIColor(hex: accent)
+#if targetEnvironment(macCatalyst)
+        let dark = viewController?.darkMode == true
+        label.textColor = UIColor(hex: self.title == "1" ? (dark ? "#88baff" : "#185bb5") : (dark ? "#79dcb9" : "#147454"))
+#endif
         label.font = UIFont.boldSystemFont(ofSize: 12)
         
         headerRow.addArrangedSubview(label)
@@ -546,9 +627,11 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
                 return sortAscending ? order == .orderedAscending : order == .orderedDescending
             }
         selectedKeys.formIntersection(Set(visibleEntries.map { $0.key() }))
+        filterStatus?.isHidden = nameFilter.isEmpty; clearFilterButton?.isHidden = nameFilter.isEmpty
+        filterStatus?.text = visibleEntries.isEmpty ? L10n.get("filter_no_matches") : String(format: L10n.get("filter_active_status"), visibleEntries.count, allEntries.count)
         fileList?.reloadData()
         updateSelectionStatus()
-        showDirectoryMessage(visibleEntries.isEmpty ? L10n.get("directory_empty") : nil, retry: false)
+        showDirectoryMessage(visibleEntries.isEmpty ? L10n.get(nameFilter.isEmpty ? "directory_empty" : "filter_no_matches") : nil, retry: false)
     }
 
     private func showDirectoryMessage(_ message: String?, retry: Bool) {
@@ -1000,25 +1083,73 @@ extension CommanderPane: UITableViewDragDelegate, UITableViewDropDelegate {
             if tableView === treeList, flatTree.indices.contains(index.row) { return flatTree[index.row].entry }
             if tableView === fileList, visibleEntries.indices.contains(index.row) {
                 let entry = visibleEntries[index.row]
-                if entry.isDirectoryLike() { return entry }
+                if entry.offersDirectoryDrop { return entry }
             }
         }
+        if tableView === treeList { return nil }
         return currentDirectory
     }
+    private func permittedDrop(_ session: UIDropSession, target: FileEntry) -> Bool {
+        let local = session.items.compactMap { $0.localObject as? FileEntry }
+        guard !local.isEmpty else { return true }
+        guard local.count == session.items.count else { return false }
+        return CommanderDropPolicy.accepts(local.map { ($0.url, $0.offersDirectoryDrop) }, target: target.url)
+    }
+    private func stopDropHover() {
+        dropHoverWork?.cancel(); dropHoverWork = nil; dropHoverKey = nil
+        dropScrollTimer?.invalidate(); dropScrollTimer = nil
+        dropHoverTable = nil; currentDropSession = nil
+    }
+    private func trackDrop(_ table: UITableView, session: UIDropSession, target: FileEntry) {
+        dropHoverTable = table; currentDropSession = session
+        let hoverKey = table === treeList ? target.key() : nil
+        if hoverKey != dropHoverKey {
+            dropHoverWork?.cancel(); dropHoverKey = hoverKey
+            if let hoverKey {
+                let work = DispatchWorkItem { [weak self] in
+                    guard let self, self.dropHoverKey == hoverKey,
+                        let node = self.flatTree.first(where: { $0.entry.key() == hoverKey }), !node.expanded else { return }
+                    let offset = self.treeList.contentOffset
+                    node.expanded = true; self.expandedTreeKeys.insert(hoverKey)
+                    if !node.loaded { self.loadChildren(for: node) }
+                    self.rebuildTree(); self.treeList.layoutIfNeeded()
+                    self.treeList.setContentOffset(offset, animated: false)
+                }
+                dropHoverWork = work; DispatchQueue.main.asyncAfter(deadline: .now() + 0.65, execute: work)
+            }
+        }
+        if dropScrollTimer == nil {
+            dropScrollTimer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { [weak self] _ in
+                guard let self, let table = self.dropHoverTable, let session = self.currentDropSession else { return }
+                let y = session.location(in: table).y - table.contentOffset.y
+                let delta: CGFloat = y < 24 ? -12 : y > table.bounds.height - 24 ? 12 : 0
+                if delta != 0 {
+                    let lower = -table.adjustedContentInset.top
+                    let upper = max(lower, table.contentSize.height - table.bounds.height + table.adjustedContentInset.bottom)
+                    table.setContentOffset(CGPoint(x: table.contentOffset.x, y: max(lower, min(upper, table.contentOffset.y + delta))), animated: false)
+                }
+            }
+        }
+    }
+    func tableView(_ tableView: UITableView, dropSessionDidExit session: UIDropSession) { stopDropHover() }
+    func tableView(_ tableView: UITableView, dropSessionDidEnd session: UIDropSession) { stopDropHover() }
     
     func tableView(_ tableView: UITableView, dropSessionDidUpdate session: UIDropSession, withDestinationIndexPath destinationIndexPath: IndexPath?) -> UITableViewDropProposal {
         guard self.tableView(tableView, canHandle: session),
-              let target = targetForDrop(in: tableView, session: session), target.canWriteDirectory() else {
+              let target = targetForDrop(in: tableView, session: session), target.offersDirectoryDrop, permittedDrop(session, target: target) else {
+            stopDropHover()
             return UITableViewDropProposal(operation: .forbidden)
         }
+        trackDrop(tableView, session: session, target: target)
         let internalDrag = session.localDragSession != nil
         let operation: UIDropOperation = internalDrag && session.allowsMoveOperation && viewController?.moveMode == true ? .move : .copy
         return UITableViewDropProposal(operation: operation, intent: .insertIntoDestinationIndexPath)
     }
     
     func tableView(_ tableView: UITableView, performDropWith coordinator: UITableViewDropCoordinator) {
+        stopDropHover()
         guard self.tableView(tableView, canHandle: coordinator.session),
-              let target = targetForDrop(in: tableView, session: coordinator.session), target.canWriteDirectory(),
+              let target = targetForDrop(in: tableView, session: coordinator.session), target.canWriteDirectory(), permittedDrop(coordinator.session, target: target),
               let controller = viewController else { return }
         controller.activePane = self
 #if targetEnvironment(macCatalyst)
@@ -1045,6 +1176,7 @@ extension CommanderPane: UITableViewDragDelegate, UITableViewDropDelegate {
     func tableView(_ tableView: UITableView, dragSessionAllowsMoveOperation session: UIDragSession) -> Bool { true }
 
     func tableView(_ tableView: UITableView, dragSessionDidEnd session: UIDragSession) {
+        stopDropHover()
         if viewController?.activeDragPane === self {
             viewController?.activeDragPane = nil
         }
@@ -1171,6 +1303,7 @@ class FileCell: UITableViewCell {
         thumbnailRequest = nil
         thumbnailView.image = nil
         iconView.isHidden = false
+        iconView.text = ""
         let key = "\(entry.key())|\(entry.modified())|\(entry.size())"
         representedKey = key
         let mime = entry.mimeType()
@@ -1231,9 +1364,7 @@ class FileCell: UITableViewCell {
         
         if entry.modified() > 0 {
             let d = Date(timeIntervalSince1970: TimeInterval(entry.modified() / 1000))
-            let df = DateFormatter()
-            df.dateFormat = "yyyy-MM-dd HH:mm"
-            dateLabel.text = df.string(from: d)
+            dateLabel.text = OnlineDisplayPolicy.localDate(d)
         } else {
             dateLabel.text = ""
         }

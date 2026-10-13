@@ -1,0 +1,3 @@
+qt.multimedia.ffmpeg: Using Qt multimedia with FFmpeg version 7.1.5 LGPL version 2.1 or later
+This plugin does not support propagateSizeHints()
+PASS: Linux desktop, JPEG viewer, online-image download, TAR/7z, external Drive menu and persisted copy pause/resume

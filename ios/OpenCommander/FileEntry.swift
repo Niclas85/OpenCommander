@@ -98,7 +98,11 @@ class FileEntry: Hashable, Equatable {
     }
 
     func isZipArchive() -> Bool {
+#if targetEnvironment(macCatalyst)
+        return zipPath == nil && !isPhysicalDirectory() && CommanderNativeArchive.supports(name())
+#else
         return zipPath == nil && !isPhysicalDirectory() && name().lowercased().hasSuffix(".zip")
+#endif
     }
 
     func isZipEntry() -> Bool {
@@ -109,11 +113,11 @@ class FileEntry: Hashable, Equatable {
         return isUpButton || isPhysicalDirectory() || isZipArchive() || (zipPath != nil && zipDirectory)
     }
 
-    /// macOS packages and archives open with their assigned app. They remain
-    /// browsable explicitly in the tree/context menu, rather than on double-click.
+    /// Archives open in the pane; macOS application packages keep their assigned app.
     func opensInPaneByDefault() -> Bool {
 #if targetEnvironment(macCatalyst)
         if zipPath != nil { return zipDirectory }
+        if isZipArchive() { return true }
         return isPhysicalDirectory() &&
             (try? url.resourceValues(forKeys: [.isPackageKey]).isPackage) != true
 #else
@@ -130,6 +134,8 @@ class FileEntry: Hashable, Equatable {
         }
         return FileManager.default.isWritableFile(atPath: url.path)
     }
+    /// Cached shape only: do not stat FileProvider/network paths on mouse moves.
+    var offersDirectoryDrop: Bool { zipPath == nil && (listingDirectory == true || isUpButton) }
 
     func displayPath() -> String {
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -216,22 +222,38 @@ class FileEntry: Hashable, Equatable {
     func contentBytes() -> Int64 {
         if isZipEntry() { return zipSize }
         if isZipArchive() {
+#if targetEnvironment(macCatalyst)
+            if url.pathExtension.lowercased() != "zip" {
+                return (try? CommanderNativeArchive.members(url).reduce(Int64(0)) { $0 + $1.size }) ?? -2
+            }
+#endif
             guard let archive = Archive(url: url, accessMode: .read) else { return 0 }
             return archive.reduce(Int64(0)) { $0 + Int64($1.uncompressedSize) }
         }
         if !isPhysicalDirectory() { return size() }
-        return (try? BoundedFolderSize.bytes(at: url)) ?? -2
+        return (try? BoundedFolderSize.bytes(at: url, excludingRecovery: true)) ?? -2
     }
 
     func materializedURLForOpening(sourceURL: URL? = nil) throws -> URL {
         let sourceURL = sourceURL ?? url
         guard let zipPath else { return sourceURL }
+#if targetEnvironment(macCatalyst)
+        if sourceURL.pathExtension.lowercased() != "zip" {
+            guard !zipDirectory else { throw CocoaError(.fileReadUnsupportedScheme) }
+            let parent = FileManager.default.temporaryDirectory.appendingPathComponent("OpenCommanderPreview", isDirectory: true)
+            try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+            let root = parent.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            try CommanderNativeArchive.extract(sourceURL, prefixes: [zipPath], to: root, maximumBytes: 128 * 1024 * 1024)
+            return root.appendingPathComponent(zipPath)
+        }
+#endif
         guard !zipDirectory, let archive = Archive(url: sourceURL, accessMode: .read),
               let item = archive.first(where: { $0.path == zipPath }) else {
             throw NSError(domain: "OpenCommander", code: 2, userInfo: [NSLocalizedDescriptionKey: "ZIP entry is unavailable"])
         }
         var limits = SafeArchiveLimits()
         try limits.include(path: item.path, size: UInt64(item.uncompressedSize), symbolicLink: item.type == .symlink)
+        guard item.uncompressedSize <= 128 * 1024 * 1024 else { throw CocoaError(.fileReadTooLarge) }
         let outputDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("OpenCommanderPreview", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -256,7 +278,18 @@ class FileEntry: Hashable, Equatable {
     }
 
     private func zipChildren(directoriesOnly: Bool) throws -> [FileEntry] {
+        let members: [(path: String, directory: Bool, size: Int64, modified: Int64, symbolic: Bool)]
+#if targetEnvironment(macCatalyst)
+        if url.pathExtension.lowercased() != "zip" {
+            members = try CommanderNativeArchive.members(url).map { ($0.path, $0.directory, $0.size, $0.modified, false) }
+        } else {
+            let archive = try Archive(url: url, accessMode: .read, pathEncoding: nil)
+            members = archive.map { ($0.path, $0.type == .directory, Int64($0.uncompressedSize), Int64((($0.fileAttributes[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0) * 1000), $0.type == .symlink) }
+        }
+#else
         let archive = try Archive(url: url, accessMode: .read, pathEncoding: nil)
+        members = archive.map { ($0.path, $0.type == .directory, Int64($0.uncompressedSize), Int64((($0.fileAttributes[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0) * 1000), $0.type == .symlink) }
+#endif
         var base = zipPath ?? ""
         if !base.isEmpty && !base.hasSuffix("/") { base += "/" }
 
@@ -267,24 +300,26 @@ class FileEntry: Hashable, Equatable {
         }
         var children: [String: ZipChild] = [:]
         var limits = SafeArchiveLimits()
-        for item in archive {
-            try limits.include(path: item.path, size: UInt64(item.uncompressedSize), symbolicLink: item.type == .symlink)
+        let hidden = UserDefaults.standard.bool(forKey: "show_hidden_files")
+        for item in members {
+            try limits.include(path: item.path, size: UInt64(item.size), symbolicLink: item.symbolic)
             guard item.path.hasPrefix(base) else { continue }
             let remainder = String(item.path.dropFirst(base.count))
             guard !remainder.isEmpty else { continue }
             let parts = remainder.split(separator: "/", omittingEmptySubsequences: true)
             guard let first = parts.first else { continue }
             let childName = String(first)
+            guard hidden || !childName.hasPrefix(".") else { continue }
             let childPath = base + childName
-            let directory = parts.count > 1 || item.type == .directory || remainder.hasSuffix("/")
-            let childSize = directory ? 0 : Int64(item.uncompressedSize)
+            let directory = parts.count > 1 || item.directory || remainder.hasSuffix("/")
+            let childSize = directory ? 0 : item.size
             if var existing = children[childName] {
                 existing.isDirectory = existing.isDirectory || directory
                 existing.size = max(existing.size, childSize)
                 children[childName] = existing
             } else {
                 children[childName] = ZipChild(isDirectory: directory, size: childSize,
-                    modified: Int64((item.fileAttributes[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0) * 1000)
+                    modified: item.modified)
             }
             _ = childPath
         }

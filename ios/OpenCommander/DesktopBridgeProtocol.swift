@@ -18,6 +18,13 @@ protocol DesktopBridgeProtocol {
                          path: String, destination: String?, localURL: URL?, completion: @escaping (Data?, NSError?) -> Void)
     func cancelRemoteOperation(_ requestID: String)
     func remoteHostKeys(_ connection: Data, completion: @escaping (String?, NSError?) -> Void)
+    func cloudOperation(_ requestID: String, connection: Data, operation: String, path: String,
+                        destination: String?, localURL: URL?, completion: @escaping (Data?, NSError?) -> Void)
+    func cancelCloudOperation(_ requestID: String)
+    func cloudSetup(_ requestID: String, connection: Data, state: String?, answer: String?, password: Bool, oauthClient: Data?,
+                    browser: @escaping (URL) -> Void, completion: @escaping (Data?, NSError?) -> Void)
+    func chooseCloudConfiguration(title: String, completion: @escaping (URL?) -> Void)
+    func stableVolumeIdentity(_ url: URL) -> String?
 }
 #endif
 

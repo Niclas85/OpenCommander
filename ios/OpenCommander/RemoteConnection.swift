@@ -68,7 +68,8 @@ struct RemoteDirectoryItem: Codable {
     var size: Int64
     var modified: String
     var unsafe: Bool = false
-    var version: String { "\(directory):\(size):\(modified)" }
+    var fingerprint: String? = nil
+    var version: String { fingerprint ?? "\(directory):\(size):\(modified)" }
 
     /// RFC 3659 MLSD avoids locale-dependent FTP LIST parsing. Never follow links.
     static func mlsd(_ listing: String) throws -> [Self] {
@@ -133,7 +134,7 @@ enum RemoteContent {
                 result[relative] = "directory"
                 for child in try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil) {
                     if !hidden && child.lastPathComponent.hasPrefix(".") { continue }
-                    guard RemoteConnection.validName(child.lastPathComponent) else { throw RemoteConnection.failure("remote_invalid") }
+                    guard CloudConnection.validName(child.lastPathComponent) else { throw RemoteConnection.failure("remote_invalid") }
                     try visit(child, relative: relative.isEmpty ? child.lastPathComponent : relative + "/" + child.lastPathComponent, depth: depth + 1)
                 }
             } else {

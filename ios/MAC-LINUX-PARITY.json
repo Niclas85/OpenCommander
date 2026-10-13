@@ -1,8 +1,8 @@
 {
-  "reference": "origin/codex/linux-desktop@4e72b174ec0ea2579819a0425de0990055edf05f",
+  "reference": "origin/codex/linux-desktop@9db136167489b46bc6c7ad0a96375b8487c9be6e",
   "target": "macOS / Mac Catalyst",
-  "verified_on": "2026-10-03",
-  "status": "native desktop core port implemented; not exhaustive Linux parity",
+  "verified_on": "2026-10-13",
+  "status": "Linux 0.3.25rc10 source imported; native compact/resizable transfers, drop hover/preflight, cloud assistant and publisher PKCE added; targeted checks passed, full parity remains open",
   "implemented": [
     "Shared light/dark palette and two-pane styling",
     "Linux toolbar order, context-only extraction action, header Copy/Move and Dark switches",
@@ -16,10 +16,22 @@
     "Safe cancellable staged copies and ZIP extraction",
     "Persistent operation history and guarded recoverable undo",
     "File properties and bounded folder-size calculation",
-    "Mounted/cloud locations, external volume mounting/ejection and installed sync-app discovery"
+    "Mounted/cloud locations, external volume mounting/ejection and installed sync-app discovery",
+    "Embedded OneDrive/FTP/FTPS/SFTP panes and Commander search/compare/batch rename",
+    "Local durable file/tree/move/replacement queue, explicit restart recovery and 1-4 parallel jobs",
+    "Independent copied/verified byte counters and truthful pending pause/cancel status",
+    "Persisted single-row compact transfers, applicable inline controls, docked resizable height and retained last failure",
+    "Local and online tree drop-hover/edge-scroll implementation with pre-transfer self/cycle/no-op guards; complete native DnD acceptance remains open",
+    "Private new-account backend setup assistant with browser routing, explicit iCloud fields and SMS cooldown; no authenticated provider login claimed",
+    "Publisher/custom desktop OAuth identities use shared Linux packaging schema; native Microsoft/Dropbox S256 PKCE with bounded cancellable loopback and token exchange; real account acceptance remains unverified",
+    "Direct-cloud display-only bounded retries, explicit stale cache, Google project-quota cooldown and mutation non-replay",
+    "Configuration-bound display cache purges old-account rows and rejects in-flight source changes",
+    "Preflight for incomplete OAuth, OneDrive drive selection and iCloud device verification",
+    "Offline 18-topic handbook, literal localized search/highlighting/counts and print preview",
+    "Preflight missing/changed recovery backups before current target displacement on Mac and Linux"
   ],
   "verified": {
-    "builds": ["Mac Catalyst signed experimental NTFS build", "iOS Simulator build before final desktop-only refinements"],
+    "builds": ["Final Mac Catalyst signed experimental NTFS build on 2026-10-13", "Final iOS device-platform control build with signing disabled on 2026-10-13; earlier simulator build also passed"],
     "automated": [
       "Swift operation safety, persisted undo, permissions-only modification protection",
       "Cancelled staged copies preserve the original destination",
@@ -45,19 +57,45 @@
   "remaining": [
     "Toolkit-native widgets are not pixel-identical; Mac-only default-app preferences remain accessible",
     "Mouse modifier/range-selection behavior still needs a complete Linux/Mac equivalence pass",
-    "Linux GIO SFTP/WebDAV authentication and mounts have not been reproduced; Mac server actions use system URL handlers",
-    "Cross-volume moves do not yet provide fine-grained in-flight cancellation",
-    "Failures producing no output are not yet persisted as standalone failed history entries",
+    "Authenticated publisher wizard acceptance, config/account mutation identity pinning and refresh-token rotation gates",
+    "Durable direct-cloud checkpoints, restart, cross-backend move Undo and legacy staging adoption",
+    "Persistent online replacement Undo and per-cloud-history-card Undo; Replace for online moves",
+    "Full native Google document export and bounded media-cache/external save lifecycle",
+    "Global resource reservations across all workflows and app windows",
+    "Failed cloud actions are not yet always persisted as standalone failed history entries",
     "Connections dialog does not refresh while open; the storage bar refreshes separately",
     "Not every Linux reachable state or macOS external drag-and-drop permutation was retested",
-    "AV playback pause/resume with longer media needs a dedicated UI test",
-    "Cloud account authentication and real remote synchronization were not changed or verified"
+    "Full illustrated Mac screenshot handbook and interaction acceptance-plan parity",
+    "Complete native mouse drag/lift/hover/cancel and external-app acceptance; automated drag emitted no transfer",
+    "Complete latest Linux suite/FUSE/package/live UI requires an accessible Linux host"
   ],
   "ntfs": {
     "build_condition": "OPENCOMMANDER_NTFS3G_EXPERIMENTAL",
-    "preflight": "Registered extension found in installed app; FSClient omitted it",
-    "current_write_activation": "not verified by this parity run",
+    "preflight": "Previously passed against the already installed per-user extension on an isolated new image",
+    "current_write_activation": "isolated 64 MiB FSKit write/read/rename/delete/truncate/fsync and Apple read-only remount passed in the earlier continuation; not repeated in the current upstream pull",
     "existing_disks_written": false
+  },
+  "latest_upstream_batch": {
+    "date": "2026-10-13",
+    "linux_source_version": "0.3.25rc10 (unreleased)",
+    "new_linux_commits": ["7b87a72", "594b4d5", "567b95b", "96a2bdd", "9d79ef1", "9db1361"],
+    "integration": "Initial Linux-only indexed patch plus newest source/release-draft working-tree patch; preserved all Mac work and Linux safety backports",
+    "linux_headless_on_mac": "127 passed, 3 FUSE-dependent skipped in expanded cloud/OAuth/package-audit/safety subset; no complete Linux-host verification claim",
+    "linux_qt_offscreen_on_mac": "27 targeted auth/iCloud/card/height/progress tests passed after explicit German test locale; historical platform-specific /proc failures remain documented",
+    "linux_backport": "backup preflight, missing runtime, saved-error localization, string checkpoint backup paths and authentication-priority errors; recovery/config subset 14 passed (overlaps combined run)",
+    "mac_automated_groups": "Final rerun: cloud client 12, runtime/setup/process 7 plus verified-rclone 3, queue 6, safety 20, handbook 2, copy 10, tree 7, Graph 22, Commander tools 3 and native OAuth/publisher packaging 8 groups",
+    "final_builds": "Latest Mac Catalyst and iOS device-platform builds succeeded; duplicate-key startup trap corrected and localization regression guard passed; Mac deep/strict signature valid",
+    "native_ui": "F5 private copy hashes match; compact/details/height persistence across restart passed; credential-free iCloud Apple-ID/empty-field/cancel passed; native automatic drag emitted no transfer",
+    "personal_cloud_writes": false,
+    "installed_app_replaced": false,
+    "commit_push_requested": true
+  },
+  "publication_batch": {
+    "requested": "Commit and push to existing codex/mac-linux-parity branch",
+    "oauth": "Native publisher/custom OneDrive/Dropbox PKCE plus Google desktop identity, shared Linux packaging schema, private new-account seed and sanitized bounded exchange",
+    "oauth_verification": "8 synthetic/mock/packaging groups passed; actual loopback tested; no authenticated provider flow, grant, token refresh or production approval claim",
+    "visible_ui": "OneDrive expert field opens in current window without secret field; invalid synthetic client ID refused with German status before backend/browser; Escape closes assistant",
+    "status": "Work in progress; committing tested implementation does not assert complete Linux/Mac parity"
   },
   "safety": {
     "test_data": "/tmp/OpenCommander-MacParity.RgAWSn",

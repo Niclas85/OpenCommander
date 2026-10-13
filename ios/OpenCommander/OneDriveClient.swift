@@ -17,20 +17,53 @@ struct OneDriveItem: Decodable {
     var isFolder: Bool { folder != nil }
 }
 
+enum OnlineDisplayPolicy {
+    private static let dateLock = NSLock()
+    private static let fractionalParser: ISO8601DateFormatter = {
+        let value = ISO8601DateFormatter(); value.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return value
+    }()
+    private static let wholeParser = ISO8601DateFormatter()
+    private static let columnFormatter: DateFormatter = {
+        let value = DateFormatter()
+        value.locale = Locale(identifier: "en_US_POSIX")
+        value.calendar = Calendar(identifier: .gregorian)
+        value.timeZone = .autoupdatingCurrent
+        value.dateFormat = "yyyy-MM-dd HH:mm"
+        return value
+    }()
+    static func visible(_ name: String, hidden: Bool) -> Bool { hidden || !name.hasPrefix(".") }
+    static func localDate(_ date: Date) -> String {
+        dateLock.lock(); defer { dateLock.unlock() }
+        return columnFormatter.string(from: date)
+    }
+    static func modifiedDate(_ value: String?) -> String {
+        guard let value, value.utf8.count <= 64 else { return "—" }
+        dateLock.lock(); defer { dateLock.unlock() }
+        guard let date = fractionalParser.date(from: value) ?? wholeParser.date(from: value) else { return "—" }
+        return columnFormatter.string(from: date)
+    }
+}
+
 struct OneDriveDeviceCode: Decodable {
     let device_code: String
     let user_code: String
     let verification_uri: String
     let expires_in: Int
     let interval: Int?
+    var session: UUID? = nil
 }
 
 enum OneDriveFailure: LocalizedError {
     case message(String)
     case nameConflict
+    case temporarilyUnavailable(Int, retryAfter: TimeInterval = 10)
     var errorDescription: String? {
         if case .message(let text) = self { return text }
         let german = (UserDefaults.standard.string(forKey: "language") ?? Locale.current.language.languageCode?.identifier ?? "en").hasPrefix("de")
+        if case .temporarilyUnavailable(let status, _) = self {
+            return german ? "OneDrive ist momentan nicht verfügbar oder begrenzt die Abfragen (HTTP \(status)). Bitte etwas warten und erneut laden. Schreibaktionen wurden nicht automatisch wiederholt."
+                : "OneDrive is temporarily unavailable or limiting requests (HTTP \(status)). Wait and reload. Changes were not automatically retried."
+        }
         return german ? "Am OneDrive-Ziel ist bereits ein Element mit diesem Namen vorhanden. Die vorhandene Datei wurde nicht ersetzt. Aktualisiere den Ordner und wähle beim Kopieren ‚Beide behalten‘ oder ‚Überspringen‘. Bei Ordnern können bereits kopierte Teile vorhanden sein."
             : "An item with this name already exists in OneDrive. The existing file was not replaced. Refresh the folder and choose Keep Both or Skip when copying. A folder transfer may already have copied some items."
     }
@@ -120,7 +153,9 @@ struct OneDriveKeychain: OneDriveTokenStore {
 @MainActor protocol CommanderOnlineClient: AnyObject {
     var clientID: String { get }
     var moveBackupLocation: String? { get }
+    func validFileName(_ name: String) -> Bool
     func children(of id: String?) async throws -> [OneDriveItem]
+    func browserListing(of id: String?) async throws -> OnlineBrowserListing
     func toolChildren(of id: String?) async throws -> [OneDriveItem]
     func metadata(_ id: String?) async throws -> OneDriveItem
     func createFolder(_ name: String, parent: String?) async throws
@@ -140,19 +175,49 @@ struct OneDriveKeychain: OneDriveTokenStore {
     func disconnect() throws
 }
 extension CommanderOnlineClient {
+    func validFileName(_ name: String) -> Bool { OneDriveClient.validName(name) }
+    func browserListing(of id: String?) async throws -> OnlineBrowserListing {
+        OnlineBrowserListing(items: try await children(of: id), cachedAt: nil, warning: nil)
+    }
     func toolChildren(of id: String?) async throws -> [OneDriveItem] { try await children(of: id) }
     var moveBackupLocation: String? { nil }
     func metadata() async throws -> OneDriveItem { try await metadata(nil) }
     func children() async throws -> [OneDriveItem] { try await children(of: nil) }
 }
 
+struct OnlineBrowserListing {
+    let items: [OneDriveItem]
+    let cachedAt: Date?
+    let warning: String?
+    var warningKey: String? = nil
+    var retryAfter: TimeInterval? = nil
+}
+
 @MainActor final class OneDriveClient: CommanderOnlineClient {
+    static let listingChanged = Notification.Name("OpenCommander.OneDriveListingChanged")
     let clientID: String
     private let session: URLSession
     private let store: OneDriveTokenStore
     private let downloadFile: (URL) async throws -> (URL, URLResponse)
+    private let retrySleep: (TimeInterval) async throws -> Void
     private var accessToken: String?
     private var expiresAt = Date.distantPast
+    private var sessionGeneration = UUID()
+    private var loginInProgress = false
+    private var refreshTask: Task<String, Error>?
+    private var refreshID: UUID?
+    private var listingCache: [String: (items: [OneDriveItem], date: Date)] = [:]
+    private let sharedListings = SharedDirectoryReads<[OneDriveItem]>()
+    private final class WeakClient { weak var value: OneDriveClient?; init(_ value: OneDriveClient) { self.value = value } }
+    private static var browserClients: [String: WeakClient] = [:]
+    static func browserClient(clientID: String) -> OneDriveClient {
+        if let client = browserClients[clientID]?.value { return client }
+        browserClients = browserClients.filter { $0.value.value != nil }
+        let client = OneDriveClient(clientID: clientID)
+        browserClients[clientID] = WeakClient(client)
+        return client
+    }
+    private var listingCooldown: [String: Date] = [:]
     private let authority = "https://login.microsoftonline.com/common/oauth2/v2.0/"
     private let graph = "https://graph.microsoft.com/v1.0"
     private let scopes = "Files.ReadWrite offline_access"
@@ -169,8 +234,12 @@ extension CommanderOnlineClient {
     }
 
     init(clientID: String, session: URLSession? = nil, store: OneDriveTokenStore = OneDriveKeychain(),
-         downloadFile: ((URL) async throws -> (URL, URLResponse))? = nil) {
+         downloadFile: ((URL) async throws -> (URL, URLResponse))? = nil,
+         retrySleep: @escaping (TimeInterval) async throws -> Void = { seconds in
+             try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+         }) {
         self.clientID = clientID; self.store = store
+        self.retrySleep = retrySleep
         if let session { self.session = session }
         else {
             let configuration = URLSessionConfiguration.ephemeral
@@ -212,12 +281,23 @@ extension CommanderOnlineClient {
         return (data, http)
     }
     func beginLogin() async throws -> OneDriveDeviceCode {
+        sessionGeneration = UUID(); refreshTask?.cancel(); refreshTask = nil; refreshID = nil
+        let expected = sessionGeneration
+        sharedListings.invalidate()
+        listingCache.removeAll(); listingCooldown.removeAll()
         guard Self.validClientID(clientID) else { throw OneDriveFailure.message("A registered Microsoft Application (client) ID is required.") }
         let (data, http) = try await post("devicecode", values: ["client_id": clientID, "scope": scopes])
+        guard sessionGeneration == expected else { throw CancellationError() }
         guard http.statusCode == 200 else { throw oauthFailure(data) }
-        return try JSONDecoder().decode(OneDriveDeviceCode.self, from: data)
+        var code = try JSONDecoder().decode(OneDriveDeviceCode.self, from: data)
+        code.session = expected
+        loginInProgress = true
+        return code
     }
     func completeLogin(_ code: OneDriveDeviceCode) async throws {
+        let expected = sessionGeneration
+        guard code.session == nil || code.session == expected else { throw CancellationError() }
+        defer { if sessionGeneration == expected { loginInProgress = false } }
         let deadline = Date().addingTimeInterval(TimeInterval(code.expires_in))
         var interval = max(1, code.interval ?? 5)
         while Date() < deadline {
@@ -225,9 +305,13 @@ extension CommanderOnlineClient {
             try Task.checkCancellation()
             let (data, http) = try await post("token", values: ["client_id": clientID,
                 "grant_type": "urn:ietf:params:oauth:grant-type:device_code", "device_code": code.device_code])
+            guard sessionGeneration == expected else { throw CancellationError() }
             if http.statusCode == 200 {
                 try Task.checkCancellation()
-                try accept(data, requireRefresh: true); return
+                try accept(data, requireRefresh: true)
+                sharedListings.invalidate(); listingCache.removeAll(); listingCooldown.removeAll()
+                NotificationCenter.default.post(name: Self.listingChanged, object: clientID, userInfo: ["accountChanged": true])
+                return
             }
             let reason = try? JSONDecoder().decode(OAuthError.self, from: data)
             if reason?.error == "authorization_pending" { continue }
@@ -250,12 +334,23 @@ extension CommanderOnlineClient {
         return OneDriveFailure.message("Microsoft sign-in: \(code). Check the app registration/public client settings or reconnect.")
     }
     private func bearer() async throws -> String {
+        guard !loginInProgress else { throw OneDriveFailure.message("Please finish Microsoft sign-in before accessing files.") }
         if let accessToken, expiresAt > Date() { return accessToken }
+        if let refreshTask { return try await refreshTask.value }
+        let identifier = UUID(), expected = sessionGeneration
+        let refreshTask = Task { @MainActor in try await self.refreshBearer(expected: expected) }
+        self.refreshTask = refreshTask; refreshID = identifier
+        defer { if refreshID == identifier { self.refreshTask = nil; refreshID = nil } }
+        return try await refreshTask.value
+    }
+    private func refreshBearer(expected: UUID) async throws -> String {
         guard let refresh = try store.read(clientID: clientID) else {
             throw OneDriveFailure.message("Please connect OneDrive to OpenCommander first.")
         }
         let (data, http) = try await post("token", values: ["client_id": clientID,
             "grant_type": "refresh_token", "refresh_token": refresh, "scope": scopes])
+        try Task.checkCancellation()
+        guard sessionGeneration == expected else { throw CancellationError() }
         guard http.statusCode == 200 else {
             if (try? JSONDecoder().decode(OAuthError.self, from: data))?.error == "invalid_grant" {
                 try store.write(nil, clientID: clientID)
@@ -266,8 +361,12 @@ extension CommanderOnlineClient {
         return accessToken!
     }
     func disconnect() throws {
+        sessionGeneration = UUID(); loginInProgress = false; refreshTask?.cancel(); refreshTask = nil; refreshID = nil
+        sharedListings.invalidate()
         try store.write(nil, clientID: clientID)
         accessToken = nil; expiresAt = .distantPast
+        listingCache.removeAll(); listingCooldown.removeAll()
+        NotificationCenter.default.post(name: Self.listingChanged, object: clientID, userInfo: ["accountChanged": true])
     }
     func hasSavedLogin() throws -> Bool { try store.read(clientID: clientID) != nil }
     private func component(_ value: String) -> String {
@@ -279,6 +378,8 @@ extension CommanderOnlineClient {
         url.user == nil && url.password == nil && url.path.hasPrefix("/v1.0/")
     }
     private func request(_ path: String, method: String = "GET", body: Data? = nil, contentType: String = "application/json", matching: String? = nil) async throws -> Data {
+        let expectedSession = sessionGeneration
+        defer { if method != "GET" { NotificationCenter.default.post(name: Self.listingChanged, object: clientID) } }
         guard let url = URL(string: path.hasPrefix("https:") ? path : graph + path), Self.safeGraphURL(url) else {
             throw OneDriveFailure.message("Refused an unexpected OneDrive API address.")
         }
@@ -287,14 +388,46 @@ extension CommanderOnlineClient {
         request.setValue("Bearer " + (try await bearer()), forHTTPHeaderField: "Authorization")
         if let matching { request.setValue(matching, forHTTPHeaderField: "If-Match") }
         if body != nil { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
+        // Even an unsuccessful response can follow a completed server mutation.
+        if method != "GET" { sharedListings.invalidate(); listingCache.removeAll(); listingCooldown.removeAll() }
+        let deadline = Date().addingTimeInterval(30)
+        for attempt in 0..<3 {
+        try Task.checkCancellation()
+        guard sessionGeneration == expectedSession else { throw CancellationError() }
+        // Only reads are replayable. A failed mutation may already have taken effect.
+        if method == "GET" { request.timeoutInterval = max(0.1, deadline.timeIntervalSinceNow) }
         let (data, response) = try await session.data(for: request)
+        try Task.checkCancellation()
+        guard sessionGeneration == expectedSession else { throw CancellationError() }
         guard let http = response as? HTTPURLResponse else { throw OneDriveFailure.message("Invalid OneDrive response.") }
-        guard (200..<300).contains(http.statusCode) else {
+        if (200..<300).contains(http.statusCode) {
+            return data
+        }
+        if method == "GET", attempt < 2, [429, 502, 503, 504].contains(http.statusCode) {
+            let delay = Self.retryDelay(http, fallback: TimeInterval(2 << attempt))
+            if delay < deadline.timeIntervalSinceNow {
+                try await retrySleep(delay)
+                try Task.checkCancellation()
+                if Date() < deadline { continue }
+            }
+        }
             if http.statusCode == 401 { accessToken = nil; expiresAt = .distantPast }
             if http.statusCode == 409 { throw OneDriveFailure.nameConflict }
+            if [429, 502, 503, 504].contains(http.statusCode) {
+                throw OneDriveFailure.temporarilyUnavailable(http.statusCode, retryAfter: max(10, Self.retryDelay(http, fallback: 10)))
+            }
             throw OneDriveFailure.message("OneDrive request failed (HTTP \(http.statusCode)). \(http.statusCode == 401 ? "Reconnect your account." : "No success was reported; refresh before retrying a change.")")
         }
-        return data
+        throw OneDriveFailure.message("OneDrive read retry budget exhausted.")
+    }
+    private static func retryDelay(_ response: HTTPURLResponse, fallback: TimeInterval) -> TimeInterval {
+        guard let value = response.value(forHTTPHeaderField: "Retry-After") else { return fallback }
+        if let seconds = TimeInterval(value), seconds.isFinite, seconds >= 0 { return seconds }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        return formatter.date(from: value).map { max(0, $0.timeIntervalSinceNow) } ?? fallback
     }
     func children(of id: String? = nil) async throws -> [OneDriveItem] {
         var next: String? = itemPath(id) + "/children?$select=id,name,size,folder,lastModifiedDateTime,eTag&$top=200"
@@ -307,10 +440,50 @@ extension CommanderOnlineClient {
         }
         return result.sorted { a, b in a.isFolder != b.isFolder ? a.isFolder : a.name.localizedStandardCompare(b.name) == .orderedAscending }
     }
+    /// Stale data is available only to display-only navigation, never to mutations,
+    /// recursive tools or version checks. No account content is persisted to disk.
+    func browserListing(of id: String?) async throws -> OnlineBrowserListing {
+        let key = id ?? ""
+        let now = Date()
+        listingCache = listingCache.filter { now.timeIntervalSince($0.value.date) < 300 }
+        listingCooldown = listingCooldown.filter { $0.value > now }
+        do {
+            if listingCooldown[key] != nil { throw OneDriveFailure.temporarilyUnavailable(429) }
+            let items = try await sharedListings.value(for: key) { try await self.children(of: id) }
+            try Task.checkCancellation()
+            if listingCache.count >= 32, listingCache[key] == nil,
+               let oldest = listingCache.min(by: { $0.value.date < $1.value.date })?.key { listingCache.removeValue(forKey: oldest) }
+            listingCache[key] = (items, Date())
+            return OnlineBrowserListing(items: items, cachedAt: nil, warning: nil)
+        } catch OneDriveFailure.temporarilyUnavailable(let status, let delay) {
+            if listingCooldown[key] == nil { listingCooldown[key] = Date().addingTimeInterval(delay) }
+            guard let cache = listingCache[key], Date().timeIntervalSince(cache.date) < 300 else {
+                throw OneDriveFailure.temporarilyUnavailable(status)
+            }
+            return OnlineBrowserListing(items: cache.items, cachedAt: cache.date,
+                warning: OneDriveFailure.temporarilyUnavailable(status).localizedDescription, retryAfter: delay)
+        } catch {
+            // Authentication/permission failures must not reveal a cached listing.
+            listingCache.removeValue(forKey: key)
+            throw error
+        }
+    }
     func createFolder(_ name: String, parent: String?) async throws {
         guard Self.validName(name) else { throw OneDriveFailure.message("Invalid OneDrive name.") }
         let data = try JSONSerialization.data(withJSONObject: ["name": name, "folder": [:], "@microsoft.graph.conflictBehavior": "fail"] as [String: Any])
         _ = try await request(itemPath(parent) + "/children", method: "POST", body: data)
+    }
+    /// Called only after explicit confirmation: anyone possessing this link can read the item.
+    func createReadOnlyShareLink(_ item: OneDriveItem) async throws -> URL {
+        let body = try JSONSerialization.data(withJSONObject: ["type": "view", "scope": "anonymous", "retainInheritedPermissions": true] as [String: Any])
+        let data = try await request(itemPath(item.id) + "/createLink", method: "POST", body: body)
+        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard let link = object?["link"] as? [String: Any], let address = link["webUrl"] as? String,
+              let url = URL(string: address), url.scheme == "https", url.host != nil,
+              url.user == nil, url.password == nil else {
+            throw OneDriveFailure.message("OneDrive returned an invalid sharing link. A link may already have been created; check OneDrive before retrying.")
+        }
+        return url
     }
     func rename(_ item: OneDriveItem, to name: String) async throws {
         guard Self.validName(name) else { throw OneDriveFailure.message("Invalid OneDrive name.") }

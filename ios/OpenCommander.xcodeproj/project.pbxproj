@@ -7,6 +7,22 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        D01420261013000000000001 = {isa = PBXBuildFile; fileRef = D01420261013000000000011; };
+        D01420261013000000000002 = {isa = PBXBuildFile; fileRef = D01420261013000000000011; };
+        D01320261013000000000001 = {isa = PBXBuildFile; fileRef = D01320261013000000000011; };
+        D01220261012000000000001 = {isa = PBXBuildFile; fileRef = D01220261012000000000011; };
+        D01220261012000000000002 = {isa = PBXBuildFile; fileRef = D01220261012000000000012; };
+        D01220261012000000000003 = {isa = PBXBuildFile; fileRef = D01220261012000000000013; };
+        D01220261012000000000004 = {isa = PBXBuildFile; fileRef = D01220261012000000000014; };
+        D01220261012000000000005 = {isa = PBXBuildFile; fileRef = D01220261012000000000015; };
+        D01220261012000000000006 = {isa = PBXBuildFile; fileRef = D01220261012000000000016; };
+        D01220261012000000000007 = {isa = PBXBuildFile; fileRef = D01220261012000000000017; };
+        D01220261012000000000008 = {isa = PBXBuildFile; fileRef = D01220261012000000000018; };
+        D01220261012000000000009 = {isa = PBXBuildFile; fileRef = D01220261012000000000018; };
+        D0122026101200000000000A = {isa = PBXBuildFile; fileRef = D01220261012000000000019; };
+        D0122026101200000000000B = {isa = PBXBuildFile; fileRef = D0122026101200000000001A; };
+        D0122026101200000000000C = {isa = PBXBuildFile; fileRef = D0122026101200000000001B; };
+        D0122026101200000000000D = {isa = PBXBuildFile; fileRef = D0122026101200000000001B; };
         C08020261008000000000001 = {isa = PBXBuildFile; fileRef = C08020261008000000000011; };
         C08020261008000000000002 = {isa = PBXBuildFile; fileRef = C08020261008000000000011; };
         C08020261008000000000003 = {isa = PBXBuildFile; fileRef = C08020261008000000000012; };
@@ -90,6 +106,19 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+        D01420261013000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicCloudOAuth.swift; sourceTree = "<group>"; };
+        D01320261013000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSetupPanel.swift; sourceTree = "<group>"; };
+        D01220261012000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurableFileCopy.swift; sourceTree = "<group>"; };
+        D01220261012000000000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurableTransferQueue.swift; sourceTree = "<group>"; };
+        D01220261012000000000013 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferQueuePanel.swift; sourceTree = "<group>"; };
+        D01220261012000000000014 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurableTreeTransfer.swift; sourceTree = "<group>"; };
+        D01220261012000000000015 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedDirectoryReads.swift; sourceTree = "<group>"; };
+        D01220261012000000000016 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommanderHandbook.swift; sourceTree = "<group>"; };
+        D01220261012000000000017 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommanderHelpPanel.swift; sourceTree = "<group>"; };
+        D01220261012000000000018 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudConnection.swift; sourceTree = "<group>"; };
+        D01220261012000000000019 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudFileClient.swift; sourceTree = "<group>"; };
+        D0122026101200000000001A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCommanderMacBridge/RcloneRuntime.swift; sourceTree = SOURCE_ROOT; };
+        D0122026101200000000001B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeIdentity.swift; sourceTree = "<group>"; };
         C08020261008000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteConnection.swift; sourceTree = "<group>"; };
         C08020261008000000000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteFileClient.swift; sourceTree = "<group>"; };
 		C07020261007000000000012 /* CommanderToolsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommanderToolsController.swift; sourceTree = "<group>"; };
@@ -185,6 +214,19 @@
 				556918D3DC87DF614F200378 /* FileEntry.swift */,
 				DAD000000000000000000002 /* FileDropTransfer.swift */,
 				5AFE00000000000000000002 /* FileOperationSafety.swift */,
+                D01220261012000000000011,
+                D01220261012000000000012,
+                D01220261012000000000013,
+                D01320261013000000000011,
+                D01420261013000000000011,
+                D01220261012000000000014,
+                D01220261012000000000015,
+                D01220261012000000000016,
+                D01220261012000000000017,
+                D01220261012000000000018,
+                D01220261012000000000019,
+                D0122026101200000000001A,
+                D0122026101200000000001B,
                 IMG000000000000000000002 /* ImagePreviewLoader.swift */,
 				177BF22CC72C73144BF8A901 /* Localization-ar.json */,
 				E5C5B68809E3A9A3AA0D48DC /* Localization-hi.json */,
@@ -313,6 +355,7 @@
                 C08020261008000000000020 /* Build SSH password helper */,
 				664B47E5B1BD4453AB12B48C /* Sources */,
 				AE61A00DE1C9FF2C2478036D /* Resources */,
+                D01420261013000000000020 /* Package public desktop OAuth identities */,
 				65487D88ADE12A608EDA02F3 /* Frameworks */,
 				500F0F4397A51D91361E950E /* Embed ExtensionKit Extensions */,
                 A66000000000000000000021,
@@ -406,6 +449,12 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+        D01420261013000000000020 /* Package public desktop OAuth identities */ = {
+            isa = PBXShellScriptBuildPhase; alwaysOutOfDate = 1; buildActionMask = 2147483647;
+            files = (); inputPaths = ("$(SRCROOT)/prepare-public-oauth.py", "$(SRCROOT)/../linux/opencommander/public_oauth.py");
+            outputPaths = (); name = "Package public desktop OAuth identities"; runOnlyForDeploymentPostprocessing = 0;
+            shellPath = /bin/sh; shellScript = "/usr/bin/python3 \"$SRCROOT/prepare-public-oauth.py\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\n";
+        };
         C08020261008000000000020 /* Build SSH password helper */ = {
             isa = PBXShellScriptBuildPhase; alwaysOutOfDate = 1; buildActionMask = 2147483647;
             files = (); inputPaths = ("$(SRCROOT)/OpenCommanderMacBridge/SSHAskPass.c", "$(SRCROOT)/build-ssh-askpass.sh");
@@ -426,7 +475,7 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-        A66000000000000000000031 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A66000000000000000000002, A66000000000000000000003, C08020261008000000000002); runOnlyForDeploymentPostprocessing = 0; };
+        A66000000000000000000031 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A66000000000000000000002, A66000000000000000000003, C08020261008000000000002, D01220261012000000000009, D0122026101200000000000B, D0122026101200000000000D, D01420261013000000000002); runOnlyForDeploymentPostprocessing = 0; };
 		2D748C0EB7CAA662C857EF35 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -459,6 +508,18 @@
 				510EFA53657E909B5C734B36 /* FileEntry.swift in Sources */,
 				DAD000000000000000000001 /* FileDropTransfer.swift in Sources */,
 				5AFE00000000000000000001 /* FileOperationSafety.swift in Sources */,
+                D01220261012000000000001,
+                D01220261012000000000002,
+                D01220261012000000000003,
+                D01320261013000000000001,
+                D01420261013000000000001,
+                D01220261012000000000004,
+                D01220261012000000000005,
+                D01220261012000000000006,
+                D01220261012000000000007,
+                D01220261012000000000008,
+                D0122026101200000000000A,
+                D0122026101200000000000C,
                 A66000000000000000000001,
                 IMG000000000000000000001 /* ImagePreviewLoader.swift in Sources */,
 				4A64E77E26EC97CD38490ED8 /* Localization.swift in Sources */,

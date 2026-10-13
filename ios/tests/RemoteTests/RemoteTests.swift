@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 func check(_ value: Bool, _ message: String) {
     if !value { fatalError(message) }
@@ -26,15 +27,22 @@ func check(_ value: Bool, _ message: String) {
         let fm = FileManager.default
         try fm.createDirectory(at: directory, withIntermediateDirectories: true)
         let fixture = Process(), pipe = Pipe(), input = Pipe()
+        guard fcntl(input.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1) != -1 else { throw CocoaError(.fileWriteUnknown) }
         fixture.executableURL = URL(fileURLWithPath: python)
         fixture.arguments = ["ios/tests/RemoteTests/fixture.py", directory.appendingPathComponent("server").path]
         fixture.standardOutput = pipe; fixture.standardInput = input; fixture.standardError = FileHandle.nullDevice
         try fixture.run()
-        defer { try? input.fileHandleForWriting.write(contentsOf: Data("stop\n".utf8)); try? input.fileHandleForWriting.close(); fixture.terminate() }
+        defer {
+            if fixture.isRunning { try? input.fileHandleForWriting.write(contentsOf: Data("stop\n".utf8)) }
+            try? input.fileHandleForWriting.close()
+            if fixture.isRunning { fixture.terminate() }
+        }
         var data = Data()
         while let byte = try pipe.fileHandleForReading.read(upToCount: 1), !byte.isEmpty {
             if byte == Data([10]) { break }; data.append(byte)
         }
+        guard !data.isEmpty else { throw NSError(domain: "OpenCommander.Test", code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "The loopback server fixture exited before startup. Check Python fixture dependencies."]) }
         let settings = try JSONSerialization.jsonObject(with: data) as! [String: Any]
         let bridge = DesktopBridge()
         bridge.sshAskPassURL = URL(fileURLWithPath: CommandLine.arguments[3])

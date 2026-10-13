@@ -1,7 +1,7 @@
 from pathlib import Path
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QListWidget,
-                              QListWidgetItem, QPushButton, QLineEdit, QMessageBox)
+                              QListWidgetItem, QPushButton, QLineEdit, QMessageBox, QProgressBar)
 from . import integrations
 
 
@@ -32,20 +32,39 @@ class ConnectionsDialog(QDialog):
         connect = QPushButton(self.t('Netzlaufwerk verbinden', 'Connect network location'))
         connect.clicked.connect(self.connect_network)
         layout.addWidget(connect)
+        server_button = QPushButton(self.t('SFTP / FTP / FTPS – Passwort oder SSH-Key …',
+                                          'SFTP / FTP / FTPS – Password or SSH key …'))
+        def server_login():
+            self.main.online_locations()
+            dialog = self.main.online_dialog
+            if not dialog.pending:
+                dialog.state = ''
+                dialog.server_form.identifier = None
+                dialog.server_form.existing_secret = False
+                dialog.server_form.secret.clear()
+                dialog.server_form.secret.setPlaceholderText('')
+                dialog.provider.setCurrentIndex(dialog.provider.findData('sftp'))
+                dialog.provider_changed()
+        server_button.clicked.connect(server_login)
+        layout.addWidget(server_button)
         accounts = QPushButton(self.t('Google Drive / OneDrive – Konto hinzufügen', 'Google Drive / OneDrive – Add account'))
         accounts.clicked.connect(self.accounts)
         layout.addWidget(accounts)
         note = QLabel(self.t('Cloud-Anmeldung erfolgt in den Linux-Online-Konten. Datei-Zugriff dort aktivieren.\n'
                             'Vorhandene GVFS- und rclone-Mounts erscheinen automatisch.\n'
-                            'Dropbox: lokalen Sync-Ordner verwenden. iCloud: separat eingerichteten Mount verwenden.',
+                            'Weitere Cloud-Dienste und gespeicherte Server: über „Online-Orte“ verbinden.',
                             'Sign in through Linux Online Accounts and enable file access there.\n'
                             'Existing GVFS and rclone mounts appear automatically.\n'
-                            'Dropbox: use the local sync folder. iCloud: use a separately configured mount.'))
+                            'More cloud services and saved servers: connect through “Online locations”.'))
         note.setWordWrap(True)
         layout.addWidget(note)
         self.status = QLabel()
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 0)
+        self.progress.hide()
+        layout.addWidget(self.progress)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh)
         self.timer.start(5000)
@@ -59,16 +78,18 @@ class ConnectionsDialog(QDialog):
             return
         from .ui import Task
         self.pending = True
+        self.progress.show()
         self.status.setText(self.t('Bitte warten …', 'Please wait …'))
         task = Task(callback)
         self.main.tasks.add(task)
         def done(value, error):
             self.main.tasks.discard(task)
             self.pending = False
+            self.progress.hide()
             self.status.setText(str(error) if error else '')
             if not error and after:
                 after(value)
-        task.signals.result.connect(done)
+        task.signals.result.connect(done, Qt.QueuedConnection)
         self.main.pool.start(task)
 
     def refresh(self):
@@ -136,15 +157,17 @@ class ConnectionsDialog(QDialog):
         from .ui import Task
         task = Task(action)
         self.pending = True
+        self.progress.show()
         self.main.tasks.add(task)
         def done(value, error):
             self.main.busy = False
             self.pending = False
+            self.progress.hide()
             self.main.tasks.discard(task)
             self.status.setText(str(error) if error else '')
             if not error:
                 self.populate(value)
-        task.signals.result.connect(done)
+        task.signals.result.connect(done, Qt.QueuedConnection)
         self.main.pool.start(task)
 
     def accounts(self):

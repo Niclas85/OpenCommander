@@ -61,6 +61,140 @@ final class DesktopBridge: NSObject, DesktopBridgeProtocol {
     private let remoteLock = NSLock()
     private var remoteTasks: [String: Process] = [:]
     private var cancelledRemote = Set<String>()
+    private let cloudRunner = RcloneProcessRunner()
+    func stableVolumeIdentity(_ url: URL) -> String? { VolumeIdentity.nativeToken(at: url) }
+    func chooseCloudConfiguration(title: String, completion: @escaping (URL?) -> Void) {
+        guard locationPanel == nil else { completion(nil); return }
+        let panel = NSOpenPanel(); locationPanel = panel
+        panel.title = title; panel.canChooseFiles = true; panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.begin { [weak self] result in
+            self?.locationPanel = nil; completion(result == .OK ? panel.url : nil)
+        }
+    }
+    func cancelCloudOperation(_ requestID: String) { cloudRunner.cancel(requestID) }
+    func cloudSetup(_ requestID: String, connection: Data, state: String?, answer: String?, password: Bool, oauthClient: Data?,
+                    browser: @escaping (URL) -> Void, completion: @escaping (Data?, NSError?) -> Void) {
+        DispatchQueue.global(qos: .utility).async {
+            defer { self.cloudRunner.finish(requestID) }
+            do {
+                guard UUID(uuidString: requestID) != nil, connection.count <= 64 * 1024,
+                    (state?.utf8.count ?? 0) <= 8192, state?.contains("\0") != true,
+                    (answer?.utf8.count ?? 0) <= 8192, answer?.contains("\0") != true,
+                    (oauthClient?.count ?? 0) <= 16 * 1024, oauthClient == nil || state == nil else { throw CloudConnection.failure("cloud_invalid") }
+                let profile = try JSONDecoder().decode(CloudConnection.self, from: connection)
+                try profile.validate()
+                let root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/OpenCommander/CloudSetup", isDirectory: true)
+                let directory = root.appendingPathComponent(profile.id, isDirectory: true)
+                let configuration = directory.appendingPathComponent("rclone.conf")
+                guard profile.configPath == configuration.path, profile.remote == "oc_" + profile.id.replacingOccurrences(of: "-", with: "").lowercased() else {
+                    throw CloudConnection.failure("cloud_invalid")
+                }
+                for path in [root, directory] {
+                    try FileManager.default.createDirectory(at: path, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+                    var info = stat()
+                    guard lstat(path.path, &info) == 0, info.st_mode & S_IFMT == S_IFDIR, info.st_uid == geteuid(),
+                        info.st_mode & 0o077 == 0, path.resolvingSymlinksInPath().path == path.path else { throw CloudConnection.failure("cloud_config_private") }
+                }
+                let descriptor = open(configuration.path, O_RDWR | O_CREAT | O_NOFOLLOW, 0o600)
+                guard descriptor >= 0 else { throw CloudConnection.failure("cloud_config_private") }
+                var info = stat()
+                let valid = fstat(descriptor, &info) == 0 && info.st_mode & S_IFMT == S_IFREG && info.st_uid == geteuid() && info.st_mode & 0o077 == 0 && info.st_size <= 1024 * 1024
+                close(descriptor)
+                guard valid else { throw CloudConnection.failure("cloud_config_private") }
+                let binary = try RcloneRuntime(runner: self.cloudRunner).executable(id: requestID)
+                var environment = ["RCLONE_CONFIG_" + profile.remote.uppercased() + "_CONFIG_AUTH_NO_BROWSER": "true"]
+                var arguments = ["--config", configuration.path, "config"]
+                let client = try oauthClient.map { try PublicCloudOAuth.decode($0, kind: profile.kind) }
+                if let client, client.pkce {
+                    guard info.st_size == 0 else { throw CloudConnection.failure("cloud_config_changed") }
+                    let token = try NativeCloudOAuth.authorize(kind: profile.kind, client: client,
+                        check: { try self.cloudRunner.check(requestID) }, browser: { url in DispatchQueue.main.async { browser(url) } })
+                    try self.cloudRunner.check(requestID)
+                    try NativeCloudOAuth.seed(profile: profile, client: client, token: token)
+                } else if let client {
+                    try NativeCloudOAuth.seedGoogle(profile: profile, client: client)
+                }
+                if let state, !state.isEmpty {
+                    environment["RCLONE_STATE"] = state
+                    var result = answer ?? ""
+                    if password && state.hasPrefix("*all-set,") {
+                        guard !result.contains(where: \.isNewline) else { throw CloudConnection.failure("cloud_invalid") }
+                        let encoded = try self.cloudRunner.run(binary, ["obscure", "-"], id: requestID, timeout: 10,
+                            maximumOutput: 16384, input: Data((result + "\n").utf8))
+                        result = String(decoding: encoded, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard CloudConfigurationValidator.obscured(result) else { throw CloudConnection.failure("cloud_icloud_incomplete") }
+                    }
+                    environment["RCLONE_RESULT"] = result
+                    arguments += ["update", profile.remote, "--continue", "--non-interactive"]
+                } else {
+                    if client != nil {
+                        arguments += ["update", profile.remote, "--non-interactive"]
+                    } else {
+                        guard info.st_size == 0 else { throw CloudConnection.failure("cloud_config_changed") }
+                        arguments += ["create", profile.remote, profile.kind, "--non-interactive"]
+                    }
+                    if profile.kind == "iclouddrive" { arguments.append("--all") }
+                }
+                let response = try self.cloudRunner.run(binary, arguments, id: requestID, timeout: 600,
+                    maximumOutput: 256 * 1024, environment: environment, browser: { url in DispatchQueue.main.async { browser(url) } }, setupKind: profile.kind)
+                let question = try CloudSetupQuestion.decode(response, kind: profile.kind)
+                guard chmod(configuration.path, 0o600) == 0 else { throw CloudConnection.failure("cloud_config_private") }
+                if question.complete { _ = try CloudConfigurationValidator.identity(profile) }
+                DispatchQueue.main.async { completion(response, nil) }
+            } catch { DispatchQueue.main.async { completion(nil, error as NSError) } }
+        }
+    }
+    func cloudOperation(_ requestID: String, connection: Data, operation: String, path: String,
+                        destination: String?, localURL: URL?, completion: @escaping (Data?, NSError?) -> Void) {
+        DispatchQueue.global(qos: .utility).async {
+            defer { self.cloudRunner.finish(requestID) }
+            do {
+                guard UUID(uuidString: requestID) != nil, connection.count <= 64 * 1024 else { throw CloudConnection.failure("cloud_invalid") }
+                let profile = try JSONDecoder().decode(CloudConnection.self, from: connection)
+                var arguments = try RcloneCommandPlan.arguments(profile: profile, operation: operation, path: path, destination: destination, local: localURL)
+                var info = stat()
+                guard lstat(profile.configPath, &info) == 0, info.st_mode & S_IFMT == S_IFREG,
+                    info.st_uid == geteuid(), info.st_mode & 0o077 == 0 else { throw CloudConnection.failure("cloud_config_private") }
+                if operation != "profiles" {
+                    let descriptor = open(profile.configPath, O_RDONLY | O_NOFOLLOW)
+                    guard descriptor >= 0 else { throw CloudConnection.failure("cloud_config_private") }
+                    let file = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+                    defer { try? file.close() }
+                    var opened = stat()
+                    guard fstat(descriptor, &opened) == 0, opened.st_mode & S_IFMT == S_IFREG,
+                        opened.st_uid == geteuid(), opened.st_mode & 0o077 == 0,
+                        opened.st_size > 0, opened.st_size <= 1024 * 1024,
+                        opened.st_dev == info.st_dev, opened.st_ino == info.st_ino else { throw CloudConnection.failure("cloud_config_private") }
+                    let configuration = try file.read(upToCount: 1024 * 1024 + 1) ?? Data()
+                    try CloudConfigurationValidator.validate(configuration, profile: profile)
+                }
+                let binary = try RcloneRuntime(runner: self.cloudRunner).executable(id: requestID)
+                let profiles = try self.cloudRunner.run(binary, try RcloneCommandPlan.arguments(profile: profile, operation: "profiles", path: ""), id: requestID)
+                let available = try JSONDecoder().decode([RcloneRemoteInfo].self, from: profiles)
+                guard available.count <= 1000 else { throw CloudConnection.failure("cloud_limit") }
+                if operation == "profiles" {
+                    let supported = available.filter { CloudConnection.kinds.contains($0.type) && $0.source == "file" }
+                    let data = try JSONEncoder().encode(supported)
+                    DispatchQueue.main.async { completion(data, nil) }; return
+                }
+                guard available.contains(where: { $0.name == profile.remote && $0.type == profile.kind && $0.source == "file" }) else { throw CloudConnection.failure("cloud_config_changed") }
+                if ["copy", "rename"].contains(operation) {
+                    let metadata = try self.cloudRunner.run(binary, RcloneCommandPlan.arguments(profile: profile, operation: "stat", path: path), id: requestID)
+                    let item = try JSONDecoder().decode(RcloneListingItem.self, from: metadata)
+                    if item.IsDir { arguments = try RcloneCommandPlan.arguments(profile: profile, operation: operation + "tree", path: path, destination: destination) }
+                }
+                if operation == "download" {
+                    guard let localURL, lstat(localURL.path, &info) != 0, errno == ENOENT,
+                        localURL.deletingLastPathComponent().resolvingSymlinksInPath() == localURL.deletingLastPathComponent() else { throw CloudConnection.failure("cloud_invalid") }
+                } else if operation == "upload" {
+                    guard let localURL, lstat(localURL.path, &info) == 0, info.st_mode & S_IFMT == S_IFREG else { throw CloudConnection.failure("cloud_invalid") }
+                }
+                let data = try self.cloudRunner.run(binary, arguments, id: requestID, timeout: ["download", "upload", "copy", "rename"].contains(operation) ? 900 : 60)
+                DispatchQueue.main.async { completion(data, nil) }
+            } catch { DispatchQueue.main.async { completion(nil, error as NSError) } }
+        }
+    }
     var sshAskPassURL = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("OpenCommanderSSHAskPass")
     func remoteHostKeys(_ connection: Data, completion: @escaping (String?, NSError?) -> Void) {
         DispatchQueue.global(qos: .utility).async {

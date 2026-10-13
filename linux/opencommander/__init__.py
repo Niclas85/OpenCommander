@@ -1,2 +1,2 @@
 """OpenCommander desktop for Linux."""
-__version__ = "0.2.4"
+__version__ = "0.3.25rc10"

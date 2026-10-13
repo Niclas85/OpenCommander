@@ -7,13 +7,14 @@ final class MemoryTokens: OneDriveTokenStore {
 }
 
 final class MockMicrosoft: URLProtocol {
+    static var headers: [String: String] = [:]
     static var handler: ((URLRequest) throws -> (Int, String))!
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         do {
             let (status, json) = try Self.handler(request)
-            let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
+            let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: Self.headers.merging(["Content-Type": "application/json"]) { _, new in new })!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: Data(json.utf8))
             client?.urlProtocolDidFinishLoading(self)
@@ -361,5 +362,156 @@ final class MockMicrosoft: URLProtocol {
         let renamed = try await CommanderOnlineTools.rename(toolClient, plan: rename) { _ in toolAudit += 1 }
         check(renamed == 1 && toolAudit == 1 && toolName == "Test-001.txt", "Graph tool preview/apply/audit")
         print("PASS OneDrive online tools: recursive search, editable path, content comparison and conditional multi-rename")
+
+        var retryCalls = 0, delays: [TimeInterval] = []
+        let retryAPI = OneDriveClient(clientID: id, session: session, store: MemoryTokens(), retrySleep: { delays.append($0) })
+        MockMicrosoft.handler = { request in
+            if request.url!.host == "login.microsoftonline.com" { return (200, #"{"access_token":"fixture-access","expires_in":3600}"#) }
+            retryCalls += 1
+            return retryCalls < 3 ? (429, "{}") : (200, #"{"value":[]}"#)
+        }
+        _ = try await retryAPI.children()
+        check(retryCalls == 3 && delays == [2, 4], "Read retries are bounded with exponential backoff")
+        retryCalls = 0; delays = []; MockMicrosoft.headers = ["Retry-After": "7"]
+        _ = try await retryAPI.children()
+        check(delays == [7, 7], "Server Retry-After respected")
+        retryCalls = 0; delays = []; MockMicrosoft.headers = ["Retry-After": "3600"]
+        do { _ = try await retryAPI.children(); fatalError("Long rate limit accepted") } catch { }
+        check(retryCalls == 1 && delays.isEmpty, "Long Retry-After does not exceed time budget or retry early")
+        MockMicrosoft.headers = [:]; retryCalls = 0; delays = []
+        MockMicrosoft.handler = { _ in retryCalls += 1; return (503, "{}") }
+        do { try await retryAPI.createFolder("NeverReplay", parent: nil); fatalError("Failed mutation accepted") } catch { }
+        check(retryCalls == 1 && delays.isEmpty, "Mutations are never replayed")
+        retryCalls = 0
+        MockMicrosoft.handler = { _ in retryCalls += 1; return (403, "{}") }
+        do { _ = try await retryAPI.children(); fatalError("Denied read accepted") } catch { }
+        check(retryCalls == 1, "Permission failures are never retried")
+        retryCalls = 0
+        MockMicrosoft.handler = { request in
+            if request.url!.host == "login.microsoftonline.com" { return (200, #"{"access_token":"fixture-access","expires_in":3600}"#) }
+            retryCalls += 1; return (429, "{}")
+        }
+        let cancelAPI = OneDriveClient(clientID: id, session: session, store: MemoryTokens(), retrySleep: { _ in throw CancellationError() })
+        do { _ = try await cancelAPI.children(); fatalError("Cancelled retry continued") } catch is CancellationError { }
+        // One OAuth request followed by one Graph read; no second read after cancellation.
+        check(retryCalls <= 2, "Cancellation stops retries")
+        print("PASS read-only throttling retries, Retry-After, bounded deadline, mutation/permission safety and cancellation")
+
+        var shareRequests = 0
+        MockMicrosoft.handler = { request in
+            shareRequests += 1
+            check(request.httpMethod == "POST" && request.url!.path.hasSuffix("/createLink"), "Share uses createLink mutation")
+            let payload = try JSONSerialization.jsonObject(with: body(request)) as! [String: Any]
+            check(payload["type"] as? String == "view" && payload["scope"] as? String == "anonymous", "Share grants read-only access")
+            check(payload["retainInheritedPermissions"] as? Bool == true, "Existing permissions retained")
+            return (201, #"{"link":{"webUrl":"https://1drv.ms/fixture"}}"#)
+        }
+        let shared = try await retryAPI.createReadOnlyShareLink(file)
+        check(shared.absoluteString == "https://1drv.ms/fixture" && shareRequests == 1, "Sharing link returned without automatic copy/open")
+        MockMicrosoft.handler = { _ in shareRequests += 1; return (503, "{}") }
+        do { _ = try await retryAPI.createReadOnlyShareLink(file); fatalError("Failed share accepted") } catch { }
+        check(shareRequests == 2, "Sharing mutation never replayed")
+        MockMicrosoft.handler = { _ in (201, #"{"link":{"webUrl":"http://attacker.example/fixture"}}"#) }
+        do { _ = try await retryAPI.createReadOnlyShareLink(file); fatalError("Insecure share URL accepted") } catch { }
+        print("PASS read-only sharing, retained permissions, no replay, safe link validation")
+
+        MockMicrosoft.handler = { _ in (200, #"{"value":[{"id":"cached","name":"Cache.txt","size":3}]}"#) }
+        let fresh = try await retryAPI.browserListing(of: "cache-folder")
+        check(fresh.cachedAt == nil && fresh.items.count == 1, "Successful browser listing is fresh")
+        retryCalls = 0
+        MockMicrosoft.handler = { _ in retryCalls += 1; return (429, "{}") }
+        let cached = try await retryAPI.browserListing(of: "cache-folder")
+        check(cached.cachedAt != nil && cached.warning != nil && cached.items.first?.id == "cached", "Stale browser listing explicitly marked")
+        let cachedRequestCount = retryCalls
+        _ = try await retryAPI.browserListing(of: "cache-folder")
+        check(retryCalls == cachedRequestCount, "Rate-limited browser requests honor cooldown")
+        do { _ = try await retryAPI.children(of: "cache-folder"); fatalError("Mutation/tool listing used stale cache") } catch { }
+        check(retryCalls == cachedRequestCount + 3, "Regular children always request fresh data")
+        MockMicrosoft.handler = { _ in (200, #"{"value":[]}"#) }
+        try await retryAPI.createFolder("InvalidateCache", parent: nil)
+        retryCalls = 0; MockMicrosoft.handler = { _ in retryCalls += 1; return (429, "{}") }
+        do { _ = try await retryAPI.browserListing(of: "cache-folder"); fatalError("Cache survived mutation") } catch { }
+        MockMicrosoft.handler = { _ in (200, #"{"value":[{"id":"private","name":"Private.txt"}]}"#) }
+        _ = try await retryAPI.browserListing(of: "private-folder")
+        MockMicrosoft.handler = { _ in (403, "{}") }
+        do { _ = try await retryAPI.browserListing(of: "private-folder"); fatalError("Permission failure revealed cache") } catch { }
+        print("PASS explicit browser-only cache, cooldown, fresh mutation/tool reads, mutation invalidation and permission refusal")
+        MockMicrosoft.handler = { _ in (200, #"{"value":[{"id":"bounded","name":"Bounded.txt"}]}"#) }
+        for index in 0..<33 { _ = try await retryAPI.browserListing(of: "bounded-\(index)") }
+        MockMicrosoft.handler = { _ in (429, "{}") }
+        do { _ = try await retryAPI.browserListing(of: "bounded-0"); fatalError("Cache exceeded 32 entries") } catch { }
+        let newestCache = try await retryAPI.browserListing(of: "bounded-32")
+        check(newestCache.cachedAt != nil, "Newest cached folder survives eviction")
+        try retryAPI.disconnect()
+        do { _ = try await retryAPI.browserListing(of: "bounded-32"); fatalError("Disconnected account revealed cached content") } catch { }
+        print("PASS cache capacity, oldest eviction and disconnect clearing")
+        check(!OnlineDisplayPolicy.visible(".hidden", hidden: false), "Online hidden entries respect global preference")
+        check(OnlineDisplayPolicy.visible(".hidden", hidden: true) && OnlineDisplayPolicy.visible("Visible.txt", hidden: false), "Hidden toggle preserves ordinary entries")
+        check(OnlineDisplayPolicy.modifiedDate("bad timestamp") == "—" && OnlineDisplayPolicy.modifiedDate(nil) == "—", "Malformed provider dates are not displayed as dates")
+        check(OnlineDisplayPolicy.modifiedDate("2026-10-12T12:30:00Z") != "—" && OnlineDisplayPolicy.modifiedDate("2026-10-12T12:30:00.123Z") != "—", "Provider dates support both ISO precision variants")
+        let sameDate = ISO8601DateFormatter().date(from: "2026-10-12T12:30:00Z")!
+        check(OnlineDisplayPolicy.modifiedDate("2026-10-12T12:30:00Z") == OnlineDisplayPolicy.localDate(sameDate), "Local and online columns use the same timestamp format")
+        check(OnlineDisplayPolicy.modifiedDate(String(repeating: "1", count: 65)) == "—", "Oversized provider date rejected")
+        print("PASS online visibility policy and robust provider timestamps")
+
+        let reads = SharedDirectoryReads<Int>()
+        var sharedLoads = 0
+        let firstWaiter = Task { try await reads.value(for: "folder") {
+            sharedLoads += 1; try await Task.sleep(nanoseconds: 100_000_000); return 42
+        } }
+        while sharedLoads == 0 { await Task.yield() }
+        let secondWaiter = Task { try await reads.value(for: "folder") { sharedLoads += 1; return -1 } }
+        await Task.yield()
+        firstWaiter.cancel()
+        do { _ = try await firstWaiter.value; fatalError("Cancelled waiter returned a listing") } catch is CancellationError {} catch { fatalError("Wrong cancellation error") }
+        let sharedValue = try await secondWaiter.value
+        check(sharedValue == 42 && sharedLoads == 1, "One cancelled pane does not cancel another pane or duplicate I/O")
+        var pendingStarted = false
+        let invalidatedWaiter = Task { try await reads.value(for: "invalidated") {
+            pendingStarted = true; try await Task.sleep(nanoseconds: 10_000_000_000); return 1
+        } }
+        while !pendingStarted { await Task.yield() }
+        reads.invalidate()
+        do { _ = try await invalidatedWaiter.value; fatalError("Invalidated listing survived account/mutation change") } catch is CancellationError {} catch { fatalError("Wrong invalidation error") }
+        let afterInvalidation = try await reads.value(for: "invalidated") { 7 }
+        check(afterInvalidation == 7, "Fresh load after invalidation is not overwritten by old task")
+        print("PASS shared display reads, per-waiter cancellation and mutation/account invalidation")
+
+        let concurrentStore = MemoryTokens()
+        let concurrentAPI = OneDriveClient(clientID: id, session: session, store: concurrentStore)
+        let counterLock = NSLock()
+        var refreshCount = 0
+        MockMicrosoft.handler = { request in
+            if request.url?.host == "login.microsoftonline.com" {
+                counterLock.lock(); refreshCount += 1; counterLock.unlock()
+                Thread.sleep(forTimeInterval: 0.05)
+                return (200, #"{"access_token":"shared-access","refresh_token":"shared-refresh","expires_in":3600}"#)
+            }
+            return (200, #"{"value":[]}"#)
+        }
+        async let concurrentLeft = concurrentAPI.children(of: "left")
+        async let concurrentRight = concurrentAPI.children(of: "right")
+        _ = try await (concurrentLeft, concurrentRight)
+        check(refreshCount == 1, "Concurrent directory reads share one credential refresh")
+        let revokedStore = MemoryTokens()
+        let revokedAPI = OneDriveClient(clientID: id, session: session, store: revokedStore)
+        var refreshStarted = false
+        MockMicrosoft.handler = { request in
+            if request.url?.host == "login.microsoftonline.com" {
+                counterLock.lock(); refreshStarted = true; counterLock.unlock()
+                Thread.sleep(forTimeInterval: 0.05)
+                return (200, #"{"access_token":"old-access","refresh_token":"old-refresh","expires_in":3600}"#)
+            }
+            return (200, #"{"value":[]}"#)
+        }
+        let revokedRead = Task { try await revokedAPI.children() }
+        while true {
+            let started = counterLock.withLock { refreshStarted }
+            if started { break }; await Task.yield()
+        }
+        try revokedAPI.disconnect()
+        do { _ = try await revokedRead.value; fatalError("Read survived disconnect") } catch {}
+        check(revokedStore.value == nil, "An in-flight refresh cannot restore a disconnected account")
+        print("PASS shared token refresh and disconnect generation guard preserve account isolation")
     }
 }

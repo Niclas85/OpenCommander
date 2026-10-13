@@ -1,0 +1,597 @@
+# Unveröffentlicht – gemeinsame Cloud-Anmeldung vorbereiten
+
+## iCloud-SMS anfordern und erneut senden: 0.3.25rc10
+
+16 gezielte iCloud-GUI-Prüfungen bestanden. Neue Fälle prüfen die erste SMS-
+Anforderung und das erneute Senden aus dem SMS-Code-Schritt über denselben
+rclone-Remote und den unterstützten `2fa_do`-Zustand. Kein erneuter Passwort-
+Login, keine Behandlung von „sms“ als SMS-Bestätigungscode, kein geerbtes
+Passwortformat. Laden und 30 Sekunden Wartezeit sperren Mehrfachanfragen.
+Telefonnummerauswahl übergibt den Backend-Wert; Code-Leerzeichen werden entfernt.
+Nicht unterstützte Zustände und andere Provider bieten die SMS-Aktion nicht an.
+Netzwerkaufrufe in diesen Fällen ersetzt; keine echten Apple-SMS angefordert.
+Die persönliche 2FA-Bestätigung und ein erfolgreicher Dateizugriff stehen noch aus.
+Keine vollständige Suite für diese Änderung.
+
+## Direkte Apple-Anmeldung: 0.3.25rc9
+
+16 gezielte Prüfungen bestanden: Pflichtfelder, eindeutiger Enter-Schritt,
+Passwortmaskierung und Speicherung, bestehendes Passwort weiterverwenden,
+Browser-Abbruch sowie Anmeldefehler ohne Ausgabe privater Providerantworten.
+Fataler Fehler verlässt den technischen Zwischenzustand für einen neuen Versuch.
+Zusätzliche isolierte Prüfung mit künstlichen Daten: Obscure und der echte
+rclone-Konfigurationsdialog speichern nach Reveal exakt den eingegebenen Wert.
+
+Reale Diagnose ohne Ausgabe von Kennwort oder Konto-ID: letzter unvollständiger
+Versuch ohne Apple-ID, älterer Versuch mit vollständigen Feldern in einer privaten
+Kopie einmal geprüft. Apple lehnt vor 2FA mit HTTP 401 ab; kein Trust-Token und
+keine vollständige iCloud-Dateiverbindung erreicht. Produktive Konfiguration
+dabei nicht ersetzt; keine wiederholten automatischen Anmeldeversuche.
+Ein neuer persönlicher Versuch im korrigierten Assistenten bleibt erforderlich.
+Browser-Sitzungen werden weiterhin nicht als Dateiverbindung übernommen.
+Keine vollständige Suite für diese gezielte Gruppe.
+
+## iCloud-Webansicht im Assistenten: 0.3.25rc8
+
+Drei bestehende passende GUI-Prüfungen bestanden: iCloud-Anleitung,
+Passwortmaskierung und Browser-Signal/-Abbruch. Ergänzende isolierte Qt-Prüfung:
+Browseroption nur für iCloud sichtbar, exakt die offizielle iCloud-Drive-URL
+angeboten; Klick startet keinen Auth-Worker, verändert keine Konfiguration und
+speichert keinen verbundenen Ort. Browser-Aufruf dabei ersetzt, keine persönlichen
+Apple-Daten verwendet. Kein erfolgreicher iCloud-Dateizugriff daraus abgeleitet.
+Das aktuelle rclone-Backend benötigt Apple-ID, reguläres Passwort und 2FA;
+Website-Login ist keine Browser-OAuth-Verbindung für den Dateimanager.
+Handbuch und veralteten README-Hinweis entsprechend korrigiert.
+Keine vollständige Testsuite für diesen kleinen UI-Zusatz.
+
+## Mausgeste bis zum Loslassen / Ordnerbaum: 0.3.25rc7
+
+22 gezielte GUI-Prüfungen bestanden. Die bisherigen Drag-Fälle ersetzten
+`QDrag.exec` durch einen sofortigen Drop;
+sie konnten vorzeitiges Kopieren nicht nachweisen. Neue Prüfungen senden
+Press/Move/Hold/Release an die Widgets: während des Haltens keine Aufträge oder
+Zieldateien, Vorschau bewegt sich mit der Maus, Zielmarkierung vorhanden.
+Nach Release genau eine Übertragung, für Kopieren und Verschieben in die
+Dateifläche, einen Listenordner und einen Baumordner. Esc, ungültiges Ziel,
+Fokusverlust und Selbst-/Unterordnerziel kopieren nichts. Baum-Hover klappt
+ohne Kopie auf. Native Angebote aus dem Fenster bleiben Datei-URLs; Rückkehr-
+Drop erzeugt während `exec` keinen internen Auftrag. Zusätzlich angrenzende
+Pane-Aktivierung und externe Drop-/Kontextfunktionen gezielt prüfen.
+Qt-Offscreen-Widgets; echte Desktop-Mausbewegung weiterhin manuell abzunehmen.
+Keine komplette Suite für diese Gruppe.
+
+Google-Reparatur anschließend live geprüft: Einbindung unter dem ursprünglichen
+Pfad als `fuse.rclone` mit Gerät `gdrive:` wieder vorhanden. Begrenzter echter
+Lesetest liefert 716 Wurzeleinträge. Cache-Uploads erfolgreich, kein neuer Fehler
+im erneuerten Dienst. Weltreise bleibt blockiert mit erhaltenen Checkpoints;
+kein automatisches Fortsetzen und keine Cache-/Journal-Löschung.
+
+## Sichtbares Drag-Objekt: 0.3.25rc6
+
+Fünf gezielte GUI-Prüfungen bestanden: echte Mausgeste bis zum Drag-Start,
+Vorschau und sichtbarer Objekt-Cursor, unterschiedlicher Cursor für ungeeignete
+Ziele sowie Kopieren/Verschieben in den Zielbereich oder einen Unterordner.
+Der Empfänger führt die Übertragung aus; keine zweite Quelldatei-Löschung.
+Diese Qt-Offscreen-Prüfungen bestätigen den Ablauf und die erzeugten Bilder.
+Die Darstellung durch den echten Desktop-Compositor ist damit nicht geprüft.
+Keine vollständige Suite für die Darstellungsänderung.
+
+## Aktivierung des gesamten Dateibereichs: 0.3.25rc5
+
+Acht gezielte GUI-Prüfungen: Titel, Auswahlhinweis, Pfadfeld, Filterfeld,
+Ordnerbaum, Tabellenkopf und freier Rand aktivieren den angeklickten Bereich;
+Textfelder behalten ihren Fokus. Einfügen nach Titelklick kopiert tatsächlich
+in den angeklickten Bereich. Keine vollständige Suite für diese Änderung.
+
+## Kompakte Übertragungen / Google-Reparatur: 0.3.25rc4
+
+25 gezielte Tests bestanden: Übertragungssteuerung, Parallelität, gespeicherte
+Pause, Details/Fehler, einzeilige Standardansicht, veränderbare und gespeicherte
+Bereichshöhe, Schutz des Checkpoints bei fehlender Einbindung sowie Anmelde-Automatik.
+Keine vollständige Suite nach diesen gezielten Änderungen.
+
+Reale Google-Diagnose: alter Dienst nicht eingebunden; gespeicherter Weltreise-
+Auftrag blockiert mit 18.846 vollständigen Checkpoints / 116.500.704.248 Bytes.
+401 im alten Zugang; isolierte Token-Erneuerung trifft die gemeinsam genutzte
+Google-App-Quote. Neue OpenCommander-Anmeldung erfolgreich, 718 Wurzeleinträge
+lesbar. Bekannte Datei im alten Zwischenordner per SHA-256 mit dem gespeicherten
+Checkpoint identisch; Root-/Shared-Drive-Einstellungen identisch. Nach Anmeldung
+fehlender technischer `config_change_team_drive`-Schritt automatisch abschließen,
+statt die erfolgreiche persönliche Anmeldung als unvollständig darzustellen.
+
+Vor Live-Umstellung private Sicherung von Google-Konfiguration und SQLite-Journal.
+Kein aktiver Auftrag auf dem Google-Ziel. Alter Dienst ohne erzwungenes Beenden
+gestoppt; neue App-Identität und aktueller privater rclone-Laufzeitstand verwenden
+denselben Full-Cache und Einbindungspfad mit begrenzten Netzwerkzugriffen.
+Keine Cache-Löschung, kein Zurücksetzen und keine automatische Fortsetzung der Kopie.
+Browser-Erfolg bestätigt; neuer Dienst lädt den erhaltenen Schreibcache wieder
+hoch, bislang mehr als 600 erfolgreiche Uploads ohne neue 401-/Quotenfehler.
+Einbindung als Laufwerk während der Cache-Wiederherstellung noch nicht verfügbar;
+keine vollständige Wiederherstellung der Weltreise-Kopie behauptet.
+
+Endgültiger lokaler rc4-Build einschließlich Anmeldekorrektur und Layout-Migration:
+Paket-Smoke-Test und Audit mit erforderlicher Google-/Dropbox-App-Identität
+bestanden. Separat installiert; nach vom Benutzer bestätigtem regulären Schließen
+der alten Sitzung gestartet. Kein zweites GUI und kein erzwungener Abbruch.
+Start ohne Traceback/Fatalfehler; kompakte Layout-Migration im realen Profil bestätigt.
+
+## Dropbox-Registrierung: 0.3.25rc3
+
+Eigene OpenCommander-App im Codex-Browser im Entwicklungsmodus erstellt,
+API-Bedingungen mit ausdrücklicher Zustimmung akzeptiert. Datei-/Metadaten-
+Lesen/Schreiben und Freigaben mit Zustimmung gespeichert; nur die benötigten
+sieben User-Scopes. Keine Team-Verwaltung, kein endgültiges Löschen. Rückleitung
+`http://localhost:53682/` gespeichert. Nur öffentlicher App-Key und PKCE-Kennung
+für den Build vorgesehen; kein Dropbox-App-Secret und kein Konto-Token.
+
+Der echte PKCE-Anmeldeweg erreicht Dropbox mit S256 und Offline-Token-Anforderung.
+Persönliche Konto-Zustimmung und anschließende Lese-/Neustart-/Refresh-Prüfung
+stehen noch aus. Der echte lokale Kandidat enthält Google- und Dropbox-Identität;
+Paket-Smoke-Test und Strukturprüfung mit beiden `--require-publisher`-Schaltern
+bestanden. Keine persönlichen Tokens im Paket. Testprofil ist getrennt von
+produktiven Konfigurationen, ohne
+neue FUSE-Einbindung und ohne Datei-Schreib-/Löschaktionen. Keine erneute volle
+Testsuite nach diesen Console- und Dokumentationsänderungen.
+
+## Erweiterung auf OneDrive und Dropbox: 0.3.25rc2
+
+13. Oktober 2026: **39 gezielte Prüfungen bestanden**: 30 Backend-/Konfigurations-
+und Serverprüfungen, 7 passende GUI-Fälle, anschließend der neue zusätzliche
+Abbruchfall bei laufender Token-Anfrage sowie eine Paketprüfung gegen eingebettete
+Server-Secrets und aus dem Paket führende Links. Keine komplette Suite nach Einzeländerungen.
+
+Mit synthetischen Antworten geprüft: PKCE/S256, richtige Rückleitung, fremde
+Host-/State-Werte abweisen, kein Server-Secret im Token-Austausch, unterbrochene
+lokale HTTP-Anfrage und Token-Anfrage abbrechen, bisherige Anmeldung bei Fehlern
+erhalten, Tokens nur im privaten Profil speichern, doppelte Browser-Anmeldung
+vermeiden, fremde Client-ID beim Dienstwechsel entfernen. Bestehende Server-
+Anmeldemodi und private Konfigurationsprüfung ebenfalls gezielt bestanden.
+
+Diese Tests greifen nicht auf produktive Cloud-Dateien zu. Die eigene Dropbox-App wurde mit bestätigten API-Bedingungen erstellt und
+ihr öffentlicher App-Key lokal gesichert; Scopes und Rückleitung noch offen.
+Die Microsoft-App-Registrierung benötigt weiterhin die Anmeldung in der Konsole;
+echter PKCE-Login, serverseitige Token-Erneuerung und Kontoabnahme stehen aus.
+Keine Freigabe aller Anbieter und keine Dauerlauf-Stabilitätsgarantie abgeleitet.
+
+Ein isolierter Paketbau mit drei künstlichen App-Identitäten hat Paket-Smoke-Test
+und Strukturprüfung mit allen drei `--require-publisher`-Schaltern bestanden.
+Das echte Google-only-Paket 0.3.25rc1 wird von derselben Prüfung korrekt wegen
+fehlender OneDrive-/Dropbox-Registrierungen zurückgewiesen. Das Testpaket liegt
+ausschließlich unter /tmp und ist als nicht zu veröffentlichende Fixture markiert.
+
+Der echte lokale Kandidat 0.3.25rc2 wurde mit der vorhandenen Google-Identität
+gebaut; Paket-Smoke-Test bestanden. OneDrive-/Dropbox-Code ist enthalten, die
+echten App-IDs fehlen noch. Er ist nicht installiert und nicht veröffentlicht.
+
+## Google-Vorbereitung: 0.3.25rc1
+
+13. Oktober 2026: **19 gezielte Prüfungen bestanden** (Publisher-Client,
+Cloud-Konfiguration, Anmelde-Automatik und drei GUI-Fälle). Keine vollständige
+Testsuite nach diesen kleinen Folgeänderungen. Der vorherige vollständige
+0.3.24-Lauf bleibt separat dokumentiert.
+
+Ein isoliertes Paket unter /tmp mit künstlicher Desktop-App-Identität wurde
+gebaut; sein Paket-Smoke-Test und die strukturelle Publisher-Paketprüfung sind
+bestanden. Keine Anmeldung mit dem künstlichen Client. Das tatsächlich installierte
+Paket, der echte portable Download und laufende Einbindungen sind unverändert.
+Die Publisher-Identität fehlte im echten Download erwartungsgemäß; die Prüfung
+mit `--require-publisher-google` hält dessen öffentliche Google-Freigabe an.
+
+Im Codex-Browser wurde ein separates OpenCommander-Google-Projekt erstellt,
+die Drive API aktiviert und die OAuth-Marke mit Desktop-Client eingerichtet.
+Nur der vollständige Drive-Scope wurde mit ausdrücklicher Zustimmung gespeichert.
+Zielgruppe Extern, Status Test, ein bestätigtes Testkonto eingetragen. Kontotest und öffentliche
+Google-Verifizierung bleiben offen.
+Ein echter lokaler Kandidat 0.3.25rc1 mit Herausgeber-Desktop-Identität wurde
+isoliert gebaut. Paket-Smoke-Test und `--require-publisher-google` bestanden;
+keine persönlichen Kontotokens eingebettet. Der Kandidat wurde nicht installiert
+oder veröffentlicht; bestehende Einbindungen und das installierte Paket bleiben
+unverändert.
+Homepage/Datenschutz/Release-Texte liegen als lokale Entwürfe unter release/linux.
+Es gibt keinen neuen öffentlichen App-Release und kein neues Tag.
+
+# Linux 0.3.24 – EIO bei Prüfung des Google-Zwischenstands
+
+13. Oktober 2026. **338 Tests bestanden in 136,67 Sekunden; keine Fehler,
+keine übersprungenen Tests.** Paketbau und Paket-Smoke-Test erfolgreich.
+
+Ein produktiver Auftrag meldete EIO beim Lesen einer fertigen JPG-Datei über
+Google-FUSE. Die Datei wurde ausschließlich lesend mit dem privaten aktuellen
+rclone direkt beim Anbieter geprüft: 4.357.632 Bytes, reguläre Datei, Server-
+SHA-256 identisch mit dem gespeicherten Kopier-Checkpoint. Die betroffene Datei
+war bereits aus dem lokalen VFS-Cache entfernt; kein ausstehender lokaler
+Daten-/Metadateneintrag vorhanden. Der neue Ausweichweg wurde mit dieser Datei
+im echten Konto erfolgreich lesend geprüft. Keine Dateimanipulation, keine
+Mount-Unterbrechung, kein neuer Kopierlauf. Andere Cloud-Dateien wurden dabei
+nicht als erfolgreich abgenommen.
+
+Neue Regressionen prüfen passende/abweichende/fehlende Server-Prüfsummen,
+Größen- und Typprüfung, lokale ausstehende Cache-Daten, während der Abfrage
+neu auftauchende Cache-Daten, Pause/Abbruch vor und während einer hängenden
+Abfrage, unveränderte fertige Zieldateien und getrennte Anzeige von Kopier-
+und Prüffortschritt. Andere Lesefehler (z.B. Zugriffsrechte) bleiben Fehler.
+
+Eine konsistente private SQLite-Sicherung des bestehenden Auftragsjournals
+liegt außerhalb des Repos. Alle 18.846 fertigen Nicht-Ordner-Checkpoints bleiben
+erhalten. Zum Diagnosezeitpunkt rund 45 GiB ausstehende Full-Cache-Uploads;
+Cache und laufende Version 0.3.21 unverändert. 0.3.24 für den nächsten sicheren
+Start installiert, kein erzwungener Neustart. Der Ausweichweg ersetzt weder
+fehlende Uploads noch die weiterhin erforderliche Google-OAuth-Konfiguration.
+
+# Linux 0.3.23 – Cloud-Konfiguration und erneuter Regressionstest
+
+12. Oktober 2026. **325 automatisierte Tests bestanden in 72,50 Sekunden;
+keine Fehler, keine übersprungenen Tests.** Paketbau und Paket-Smoke-Test
+bestanden. Neue Fälle prüfen echte rclone-iCloud-Passwortschritte mit
+synthetischen Daten, unvollständige OAuth-/OneDrive-/Apple-Konfigurationen,
+GUI-Reparaturassistent, Passwortvoreinstellungen und Google-Projektquoten.
+Ein echter lokaler FUSE-Alias-Test bestätigt die Wiederaufnahme ausstehender
+Full-Cache-Uploads beim Wechsel vom systemweiten zum privaten rclone-Runtime.
+Dabei werden ausschließlich lokale temporäre Beispieldaten verwendet.
+
+Echte Konten erneut geprüft:
+
+- Bestehendes OneDrive: 30 Einträge in 0,93 Sekunden gelesen. Der vollständige
+  eigene Dateioperationstest aus 0.3.22 bleibt der letzte erfolgreiche Schreibtest.
+- Zweites OneDrive-Profil: fehlende OAuth-Anmeldung korrekt als unvollständig
+  erkannt; Benutzeranmeldung erforderlich, kein bestandener Live-Test.
+- iCloud: alte ungültige Passwortkonfiguration korrekt erkannt. Die Speicherung
+  im Assistenten ist korrigiert; echte Apple-Anmeldung und 2FA bleiben offen.
+- Google: separate aktuelle Einbindung konnte eine synthetische Datei kopieren;
+  Umbenennen fehlgeschlagen. Die API meldet `defaultPerMinutePerProject` /
+  `rateLimitExceeded`. Neue Meldung erklärt eigene Google-Client-ID; der
+  Google-Live-Test ist ausdrücklich nicht bestanden. Bereinigung des eigenen
+  UUID-Testordners wird ebenfalls vom Google-Limit verhindert; kein allgemeines
+  Löschkommando ausführen. Produktive Einbindung
+  bleibt unverändert, da ein Kopierauftrag und ca. 48 GiB ausstehende lokale
+  Full-Cache-Uploads existieren. Sicherer Dienstwechsel erst nach gespeicherter
+  Pause und mit unverändertem Cache-Verzeichnis.
+
+**Vorfall beim externen Google-Testskript:** Nach erfolgloser Aushängung griff
+Python-TemporaryDirectory-Bereinigung auf den noch eingebundenen Cloud-Ordner
+zu. Testeinbindung getrennt, weitere schreibende Cloud-Tests gestoppt. Die
+Google-Änderungsübersicht identifizierte 35 unbeabsichtigt in den Papierkorb
+verschobene Einträge im Testzeitfenster; keine endgültigen Löschungen. Alle 35
+wurden wiederhergestellt. Google ordnete beim Wiederherstellen vor den Eltern
+27 Einträge zunächst anders zu; diese Elternzuordnungen wurden explizit anhand
+der vorherigen Änderungsmetadaten wiederhergestellt. Für alle 35 Einträge sind
+Papierkorbstatus und ursprüngliche Elternzuordnung serverseitig geprüft. Individuelle
+IDs/Pfade und Wiederherstellungsprotokolle bleiben privat außerhalb des Repos.
+Das externe Testskript ist kein Bestandteil der Anwendung. Zukünftige
+kontobasierte FUSE-Tests dürfen keine automatische rekursive Bereinigung des
+Mountpunkts verwenden; fehlgeschlagene Aushängung muss die Bereinigung stoppen.
+
+# Linux 0.3.22 – vollständiger erneuter Testlauf
+
+12. Oktober 2026 (Europe/Zurich), Commit `594b4d5`.
+
+**315 automatisierte Tests bestanden in 63,98 s; 0 Fehler, 0 übersprungen.**
+Installiertes Paket 0.3.22 mit `--smoke-test` erfolgreich geprüft. Python-,
+JavaScript- und Shell-Syntaxprüfungen erfolgreich. Handbuch/Testplan: 75/21
+Verweise ohne fehlende Ressourcen; drei Dokument-ZIPs ohne Integritätsfehler.
+
+[Ausführlicher HTML-Testbericht](docs/testberichte/2026-10-12-0.3.22/index.html)
+mit allen 315 Ergebnissen, JUnit/Protokollen, echten Providerprüfungen und
+Zuordnung aller 158 Abnahmefälle. Die Vorlage 0.3.19 bleibt unverändert;
+SAFE-08 vollständig ausgeführt, 157 vollständige manuelle Abnahmefälle offen.
+Ein erfolgreiches zugeordnetes Testmodul ersetzt keine manuelle Gesamtabnahme.
+
+Echte Konten mit Anwendungs-rclone geprüft:
+
+- Google Drive: 717 Einträge in 2,33 s; bestehender FUSE-Zugriff im eigenen
+  Dateioperationstest >120 s blockiert. Dieser Praxistest **fehlgeschlagen**.
+  Testprozess nach Rückkehr des Kernelzugriffs beendet; eigener Testordner
+  direkt über Backend entfernt. Produktive App und Mount nicht beendet.
+- OneDrive: 30 Einträge in 0,90 s. Eigene Textdatei kopiert, umbenannt,
+  wiederherstellbar entfernt, Entfernung/Umbenennung/Inhalt direkt beim Anbieter
+  geprüft, Entfernen/Umbenennen/Kopieren zurückgenommen. 31,58 s; Testordner entfernt.
+- Dropbox: Dateiliste erreichbar; gleicher eigener FileEngine-/Backend-Test
+  in 42,65 s erfolgreich, Testordner entfernt.
+- Weiteres OneDrive-Profil: fehlende Laufwerksauswahl; echter Zugriff blockiert.
+- iCloud: Passwortkonfiguration verhindert echten Zugriff; erneuter Login nötig.
+- NAS/SMB: lesende Abfrage des Zielordners in 0,23 s erfolgreich; Ordner leer.
+
+Nur neu angelegte synthetische Testdateien/-ordner und getrennte lokale Profile
+für Dateioperationen. Keine öffentliche Freigabe, persönliche Dateimanipulation,
+Mount-Neukonfiguration oder Unterbrechung des produktiven Kopierauftrags.
+Neue persönliche OAuth-/Apple-2FA-Anmeldung, externe FTP-/FTPS-/WebDAV-Matrix,
+NTFS-Schreibtest, physischer Geräteverlust, HiDPI-Matrix und mehrstündiger
+Netzwechsel-Dauerlauf nicht durchgeführt. Lokaler echter SFTP-Testserver und
+lokale echte rclone/FUSE-Tests sind Teil der vollständig ausgeführten Suite.
+
+# Linux 0.3.21 – Bedienbarkeit aus Handbuch und Testplan
+
+Vollständige Suite: **312 Tests erfolgreich (67,23 s)**. Paket-Smoke-Test
+erfolgreich; Hilfe-Modul im Bundle, alle Handbuchkapitel und lokalen Ressourcen
+vorhanden und statisch geprüft.
+Fünf neue gezielte Fälle prüfen:
+
+- F1-Hilfe ist nicht modal, wird wiederverwendet und öffnet das richtige lokale
+  Handbuchkapitel; verständlicher Fallback bei fehlender HTML-Datei.
+- Handbuchpfad im portablen Paket relativ zum tatsächlich gestarteten Programm.
+- Aktiver Filter ohne Treffer, Rücksetzen per Esc/Knopf und unveränderte Dateien.
+- Kopierbarer Auftragsbericht mit Version, Auftrag, Pfaden und gespeichertem Fehler;
+  Knopf in kompakter Ansicht ausgeblendet.
+- Entfernen nur eigener Ortsverknüpfungen, Hinweis auf Ausblenden für eingebaute
+  Orte und konsistente Theme-Checkboxen ohne doppelte Umschaltung.
+
+Alle 20 Handbuchbilder aus temporärem Profil und synthetischen Dateien neu
+aufgenommen; keine echte Kontoanmeldung oder Netzwerkoperation. Neue F1-Hilfe
+(720 × 560) und Filter-Leerzustand (1500 × 960) visuell kontrolliert.
+Handbuchtexte auf 0.3.21 aktualisiert. Der separate Testplan bleibt ausdrücklich
+auf seinen ursprünglichen Stand 0.3.19 bezogen.
+
+# Linux 0.3.20 – Fortschritt beim Fortsetzen
+
+Vollständige Suite: **307 Tests erfolgreich (64,15 s)**. Paket-Smoke-Test
+erfolgreich (Desktop, JPEG/Online-Bild, TAR/7z, externes Drive-Menü und
+gespeicherte Kopierpause/Fortsetzung).
+
+Gezielte neue Regressionen verwenden ausschließlich temporäre lokale Testdaten:
+
+- Simulierter EIO-Schreibfehler nach fertiger erster Datei; nach Neustart bleibt
+  deren Byte-/Dateizähler erhalten. Kein erneuter Schreibzugriff auf diese Datei.
+- Fehlende zweite Datei wird vor Inhaltsprüfung der fertigen ersten Datei kopiert.
+- Pause mitten in der Prüfung behält den inzwischen fertigen Gesamtstand;
+  Fortsetzen zählt keine Datei/Bytes doppelt.
+- Manipulierter fertiger Zwischenstand gleicher Größe und mit zurückgesetzter
+  Änderungszeit wird weiterhin durch Inhaltsprüfung abgewiesen.
+- Fehlendes Laufwerk löscht weder den gespeicherten Fortschritt noch den Fehler.
+- Auftragskarte zeigt während blockierter Vorprüfung gespeicherten Fortschritt,
+  Prüfphase und früheren Fehler; Historie behält frühere Fehler nach Erfolg.
+
+Der laufende produktive Auftrag wurde nur im lokalen SQLite-Journal lesend
+untersucht. Zum Untersuchungszeitpunkt: 15.428 fertige reguläre Dateien,
+95.877.522.511 Byte. Kein Schreiben auf Cloud-Daten, kein Prozessabbruch,
+keine Mount-/Journaländerung. Ursprünglicher Fehlertext war bereits durch die
+alte Fortsetzung gelöscht und lässt sich damit nicht verlässlich zuordnen.
+
+# Linux 0.3.19 – Orte und Dienstsymbole
+
+## Ausfüllbarer Testplan (keine neue Anwendungstest-Ausführung)
+
+[HTML-Testplan](docs/testplan/index.html): 158 Fälle in 16 Funktionsbereichen,
+85 P0-, 72 P1- und ein P2-Fall. Enthält Voraussetzungen, Schritte, Soll-Ergebnisse,
+Provider-/Transfermatrix, Testdaten, Fehler-Schweregrade und Freigabekriterien.
+Alle Fälle beginnen als **Nicht ausgeführt**; frühere Suite-Ergebnisse werden
+nicht als manuelle Abnahme übernommen. Pro Backend/Variante einen eigenen Lauf
+exportieren. CSV-Vorlage und JSON-Falldaten liegen im gleichen Verzeichnis.
+
+Am 12. Oktober 2026 wurde ausschließlich das neue Dokument geprüft:
+
+- Browser: Suche/Einzelfallfilter, Aufklappen, Ergebniserfassung, Statuszähler,
+  Speicherung über Reload, neuer leerer Lauf und JSON-Import mit Bestätigung.
+- CSV und JSON tatsächlich über die Dokumentoberfläche exportiert; CSV enthält
+  alle 158 Fälle und den eingegebenen Probewert. JSON-Rückimport stellt ihn wieder her.
+- Probewerte abschließend zurückgesetzt: 0/158 bewertet. Keine Produktivdateien,
+  Konten, Mounts oder laufenden Anwendungsübertragungen verändert.
+- Desktopansicht 1280 px visuell geprüft; kein horizontaler Dokumentüberlauf,
+  keine Warnungen/Fehler in der Browserkonsole.
+- Eindeutige IDs, Anker, bestehende Testmodul-Zuordnungen, Offline-Ressourcenfreiheit,
+  CSV-Zeilen und ZIP-Integrität geprüft; Python-, JavaScript- und Shell-Syntax gültig.
+- Druckdarstellung vorbereitet; PDF-Export und direkte file://-Ausführung wurden
+  nicht im Browser getestet. Responsives CSS vorhanden; kein eigener Mobil-Abnahmelauf.
+
+Reproduzierbar erzeugen:
+
+```bash
+python3 linux/docs/tools/build_testplan.py
+python3 -m http.server 8766 --bind 127.0.0.1 --directory linux/docs/testplan
+```
+
+## HTML-Anwenderhandbuch
+
+18 Kapitel, 18 reale Qt-Screenshots mit isolierten Beispieldaten; rund 5.600 Wörter.
+Transferwerte und Verbindungen sind ausdrücklich als Demonstrationszustände markiert.
+Keine echten Anmeldungen, Cloud-Freigaben oder Nutzerdateiänderungen zur Aufnahme.
+
+- Desktop (1440 × 1000), schmale Standardansicht und Mobilansicht (390 × 844)
+  im Browser visuell geprüft; kein horizontaler Dokumentüberlauf.
+- Suche nach Pause/iCloud, Kapitelverweise, Theme-Wechsel samt Speicherung,
+  Bilddialog, Schließen und Originalgröße mit horizontaler Bildnavigation geprüft.
+- 47 Links und 26 lokale Ressourcenreferenzen geprüft; keine fehlenden Anker,
+  keine fehlenden Bilddateien und keine externen CSS-/JS-/Bildabhängigkeiten.
+- Zusätzlich eine eigenständige HTML-Datei erzeugt: CSS, JavaScript und alle
+  23 Bild-/Symbolverweise eingebettet; Base64-Inhalte und fehlende externe
+  Abhängigkeiten statisch geprüft. ZIP-Ausgabe auf Integrität geprüft.
+- Keine Browser-Konsolenfehler; JavaScript-Syntax, Python-Generatoren und
+  Shell-Syntax der Paketierung geprüft. Druckstylesheet und Druck-Handler enthalten;
+  ein PDF-Export wurde nicht ausgeführt.
+- Browserprüfung über lokalen HTTP-Server. Ein direkter file://-Aufruf ist in der
+  eingebetteten Browserumgebung gesperrt; die Offline-Dateistruktur wurde statisch geprüft.
+
+Reproduzieren (Screenshot-Aufnahme verwendet nur ein temporäres Profil):
+
+```bash
+QT_QPA_PLATFORM=offscreen PYTHONPATH=linux linux/.venv/bin/python linux/docs/tools/capture_handbook.py
+python3 linux/docs/tools/build_handbook.py
+python3 -m http.server 8765 --bind 127.0.0.1 --directory linux/docs/handbuch
+```
+
+## Anwendungsprüfung
+
+Stand: 12. Oktober 2026. Dienstsymbole werden als eigene lokale SVG-Grafiken
+mitgeliefert. OneDrive, Google Drive, Dropbox und iCloud in der Orte-Leiste sowie
+FTP/SFTP im Assistenten erkennen; Benutzer-Anzeigenamen bleiben erhalten.
+Die obere Leiste lässt sich mit Ziehbild und blauer Einfügemarkierung umsortieren,
+alternativ über „Nach links“/„Nach rechts“ im Kontextmenü.
+
+Vollständige Suite: **300 Tests erfolgreich (64,10 s)**. Nach der abschließenden
+Darstellungs-Korrektur zusätzlich **10 gezielte Desktop-Tests erfolgreich (3,41 s)**,
+einschließlich eines neuen Tests für ausbleibende Aktivierung nach dem Ziehen.
+Damit 301 unterschiedliche Testfälle geprüft. Hell-/Dunkeldarstellung und
+Einfügemarkierung mit synthetischen Online-Profilen visuell kontrolliert.
+Paket-Smoke-Test erfolgreich; SVG-Icon-Engine und alle sechs Dienstgrafiken
+im portablen Paket enthalten.
+
+- Reihenfolge in settings.ini gespeichert und nach erneutem Aufbau der Leiste geprüft.
+- Fehlende Orte behalten ihren gespeicherten Platz beim Wiedererscheinen.
+- Umsortieren öffnet keinen Ort; Datei-URL-Drops werden abgewiesen.
+- Ziehen verwendet ausschließlich ein internes Verknüpfungsformat und ein Ziehbild.
+- Geräte-Aktualisierungen werden bis zum Abschluss der Ziehaktion zurückgestellt.
+- Alte Buttons beim Ersetzen sofort ausgeblendet; keine überlagerten Elemente.
+- Vorhandene Online-Orte weiterhin mit direkter Öffnungsaktion; externe Cloud-Mounts
+  ebenfalls mit passendem Symbol. Keine Kontoanmeldung für diese UI-Prüfung geändert.
+
+## Vorherige Prüfung: 0.3.18 – Dropbox-Entfernen
+
+Stand: 12. Oktober 2026. Zweite Analyse nach den Verbesserungen in 0.3.17.
+Vollständige Suite nach abschließender Scheduler-Korrektur: **296 Tests erfolgreich
+(60,86 s)**. Hell-/Dunkeldarstellung mit zwei parallelen Aufträgen, kompakter
+Karte, Pause, Historie und Vorschau erneut visuell geprüft. Auch der Abbruch einer
+wartenden Vorschau-Löschung gibt die Bedienelemente wieder frei. Paket-Smoke-Test
+erfolgreich: Desktop, JPEG/Online-Bild, TAR/7z, externes Drive-Menü und gespeicherte
+Pause/Fortsetzung.
+
+| Befund | Änderung und Nachweis |
+| --- | --- |
+| Alle Dateiaktionen warteten hinter vollständigen Kopien; unabhängiges Entfernen konnte stundenlang warten | Separater Engine-Worker für Entfernen, reservierte Pfade, sichtbarer Wartegrund, eigene Cancel-/Fortschrittsdaten; echte Kopie im Test läuft unverändert weiter |
+| Pausierte Kopien könnten bei Erweiterung der Parallelität ihre Quelle verlieren | Auch wartende/pausierte/fehlerhafte Aufträge reservieren ihre Pfade; Entfernen wartet bis Freigabe. Abbruch des betroffenen Kopierjobs gibt den Pfad frei, ohne andere Kopien fortzusetzen |
+| Alter Cloud-Cache konnte nach Entfernen wieder erscheinen | Mutation invalidiert Cache/Cooldown; laufende ältere Abfrage wird neu abgefragt, statt alte Daten einzusetzen |
+| Vorschau wartete auf beliebiges globales operation_finished-Signal | Eigener Abschluss-Callback pro Löschaktion; fremder Kopierabschluss ändert das Medium nicht |
+| Sichtbare Historie erzeugte alle Widgets und untersuchte beim Scrollen jeden Eintrag | Leichte Listeneinträge, Suche nach sichtbarer Region, begrenzte Widgets; Test mit 1.000 Vorgängen und Scrollen bis Eintrag 900 |
+| Online-Trennen änderte GUI-Schedulerstatus aus dem Worker | Erfolgs-/Fehlerabschluss im GUI-Thread; Test mit fehlgeschlagenem Trennen |
+
+### Reale Dropbox-Prüfung
+
+Bestehendes Konto lesend erreichbar: ein Eintrag in 0,31 s, kein Fehlerhinweis.
+Danach neu angelegter privater Testordner mit synthetischer Textdatei: Datei vor
+Entfernen direkt über Dropbox-Backend gelistet, in OpenCommander-Papierkorb verschoben,
+ursprünglicher Pfad direkt beim Provider nicht mehr gelistet, Rücknahmekopie mit
+richtigem Inhalt geprüft, per Undo wiederhergestellt und erneut beim Provider gelistet.
+Testlauf 13,12 s; eigener Testordner anschließend entfernt. Keine vorhandene
+Nutzerdatei wurde für diese Prüfung verändert. Die laufende „Weltreise“-Kopie
+wurde nicht pausiert, neu gestartet oder umkonfiguriert.
+
+Entfernen bleibt eine wiederherstellbare Verschiebung in den OpenCommander-Papierkorb.
+Die Sicherung liegt weiterhin auf dem betreffenden Laufwerk; sie entspricht nicht
+permanentem Löschen oder dem nativen Papierkorb des Cloud-Anbieters.
+
+### Historien-Messung
+
+1.000 synthetische Vorgänge in Qt/offscreen, gleiche sichtbare Fenstergröße,
+Ausgangsmethode von Commit 6f5762b. Aufbau der sichtbaren Historienliste:
+
+| Methode | Laufzeit | Erzeugte Karten |
+| --- | --- | --- |
+| 0.3.17 | 1,943 s | 1.000 |
+| Optimierte Ansicht | 0,055 s | 4 sichtbare Karten |
+
+Einzelmessung des Aufbaus, keine allgemeine Geschwindigkeitsgarantie.
+Alle 1.000 Vorgänge bleiben durch Scrollen zugänglich; unsichtbare Widgets werden
+freigegeben. Die JSON-Verlaufsspeicherung bleibt vollständig erhalten.
+
+## Vorherige Analyse: 0.3.17
+
+
+Stand: 11. Oktober 2026. Die Prüfung umfasst Dateimodell, Auftragssteuerung,
+Abbruch/Fortsetzung, Historie, Vorschau und Providerzugriffe der Linux-App.
+Vollständige Testsuite: **287 Tests erfolgreich (55,71 s)**.
+Nach der abschließenden Archiv-Dateityp-Korrektur: sieben relevante Desktop-Tests
+erneut erfolgreich. Paket-Smoke-Test erfolgreich (Desktop, JPEG, Online-Bild,
+TAR/7z, externes Drive-Menü und gespeicherte Pause/Fortsetzung).
+Die Änderungen wurden mit isolierten Dateien und Testprofilen geprüft. Der laufende
+Nutzerauftrag „Weltreise“ blieb unangetastet; sein Journal meldete weiterhin
+`running`, keinen Fehler und zunehmende Dateicheckpoints.
+
+## Analyse und behobene Ursachen
+
+| Befund | Änderung / Nachweis |
+| --- | --- |
+| Jede Tabellenzelle berechnete alle vier Spalten, einschließlich Datum/Größe | Nur angeforderte Spalte formatieren; formatierte Werte bei Listenwechsel invalidieren. Tests für Wiederverwendung, Dateigröße, Archiv-Dateityp und ungültige Provider-Zeitstempel |
+| Abgeschlossene Karten wurden alle 250 ms erneut formatiert; Größenberechnung über alle Karten | Unveränderte Karten überspringen, Größenberechnung am sichtbaren Maximum beenden, Timer ohne aktive Übertragungen stoppen |
+| Auch unsichtbare Historie baute sämtliche Widgets nach jeder Operation neu auf | Aufbau bis zum Öffnen verschieben; Undo-Aktion weiterhin aktuell |
+| Lokale Dateiliste ignorierte ihren Abbruch-Event; Undo-Prüfung las große Dateien ohne Abbruchprüfung | Abbruch zwischen Verzeichniseinträgen bzw. Datenblöcken; Test bestätigt erhaltene Dateien und später erfolgreiches Undo |
+| Zusätzliche Dateivorgänge sendeten Fortschritt als Qt-Signale | Wie bei dauerhaften Kopien nur neuesten Snapshot auf dem GUI-Timer anzeigen; Ergebnisse für Historie/Verbindungen ausdrücklich im GUI-Thread |
+| rclone ohne Schreibcache nahm Append-Öffnung an, scheiterte erst beim Schreiben mit ESPIPE; Schließen meldete zusätzlich EPERM | Auf echtem lokalem rclone/FUSE reproduziert. Nach Präfixprüfung nur unvollständige Datei neu schreiben, fertige Dateien erhalten. Geändertes Präfix wird vor Schreiböffnung abgewiesen |
+| Lange Zeiten als rohe Sekunden oder unbegrenzt wachsende Minutenangabe | Einheiten s/min/h und ab 24 Stunden Tage, auch für Restzeit und Medien-Downloads; Grenzwerte und Deutsch/Englisch geprüft |
+| Status schwerer unterscheidbar; Abschluss setzte Geschwindigkeit auf null | Zusätzliche Statusfarben in Hell/Dunkel; durchschnittliche Geschwindigkeit der abgeschlossenen Sitzung erhalten |
+
+### Messung des Dateimodells
+
+20.000 synthetische Dateien, vier Display-Zellen je Datei, drei Durchläufe in
+isoliertem Qt/offscreen-Prozess auf diesem Rechner. Ausgangspunkt: Commit 71e2586.
+
+| Stand | Erster Durchlauf | Weitere Durchläufe |
+| --- | --- | --- |
+| 0.3.16 | 1,588 s | 1,427 / 1,441 s |
+| Optimiertes Dateimodell | 1,166 s | 1,069 / 1,118 s |
+
+Rund 25 % kürzere wiederholte Zellabfragen. Das ist ein Modell-Mikrobenchmark,
+keine Aussage über Kopierbandbreite, Cloud-Ladezeit oder alle GUI-Aktionen.
+Zusätzlich in isolierter laufender GUI geprüft: zwei parallele Aufträge, ein Auftrag
+minimiert/pausiert, langer Zeitwert, Hell- und Dunkeldarstellung. Keine echte Nutzerdatei
+wurde dafür übertragen oder gelöscht.
+
+### Verbleibende Architekturgrenzen
+
+- Inhaltsprüfungen für sichere Rücknahme und Fortsetzung lesen Dateien erneut.
+  Auf großen Cloud-Ordnern bleibt das teuer. Diese Prüfung wurde nicht abgeschwächt.
+- Die aktuelle Übertragung läuft über das Dateisystem/FUSE. Direkte, separat
+  steuerbare rclone-Transfers mit explizitem Uploadabschluss sind noch nicht implementiert.
+- Bei externen rclone-Mounts mit Schreibcache kann der Dateiabschluss vor dem tatsächlichen
+  Cloud-Upload liegen; die App bestätigt damit keinen gesonderten Provider-Uploadstatus.
+- Ein bereits blockierender Dateisystemaufruf kann erst nach Rückkehr reagieren.
+  Der GUI-Button setzt den Abbruch sofort, garantiert aber keinen sofort beendeten
+  Kernel-/Providerzugriff. Mounts werden nicht gewaltsam getrennt.
+- Auf rclone wird bei Fortsetzung die unvollständige Datei neu geschrieben, auch wenn
+  der externe Mount Append mit Cache unterstützen könnte. Fertige Dateien bleiben
+  nach Prüfung erhalten; lokale Teilkopien werden weiterhin byteweise fortgesetzt.
+- Die Historie erzeugt ab 0.3.18 nur sichtbare Karten. Das Laden/Speichern der
+  vollständigen JSON-Historie und die Konfliktprüfung sehr großer Mehrfachauswahlen
+  bleiben mögliche Engpässe; sehr große Verläufe benötigen weitere Langzeittests.
+- Google-Quoten, Konto-/Serverregeln und Anmeldestatus bleiben externe Einflüsse.
+  Die bisherigen realen Kontoprüfungen stehen unten mit ihrem tatsächlichen Umfang.
+  In dieser Runde wurde kein neuer Login und keine öffentliche Freigabe ausgelöst.
+
+## Bisherige Verbindungsprüfungen und abgedeckte Funktionen
+
+Lesende Google-Drive-/OneDrive-Prüfungen stammen von 0.3.14; die zugehörigen
+automatisierten Regressionstests werden mit der vollständigen Suite erneut ausgeführt.
+
+| Bereich | Prüfung | Ergebnis / Grenze |
+| --- | --- | --- |
+| Google Drive | Bestehendes externes Laufwerk, direkte lesende Backend-Abfrage | `403 Quota exceeded / RATE_LIMIT_EXCEEDED` reproduziert. Neue Abfragen: 717 Einträge in 2,45 bzw. 2,12 s; keine Freigabe erstellt |
+| OneDrive | Gespeichertes Konto, direkte lesende Backend-Abfrage | 30 Einträge, rund 0,90 s |
+| NAS / SMB | Lesende Ordnerabfrage über GVFS | Erfolgreich, rund 0,55 s; geprüfter Ordner leer |
+| iCloud | Bestehende Konfiguration lesend geprüft | Ungültige Passwort-Konfiguration; erneute Anmeldung nötig |
+| Dropbox | Bestehendes Konto, neue synthetische Testdatei in eigenem Testordner (0.3.18) | Entfernen direkt beim Provider geprüft, Rücknahmekopie, Undo und Aufräumen erfolgreich; keine vorhandene Nutzerdatei verändert |
+| SFTP | Lokaler Testserver mit Passwort, Schlüssel und verschlüsseltem Schlüssel | Erfolgreich; keine persönlichen Server geändert |
+| FTP / FTPS | Konfigurations-, Passwortübergabe-, TLS- und Fehlerpfade | Automatisiert geprüft; kein externer FTP-/FTPS-Testserver vorhanden |
+| Externe Cloud-Mounts | Drive / OneDrive / Dropbox / iCloud | Zuordnung des laufenden Prozesses, Konfiguration, Remote-Unterordner, keine kopierten Zugangsdaten |
+| Fehlerbehandlung | Abgelaufene/ungültige Anmeldung, blockiertes Backend, Abbruch, Wiederholung | Begrenzte Prozesse, verständliche Fehler ohne ungefilterte Secrets; GUI bleibt bedienbar |
+| Cloud-Abfragelimits | Google Drive, OneDrive, Dropbox, iCloud; simulierte 403/429 und temporäre Fehler | Erster Abruf nach zwei Fehlern erfolgreich, begrenzte Versuche, Cooldown, alter Cache gekennzeichnet, erneute Verbindung, kein Cache bei Anmeldefehler |
+| Parallele Abfragen | Zwei Dateibereiche und abgebrochene wartende Abfrage | Ein Backend-Abruf für identischen Ordner; Warte- und Retry-Phasen abbrechbar |
+| Google OAuth-Client | Eigene Desktop-Client-Daten mit synthetischem Testprofil, echtes Backend nur bis zur Browser-Frage | Private Datei 0600, andere Profile erhalten, alter Token verworfen, Secret maskiert und aus UI-/Prozessdaten ferngehalten; kein echter neuer Google-Login |
+| Dateiliste bei Fehler | Vorhandene Liste, temporärer Fehler, alter Cache, automatische Wiederholung, Ordnerwechsel | Dateien bleiben mit Hinweis sichtbar; keine verspätete Wiederholung im neuen Ordner |
+| Live-GUI bei Google-Limit | Isoliertes Testprofil, reale Drive-/OneDrive-Mounts, externe Backend-Erkennung | Abfragelimit erneut aufgetreten; 708/27 sichtbare Einträge erhalten (versteckte ausgeblendet). 682 GUI-Timer-Ereignisse in 6,92 s, längste Lücke 27 ms; laufende Nutzerkopie nicht unterbrochen |
+| Cloud-Freigaben | Kontextmenü, Dialog, HTTPS-Link, Kopieren, Abbruch | Simulierter Provider; keine persönlichen Dateien öffentlich freigegeben |
+| Laufwerke | Nicht eingebunden, Einbinden, Fehler, direkte Navigation | Separate Desktop-Fixtures; keine persönlichen Datenträger eingebunden/ausgeworfen |
+| Transfer | Kopieren/Verschieben, Undo, NAS-/FUSE-Metadaten und echte Fehler | Separate Testdaten, teilweise echter lokaler rclone-/SFTP-Testserver |
+| Altversion-Zwischenstände | Explizite Übernahme, fertige Datei ohne Schreiböffnung, Teilbytes, falsche Inhalte, Symlinks, vorige Originale, Mountpfad | Isolierte Testdaten; Altordner werden nicht automatisch angenommen |
+| Kopier-Fortsetzung | Pause nach geschriebenem Datenblock, Neustart in neuem Prozess, fertige Dateien, Teilbytes, Queue, GUI-Schließen, Abbruch, Undo, fehlende Mounts, manipulierte Daten, uneindeutiger Publish | Isolierte lokale Testdaten; kein laufender Nutzertransfer geändert |
+| Minimierte Aufträge | Einzelne laufende Karte kompakt, andere Karte unverändert, Fortschritt/Controls sichtbar, Details wiederherstellen, Neustart | Bestehende Parallel-/Neustarttests erweitert; synthetische Testdaten |
+| Parallele Übertragungen | Zwei echte Kopien gleichzeitig, Pause/Abbruch einzeln, alle beim Schließen speichern, Neustart, Einstellungen/Navigation, GUI-Heartbeat | Isolierte Testdateien; blockierte Providerzugriffe mit Events nachgebildet |
+| Pfadkonflikte | Kopieren gegen Verschieben, pausierte Quellen, lokale Aliase, Behalten-Namensfamilien | Konflikte warten; Providerpfade im GUI nicht gestattet |
+| Dauerhaftes Verschieben | Native Umbenennung/Undo, Laufwerksgrenze, Pause/Neustart, Quelländerung, Pause während Bereinigung | Vollständiges Ziel erhalten, geänderte Quellen geschützt, Historie gemeinsam serialisiert |
+| Paralleles Einbinden | Gleicher Online-Ort in zwei Workern, Abbruch eines Wartenden | Nur ein Daemon gestartet, unabhängiger Abbruch |
+| GUI während Transfer | Echte lokale Kopie, parallele Einstellungen, Themenwechsel, Navigation, GUI-Heartbeat und Thread-Zustellung | Automatisierter Desktop-Test; laufende Nutzerkopie nicht unterbrochen |
+| Orte-Leiste und Verwaltung | Nur Öffnungsziele in der Leiste; Online-Orte und Verbindungen aus Einstellungen | Desktop-Tests in Deutsch und Englisch |
+| Ordnerbaum | Breite, vollständige Namen und gespeicherter Splitter | Automatisierter Desktop-Test |
+| Drag-and-drop | Sichtbare Pixmap, Hotspot, Copy/Move, Datei-/Ordnerziele | Automatisierte Mausgesten und Testdaten-Transfers |
+
+Die Laufzeiten sind Einzelmessungen und keine Geschwindigkeitsgarantie. Die
+Tests ersetzen keine Prüfung jeder Konto- oder Serverrichtlinie. Insbesondere
+öffentliche Freigaben können durch den Anbieter bzw. Administrator gesperrt sein.
+Ein neuer iCloud-Login benötigt Apple-ID/2FA und wurde nicht automatisch gestartet.
+
+Prüfungen:
+
+```sh
+QT_QPA_PLATFORM=offscreen linux/.venv/bin/python -m pytest linux/tests -q
+OPENCOMMANDER_BUILD_ROOT=/dev/shm/opencommander-linux-build ./linux/build.sh
+```
+
+Der Paket-Smoke-Test prüft zusätzlich GUI-Start, JPG-Vorschau, isolierten
+Online-Bilddownload, TAR/7z, das externe Google-Drive-Kontextmenü sowie
+persistente Kopier-Pause und Wiederaufnahme mit dem gebündelten Python/SQLite.

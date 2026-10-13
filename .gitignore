@@ -35,6 +35,10 @@ release/*.apk.sha256
 /linux/dist/
 /linux/artifacts/
 /linux/*.spec
+/linux/opencommander/assets/google-oauth.json
+/linux/opencommander/assets/onedrive-oauth.json
+/linux/opencommander/assets/dropbox-oauth.json
+/release/private-oauth/
 .pytest_cache/
 
 # Generated local UI snapshots and source-extraction output.

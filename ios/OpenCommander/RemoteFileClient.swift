@@ -18,9 +18,17 @@ import CryptoKit
     private let transport: Transport
     private let cancelTransport: (String) -> Void
     private let passwordProvider: (() throws -> String?)?
+    private let nameValidator: (String) -> Bool
+    private let pathValidator: (String) -> Bool
+    private let describePath: (String) -> String
+    func validFileName(_ name: String) -> Bool { nameValidator(name) }
+    func logicalPath(_ id: String?) throws -> String { try path(id) }
     init(_ profile: RemoteConnection, transport: Transport? = nil, cancel: ((String) -> Void)? = nil,
-         password: (() throws -> String?)? = nil) {
+         password: (() throws -> String?)? = nil, validName: @escaping (String) -> Bool = RemoteConnection.validName,
+         validPath: ((String) -> Bool)? = nil, describePath: ((String) -> String)? = nil) {
         self.profile = profile; passwordProvider = password
+        nameValidator = validName; pathValidator = validPath ?? profile.contains
+        self.describePath = describePath ?? { profile.scheme + "://" + profile.host + ":\(profile.port)" + $0 }
 #if targetEnvironment(macCatalyst)
         self.transport = transport ?? { id, connection, password, operation, path, destination, local, completion in
             guard let bridge = DesktopBridge.shared else { completion(nil, RemoteConnection.failure("remote_unavailable")); return }
@@ -35,7 +43,7 @@ import CryptoKit
         paths["root:" + profile.id] = profile.root
     }
     private func path(_ id: String?) throws -> String {
-        guard let value = id == nil ? profile.root : paths[id!], profile.contains(value) else { throw RemoteConnection.failure("remote_invalid") }
+        guard let value = id == nil ? profile.root : paths[id!], pathValidator(value) else { throw RemoteConnection.failure("remote_invalid") }
         return value
     }
     private func identifier(_ path: String) -> String {
@@ -43,13 +51,20 @@ import CryptoKit
         let id = UUID().uuidString; paths[id] = path; return id
     }
     private func childPath(_ parent: String, _ name: String) throws -> String {
-        guard RemoteConnection.validName(name) else { throw RemoteConnection.failure("remote_invalid") }
+        guard nameValidator(name) else { throw RemoteConnection.failure("remote_invalid") }
         return parent == "/" ? "/" + name : parent.trimmingCharacters(in: CharacterSet(charactersIn: "/")).withLeadingSlash + "/" + name
     }
     private func perform(_ operation: String, _ path: String, destination: String? = nil, local: URL? = nil) async throws -> Data {
+        defer {
+            if !["list", "download"].contains(operation) {
+                NotificationCenter.default.post(name: OneDriveClient.listingChanged, object: clientID)
+            }
+        }
         try Task.checkCancellation(); try profile.validate()
         let data = try JSONEncoder().encode(profile), requestID = UUID().uuidString
-        let password = profile.scheme == "sftp" && profile.passwordAuthentication != true ? nil : try (passwordProvider?() ?? passwords.read(clientID: clientID))
+        let password: String?
+        if let passwordProvider { password = try passwordProvider() }
+        else { password = profile.scheme == "sftp" && profile.passwordAuthentication != true ? nil : try passwords.read(clientID: clientID) }
         let cancel = cancelTransport
         return try await withTaskCancellationHandler(operation: {
             try await withCheckedThrowingContinuation { continuation in
@@ -81,7 +96,7 @@ import CryptoKit
         if rejectUnsafe && listing.contains(where: \.unsafe) { throw RemoteConnection.failure("remote_listing") }
         return try listing.filter { !$0.unsafe }.map { entry in
             let itemPath = try childPath(parent, entry.name)
-            return OneDriveItem(id: identifier(itemPath), name: entry.name, size: entry.size,
+            return OneDriveItem(id: identifier(itemPath), name: entry.name, size: entry.size >= 0 ? entry.size : nil,
                 folder: entry.directory ? .init(childCount: nil) : nil, lastModifiedDateTime: entry.modified,
                 eTag: entry.version, parentReference: .init(id: identifier(parent)))
         }
@@ -100,7 +115,7 @@ import CryptoKit
         return item
     }
     private func vacant(_ name: String, parent: String?) async throws {
-        guard RemoteConnection.validName(name) else { throw RemoteConnection.failure("remote_invalid") }
+        guard nameValidator(name) else { throw RemoteConnection.failure("remote_invalid") }
         let listing = try JSONDecoder().decode([RemoteDirectoryItem].self, from: await perform("list", path(parent)))
         guard !listing.contains(where: \.unsafe) else { throw RemoteConnection.failure("remote_listing") }
         guard !listing.contains(where: { OneDriveConflictNames.key($0.name) == OneDriveConflictNames.key(name) }) else { throw OneDriveFailure.nameConflict }
@@ -157,12 +172,12 @@ import CryptoKit
             do {
                 try await vacant(item.name, parent: identifier(parent))
                 _ = try await perform("rename", backup, destination: original); relocate(backup, original)
-            } catch { moveBackupLocation = profile.displayAddress + " → " + backup }
+            } catch { moveBackupLocation = describePath(backup) }
             throw verificationError
         }
         // Never permanently delete an unversioned source. The original name is gone,
         // but a recovery copy remains on the source server, even for whole folders.
-        moveBackupLocation = profile.scheme + "://" + profile.host + ":\(profile.port)" + backup
+        moveBackupLocation = describePath(backup)
     }
     func upload(_ url: URL, parent: String?) async throws {
         try await vacant(url.lastPathComponent, parent: parent)
@@ -171,7 +186,7 @@ import CryptoKit
         let base = try path(parent), temporary = try childPath(base, ".opencommander-" + UUID().uuidString)
         _ = try await perform("upload", temporary, local: url)
         // Read back before reporting success or allowing local source removal.
-        let staging = FileManager.default.temporaryDirectory.appendingPathComponent("OpenCommander-Verify-" + UUID().uuidString)
+        let staging = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent("OpenCommander-Verify-" + UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: staging) }
         let expectedSize = Int64(try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0)
         try await measuredDownload(temporary, local: staging, size: expectedSize, phase: "remote_verify_phase")
@@ -189,7 +204,7 @@ import CryptoKit
         return Data(hash.finalize())
     }
     func uploadTree(_ url: URL, parent: String?) async throws {
-        _ = try await Task.detached { try OneDriveClient.localSnapshot(url) }.value
+        _ = try await Task.detached { try RemoteContent.snapshot(url) }.value
         func visit(_ url: URL, parent: String?, depth: Int) async throws {
             try Task.checkCancellation()
             guard depth < 100 else { throw RemoteConnection.failure("remote_limit") }
@@ -202,14 +217,15 @@ import CryptoKit
         try await visit(url, parent: parent, depth: 0)
     }
     func download(_ item: OneDriveItem) async throws -> URL {
-        guard !item.isFolder, RemoteConnection.validName(item.name) else { throw RemoteConnection.failure("remote_invalid") }
+        guard !item.isFolder, nameValidator(item.name) else { throw RemoteConnection.failure("remote_invalid") }
         let current = try await metadata(item.id)
         guard current.name == item.name, !current.isFolder else { throw RemoteConnection.failure("remote_changed") }
-        let container = FileManager.default.temporaryDirectory.appendingPathComponent("OpenCommander-Remote-" + UUID().uuidString)
+        guard let knownSize = current.size, knownSize >= 0 else { throw RemoteConnection.failure("remote_unknown_size") }
+        let container = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent("OpenCommander-Remote-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: false)
         let file = container.appendingPathComponent(item.name)
         do {
-            try await measuredDownload(path(item.id), local: file, size: current.size ?? 0, phase: "remote_download_phase")
+            try await measuredDownload(path(item.id), local: file, size: knownSize, phase: "remote_download_phase")
             let size = try file.resourceValues(forKeys: [.fileSizeKey]).fileSize
             guard Int64(size ?? -1) == current.size, try await metadata(item.id).eTag == current.eTag else { throw RemoteConnection.failure("remote_changed") }
             transferProgress?("remote_download_phase", current.size ?? 0, current.size ?? 0)
@@ -218,13 +234,13 @@ import CryptoKit
     }
     func downloadTree(_ item: OneDriveItem) async throws -> URL {
         if !item.isFolder { return try await download(item) }
-        let container = FileManager.default.temporaryDirectory.appendingPathComponent("OpenCommander-Remote-" + UUID().uuidString)
+        let container = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent("OpenCommander-Remote-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: false)
         let root = container.appendingPathComponent(item.name)
         var count = 0
         func visit(_ item: OneDriveItem, _ url: URL, _ depth: Int) async throws {
             count += 1; try Task.checkCancellation()
-            guard depth < 100, count < 100_000, RemoteConnection.validName(item.name) else { throw RemoteConnection.failure("remote_limit") }
+            guard depth < 100, count < 100_000, nameValidator(item.name) else { throw RemoteConnection.failure("remote_limit") }
             if item.isFolder {
                 try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
                 for child in try await directoryItems(path(item.id), rejectUnsafe: true) { try await visit(child, url.appendingPathComponent(child.name), depth + 1) }
@@ -245,6 +261,87 @@ private extension String { var withLeadingSlash: String { "/" + self } }
 
 /// Shared, bounded tools for OneDrive and direct server connections.
 @MainActor enum CommanderOnlineTools {
+    struct Replacement {
+        let previous: OneDriveItem
+        let replacement: OneDriveItem
+        let parent: String?
+        let name: String
+        let previousContent: [String: String]
+        let replacementContent: [String: String]
+    }
+    static func contentSnapshot(_ client: any CommanderOnlineClient, item: OneDriveItem) async throws -> [String: String] {
+        let url = try await client.downloadTree(item)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        return try await RemoteContent.snapshotAsync(url)
+    }
+    /// Preserve the old object under a unique name, then create and read back
+    /// the new object. Never issue an unconditional content overwrite. Graph's
+    /// move uses If-Match and conflictBehavior=fail; other clients retain their
+    /// own fresh-version and vacant-name checks.
+    static func replace(_ client: any CommanderOnlineClient, existing: OneDriveItem,
+                        with source: URL, parent: String?) async throws -> Replacement {
+        guard source.lastPathComponent == existing.name, existing.eTag != nil,
+              try await client.children(of: parent).contains(where: { $0.id == existing.id }),
+              try await client.metadata(existing.id).eTag == existing.eTag else { throw RemoteConnection.failure("remote_changed") }
+        let original = try await contentSnapshot(client, item: existing)
+        let desired = try await RemoteContent.snapshotAsync(source)
+        try Task.checkCancellation()
+        let recoveryName = ".OpenCommander-Replaced-" + UUID().uuidString
+        try await client.move(existing, parent: parent, name: recoveryName)
+        do {
+            let backup = try await client.metadata(existing.id)
+            guard try await contentSnapshot(client, item: backup) == original else { throw RemoteConnection.failure("remote_changed") }
+            try Task.checkCancellation()
+            try await client.uploadTree(source, parent: parent)
+            guard let result = try await client.children(of: parent).first(where: { $0.name == existing.name }),
+                  try await contentSnapshot(client, item: result) == desired else { throw RemoteConnection.failure("remote_changed") }
+            return Replacement(previous: backup, replacement: result, parent: parent, name: existing.name,
+                previousContent: original, replacementContent: desired)
+        } catch {
+            let failure = error
+            // Cancellation must not cancel the narrow rollback of our own
+            // displaced object. An unexpected target is never removed.
+            let restored = await Task { @MainActor in
+                do {
+                    guard !(try await client.children(of: parent)).contains(where: { OneDriveConflictNames.key($0.name) == OneDriveConflictNames.key(existing.name) }) else { return false }
+                    let backup = try await client.metadata(existing.id)
+                    guard try await contentSnapshot(client, item: backup) == original else { return false }
+                    try await client.move(backup, parent: parent, name: existing.name)
+                    return true
+                } catch { return false }
+            }.value
+            if restored { throw failure }
+            throw NSError(domain: "OpenCommander.Remote", code: 40, userInfo: [
+                NSLocalizedDescriptionKey: "remote_replace_recovery", "recoveryName": recoveryName, NSUnderlyingErrorKey: failure])
+        }
+    }
+    /// Undo swaps the verified old content back without deleting the new copy.
+    /// Changed targets/backups or occupied original names refuse the swap.
+    static func undoReplacement(_ client: any CommanderOnlineClient, record: Replacement) async throws -> OneDriveItem {
+        let current = try await client.metadata(record.replacement.id)
+        let previous = try await client.metadata(record.previous.id)
+        guard current.name == record.name,
+              try await contentSnapshot(client, item: current) == record.replacementContent,
+              try await contentSnapshot(client, item: previous) == record.previousContent else { throw RemoteConnection.failure("remote_changed") }
+        try Task.checkCancellation()
+        let preservedName = ".OpenCommander-Undo-" + UUID().uuidString
+        try await client.move(current, parent: record.parent, name: preservedName)
+        do {
+            try await client.move(previous, parent: record.parent, name: record.name)
+            return try await client.metadata(current.id)
+        } catch {
+            let failure = error
+            await Task { @MainActor in
+                do {
+                    guard !(try await client.children(of: record.parent)).contains(where: { OneDriveConflictNames.key($0.name) == OneDriveConflictNames.key(record.name) }) else { return }
+                    let retained = try await client.metadata(current.id)
+                    guard try await contentSnapshot(client, item: retained) == record.replacementContent else { return }
+                    try await client.move(retained, parent: record.parent, name: record.name)
+                } catch { }
+            }.value
+            throw failure
+        }
+    }
     struct Entry { let item: OneDriveItem; let ancestors: [OneDriveItem]; let path: String }
     struct Rename { let item: OneDriveItem; let name: String }
     static func resolve(_ path: String, client: any CommanderOnlineClient) async throws -> [OneDriveItem] {
@@ -322,7 +419,7 @@ private extension String { var withLeadingSlash: String { "/" + self } }
                 name = (name as NSString).replacingCharacters(in: match.range, with: value)
             }
             if !fields[1].isEmpty { name = name.replacingOccurrences(of: fields[1], with: fields[2]) }
-            guard OneDriveClient.validName(name), RemoteConnection.validName(name), seen.insert(OneDriveConflictNames.key(name)).inserted,
+            guard client.validFileName(name), seen.insert(OneDriveConflictNames.key(name)).inserted,
                   !siblings.contains(where: { $0.id != item.id && OneDriveConflictNames.key($0.name) == OneDriveConflictNames.key(name) }),
                   name == item.name || OneDriveConflictNames.key(name) != OneDriveConflictNames.key(item.name) else { throw OneDriveFailure.nameConflict }
             plan.append(.init(item: current, name: name))
