@@ -1,0 +1,4 @@
+{
+  "client_id": "YOUR_PUBLIC_MICROSOFT_DESKTOP_APPLICATION_ID",
+  "flow": "pkce"
+}

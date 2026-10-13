@@ -172,6 +172,8 @@ class FileTable(QTableView):
     def __init__(self, pane):
         super().__init__(pane)
         self.pane = pane
+        self.file_drag = None
+        self.drag_position = QPoint()
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.setDragEnabled(True)
@@ -194,13 +196,11 @@ class FileTable(QTableView):
 
     def startDrag(self, supported):
         entries = self.pane.selected()
-        if self.pane.archive or (self.pane.main.busy and not self.pane.main.operation_running) or not entries:
+        if self.file_drag or self.pane.archive or (self.pane.main.busy and not self.pane.main.operation_running) or not entries:
             return
-        mime = QMimeData()
-        mime.setUrls([QUrl.fromLocalFile(str(e.path)) for e in entries])
-        drag = QDrag(self)
-        drag.setMimeData(mime)
-        preview = QPixmap(300, 64)
+        ratio = max(1.0, self.devicePixelRatioF())
+        preview = QPixmap(round(300 * ratio), round(64 * ratio))
+        preview.setDevicePixelRatio(ratio)
         preview.fill(Qt.transparent)
         painter = QPainter(preview)
         painter.setRenderHint(QPainter.Antialiasing)
@@ -222,9 +222,32 @@ class FileTable(QTableView):
         label = ('Verschieben' if mode else 'Kopieren') if self.pane.main.language == 'de' else ('Move' if mode else 'Copy')
         painter.drawText(62, 47, f'{label} · {len(entries)}')
         painter.end()
+        from .file_drag import FileDrag
+        self.file_drag = FileDrag(self, entries, preview, icon)
+
+    def mouseMoveEvent(self, event):
+        self.drag_position = event.globalPosition().toPoint()
+        super().mouseMoveEvent(event)
+
+    def export_drag(self, paths, preview, cursor, blocked_cursor, move):
+        mime = QMimeData()
+        mime.setUrls([QUrl.fromLocalFile(str(path)) for path in paths])
+        drag = QDrag(self)
+        drag.setMimeData(mime)
         drag.setPixmap(preview)
-        drag.setHotSpot(QPoint(20, 20))
-        drag.exec(Qt.CopyAction)  # The receiver owns transfers; never request a second deletion.
+        drag.setHotSpot(QPoint(-12, -12))
+        drag.setDragCursor(cursor, Qt.CopyAction)
+        drag.setDragCursor(cursor, Qt.MoveAction)
+        drag.setDragCursor(blocked_cursor, Qt.IgnoreAction)
+        state = dict(paths=tuple(paths), directory=None)
+        self.pane.main.native_file_drag = state
+        try:
+            result = drag.exec(Qt.CopyAction)
+        finally:
+            self.pane.main.native_file_drag = None
+            drag.deleteLater()
+        if result == Qt.CopyAction and state['directory'] is not None:
+            self.pane.main.transfer(move, paths, state['directory'])
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls() and not self.pane.archive and not (self.pane.main.busy and not self.pane.main.operation_running):
@@ -291,6 +314,7 @@ class FolderTree(QTreeView):
         self.setHeaderHidden(True)
         self.setAcceptDrops(True)
         self.setDragDropMode(QAbstractItemView.DropOnly)
+        self.setDropIndicatorShown(True)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls() and not (self.pane.main.busy and not self.pane.main.operation_running):
@@ -299,11 +323,16 @@ class FolderTree(QTreeView):
             event.ignore()
 
     def dragMoveEvent(self, event):
-        self.dragEnterEvent(event)
+        index = self.indexAt(event.position().toPoint())
+        if index.isValid() and self.pane.tree_model.isDir(index):
+            self.setCurrentIndex(index)
+            self.dragEnterEvent(event)
+        else:
+            event.ignore()
 
     def dropEvent(self, event):
         index = self.indexAt(event.position().toPoint())
-        if not index.isValid() or (self.pane.main.busy and not self.pane.main.operation_running):
+        if not index.isValid() or not self.pane.tree_model.isDir(index) or (self.pane.main.busy and not self.pane.main.operation_running):
             event.ignore()
             return
         self.pane.main.drop_urls(event.mimeData().urls(), Path(self.pane.tree_model.filePath(index)))
@@ -359,7 +388,7 @@ class Pane(QFrame):
         for column in range(1, 4):
             self.tree.hideColumn(column)
         self.tree.clicked.connect(lambda index: self.navigate(Path(self.tree_model.filePath(index))))
-        self.tree_model.directoryLoaded.connect(lambda _: self.sync_tree())
+        self.tree_model.directoryLoaded.connect(self.tree_directory_loaded)
         self.tree.setMinimumWidth(150)
         self.tree.setTextElideMode(Qt.ElideNone)
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeToContents)
@@ -447,6 +476,25 @@ class Pane(QFrame):
         self.refresh_timer.timeout.connect(lambda: self.refresh() if not self.main.busy else None)
         self.watcher.directoryChanged.connect(lambda _: self.refresh_timer.start())
         self.navigate(self.directory)
+        QApplication.instance().installEventFilter(self)
+
+    def eventFilter(self, watched, event):
+        # Include labels, empty margins, headers, scrollbars and later-created
+        # children; focus in an editor must keep its normal editing behaviour.
+        if (event.type() in (QEvent.MouseButtonPress, QEvent.MouseButtonDblClick, QEvent.FocusIn)
+                and isinstance(watched, QWidget)
+                and (watched is self or self.isAncestorOf(watched))
+                and self in self.main.panes):
+            if self.main.active is not self:
+                self.main.activate(self)
+            if event.type() != QEvent.FocusIn and watched.focusPolicy() == Qt.NoFocus:
+                target = watched
+                while target is not None and target is not self and target.focusPolicy() == Qt.NoFocus:
+                    target = target.parentWidget()
+                if target is None or target is self:
+                    target = self.table
+                target.setFocus(Qt.MouseFocusReason)
+        return super().eventFilter(watched, event)
 
     def location(self):
         return (self.directory, self.archive, self.prefix)
@@ -481,6 +529,11 @@ class Pane(QFrame):
         self.main.settings.setValue(f'pane{self.number}', str(directory))
         self.sync_tree()
         self.refresh()
+
+    def tree_directory_loaded(self, *_):
+        if any(getattr(pane.table, 'file_drag', None) for pane in self.main.panes):
+            return  # Loading a hovered folder must not scroll the tree away.
+        self.sync_tree()
 
     def sync_tree(self):
         if self.remote or getattr(self.main, "closing", False):
@@ -824,7 +877,20 @@ class MainWindow(QMainWindow):
             self.panes.append(pane)
             split.addWidget(pane)
         split.setSizes([700, 700])
-        layout.addWidget(split, 1)
+        self.content_splitter = QSplitter(Qt.Vertical)
+        self.content_splitter.setObjectName('fileTransferSplitter')
+        self.content_splitter.setHandleWidth(8)
+        self.content_splitter.setChildrenCollapsible(False)
+        self.content_splitter.addWidget(split)
+        self.transfer_area = QWidget()
+        transfer_layout = QVBoxLayout(self.transfer_area)
+        transfer_layout.setContentsMargins(0, 0, 0, 0)
+        self.content_splitter.addWidget(self.transfer_area)
+        self.content_splitter.setStretchFactor(0, 1)
+        self.content_splitter.setStretchFactor(1, 0)
+        self.content_splitter.splitterMoved.connect(self.save_transfer_panel_height)
+        self.transfer_area.hide()
+        layout.addWidget(self.content_splitter, 1)
         self.status = QLabel()
         self.status.setObjectName('muted')
         self.status.setTextInteractionFlags(Qt.TextSelectableByMouse)
@@ -834,7 +900,7 @@ class MainWindow(QMainWindow):
         self.transfer_details.setTextFormat(Qt.PlainText)
         self.transfer_details.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.transfer_details.hide()
-        layout.addWidget(self.transfer_details)
+        transfer_layout.addWidget(self.transfer_details)
         self.progress = QProgressBar()
         self.progress.setFixedWidth(160)
         self.progress.hide()
@@ -859,7 +925,7 @@ class MainWindow(QMainWindow):
         layout.addLayout(footer)
         from .transfers_ui import TransferOverview
         self.transfers = TransferOverview(self)
-        layout.insertWidget(layout.count()-2, self.transfers)
+        transfer_layout.insertWidget(0, self.transfers)
         self.history_dock = QDockWidget(self)
         self.history_list = QListWidget()
         self.history_cards = {}
@@ -945,6 +1011,23 @@ class MainWindow(QMainWindow):
     def cancel_operations(self):
         if not self.closing:
             self.transfers.cancel_all()
+
+    def save_transfer_panel_height(self, *_):
+        if self.transfer_area.isVisible() and self.transfers.toggle.isChecked():
+            self.settings.setValue('transfer_panel_height', self.content_splitter.sizes()[1])
+
+    def resize_transfer_panel(self, expanded=True):
+        if not hasattr(self, 'transfers') or self.transfer_area.isHidden():
+            return
+        header = self.transfers.toggle.sizeHint().height() + 8
+        if expanded:
+            default = min(220, header + sum(card.sizeHint().height() + 3 for card in list(self.transfers.cards.values())[:3]))
+            height = self.settings.value('transfer_panel_height', max(header + 40, default), type=int)
+        else:
+            height = header
+        total = max(300, self.content_splitter.height())
+        height = max(header, min(height, total - 180))
+        self.content_splitter.setSizes([total - height, height])
 
     def pause_transfers(self):
         if not self.closing:
@@ -1073,6 +1156,9 @@ class MainWindow(QMainWindow):
                            f'{value["name"]}')
             self.transfer_details.setText(details)
             self.transfer_details.show()
+            if self.transfer_area.isHidden():
+                self.transfer_area.show()
+                self.resize_transfer_panel(True)
         def report_metrics(value):
             latest[0] = value  # Coalesce immutable snapshots without queued GUI signals.
         self.transfer_details.hide()
@@ -1196,6 +1282,10 @@ class MainWindow(QMainWindow):
         if len(paths) != len(urls):
             self.status.setText('Only local file URLs are supported.')
             return
+        native = getattr(self, 'native_file_drag', None)
+        if native is not None and tuple(paths) == native['paths']:
+            native['directory'] = directory
+            return  # A native outbound drag re-entered; commit after exec ends.
         self.transfer(self.mode.currentData() == 'move', paths, directory)
 
     def copy_clipboard(self, move):

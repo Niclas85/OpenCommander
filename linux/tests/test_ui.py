@@ -60,6 +60,40 @@ def test_toolbar_copy_and_undo(window, app):
     assert not (right.directory / 'Grüße.txt').exists()
 
 
+@pytest.mark.parametrize('surface', ['title', 'selected_label', 'path_edit', 'filter', 'tree', 'header', 'margin'])
+def test_click_any_pane_surface_activates_it_without_stealing_editor_focus(window, app, surface):
+    left, right = window.panes
+    left.path_edit.setFocus()
+    window.activate(left)
+    widgets = {'title': right.title, 'selected_label': right.selected_label,
+               'path_edit': right.path_edit, 'filter': right.filter,
+               'tree': right.tree.viewport(), 'header': right.table.horizontalHeader().viewport(),
+               'margin': right}
+    from PySide6.QtCore import QPoint
+    target = widgets[surface]
+    point = QPoint(2, 2) if surface == 'margin' else target.rect().center()
+    QTest.mouseClick(target, Qt.LeftButton, pos=point)
+    app.processEvents()
+    assert window.active is right
+    assert window.tr_key('active') in right.title.text()
+    assert window.tr_key('active') not in left.title.text()
+    if surface in ('path_edit', 'filter'):
+        assert target.hasFocus()
+    elif surface in ('title', 'selected_label', 'margin'):
+        assert right.table.hasFocus()
+
+
+def test_title_click_routes_clipboard_paste_to_clicked_pane(window, app):
+    left, right = window.panes
+    left.table.selectRow(0)
+    window.activate(left)
+    window.copy_clipboard(False)
+    QTest.mouseClick(right.title, Qt.LeftButton)
+    window.paste_clipboard()
+    wait(app, lambda: not window.busy)
+    assert (right.directory / 'Grüße.txt').read_text() == 'Hello from OpenCommander'
+
+
 def test_clipboard_cut_paste_uses_active_destination(window, app):
     left, right = window.panes
     window.activate(left)
@@ -380,58 +414,163 @@ def test_video_plays_in_viewer(window, app, tmp_path):
     viewer.close()
 
 
-@pytest.mark.parametrize('move', [False, True])
-@pytest.mark.parametrize('folder_target', [False, True])
-def test_mouse_gesture_starts_drag_and_transfers(window, app, monkeypatch, move, folder_target):
-    from PySide6.QtCore import QEvent, QPoint
+def begin_file_drag(window, app):
+    from PySide6.QtCore import QPoint
     from PySide6.QtGui import QMouseEvent
-    from opencommander import ui
+    left = window.panes[0]
+    viewport = left.table.viewport()
+    start = left.table.visualRect(left.proxy.index(0, 0)).center()
+    QTest.mousePress(viewport, Qt.LeftButton, pos=start)
+    point = start + QPoint(QApplication.startDragDistance() + 25, 0)
+    event = QMouseEvent(QEvent.MouseMove, QPointF(point), QPointF(viewport.mapToGlobal(point)),
+                        Qt.NoButton, Qt.LeftButton, Qt.NoModifier)
+    QApplication.sendEvent(viewport, event)
+    app.processEvents()
+    assert left.table.file_drag is not None
+    return viewport, left.table.file_drag
+
+
+def move_file_drag(viewport, global_point, app):
+    from PySide6.QtGui import QMouseEvent
+    event = QMouseEvent(QEvent.MouseMove, QPointF(viewport.mapFromGlobal(global_point)), QPointF(global_point),
+                        Qt.NoButton, Qt.LeftButton, Qt.NoModifier)
+    QApplication.sendEvent(viewport, event)
+    app.processEvents()
+
+
+@pytest.mark.parametrize('move', [False, True])
+@pytest.mark.parametrize('target_kind', ['area', 'folder', 'tree'])
+def test_mouse_gesture_starts_drag_and_transfers(window, app, move, target_kind):
+    from PySide6.QtCore import QPoint
     left, right = window.panes
+    window.resize(1350, 850); app.processEvents()
     window.mode.setCurrentIndex(int(move))
     destination = right.directory
-    drop_position = QPointF(20, 250)
-    if folder_target:
+    if target_kind != 'area':
         destination = right.directory / 'Destination'
         destination.mkdir()
         right.refresh()
         wait(app, lambda: right.proxy.rowCount() == 1)
-        target_index = right.proxy.index(0, 0)
-        assert target_index.flags() & Qt.ItemIsDropEnabled
-        drop_position = QPointF(right.table.visualRect(target_index).center())
-    gestures = []
-    class Drag:
-        def __init__(self, source):
-            self.source = source
-        def setMimeData(self, mime):
-            self.mime = mime
-        def setPixmap(self, pixmap):
-            assert not pixmap.isNull() and pixmap.width() >= 250
-            self.pixmap = pixmap
-        def setHotSpot(self, point):
-            assert point.x() > 0 and point.y() > 0
-        def exec(self, actions):
-            assert not self.pixmap.isNull()
-            gestures.append(self.mime.urls())
-            event = QDropEvent(drop_position, actions, self.mime, Qt.LeftButton, Qt.NoModifier)
-            right.table.dropEvent(event)
-            assert event.isAccepted()
-            return Qt.CopyAction
-    monkeypatch.setattr(ui, 'QDrag', Drag)
-    index = left.proxy.index(0, 0)
-    assert index.flags() & Qt.ItemIsDragEnabled
-    viewport = left.table.viewport()
-    start = left.table.visualRect(index).center()
-    QTest.mousePress(viewport, Qt.LeftButton, Qt.NoModifier, start)
-    for distance in (2, QApplication.startDragDistance() + 20, QApplication.startDragDistance() + 40):
-        point = start + QPoint(distance, 0)
-        event = QMouseEvent(QEvent.MouseMove, QPointF(point), QPointF(viewport.mapToGlobal(point)),
-                            Qt.NoButton, Qt.LeftButton, Qt.NoModifier)
-        QApplication.sendEvent(viewport, event)
-    QTest.mouseRelease(viewport, Qt.LeftButton, Qt.NoModifier, start)
+    if target_kind == 'tree':
+        index = right.tree_model.index(str(destination))
+        right.tree.expand(right.tree_model.index(str(right.directory)))
+        right.tree.scrollTo(index)
+        wait(app, lambda: right.tree.visualRect(index).isValid())
+        point = right.tree.viewport().mapToGlobal(right.tree.visualRect(index).intersected(right.tree.viewport().rect()).center())
+    elif target_kind == 'folder':
+        point = right.table.viewport().mapToGlobal(right.table.visualRect(right.proxy.index(0, 0)).center())
+    else:
+        point = right.table.viewport().mapToGlobal(QPoint(20, 150))
+    before = len(window.engine.transfers.jobs())
+    history_before = len(window.engine.history)
+    viewport, drag = begin_file_drag(window, app)
+    move_file_drag(viewport, point, app)
+    assert drag.ghost.isVisible() and drag.marker.isVisible()
+    assert drag.target[3] == destination
+    assert not (destination / 'Grüße.txt').exists()
+    assert (left.directory / 'Grüße.txt').exists()
+    assert len(window.engine.transfers.jobs()) == before  # Holding never creates a copy.
+    assert drag.ghost.pos() == drag.root.mapFromGlobal(point) + QPoint(14, 14)
+    QTest.mouseRelease(viewport, Qt.LeftButton, pos=viewport.mapFromGlobal(point))
     wait(app, lambda: not window.busy)
-    assert len(gestures) == 1
+    assert drag.finished and left.table.file_drag is None
+    from PySide6.QtWidgets import QLabel
+    assert not window.findChildren(QLabel, 'fileDragPreview')
     assert (destination / 'Grüße.txt').read_text() == 'Hello from OpenCommander'
     assert (left.directory / 'Grüße.txt').exists() == (not move)
+    assert len(window.engine.history) == history_before + 1
+
+
+@pytest.mark.parametrize('cancel', ['escape', 'invalid_release', 'lost_focus'])
+def test_drag_cancel_never_creates_transfer_or_leaves_preview(window, app, cancel):
+    viewport, drag = begin_file_drag(window, app)
+    before = len(window.engine.transfers.jobs())
+    if cancel == 'escape':
+        QTest.keyClick(viewport, Qt.Key_Escape)
+    elif cancel == 'lost_focus':
+        QApplication.sendEvent(window, QEvent(QEvent.WindowDeactivate))
+    else:
+        point = window.panes[0].title.mapToGlobal(window.panes[0].title.rect().center())
+        move_file_drag(viewport, point, app)
+        QTest.mouseRelease(viewport, Qt.LeftButton, pos=viewport.mapFromGlobal(point))
+    assert drag.finished and not drag.ghost.isVisible()
+    assert window.panes[0].table.file_drag is None
+    assert QApplication.overrideCursor() is None
+    assert len(window.engine.transfers.jobs()) == before
+    assert (window.panes[0].directory / 'Grüße.txt').exists()
+
+
+def test_native_export_reentry_defers_copy_until_native_drag_ends(window, app, monkeypatch):
+    from opencommander import ui
+    from PySide6.QtCore import QPoint
+    before = len(window.engine.transfers.jobs())
+    captured = []
+    class Drag:
+        def __init__(self, source): pass
+        def setMimeData(self, mime): self.mime = mime
+        def setPixmap(self, pixmap): assert not pixmap.isNull()
+        def setHotSpot(self, point): pass
+        def setDragCursor(self, pixmap, action): assert not pixmap.isNull()
+        def deleteLater(self): pass
+        def exec(self, action):
+            captured.extend(self.mime.urls())
+            assert action == Qt.CopyAction
+            event = QDropEvent(QPointF(20, 150), action, self.mime, Qt.LeftButton, Qt.NoModifier)
+            window.panes[1].table.dropEvent(event)
+            assert event.isAccepted()
+            assert len(window.engine.transfers.jobs()) == before
+            assert not (window.panes[1].directory / 'Grüße.txt').exists()
+            return Qt.CopyAction
+    monkeypatch.setattr(ui, 'QDrag', Drag)
+    viewport, drag = begin_file_drag(window, app)
+    point = window.mapToGlobal(QPoint(window.width() + 20, 200))
+    move_file_drag(viewport, point, app)
+    wait(app, lambda: not window.busy)
+    assert captured and captured[0].toLocalFile().endswith('Grüße.txt')
+    assert drag.finished and window.native_file_drag is None
+    assert (window.panes[1].directory / 'Grüße.txt').exists()
+    assert (window.panes[0].directory / 'Grüße.txt').exists()
+
+
+def test_drag_tree_hover_expands_folder_without_copying(window, app):
+    right = window.panes[1]
+    folder = right.directory / 'Destination'
+    (folder / 'Child').mkdir(parents=True)
+    index = right.tree_model.index(str(folder))
+    right.tree.expand(right.tree_model.index(str(right.directory)))
+    right.tree.collapse(index); right.tree.scrollTo(index)
+    wait(app, lambda: right.tree.visualRect(index).isValid())
+    viewport, drag = begin_file_drag(window, app)
+    right.tree.expand(right.tree_model.index(str(right.directory)))
+    right.tree.collapse(index); right.tree.scrollTo(index)
+    app.processEvents()
+    rect = right.tree.visualRect(index).intersected(right.tree.viewport().rect())
+    assert not rect.isEmpty()
+    point = right.tree.viewport().mapToGlobal(rect.center())
+    move_file_drag(viewport, point, app)
+    assert drag.target and drag.target[3] == folder
+    wait(app, lambda: right.tree.isExpanded(index))
+    assert not window.engine.transfers.jobs()
+    QTest.keyClick(viewport, Qt.Key_Escape)
+
+
+def test_drag_folder_into_its_child_is_rejected_before_transfer(window, app):
+    left, right = window.panes
+    (left.directory / 'Grüße.txt').unlink()
+    source = left.directory / 'Folder'
+    child = source / 'Child'
+    child.mkdir(parents=True)
+    left.refresh(); right.navigate(child)
+    wait(app, lambda: left.proxy.rowCount() == 1)
+    from PySide6.QtCore import QPoint
+    point = right.table.viewport().mapToGlobal(QPoint(20, 150))
+    viewport, drag = begin_file_drag(window, app)
+    move_file_drag(viewport, point, app)
+    assert drag.target is None and not drag.marker.isVisible()
+    QTest.mouseRelease(viewport, Qt.LeftButton, pos=viewport.mapFromGlobal(point))
+    assert not window.engine.transfers.jobs() and not window.engine.history
+    assert source.is_dir() and not (child / 'Folder').exists()
+
 
 
 def test_history_details_thumbnail_and_individual_undo(window, app):
@@ -647,6 +786,130 @@ def test_icloud_dialog_explains_apple_credentials_and_masks_password(window, app
     from PySide6.QtWidgets import QLineEdit
     assert dialog.answer.lineEdit().echoMode() == QLineEdit.Password
     dialog.close()
+
+
+@pytest.mark.parametrize('field', ['apple_id', 'password', 'config_2fa', 'config_2fa_sms'])
+def test_icloud_empty_required_field_cannot_advance_login(window, app, monkeypatch, field):
+    window.online_locations();dialog=window.online_dialog
+    dialog.profile=dict(id='oc_fixture',kind='iclouddrive',name='iCloud')
+    dialog.cloud_auth=True
+    dialog.question({'State':'*all-set,fixture','Option':{'Name':field,'IsPassword':field=='password'}})
+    called=[]
+    monkeypatch.setattr(dialog,'work',lambda *a:called.append(a))
+    dialog.continue_auth('')
+    assert not called and 'eingeben' in dialog.status.text()
+    assert dialog.auth_field_label.isVisible()
+    assert not dialog.provider.isEnabled()
+    dialog.state='';dialog.close()
+
+
+def test_icloud_enter_advances_correct_field_with_label_visible(window, app, monkeypatch):
+    window.online_locations();dialog=window.online_dialog
+    dialog.profile=dict(id='oc_fixture',kind='iclouddrive',name='iCloud')
+    dialog.cloud_auth=True
+    dialog.question({'State':'*all-set,fixture','Option':{'Name':'apple_id','IsPassword':False}})
+    answers=[]
+    monkeypatch.setattr(dialog,'continue_auth',lambda answer:answers.append(answer))
+    dialog.answer.setEditText('test@example.invalid')
+    QTest.keyClick(dialog.answer.lineEdit(),Qt.Key_Return)
+    assert answers==['test@example.invalid']
+    assert dialog.auth_field_label.text()=='Apple-ID'
+    assert 'Passwort' in dialog.next_button.text()
+    dialog.state='';dialog.close()
+
+
+def test_icloud_backend_failure_returns_to_new_login_instead_of_advanced_state(window, app):
+    window.online_locations();dialog=window.online_dialog
+    dialog.provider.setCurrentIndex(dialog.provider.findData('iclouddrive'))
+    dialog.profile=dict(id='oc_fixture',kind='iclouddrive',name='iCloud')
+    dialog.state='*all-set,config_fs_advanced'
+    dialog.auth_option_name='config_fs_advanced'
+    def fail():
+        raise RuntimeError('Apple-Anmeldung abgelehnt (HTTP 401)')
+    dialog.work(fail,lambda _:None)
+    wait(app,lambda:not dialog.pending)
+    assert dialog.state=='' and dialog.auth_option_name==''
+    assert dialog.answer.isHidden() and dialog.auth_field_label.isHidden()
+    assert dialog.provider.isEnabled() and 'Apple' in dialog.next_button.text()
+    assert '401' in dialog.status.text() and not window.online_profiles
+    dialog.close()
+
+
+@pytest.mark.parametrize('field,state', [('config_2fa','2fa_do'), ('config_2fa_sms','2fa_sms_1_sms')])
+def test_icloud_sms_request_and_resend_reuse_session_without_password_login(window, app, monkeypatch, field, state):
+    import threading
+    from opencommander import online_ui
+    window.online_locations();dialog=window.online_dialog
+    dialog.profile=dict(id='oc_fixture',kind='iclouddrive',name='iCloud')
+    dialog.cloud_auth=True
+    # Start with a password step to detect inherited password semantics.
+    dialog.question({'State':'*all-set,2,false','Option':{'Name':'password','IsPassword':True}})
+    dialog.question({'State':state,'Option':{'Name':field}})
+    dialog.answer.setEditText('old-code-must-not-be-submitted')
+    calls=[];entered=threading.Event();release=threading.Event()
+    def command(config,args,cancel,**kwargs):
+        calls.append((args,kwargs));entered.set()
+        assert release.wait(3)
+        return {'State':'2fa_sms_1_sms','Option':{'Name':'config_2fa_sms'}}
+    monkeypatch.setattr(online_ui,'command_json',command)
+    assert dialog.icloud_sms_button.isVisible() and dialog.icloud_sms_button.isEnabled()
+    QTest.mouseClick(dialog.icloud_sms_button,Qt.LeftButton)
+    wait(app,entered.is_set)
+    assert dialog.pending and not dialog.icloud_sms_button.isEnabled()
+    dialog.request_icloud_sms()  # A queued/double click must not request another SMS.
+    release.set();wait(app,lambda:not dialog.pending)
+    assert len(calls)==1
+    args,kwargs=calls[0]
+    assert args[:3]==['config','update','oc_fixture']
+    assert args[args.index('--state')+1]=='2fa_do' and kwargs['result']=='sms'
+    assert kwargs['password_result'] is False
+    assert dialog.state=='2fa_sms_1_sms' and dialog.answer.currentText()==''
+    assert 'erneut' in dialog.icloud_sms_button.text()
+    assert not dialog.icloud_sms_button.isEnabled()
+    dialog.request_icloud_sms();assert len(calls)==1
+    dialog.icloud_sms_requested_at=time.monotonic()-31
+    dialog.update_icloud_sms_button();assert dialog.icloud_sms_button.isEnabled()
+    QTest.mouseClick(dialog.icloud_sms_button,Qt.LeftButton)
+    wait(app,lambda:not dialog.pending)
+    assert len(calls)==2 and calls[1][0][calls[1][0].index('--state')+1]=='2fa_do'
+    assert calls[1][1]['result']=='sms'
+    assert not window.online_profiles  # Receiving a code is not a completed connection.
+    dialog.state='';dialog.close()
+
+
+@pytest.mark.parametrize('kind,field,state', [('iclouddrive','password','*all-set,2,false'),
+    ('iclouddrive','config_2fa_phone','2fa_sms_select'), ('iclouddrive','config_2fa_sms','unknown-state'),
+    ('onedrive','config_2fa','2fa_do')])
+def test_icloud_sms_control_is_only_available_in_supported_code_states(window, app, monkeypatch, kind, field, state):
+    window.online_locations();dialog=window.online_dialog
+    dialog.profile=dict(id='oc_fixture',kind=kind,name='Fixture')
+    dialog.question({'State':state,'Option':{'Name':field}})
+    calls=[];monkeypatch.setattr(dialog,'continue_auth',lambda *a,**kw:calls.append((a,kw)))
+    assert dialog.icloud_sms_button.isHidden()
+    dialog.request_icloud_sms();assert not calls
+    dialog.state='';dialog.close()
+
+
+def test_icloud_sms_phone_selection_and_trimmed_code_use_backend_values(window, app, monkeypatch):
+    window.online_locations();dialog=window.online_dialog
+    dialog.profile=dict(id='oc_fixture',kind='iclouddrive',name='iCloud')
+    dialog.question({'State':'2fa_sms_select','Option':{'Name':'config_2fa_phone',
+        'Examples':[{'Value':'1_sms','Help':'***01'},{'Value':'2_sms','Help':'***02'}]}})
+    assert not dialog.answer.isEditable() and 'Telefonnummer' in dialog.auth_field_label.text()
+    submitted=[]
+    monkeypatch.setattr(dialog,'continue_auth',lambda answer:submitted.append(answer))
+    dialog.answer.setCurrentIndex(1);dialog.next()
+    assert submitted==['2_sms']
+    monkeypatch.undo()
+    dialog.question({'State':'2fa_sms_2_sms','Option':{'Name':'config_2fa_sms'}})
+    calls=[]
+    def work(callback,after):
+        monkeypatch.setattr('opencommander.online_ui.command_json',lambda *a,**kw:calls.append(kw))
+        callback()
+    monkeypatch.setattr(dialog,'work',work)
+    dialog.continue_auth('  123456  ')
+    assert calls[0]['result']=='123456' and calls[0]['password_result'] is False
+    dialog.state='';dialog.close()
 
 
 def test_cancel_button_stops_current_online_login_worker(window, app, monkeypatch):
@@ -1631,6 +1894,8 @@ def test_parallel_transfers_have_independent_controls_and_responsive_gui(window,
         assert len(window.transfers.active) == 2
         cards = {Path(card.job['sources'][0]).name: card for card in window.transfers.cards.values()}
         one, two = cards[first.name], cards[second.name]
+        one.minimize.setChecked(False)
+        two.minimize.setChecked(False)
         window.transfers.toggle.click() if not window.transfers.toggle.isChecked() else None
         assert window.transfers.body.isVisible()
         QTest.mouseClick(one.minimize, Qt.LeftButton)
@@ -1754,7 +2019,7 @@ def test_parallel_close_saves_all_active_transfers(window, app, monkeypatch):
         window.transfer(paths=[file], directory=target.directory)
     wait(app, lambda: all(event.is_set() for event in entered))
     minimized = next(iter(window.transfers.cards.values()))
-    minimized.minimize.click()
+    minimized.minimize.setChecked(True)
     minimized_id = minimized.job['id']
     window.close()
     wait(app, lambda: not window.isVisible(), timeout=10)
@@ -2323,7 +2588,7 @@ def test_transfer_details_copy_includes_saved_error_and_route(window):
     assert job['id'] in text and job['sources'][0] in text
     assert job['directory'] in text and job['last_error'] in text
     assert 'OpenCommander Linux' in text
-    card.minimize.click()
+    card.minimize.setChecked(True)
     assert card.copy_details.isHidden()
     window.engine.transfers.delete(job['id'])
     card.state = 'cancelled'
@@ -2384,6 +2649,7 @@ def test_expanded_transfer_has_one_summary_and_visible_controls(window, app):
                                         window.panes[1].directory, 'keep')
     job['sources'] = ['/cloud/' + 'very-long-folder-name-' * 35 + '/Weltreise']
     card = window.transfers.add(job)
+    card.minimize.setChecked(False)
     card.state = 'running'
     card.started = time.monotonic()
     card.metrics = dict(phase='copying', bytes_done=100, bytes_resumed=0,
@@ -2403,14 +2669,47 @@ def test_expanded_transfer_has_one_summary_and_visible_controls(window, app):
             assert control.geometry().right() < card.width()
         assert 'Zeit insgesamt (aktiv)' in card.details.text()
         window.transfers.toggle.setChecked(False)
-        assert window.transfer_details.isVisible()
-        assert window.progress.isVisible()
-        assert '50%' in window.transfer_details.text()
+        assert not window.transfer_details.isVisible()
+        assert not window.progress.isVisible()
     finally:
         window.transfers.active.pop(job['id'])
         window.engine.transfers.delete(job['id'])
         card.state = 'cancelled'
         window.transfers.clear_completed()
+
+
+def test_transfers_default_to_single_rows_and_panel_height_stays_adjustable(window, app):
+    window.resize(1080, 860)
+    cards=[]
+    for index in range(2):
+        job=window.engine.transfers.create([window.panes[0].directory / 'Grüße.txt'],window.panes[1].directory,'keep')
+        job.update(status='blocked',error='Verbindung fehlt '+('very-long-path/'*20))
+        window.engine.transfers.save(job)
+        card=window.transfers.add(job);cards.append(card)
+        card.metrics=dict(phase='copying',bytes_done=100,bytes_total=200,files_done=1,files_total=2,name='photo.jpg')
+        card.render()
+    window.transfers.toggle.setChecked(True);window.transfers.render();app.processEvents()
+    for card in cards:
+        assert card.minimize.isChecked() and not card.title.wordWrap()
+        assert not card.route.isVisible() and not card.details.isVisible()
+        assert card.height() <= 52
+        assert abs(card.title.geometry().center().y()-card.resume.geometry().center().y())<5
+        assert card.cancel.geometry().right()<card.width()
+        assert '50%' in card.title.text() and 'Verbindung fehlt' in card.title.toolTip()
+    assert 'Fehler' in window.transfers.toggle.text()
+    before=window.content_splitter.sizes()[1]
+    window.content_splitter.moveSplitter(window.content_splitter.sizes()[0]-90,1);app.processEvents()
+    enlarged=window.content_splitter.sizes()[1]
+    assert enlarged>before+40
+    assert window.settings.value('transfer_panel_height',type=int)==enlarged
+    window.transfers.render();app.processEvents()
+    assert abs(window.content_splitter.sizes()[1]-enlarged)<5
+    window.transfers.toggle.setChecked(False);app.processEvents()
+    window.transfers.toggle.setChecked(True);app.processEvents()
+    assert abs(window.content_splitter.sizes()[1]-enlarged)<10
+    for card in cards:
+        window.engine.transfers.delete(card.job['id']);card.state='cancelled'
+    window.transfers.clear_completed()
 
 
 def test_terminal_cloud_auth_error_does_not_save_or_mount(window, app, monkeypatch):
@@ -2509,3 +2808,91 @@ def test_resume_card_shows_verification_progress_separately_from_copied_bytes(wi
     assert '99%' not in card.details.text() and '0 B/s' not in card.details.text()
     card.minimize.setChecked(True)
     assert 'Prüfung 25%' in card.title.text()
+
+
+def test_publisher_google_client_removes_console_setup_from_user_flow(window,app,monkeypatch):
+    from opencommander import public_oauth,online_ui
+    import secrets
+    data=dict(client_id='123-fixture.apps.googleusercontent.com',client_secret=secrets.token_urlsafe(20))
+    monkeypatch.setattr(public_oauth,'bundled_client',lambda:data)
+    window.online_locations();dialog=window.online_dialog
+    dialog.provider.setCurrentIndex(dialog.provider.findData('drive'))
+    assert dialog.google_client_id.isHidden() and dialog.google_client_secret.isHidden()
+    assert 'bereits eingerichtet' in dialog.help.text()
+    dialog.google_custom.setChecked(True)
+    assert not dialog.google_client_id.isHidden()
+    dialog.google_client_id.setText('discarded.apps.googleusercontent.com')
+    dialog.google_client_secret.setText(secrets.token_urlsafe(20))
+    dialog.google_custom.setChecked(False)
+    assert not dialog.google_client_id.text() and not dialog.google_client_secret.text()
+    assert dialog.google_client_id.isHidden()
+    calls=[]
+    monkeypatch.setattr(online_ui.rclone_runtime,'ensure_cloud_backend',lambda c:'/fixture')
+    monkeypatch.setattr(online_ui,'command_json',lambda config,args,c: calls.append(args) or {'State':'fixture','Option':{'Name':'scope'}})
+    dialog.next();wait(app,lambda:not dialog.pending)
+    assert calls and calls[0][:2]==['config','update']
+    import configparser
+    p=configparser.ConfigParser(interpolation=None);p.read(dialog.config)
+    assert p[dialog.profile['id']]['client_id']==data['client_id']
+    assert data['client_secret'] not in str(window.settings.value('online_profiles'))
+    dialog.state='';dialog.close()
+
+
+def test_icloud_assistant_explains_personal_account_sms_and_web_access(window,app):
+    window.online_locations();dialog=window.online_dialog
+    dialog.provider.setCurrentIndex(dialog.provider.findData('iclouddrive'))
+    help_text=dialog.help.text()
+    assert 'Apple Account' in help_text and 'SMS' in help_text
+    assert 'App-spezifische Passwörter funktionieren nicht' in help_text
+    assert 'Jeder Benutzer verbindet sein eigenes Konto' in help_text
+    assert 'statt einer Browseranmeldung' in help_text
+    dialog.close()
+
+
+@pytest.mark.parametrize('kind', ['onedrive', 'dropbox'])
+def test_publisher_native_oauth_saves_private_token_and_avoids_second_login(window,app,monkeypatch,kind):
+    import configparser, json, secrets
+    from opencommander import public_oauth, native_oauth, online_ui
+    data={'client_id':'12345678-1234-1234-1234-123456789abc' if kind=='onedrive' else 'fixtureappkey123', 'flow':'pkce'}
+    monkeypatch.setattr(public_oauth,'native_client',lambda k:data if k==kind else None)
+    obtained={'access_token':secrets.token_urlsafe(20),'refresh_token':secrets.token_urlsafe(20),'token_type':'Bearer','expiry':'2030-01-01T00:00:00Z'}
+    monkeypatch.setattr(native_oauth,'authorize',lambda *a:obtained)
+    monkeypatch.setattr(online_ui.rclone_runtime,'ensure_cloud_backend',lambda c:'/fixture')
+    calls=[]
+    def command(config,args,c,**kwargs):
+        calls.append((args,kwargs))
+        if len(calls)==1:
+            return {'State':'fixture','Option':{'Name':'config_refresh_token'}}
+        if kind=='onedrive' and len(calls)==2:
+            return {'State':'fixture-type','Option':{'Name':'config_type'}}
+        return {'State':'fixture-choice','Option':{'Name':'config_driveid','Examples':[]}}
+    monkeypatch.setattr(online_ui,'command_json',command)
+    window.online_locations();dialog=window.online_dialog
+    dialog.provider.setCurrentIndex(dialog.provider.findData(kind))
+    assert dialog.google_client_id.isHidden() and dialog.google_client_secret.isHidden()
+    assert 'bereits eingerichtet' in dialog.help.text()
+    expected=3 if kind=='onedrive' else 2
+    dialog.next();wait(app,lambda:len(calls)==expected and not dialog.pending)
+    assert calls[1][1]['result']=='false'
+    if kind=='onedrive':assert calls[2][1]['result']=='onedrive'
+    parser=configparser.ConfigParser(interpolation=None);parser.read(dialog.config)
+    section=parser[dialog.profile['id']]
+    assert section['client_id']==data['client_id'] and section['client_secret']==''
+    assert section['oc_oauth_flow']=='pkce' and json.loads(section['token'])==obtained
+    assert dialog.config.stat().st_mode & 0o777 == 0o600
+    assert obtained['access_token'] not in str(window.settings.value('online_profiles'))
+    dialog.state='';dialog.close()
+
+
+def test_oauth_provider_switch_clears_other_provider_identity_and_invalid_id_is_explained(window,app):
+    window.online_locations();dialog=window.online_dialog
+    dialog.provider.setCurrentIndex(dialog.provider.findData('drive'))
+    dialog.google_client_id.setText('fixture.apps.googleusercontent.com')
+    dialog.google_client_secret.setText('synthetic-value')
+    dialog.provider.setCurrentIndex(dialog.provider.findData('onedrive'))
+    assert not dialog.google_client_id.text() and not dialog.google_client_secret.text()
+    dialog.google_custom.setChecked(True);dialog.google_client_id.setText('invalid')
+    dialog.next()
+    assert not dialog.pending and 'Invalid public application identifier' in dialog.status.text()
+    assert dialog.google_client_secret.isHidden()
+    dialog.close()

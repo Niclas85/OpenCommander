@@ -15,10 +15,10 @@ import uuid
 import re
 from datetime import datetime
 from pathlib import Path
-from PySide6.QtCore import Qt, Signal, Slot, QUrl
+from PySide6.QtCore import Qt, Signal, Slot, QUrl, QTimer
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QComboBox, QPushButton, QProgressBar, QMessageBox, QWidget, QScrollArea, QLayout, QSizePolicy)
+    QComboBox, QPushButton, QProgressBar, QMessageBox, QWidget, QScrollArea, QLayout, QSizePolicy, QCheckBox)
 from .desktop import host_environment
 from .filesystem import remote_location
 from . import rclone_runtime
@@ -38,11 +38,13 @@ def automatic_auth_answer(kind, option):
         return 'true'  # Browser OAuth, never ask users to paste access tokens.
     if name == 'config_refresh_token':
         return 'true'  # Explicit reconnect must refresh the existing login.
+    if kind == 'drive' and name == 'config_change_team_drive':
+        return 'false'  # Keep personal Drive / existing shared-drive mapping.
     if kind == 'iclouddrive' and name == 'service':
         return 'drive'
     # Only harmless defaults are automatic. Credentials, 2FA, drive choice and
     # device approval remain explicit user decisions.
-    if name in ('config_advanced', 'client_id', 'client_secret', 'region', 'encoding',
+    if name in ('config_advanced', 'config_fs_advanced', 'client_id', 'client_secret', 'region', 'encoding',
                 'root_folder_id', 'team_drive', 'chunk_size', 'upload_cutoff',
                 'list_chunk', 'pacer_min_sleep', 'pacer_burst', 'use_trash'):
         return str(option.get('DefaultStr', ''))
@@ -72,6 +74,23 @@ def save_drive_client(config, identifier, client_id, client_secret):
     if section.get('client_id') != client_id or section.get('client_secret') != client_secret:
         section.pop('token', None)  # Tokens belong to the OAuth client that issued them.
     section.update(client_id=client_id, client_secret=client_secret)
+    server.write_config(config, identifier, section)
+
+
+def native_login(config, identifier, kind, client, cancel, browser_callback):
+    from .native_oauth import authorize, PROVIDERS
+    # Keep the previous login intact until the user has successfully authorized.
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.read(config)
+    section = dict(parser[identifier]) if parser.has_section(identifier) else {'type': kind}
+    if section.get('type') != kind:
+        raise ValueError('Online-Profil gehört zu einem anderen Dienst / Provider mismatch')
+    token = authorize(kind, client, cancel, browser_callback)
+    if cancel.is_set():
+        raise RuntimeError('Abgebrochen / Cancelled')
+    section.update(client_id=client['client_id'], client_secret='', oc_oauth_flow='pkce', token=json.dumps(token))
+    if kind == 'onedrive':
+        section.update(access_scopes=PROVIDERS[kind][2], disable_site_permission='true')
     server.write_config(config, identifier, section)
 
 
@@ -114,7 +133,7 @@ def command_json(config, arguments, cancel, result=None, timeout=180, browser_ca
                 if time.monotonic() > deadline:
                     raise RuntimeError('Online-Anmeldung: Zeitüberschreitung / Authentication timed out')
                 try:
-                    output, _ = process.communicate(timeout=0.1)
+                    output, error_output = process.communicate(timeout=0.1)
                     break
                 except subprocess.TimeoutExpired as waiting:
                     if browser_callback is not None and not browser_sent:
@@ -125,7 +144,8 @@ def command_json(config, arguments, cancel, result=None, timeout=180, browser_ca
                     continue
             if process.returncode:
                 # rclone errors can echo configuration/token fragments; never expose them.
-                raise RuntimeError('Online-Konfiguration fehlgeschlagen. Provider, rclone-Version und Netzwerk prüfen. / Online configuration failed.')
+                from .cloud_config import config_login_error
+                raise RuntimeError(config_login_error(config, arguments[2] if len(arguments) >= 3 else '', error_output))
             value = json.loads(output)
             if not value.get('State') and not value.get('Error') and len(arguments) >= 3 and arguments[:2] in (['config', 'create'], ['config', 'update']):
                 from .cloud_config import validate
@@ -289,6 +309,8 @@ class OnlineDialog(QDialog):
         self.cancel = threading.Event()
         self.profile = None
         self.state = ''
+        self.auth_option_name = ''
+        self.icloud_sms_requested_at = None
         self.cloud_auth = False
         self.browser_url = None
         self.browser_requested.connect(self.browser_ready)
@@ -341,6 +363,20 @@ class OnlineDialog(QDialog):
             self.provider.addItem(provider_icon(kind), label, kind)
         layout.addWidget(self.provider)
         self.provider.currentIndexChanged.connect(self.provider_changed)
+        self.icloud_web_button = QPushButton('iCloud Drive im Browser öffnen' if self.de else 'Open iCloud Drive in browser')
+        self.icloud_web_button.clicked.connect(self.open_icloud_web)
+        layout.addWidget(self.icloud_web_button)
+        self.icloud_web_hint = QLabel('Webansicht: Hier erfolgt die Anmeldung auf iCloud.com. '
+            'Eine Dateiverbindung in OpenCommander wird dadurch nicht eingerichtet; '
+            'dafür unten „Mit Apple-ID verbinden“ verwenden.' if self.de else
+            'Web view: sign in on iCloud.com. This does not configure an OpenCommander file connection; '
+            'use “Connect with Apple ID” below for that.')
+        self.icloud_web_hint.setWordWrap(True)
+        self.icloud_web_hint.setTextFormat(Qt.PlainText)
+        layout.addWidget(self.icloud_web_hint)
+        self.google_custom = QCheckBox('Eigene Google-Anwendung verwenden (optional)' if self.de else 'Use your own Google application (optional)')
+        layout.addWidget(self.google_custom)
+        self.google_custom.toggled.connect(self.google_mode_changed)
         self.google_client_id = QLineEdit()
         self.google_client_id.setPlaceholderText('Eigene Google OAuth-Client-ID / Own Google OAuth client ID')
         layout.addWidget(self.google_client_id)
@@ -349,7 +385,7 @@ class OnlineDialog(QDialog):
         self.google_client_secret.setPlaceholderText('Google OAuth Client-Secret (nur privates Profil / private profile only)')
         layout.addWidget(self.google_client_secret)
         self.google_guide = QPushButton('Eigene Google-Anmeldung einrichten: Anleitung' if self.de else 'Set up your own Google sign-in: guide')
-        self.google_guide.clicked.connect(lambda: QDesktopServices.openUrl(QUrl('https://rclone.org/drive/#making-your-own-client-id')))
+        self.google_guide.clicked.connect(self.open_oauth_guide)
         layout.addWidget(self.google_guide)
         self.server_form = ServerForm(self)
         layout.addWidget(self.server_form)
@@ -377,9 +413,22 @@ class OnlineDialog(QDialog):
         self.answer = QComboBox()
         self.answer.setEditable(True)
         self.answer.hide()
-        layout.addWidget(self.answer)
         layout = outer  # Keep login/progress/cancel reachable while reading long instructions.
+        self.auth_field_label = QLabel()
+        self.auth_field_label.setTextFormat(Qt.PlainText)
+        self.auth_field_label.hide()
+        layout.addWidget(self.auth_field_label)
+        layout.addWidget(self.answer)
+        self.icloud_sms_button = QPushButton()
+        self.icloud_sms_button.setAutoDefault(False)
+        self.icloud_sms_button.clicked.connect(self.request_icloud_sms)
+        self.icloud_sms_button.hide()
+        layout.addWidget(self.icloud_sms_button)
+        self.icloud_sms_timer = QTimer(self)
+        self.icloud_sms_timer.setInterval(1000)
+        self.icloud_sms_timer.timeout.connect(self.update_icloud_sms_button)
         self.next_button = QPushButton('Ort einrichten' if self.de else 'Configure location')
+        self.next_button.setDefault(True)
         self.next_button.clicked.connect(self.next)
         layout.addWidget(self.next_button)
         self.progress = QProgressBar()
@@ -402,6 +451,11 @@ class OnlineDialog(QDialog):
         def reset():
             if not self.pending:
                 self.state = ''
+                self.auth_option_name = ''
+                self.icloud_sms_requested_at = None
+                self.update_icloud_sms_button()
+                self.auth_field_label.hide()
+                self.provider.setEnabled(True)
                 self.profile = None
                 self.editing_profile = None
                 self.server_form.identifier = None
@@ -424,6 +478,7 @@ class OnlineDialog(QDialog):
             return
         from .ui import Task
         self.pending = True
+        self.update_icloud_sms_button()
         self.cancel = threading.Event()
         self.browser_url = None
         self.browser_button.hide()
@@ -432,6 +487,10 @@ class OnlineDialog(QDialog):
         self.open_button.setEnabled(False)
         self.provider.setEnabled(False)
         self.server_form.setEnabled(False)
+        self.answer.setEnabled(False)
+        self.icloud_web_button.setEnabled(False)
+        for field in (self.google_custom, self.google_client_id, self.google_client_secret, self.google_guide):
+            field.setEnabled(False)
         self.status.setText('Bitte warten … / Please wait …')
         task = Task(callback)
         def done(value, error):
@@ -445,7 +504,21 @@ class OnlineDialog(QDialog):
             self.open_button.setEnabled(True)
             self.provider.setEnabled(True)
             self.server_form.setEnabled(True)
+            self.answer.setEnabled(True)
+            self.icloud_web_button.setEnabled(True)
+            for field in (self.google_custom, self.google_client_id, self.google_client_secret, self.google_guide):
+                field.setEnabled(True)
             self.status.setText(str(error) if error else '')
+            if error and self.profile and self.profile['kind'] == 'iclouddrive' and self.state:
+                # Fatal backend sign-in failures cannot resume an advanced-option
+                # state as though it were another password question.
+                self.state = ''
+                self.auth_option_name = ''
+                self.auth_field_label.hide()
+                self.answer.clear()
+                self.answer.hide()
+                self.provider_changed()
+            self.update_icloud_sms_button()
             if not error:
                 after(value)
         task.signals.result.connect(done, Qt.QueuedConnection)
@@ -477,10 +550,27 @@ class OnlineDialog(QDialog):
                 arguments += ['known_hosts_file', str(Path.home() / '.ssh/known_hosts')]
             client_id = self.google_client_id.text().strip() if kind == 'drive' else ''
             client_secret = self.google_client_secret.text() if kind == 'drive' else ''
+            if kind == 'drive':
+                from .public_oauth import select_client
+                client_id, client_secret = select_client(client_id, client_secret)
+            from .public_oauth import select_native
+            try:
+                if kind in ('onedrive', 'dropbox') and self.google_custom.isChecked() and not self.google_client_id.text().strip():
+                    raise ValueError('Client-ID / App key eingeben / Enter the public application ID')
+                native = select_native(kind, self.google_client_id.text().strip()) if kind in ('onedrive', 'dropbox') else None
+            except ValueError as error:
+                self.status.setText(str(error)); return
+            self.native_authenticated = False
             self.google_client_secret.clear()
             def start():
                 if self.cloud_auth:
                     rclone_runtime.ensure_cloud_backend(self.cancel)
+                if native:
+                    native_login(self.config, self.profile['id'], kind, native, self.cancel,
+                                 lambda url: self.browser_requested.emit(self.cancel, url))
+                    value = command_json(self.config, ['config', 'update', self.profile['id'], '--non-interactive'], self.cancel)
+                    value['_oc_native_authenticated'] = True
+                    return value
                 if kind == 'drive' and (client_id or client_secret):
                     save_drive_client(self.config, self.profile['id'], client_id, client_secret)
                     return command_json(self.config, ['config', 'update', self.profile['id'], '--non-interactive'], self.cancel)
@@ -576,8 +666,22 @@ class OnlineDialog(QDialog):
                 self.status.setText('Verbindung abgebrochen; Server nicht vertraut / Server not trusted')
         self.work(check, checked)
 
-    def continue_auth(self, answer):
-        arguments = ['config', 'update', self.profile['id'], '--continue', '--non-interactive', '--state', self.state]
+    def continue_auth(self, answer, *, state=None):
+        if self.pending:
+            return
+        if self.profile['kind'] == 'iclouddrive':
+            field = self.auth_option_name
+            if field in ('apple_id', 'config_2fa', 'config_2fa_sms', 'config_2fa_phone'):
+                answer = answer.strip()
+            missing = not answer and not (field == 'password' and getattr(self, 'password_default', ''))
+            if missing and field in ('apple_id', 'password', 'config_2fa', 'config_2fa_sms'):
+                labels = {'apple_id': ('Apple-ID', 'Apple ID'), 'password': ('reguläres Apple-Passwort', 'regular Apple password'),
+                          'config_2fa': ('Bestätigungscode oder sms', 'verification code or sms'),
+                          'config_2fa_sms': ('SMS-Bestätigungscode', 'SMS verification code')}
+                self.status.setText('Bitte ' + labels[field][0] + ' eingeben.' if self.de else 'Enter ' + labels[field][1] + '.')
+                self.answer.setFocus()
+                return
+        arguments = ['config', 'update', self.profile['id'], '--continue', '--non-interactive', '--state', self.state if state is None else state]
         if self.profile['kind'] not in ('onedrive', 'drive', 'dropbox'):
             arguments += ['--all']
         password_result = getattr(self, 'answer_is_password', False)
@@ -592,8 +696,33 @@ class OnlineDialog(QDialog):
                                 browser_callback=lambda url: self.browser_requested.emit(cancel, url),
                                 password_result=password_result)
         self.work(authenticate, self.question)
-        if self.cloud_auth and answer == 'true':
+        if self.profile['kind'] in ('drive', 'onedrive', 'dropbox') and answer == 'true':
             self.status.setText('Bitte im Browser anmelden. Das Fenster bleibt währenddessen geöffnet. / Sign in in your browser.')
+
+    def update_icloud_sms_button(self):
+        available = bool(self.profile and self.profile['kind'] == 'iclouddrive' and (
+            self.auth_option_name == 'config_2fa' and self.state == '2fa_do' or
+            self.auth_option_name == 'config_2fa_sms' and re.fullmatch(r'2fa_sms_\d+_(sms|voice)', self.state)))
+        self.icloud_sms_button.setVisible(available)
+        remaining = max(0, 30 - int(time.monotonic() - self.icloud_sms_requested_at)) if self.icloud_sms_requested_at is not None else 0
+        caption = ('SMS-Code erneut senden' if self.de else 'Resend SMS code') if self.auth_option_name == 'config_2fa_sms' else ('SMS-Code anfordern' if self.de else 'Request SMS code')
+        self.icloud_sms_button.setText(caption + (f' ({remaining} s)' if remaining else ''))
+        self.icloud_sms_button.setEnabled(available and not self.pending and not remaining)
+        if available and remaining:
+            self.icloud_sms_timer.start()
+        else:
+            self.icloud_sms_timer.stop()
+
+    def request_icloud_sms(self):
+        self.update_icloud_sms_button()
+        if not self.icloud_sms_button.isEnabled():
+            return
+        self.icloud_sms_requested_at = time.monotonic()
+        # rclone 1.75.2 preserves _auth_session through both code questions.
+        # Its 2fa_do + sms branch requests a code without a new SRP/password
+        # login. Never send "sms" to 2fa_sms_* (that branch validates a code).
+        self.continue_auth('sms', state='2fa_do')
+        self.update_icloud_sms_button()
 
     @Slot(object, str)
     def browser_ready(self, cancel, url):
@@ -605,6 +734,16 @@ class OnlineDialog(QDialog):
     def open_browser(self):
         if not self.pending or self.cancel.is_set() or not self.browser_url:
             return
+        self.open_browser_url(self.browser_url)
+
+    def open_icloud_web(self):
+        if self.pending or self.provider.currentData() != 'iclouddrive':
+            return
+        if self.open_browser_url('https://www.icloud.com/iclouddrive/'):
+            self.status.setText('iCloud-Webansicht geöffnet. Die Dateiverbindung wird separat mit „Mit Apple-ID verbinden“ eingerichtet.' if self.de else
+                                'iCloud web view opened. Configure the file connection separately with “Connect with Apple ID”.')
+
+    def open_browser_url(self, url):
         # Qt requests an XDG activation token from the focused Wayland window.
         # Restore host libraries for the desktop launcher in packaged builds.
         keys = ('LD_LIBRARY_PATH', 'QT_PLUGIN_PATH', 'QT_QPA_PLATFORM_PLUGIN_PATH')
@@ -616,7 +755,7 @@ class OnlineDialog(QDialog):
                     os.environ[key] = env[key]
                 else:
                     os.environ.pop(key, None)
-            opened = QDesktopServices.openUrl(QUrl(self.browser_url))
+            opened = QDesktopServices.openUrl(QUrl(url))
         finally:
             for key, value in previous.items():
                 if value is None:
@@ -626,13 +765,46 @@ class OnlineDialog(QDialog):
         if not opened:
             self.status.setText('Browser konnte nicht geöffnet werden. Bitte Standardbrowser prüfen und erneut versuchen.' if self.de else
                                 'Could not open browser. Check your default browser and try again.')
+        return opened
+
+    def google_mode_changed(self, checked):
+        if not checked:
+            self.google_client_id.clear()
+            self.google_client_secret.clear()
+        self.provider_changed()
+
+    def open_oauth_guide(self):
+        urls = {'drive': 'https://rclone.org/drive/#making-your-own-client-id',
+                'onedrive': 'https://learn.microsoft.com/en-us/entra/identity-platform/scenario-desktop-app-configuration',
+                'dropbox': 'https://developers.dropbox.com/oauth-guide'}
+        if self.provider.currentData() in urls:
+            QDesktopServices.openUrl(QUrl(urls[self.provider.currentData()]))
 
     def provider_changed(self, *args):
         if self.state or self.pending:
             return
         kind = self.provider.currentData()
-        for field in (self.google_client_id, self.google_client_secret, self.google_guide):
-            field.setVisible(kind == 'drive')
+        self.icloud_web_button.setVisible(kind == 'iclouddrive')
+        self.icloud_web_hint.setVisible(kind == 'iclouddrive')
+        if getattr(self, '_client_provider', kind) != kind:
+            self.google_client_id.clear()
+            self.google_client_secret.clear()
+            self.google_custom.blockSignals(True)
+            self.google_custom.setChecked(False)
+            self.google_custom.blockSignals(False)
+        self._client_provider = kind
+        from .public_oauth import bundled_client, native_client
+        public_google = bundled_client() is not None if kind == 'drive' else native_client(kind) is not None
+        oauth_kind = kind in ('drive', 'onedrive', 'dropbox')
+        brand = {'drive': 'Google', 'onedrive': 'Microsoft', 'dropbox': 'Dropbox'}.get(kind, '')
+        self.google_custom.setText(('Eigene Anwendung verwenden (optional)' if self.de else 'Use your own application (optional)'))
+        self.google_custom.setVisible(oauth_kind)
+        expert = oauth_kind and (self.google_custom.isChecked() or (kind == 'drive' and not public_google))
+        self.google_client_id.setVisible(expert)
+        self.google_client_secret.setVisible(expert and kind == 'drive')
+        self.google_guide.setVisible(expert)
+        self.google_client_id.setPlaceholderText(f'{brand} – Client-ID / App key')
+        self.google_guide.setText(('Eigene Anmeldung einrichten: Anleitung' if self.de else 'Set up your own sign-in: guide'))
         self.trust_button.hide()
         self.server_form.setVisible(kind in server.SERVER_KINDS)
         self.server_form.protocol_changed(kind)
@@ -647,18 +819,32 @@ class OnlineDialog(QDialog):
                                '3. Select and confirm your drive if asked.\n'
                                'The connection is saved and opened automatically. After restarting, click its saved name on the left. '
                                'Direct online access; directory lists cached briefly (5 seconds). Ctrl+R refreshes the view.'))
-            if kind == 'drive':
+            if public_google:
+                self.help.setText(self.help.text() + (f'\nDie {brand}-Anwendung von OpenCommander ist bereits eingerichtet. Du meldest dich mit deinem eigenen Konto an; Dateien und Zugriffsrechte bleiben bei deinem Konto.' if self.de else
+                    f'\nOpenCommander’s {brand} application is configured. Sign in with your own account; your files and permissions belong to your account.'))
+            elif kind == 'drive':
                 self.help.setText(self.help.text() + ('\nGoogle: Für dauerhaften Zugriff eine eigene OAuth-Anwendung vom Typ Desktop-App einrichten (Anleitung oben). Die gemeinsam genutzte rclone-Anwendung hat geteilte Abfragelimits und wird 2026 eingestellt. Client-ID und Secret bleiben im privaten Profil; anschließend im Browser anmelden.' if self.de else
                     '\nGoogle: For continued access, create your own Desktop app OAuth client (guide above). The shared rclone app has shared rate limits and is being retired in 2026. Client ID and secret stay in the private profile; then sign in using your browser.'))
+            elif self.google_custom.isChecked():
+                self.help.setText(self.help.text() + ('\nNur die öffentliche Desktop-Client-ID / den App-Key eingeben. Die Anmeldung verwendet PKCE; kein Server-Secret erforderlich. Rückleitungsadresse: http://localhost:53682/.' if self.de else
+                    '\nEnter only the public desktop client ID / app key. Sign-in uses PKCE without a server secret. Redirect URI: http://localhost:53682/.'))
+            else:
+                self.help.setText(self.help.text() + ('\nDieses Paket verwendet derzeit die gemeinsame rclone-Anwendung. Die eigene OpenCommander-Registrierung ist noch nicht eingebettet.' if self.de else
+                    '\nThis package currently uses the shared rclone application. OpenCommander’s own registration has not yet been bundled.'))
         elif kind == 'iclouddrive':
             self.next_button.setText('Mit Apple-ID verbinden' if self.de else 'Connect with Apple ID')
-            self.help.setText('Apple-ID, reguläres Apple-Passwort und Bestätigungscode werden benötigt. '
-                              'Das Backend unterstützt keine reine Browser-OAuth-Anmeldung. '
-                              'Bei Apple muss der Web-Zugriff auf iCloud-Daten erlaubt sein. Nach Abschluss wird die Verbindung gespeichert; '
-                              'nach einem Neustart links auf den gespeicherten Namen klicken.' if self.de else
-                              'Apple ID, regular Apple password and verification code are required. '
-                              'The backend does not support browser-only OAuth. Enable iCloud web data access in your Apple settings. '
-                              'The connection is saved; after restarting, click its saved name on the left.')
+            self.help.setText('1. Auf dem iPhone: Einstellungen → Apple Account → iCloud → „Auf iCloud-Daten im Internet zugreifen“ aktivieren.\n'
+                              '2. Hier deine Apple-ID und dein reguläres Apple-Passwort eingeben. App-spezifische Passwörter funktionieren nicht.\n'
+                              '3. Anmeldung auf deinem Apple-Gerät bestätigen und den Code hier eingeben. Alternativ „SMS-Code anfordern“ wählen. Ein SMS-Code kann erneut angefordert werden.\n'
+                              '4. Verbindung abschließen; nach einem Neustart den gespeicherten Ort links öffnen.\n'
+                              'iCloud verwendet diesen Assistenten statt einer Browseranmeldung. Apple kann nach Ablauf der Sitzung erneut einen Code verlangen. '
+                              'Jeder Benutzer verbindet sein eigenes Konto; Zugangsdaten bleiben im privaten lokalen Profil.' if self.de else
+                              '1. On iPhone: Settings → Apple Account → iCloud → enable “Access iCloud Data on the Web”.\n'
+                              '2. Enter your Apple ID and regular Apple password here. App-specific passwords do not work.\n'
+                              '3. Approve on your Apple device and enter its code here. Alternatively choose “Request SMS code”. You can request another SMS code.\n'
+                              '4. Complete setup; after restarting, open the saved location on the left.\n'
+                              'iCloud uses this assistant instead of browser sign-in. Apple may request another code after session expiry. '
+                              'Each user connects their own account; credentials stay in the private local profile.')
         else:
             self.next_button.setText('Verbinden und öffnen' if self.de else 'Connect and open')
             self.help.setText('Server, Benutzer und Anmeldung eingeben. SFTP ist verschlüsselt und unterstützt Passwort, SSH-Key und SSH-Agent. '
@@ -671,11 +857,29 @@ class OnlineDialog(QDialog):
                               'Connections are saved; credentials are requested again after restarting unless saved in the keyring.')
 
     def question(self, value):
+        if value.get('_oc_native_authenticated'):
+            self.native_authenticated = True
         if value.get('Error') and not value.get('State'):
-            self.status.setText('Anmeldung nicht abgeschlossen. Bitte erneut anmelden. / Sign-in did not complete; try again.')
+            from .cloud_config import login_error
+            self.status.setText(login_error('iclouddrive', value['Error']) if self.profile['kind'] == 'iclouddrive' else
+                                'Anmeldung nicht abgeschlossen. Bitte erneut anmelden. / Sign-in did not complete; try again.')
+            if self.profile['kind'] == 'iclouddrive':
+                self.state = ''
+                self.auth_option_name = ''
+                self.auth_field_label.hide()
+                self.answer.clear()
+                self.answer.hide()
+                self.update_icloud_sms_button()
+                self.provider_changed()
+            self.provider.setEnabled(not bool(self.state))
             return
         self.state = value.get('State', '')
+        self.provider.setEnabled(not bool(self.state))
         if not self.state:
+            self.auth_option_name = ''
+            self.icloud_sms_requested_at = None
+            self.update_icloud_sms_button()
+            self.auth_field_label.hide()
             self.main.__dict__.pop('cloud_listings', None)
             self.main.online_profiles.append(self.profile)
             # Re-authentication updates the existing shortcut, never duplicates it.
@@ -696,19 +900,37 @@ class OnlineDialog(QDialog):
                 self.work(lambda: mount_profile(self.main, profile, self.cancel), opened)
             return
         option = value.get('Option') or {}
+        self.auth_option_name = option.get('Name', '')
+        self.update_icloud_sms_button()
         # Each question owns its password semantics, including automatic answers.
         # A new login must not inherit the previous password question's flag.
         self.answer_is_password = bool(option.get('IsPassword'))
         self.password_default = ''
         auto = automatic_auth_answer(self.profile['kind'], option) if self.cloud_auth and not value.get('Error') else None
+        if option.get('Name') == 'config_refresh_token' and getattr(self, 'native_authenticated', False) and not value.get('Error'):
+            auto = 'false'  # The PKCE flow just obtained this token; do not authenticate twice.
+        if self.profile['kind'] == 'onedrive' and option.get('Name') == 'config_type' and getattr(self, 'native_authenticated', False) and not value.get('Error'):
+            auto = 'onedrive'  # Personal/business files; no broad SharePoint site search scope.
         if auto is not None:
             self.continue_auth(auto)
             return
         self.answer.show()
+        labels = {'apple_id': ('Apple-ID', 'Apple ID'),
+                  'password': ('Reguläres Apple-Passwort', 'Regular Apple password'),
+                  'config_2fa': ('Apple-Bestätigungscode', 'Apple verification code'),
+                  'config_2fa_sms': ('SMS-Bestätigungscode', 'SMS verification code'),
+                  'config_2fa_phone': ('Telefonnummer für den SMS-Code', 'Phone number for SMS code')}
+        label = labels.get(self.auth_option_name) if self.profile['kind'] == 'iclouddrive' else None
+        self.auth_field_label.setVisible(label is not None)
+        if label:
+            self.auth_field_label.setText(label[0 if self.de else 1])
+            self.answer.setAccessibleName(self.auth_field_label.text())
         self.help.setText(option.get('Help', option.get('Name', '')))
         if self.de and self.profile['kind'] == 'iclouddrive':
             prompts = {'apple_id': 'Apple-ID (E-Mail-Adresse)',
-                       'config_2fa': 'Apple-Bestätigungscode vom vertrauenswürdigen Gerät eingeben. Für SMS: sms eingeben.'}
+                       'config_2fa': 'Bestätige die Anmeldung auf deinem Apple-Gerät und gib den dort angezeigten Code ein. Kein Code erhalten? „SMS-Code anfordern“ wählen.',
+                       'config_2fa_sms': 'Gib den zuletzt erhaltenen SMS-Code ein. Kein Code erhalten? Nach der kurzen Wartezeit „SMS-Code erneut senden“ wählen. Bei mehreren hinterlegten Telefonnummern wirst du erneut nach der Nummer gefragt.',
+                       'config_2fa_phone': 'Wähle eine bei deinem Apple Account hinterlegte Telefonnummer. Apple sendet den Bestätigungscode dorthin.'}
             if option.get('Name') in prompts:
                 self.help.setText(prompts[option['Name']])
             if option.get('Name') == 'password':
@@ -720,7 +942,8 @@ class OnlineDialog(QDialog):
         examples = option.get('Examples', [])
         if is_drive:
             examples = sorted(examples, key=lambda row: not row.get('Help', '').casefold().startswith('onedrive ('))
-        self.answer.setEditable(not is_drive or not examples)
+        is_icloud_phone = self.profile['kind'] == 'iclouddrive' and self.auth_option_name == 'config_2fa_phone'
+        self.answer.setEditable(not ((is_drive or is_icloud_phone) and examples))
         for example in examples:
             name = example.get('Help', '')
             label = (('OneDrive – persönliche Dateien' if self.de else 'OneDrive – personal files')
@@ -734,6 +957,9 @@ class OnlineDialog(QDialog):
                               'Mit „Verbinden und öffnen“ wird die Verbindung gespeichert.' if self.de else
                               'Select “OneDrive – personal files” for your ordinary files. Other entries are additional or internal areas. '
                               '“Connect and open” saves the connection.')
+        elif self.profile['kind'] == 'onedrive' and option.get('Name') == 'config_type':
+            self.help.setText('Für normale Dateien „OneDrive Personal or Business“ wählen. SharePoint-Suche benötigt eine gesonderte Firmenfreigabe; bei gesperrter Firmenanmeldung den Administrator kontaktieren.' if self.de else
+                              'Choose “OneDrive Personal or Business” for ordinary files. SharePoint search requires separate company permissions; contact your administrator if company sign-in is blocked.')
         default = str(option.get('DefaultStr', ''))
         self.answer_is_password = bool(option.get('IsPassword'))
         from .cloud_config import obscured
@@ -754,6 +980,14 @@ class OnlineDialog(QDialog):
             if preferred is not None:
                 self.answer.setCurrentIndex(preferred)
         self.next_button.setText(('Verbinden und öffnen' if self.de else 'Connect and open') if is_drive else ('Weiter' if self.de else 'Next'))
+        if self.profile['kind'] == 'iclouddrive':
+            buttons = {'apple_id': ('Weiter zum Passwort', 'Continue to password'),
+                       'password': ('Anmeldung prüfen', 'Check sign-in'),
+                       'config_2fa': ('Bestätigungscode senden', 'Submit verification code'),
+                       'config_2fa_sms': ('SMS-Code bestätigen', 'Verify SMS code'),
+                       'config_2fa_phone': ('SMS-Code senden', 'Send SMS code')}
+            if self.auth_option_name in buttons:
+                self.next_button.setText(buttons[self.auth_option_name][0 if self.de else 1])
 
     def edit_saved(self):
         profile = self.saved.currentData()
@@ -812,15 +1046,31 @@ class OnlineDialog(QDialog):
         arguments = ['config', 'update', profile['id'], '--non-interactive']
         if profile['kind'] not in ('onedrive', 'drive', 'dropbox'):
             arguments += ['--all']
-        client_id = self.google_client_id.text().strip() if profile['kind'] == 'drive' else ''
-        client_secret = self.google_client_secret.text() if profile['kind'] == 'drive' else ''
+        matching_provider = self.provider.currentData() == profile['kind']
+        client_id = self.google_client_id.text().strip() if profile['kind'] == 'drive' and matching_provider else ''
+        client_secret = self.google_client_secret.text() if profile['kind'] == 'drive' and matching_provider else ''
+        if profile['kind'] == 'drive':
+            from .public_oauth import select_client
+            client_id, client_secret = select_client(client_id, client_secret, self.config, profile['id'])
+        from .public_oauth import select_native
+        try:
+            native = select_native(profile['kind'], self.google_client_id.text().strip() if matching_provider else '', self.config, profile['id']) if profile['kind'] in ('onedrive', 'dropbox') else None
+        except ValueError as error:
+            self.status.setText(str(error)); return
+        self.native_authenticated = False
         self.google_client_secret.clear()
         def start():
             if client_id or client_secret:
                 save_drive_client(self.config, profile['id'], client_id, client_secret)
             if self.cloud_auth:
                 rclone_runtime.ensure_cloud_backend(self.cancel)
-            return command_json(self.config, arguments, self.cancel)
+            if native:
+                native_login(self.config, profile['id'], profile['kind'], native, self.cancel,
+                             lambda url: self.browser_requested.emit(self.cancel, url))
+            value = command_json(self.config, arguments, self.cancel)
+            if native:
+                value['_oc_native_authenticated'] = True
+            return value
         self.work(start, self.question)
 
     def check_hostkey(self):

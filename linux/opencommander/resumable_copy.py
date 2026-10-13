@@ -342,7 +342,12 @@ def transfer(engine, identifier):
     try:
         engine.check_cancel()
         for guard in job['guards']:
-            if mount_identity(guard['path']) != guard['mount']:
+            actual_mount = mount_identity(guard['path'])
+            if actual_mount != guard['mount']:
+                expected_mount = guard.get('mount') or {}
+                if expected_mount.get('filesystem') == 'fuse.rclone' and (not actual_mount or actual_mount.get('root') != expected_mount.get('root')):
+                    raise SafetyError('Online-Laufwerk nicht verbunden. Wieder verbinden und danach Fortsetzen wählen; '
+                                      'der Kopierstand bleibt gespeichert. / Reconnect the online drive, then resume; saved progress is retained: ' + guard['path'])
                 raise SafetyError(f'Laufwerk fehlt oder wurde ersetzt / Drive missing or replaced: {guard["path"]}')
         directory = Path(job['directory'])
         if not directory.is_dir():

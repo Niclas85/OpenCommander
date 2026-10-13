@@ -13,6 +13,7 @@ def test_browser_login_is_automatic_but_credentials_are_not():
     assert answer('onedrive', {'Name': 'config_is_local', 'DefaultStr': 'false'}) == 'true'
     assert answer('onedrive', {'Name': 'config_refresh_token'}) == 'true'
     assert answer('iclouddrive', {'Name': 'service'}) == 'drive'
+    assert answer('drive', {'Name':'config_change_team_drive','DefaultStr':'true'})=='false'
     for field in ('apple_id', 'password', 'config_2fa', 'config_token', 'config_driveid'):
         assert answer('iclouddrive', {'Name': field}) is None
 
@@ -54,3 +55,9 @@ def test_bad_checksum_never_replaces_existing_runtime(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError, match='checksum mismatch'):
         rclone_runtime.install(threading.Event())
     assert existing.read_bytes() == b'previous executable'
+
+
+def test_icloud_hides_advanced_defaults_but_keeps_password_and_2fa_explicit():
+    assert online_ui.automatic_auth_answer('iclouddrive',{'Name':'config_fs_advanced','DefaultStr':'false'})=='false'
+    for name in ('apple_id','password','config_2fa'):
+        assert online_ui.automatic_auth_answer('iclouddrive',{'Name':name}) is None

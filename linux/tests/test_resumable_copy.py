@@ -613,7 +613,8 @@ def test_completed_checkpoint_tampering_is_still_detected(fixture):
     assert not (target / 'journey').exists()
 
 
-def test_unavailable_mount_does_not_erase_saved_progress(fixture, monkeypatch):
+@pytest.mark.parametrize('kind', ['local', 'online'])
+def test_unavailable_mount_does_not_erase_saved_progress(fixture, monkeypatch, kind):
     import opencommander.resumable_copy as copies
     engine, source, target = fixture
     file = source / 'a.bin'
@@ -624,14 +625,18 @@ def test_unavailable_mount_does_not_erase_saved_progress(fixture, monkeypatch):
         run(engine, job)
     saved = engine.transfers.get(job['id'])
     before = saved['progress'].copy()
+    if kind == 'online':
+        saved['guards'][0]['mount']={'root':str(source),'filesystem':'fuse.rclone','device':'fixture:'}
+        engine.transfers.save(saved)
     monkeypatch.setattr(copies, 'mount_identity', lambda _: None)
     resumed = FileEngine(engine.state_dir)
-    with pytest.raises(SafetyError, match='Drive missing'):
+    message='Drive missing' if kind=='local' else 'Reconnect the online drive'
+    with pytest.raises(SafetyError, match=message):
         run(resumed, saved)
     failed = resumed.transfers.get(job['id'])
     assert failed['progress'] == before
     assert failed['status'] == 'blocked'
-    assert 'Drive missing' in failed['last_error']
+    assert message in failed['last_error']
 
 
 @pytest.mark.parametrize('proof', ['matching', 'different', 'unavailable'])

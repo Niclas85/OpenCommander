@@ -1,3 +1,195 @@
+# Unveröffentlicht – gemeinsame Cloud-Anmeldung vorbereiten
+
+## iCloud-SMS anfordern und erneut senden: 0.3.25rc10
+
+16 gezielte iCloud-GUI-Prüfungen bestanden. Neue Fälle prüfen die erste SMS-
+Anforderung und das erneute Senden aus dem SMS-Code-Schritt über denselben
+rclone-Remote und den unterstützten `2fa_do`-Zustand. Kein erneuter Passwort-
+Login, keine Behandlung von „sms“ als SMS-Bestätigungscode, kein geerbtes
+Passwortformat. Laden und 30 Sekunden Wartezeit sperren Mehrfachanfragen.
+Telefonnummerauswahl übergibt den Backend-Wert; Code-Leerzeichen werden entfernt.
+Nicht unterstützte Zustände und andere Provider bieten die SMS-Aktion nicht an.
+Netzwerkaufrufe in diesen Fällen ersetzt; keine echten Apple-SMS angefordert.
+Die persönliche 2FA-Bestätigung und ein erfolgreicher Dateizugriff stehen noch aus.
+Keine vollständige Suite für diese Änderung.
+
+## Direkte Apple-Anmeldung: 0.3.25rc9
+
+16 gezielte Prüfungen bestanden: Pflichtfelder, eindeutiger Enter-Schritt,
+Passwortmaskierung und Speicherung, bestehendes Passwort weiterverwenden,
+Browser-Abbruch sowie Anmeldefehler ohne Ausgabe privater Providerantworten.
+Fataler Fehler verlässt den technischen Zwischenzustand für einen neuen Versuch.
+Zusätzliche isolierte Prüfung mit künstlichen Daten: Obscure und der echte
+rclone-Konfigurationsdialog speichern nach Reveal exakt den eingegebenen Wert.
+
+Reale Diagnose ohne Ausgabe von Kennwort oder Konto-ID: letzter unvollständiger
+Versuch ohne Apple-ID, älterer Versuch mit vollständigen Feldern in einer privaten
+Kopie einmal geprüft. Apple lehnt vor 2FA mit HTTP 401 ab; kein Trust-Token und
+keine vollständige iCloud-Dateiverbindung erreicht. Produktive Konfiguration
+dabei nicht ersetzt; keine wiederholten automatischen Anmeldeversuche.
+Ein neuer persönlicher Versuch im korrigierten Assistenten bleibt erforderlich.
+Browser-Sitzungen werden weiterhin nicht als Dateiverbindung übernommen.
+Keine vollständige Suite für diese gezielte Gruppe.
+
+## iCloud-Webansicht im Assistenten: 0.3.25rc8
+
+Drei bestehende passende GUI-Prüfungen bestanden: iCloud-Anleitung,
+Passwortmaskierung und Browser-Signal/-Abbruch. Ergänzende isolierte Qt-Prüfung:
+Browseroption nur für iCloud sichtbar, exakt die offizielle iCloud-Drive-URL
+angeboten; Klick startet keinen Auth-Worker, verändert keine Konfiguration und
+speichert keinen verbundenen Ort. Browser-Aufruf dabei ersetzt, keine persönlichen
+Apple-Daten verwendet. Kein erfolgreicher iCloud-Dateizugriff daraus abgeleitet.
+Das aktuelle rclone-Backend benötigt Apple-ID, reguläres Passwort und 2FA;
+Website-Login ist keine Browser-OAuth-Verbindung für den Dateimanager.
+Handbuch und veralteten README-Hinweis entsprechend korrigiert.
+Keine vollständige Testsuite für diesen kleinen UI-Zusatz.
+
+## Mausgeste bis zum Loslassen / Ordnerbaum: 0.3.25rc7
+
+22 gezielte GUI-Prüfungen bestanden. Die bisherigen Drag-Fälle ersetzten
+`QDrag.exec` durch einen sofortigen Drop;
+sie konnten vorzeitiges Kopieren nicht nachweisen. Neue Prüfungen senden
+Press/Move/Hold/Release an die Widgets: während des Haltens keine Aufträge oder
+Zieldateien, Vorschau bewegt sich mit der Maus, Zielmarkierung vorhanden.
+Nach Release genau eine Übertragung, für Kopieren und Verschieben in die
+Dateifläche, einen Listenordner und einen Baumordner. Esc, ungültiges Ziel,
+Fokusverlust und Selbst-/Unterordnerziel kopieren nichts. Baum-Hover klappt
+ohne Kopie auf. Native Angebote aus dem Fenster bleiben Datei-URLs; Rückkehr-
+Drop erzeugt während `exec` keinen internen Auftrag. Zusätzlich angrenzende
+Pane-Aktivierung und externe Drop-/Kontextfunktionen gezielt prüfen.
+Qt-Offscreen-Widgets; echte Desktop-Mausbewegung weiterhin manuell abzunehmen.
+Keine komplette Suite für diese Gruppe.
+
+Google-Reparatur anschließend live geprüft: Einbindung unter dem ursprünglichen
+Pfad als `fuse.rclone` mit Gerät `gdrive:` wieder vorhanden. Begrenzter echter
+Lesetest liefert 716 Wurzeleinträge. Cache-Uploads erfolgreich, kein neuer Fehler
+im erneuerten Dienst. Weltreise bleibt blockiert mit erhaltenen Checkpoints;
+kein automatisches Fortsetzen und keine Cache-/Journal-Löschung.
+
+## Sichtbares Drag-Objekt: 0.3.25rc6
+
+Fünf gezielte GUI-Prüfungen bestanden: echte Mausgeste bis zum Drag-Start,
+Vorschau und sichtbarer Objekt-Cursor, unterschiedlicher Cursor für ungeeignete
+Ziele sowie Kopieren/Verschieben in den Zielbereich oder einen Unterordner.
+Der Empfänger führt die Übertragung aus; keine zweite Quelldatei-Löschung.
+Diese Qt-Offscreen-Prüfungen bestätigen den Ablauf und die erzeugten Bilder.
+Die Darstellung durch den echten Desktop-Compositor ist damit nicht geprüft.
+Keine vollständige Suite für die Darstellungsänderung.
+
+## Aktivierung des gesamten Dateibereichs: 0.3.25rc5
+
+Acht gezielte GUI-Prüfungen: Titel, Auswahlhinweis, Pfadfeld, Filterfeld,
+Ordnerbaum, Tabellenkopf und freier Rand aktivieren den angeklickten Bereich;
+Textfelder behalten ihren Fokus. Einfügen nach Titelklick kopiert tatsächlich
+in den angeklickten Bereich. Keine vollständige Suite für diese Änderung.
+
+## Kompakte Übertragungen / Google-Reparatur: 0.3.25rc4
+
+25 gezielte Tests bestanden: Übertragungssteuerung, Parallelität, gespeicherte
+Pause, Details/Fehler, einzeilige Standardansicht, veränderbare und gespeicherte
+Bereichshöhe, Schutz des Checkpoints bei fehlender Einbindung sowie Anmelde-Automatik.
+Keine vollständige Suite nach diesen gezielten Änderungen.
+
+Reale Google-Diagnose: alter Dienst nicht eingebunden; gespeicherter Weltreise-
+Auftrag blockiert mit 18.846 vollständigen Checkpoints / 116.500.704.248 Bytes.
+401 im alten Zugang; isolierte Token-Erneuerung trifft die gemeinsam genutzte
+Google-App-Quote. Neue OpenCommander-Anmeldung erfolgreich, 718 Wurzeleinträge
+lesbar. Bekannte Datei im alten Zwischenordner per SHA-256 mit dem gespeicherten
+Checkpoint identisch; Root-/Shared-Drive-Einstellungen identisch. Nach Anmeldung
+fehlender technischer `config_change_team_drive`-Schritt automatisch abschließen,
+statt die erfolgreiche persönliche Anmeldung als unvollständig darzustellen.
+
+Vor Live-Umstellung private Sicherung von Google-Konfiguration und SQLite-Journal.
+Kein aktiver Auftrag auf dem Google-Ziel. Alter Dienst ohne erzwungenes Beenden
+gestoppt; neue App-Identität und aktueller privater rclone-Laufzeitstand verwenden
+denselben Full-Cache und Einbindungspfad mit begrenzten Netzwerkzugriffen.
+Keine Cache-Löschung, kein Zurücksetzen und keine automatische Fortsetzung der Kopie.
+Browser-Erfolg bestätigt; neuer Dienst lädt den erhaltenen Schreibcache wieder
+hoch, bislang mehr als 600 erfolgreiche Uploads ohne neue 401-/Quotenfehler.
+Einbindung als Laufwerk während der Cache-Wiederherstellung noch nicht verfügbar;
+keine vollständige Wiederherstellung der Weltreise-Kopie behauptet.
+
+Endgültiger lokaler rc4-Build einschließlich Anmeldekorrektur und Layout-Migration:
+Paket-Smoke-Test und Audit mit erforderlicher Google-/Dropbox-App-Identität
+bestanden. Separat installiert; nach vom Benutzer bestätigtem regulären Schließen
+der alten Sitzung gestartet. Kein zweites GUI und kein erzwungener Abbruch.
+Start ohne Traceback/Fatalfehler; kompakte Layout-Migration im realen Profil bestätigt.
+
+## Dropbox-Registrierung: 0.3.25rc3
+
+Eigene OpenCommander-App im Codex-Browser im Entwicklungsmodus erstellt,
+API-Bedingungen mit ausdrücklicher Zustimmung akzeptiert. Datei-/Metadaten-
+Lesen/Schreiben und Freigaben mit Zustimmung gespeichert; nur die benötigten
+sieben User-Scopes. Keine Team-Verwaltung, kein endgültiges Löschen. Rückleitung
+`http://localhost:53682/` gespeichert. Nur öffentlicher App-Key und PKCE-Kennung
+für den Build vorgesehen; kein Dropbox-App-Secret und kein Konto-Token.
+
+Der echte PKCE-Anmeldeweg erreicht Dropbox mit S256 und Offline-Token-Anforderung.
+Persönliche Konto-Zustimmung und anschließende Lese-/Neustart-/Refresh-Prüfung
+stehen noch aus. Der echte lokale Kandidat enthält Google- und Dropbox-Identität;
+Paket-Smoke-Test und Strukturprüfung mit beiden `--require-publisher`-Schaltern
+bestanden. Keine persönlichen Tokens im Paket. Testprofil ist getrennt von
+produktiven Konfigurationen, ohne
+neue FUSE-Einbindung und ohne Datei-Schreib-/Löschaktionen. Keine erneute volle
+Testsuite nach diesen Console- und Dokumentationsänderungen.
+
+## Erweiterung auf OneDrive und Dropbox: 0.3.25rc2
+
+13. Oktober 2026: **39 gezielte Prüfungen bestanden**: 30 Backend-/Konfigurations-
+und Serverprüfungen, 7 passende GUI-Fälle, anschließend der neue zusätzliche
+Abbruchfall bei laufender Token-Anfrage sowie eine Paketprüfung gegen eingebettete
+Server-Secrets und aus dem Paket führende Links. Keine komplette Suite nach Einzeländerungen.
+
+Mit synthetischen Antworten geprüft: PKCE/S256, richtige Rückleitung, fremde
+Host-/State-Werte abweisen, kein Server-Secret im Token-Austausch, unterbrochene
+lokale HTTP-Anfrage und Token-Anfrage abbrechen, bisherige Anmeldung bei Fehlern
+erhalten, Tokens nur im privaten Profil speichern, doppelte Browser-Anmeldung
+vermeiden, fremde Client-ID beim Dienstwechsel entfernen. Bestehende Server-
+Anmeldemodi und private Konfigurationsprüfung ebenfalls gezielt bestanden.
+
+Diese Tests greifen nicht auf produktive Cloud-Dateien zu. Die eigene Dropbox-App wurde mit bestätigten API-Bedingungen erstellt und
+ihr öffentlicher App-Key lokal gesichert; Scopes und Rückleitung noch offen.
+Die Microsoft-App-Registrierung benötigt weiterhin die Anmeldung in der Konsole;
+echter PKCE-Login, serverseitige Token-Erneuerung und Kontoabnahme stehen aus.
+Keine Freigabe aller Anbieter und keine Dauerlauf-Stabilitätsgarantie abgeleitet.
+
+Ein isolierter Paketbau mit drei künstlichen App-Identitäten hat Paket-Smoke-Test
+und Strukturprüfung mit allen drei `--require-publisher`-Schaltern bestanden.
+Das echte Google-only-Paket 0.3.25rc1 wird von derselben Prüfung korrekt wegen
+fehlender OneDrive-/Dropbox-Registrierungen zurückgewiesen. Das Testpaket liegt
+ausschließlich unter /tmp und ist als nicht zu veröffentlichende Fixture markiert.
+
+Der echte lokale Kandidat 0.3.25rc2 wurde mit der vorhandenen Google-Identität
+gebaut; Paket-Smoke-Test bestanden. OneDrive-/Dropbox-Code ist enthalten, die
+echten App-IDs fehlen noch. Er ist nicht installiert und nicht veröffentlicht.
+
+## Google-Vorbereitung: 0.3.25rc1
+
+13. Oktober 2026: **19 gezielte Prüfungen bestanden** (Publisher-Client,
+Cloud-Konfiguration, Anmelde-Automatik und drei GUI-Fälle). Keine vollständige
+Testsuite nach diesen kleinen Folgeänderungen. Der vorherige vollständige
+0.3.24-Lauf bleibt separat dokumentiert.
+
+Ein isoliertes Paket unter /tmp mit künstlicher Desktop-App-Identität wurde
+gebaut; sein Paket-Smoke-Test und die strukturelle Publisher-Paketprüfung sind
+bestanden. Keine Anmeldung mit dem künstlichen Client. Das tatsächlich installierte
+Paket, der echte portable Download und laufende Einbindungen sind unverändert.
+Die Publisher-Identität fehlte im echten Download erwartungsgemäß; die Prüfung
+mit `--require-publisher-google` hält dessen öffentliche Google-Freigabe an.
+
+Im Codex-Browser wurde ein separates OpenCommander-Google-Projekt erstellt,
+die Drive API aktiviert und die OAuth-Marke mit Desktop-Client eingerichtet.
+Nur der vollständige Drive-Scope wurde mit ausdrücklicher Zustimmung gespeichert.
+Zielgruppe Extern, Status Test, ein bestätigtes Testkonto eingetragen. Kontotest und öffentliche
+Google-Verifizierung bleiben offen.
+Ein echter lokaler Kandidat 0.3.25rc1 mit Herausgeber-Desktop-Identität wurde
+isoliert gebaut. Paket-Smoke-Test und `--require-publisher-google` bestanden;
+keine persönlichen Kontotokens eingebettet. Der Kandidat wurde nicht installiert
+oder veröffentlicht; bestehende Einbindungen und das installierte Paket bleiben
+unverändert.
+Homepage/Datenschutz/Release-Texte liegen als lokale Entwürfe unter release/linux.
+Es gibt keinen neuen öffentlichen App-Release und kein neues Tag.
+
 # Linux 0.3.24 – EIO bei Prüfung des Google-Zwischenstands
 
 13. Oktober 2026. **338 Tests bestanden in 136,67 Sekunden; keine Fehler,

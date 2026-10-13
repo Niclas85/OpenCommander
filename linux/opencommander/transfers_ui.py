@@ -11,6 +11,17 @@ from .operations import Cancelled
 from .formatting import human_duration
 
 
+class TransferTitle(QLabel):
+    """Keep full accessible text while painting a single elided line."""
+    def paintEvent(self, event):
+        from PySide6.QtGui import QPainter
+        painter = QPainter(self)
+        painter.setFont(self.font())
+        painter.setPen(self.palette().color(self.foregroundRole()))
+        text = self.fontMetrics().elidedText(self.text(), Qt.ElideMiddle, self.contentsRect().width())
+        painter.drawText(self.contentsRect(), Qt.AlignLeft | Qt.AlignVCenter, text)
+
+
 def resources(job):
     # Lexical paths plus local symlink aliases. Never resolve inside a provider.
     from .filesystem import remote_location
@@ -62,18 +73,21 @@ class TransferCard(QFrame):
         self.task = self.engine = None
         self.pending_metrics = None
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setContentsMargins(8, 3, 8, 3)
         layout.setSpacing(4)
         top = QHBoxLayout()
-        self.title = QLabel()
+        self.title = TransferTitle()
         self.title.setObjectName('transferTitle')
         self.title.setTextFormat(Qt.PlainText)
-        self.title.setWordWrap(True)
-        layout.addWidget(self.title)
-        top.addStretch()
+        self.title.setWordWrap(False)
+        top.addWidget(self.title, 1)
+        self.progress = QProgressBar()
+        self.progress.setTextVisible(False)
+        self.progress.setFixedWidth(90)
+        top.addWidget(self.progress, 0, Qt.AlignVCenter)
         self.minimize = QToolButton()
         self.minimize.setCheckable(True)
-        self.minimize.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.minimize.setToolButtonStyle(Qt.ToolButtonIconOnly)
         top.addWidget(self.minimize)
         self.pause = QPushButton()
         self.resume = QPushButton()
@@ -89,9 +103,6 @@ class TransferCard(QFrame):
         self.route.setWordWrap(True)
         self.route.setToolTip(self.route.text())
         layout.addWidget(self.route)
-        self.progress = QProgressBar()
-        self.progress.setTextVisible(False)
-        layout.addWidget(self.progress)
         self.details = QLabel()
         self.details.setTextFormat(Qt.PlainText)
         self.details.setWordWrap(True)
@@ -108,7 +119,7 @@ class TransferCard(QFrame):
         self.copy_details.clicked.connect(self.copy_report)
         layout.addWidget(self.copy_details, 0, Qt.AlignLeft)
         self.minimize.setChecked(manager.window.settings.value(
-            'transfer_minimized/' + job['id'], False, type=bool))
+            'transfer_minimized/' + job['id'], True, type=bool))
         self.minimize.toggled.connect(self.set_minimized)
         self.set_minimized(self.minimize.isChecked(), save=False)
         self.render()
@@ -257,6 +268,13 @@ class TransferOverview(QWidget):
         self.setObjectName('transferOverview')
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.window = window
+        if not window.settings.value('transfer_compact_layout_v1', False, type=bool):
+            # Replace the old expanded-card default once; later user choices persist.
+            for key in window.settings.allKeys():
+                if key.startswith('transfer_minimized/'):
+                    window.settings.setValue(key, True)
+            window.settings.setValue('transfer_expanded', True)
+            window.settings.setValue('transfer_compact_layout_v1', True)
         self.cards = {}
         self.active = {}
         self.generic_running = False
@@ -268,39 +286,40 @@ class TransferOverview(QWidget):
         self.toggle.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.toggle.setCheckable(True)
         self.toggle.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        layout.addWidget(self.toggle)
+        header = QHBoxLayout()
+        header.addWidget(self.toggle, 1)
         self.body = QWidget()
         self.body.setObjectName('transferBody')
         self.body.setAttribute(Qt.WA_StyledBackground, True)
         body = QVBoxLayout(self.body)
         body.setContentsMargins(0, 0, 0, 0)
-        options = QHBoxLayout()
         self.parallel_label = QLabel()
-        options.addWidget(self.parallel_label)
+        header.addWidget(self.parallel_label)
         self.parallel = QSpinBox()
         self.parallel.setRange(1, 4)
         self.parallel.setValue(window.settings.value('transfer_parallel', 2, type=int))
-        options.addWidget(self.parallel)
-        options.addStretch()
+        header.addWidget(self.parallel)
         self.clear_button = QPushButton()
         self.clear_button.clicked.connect(self.clear_completed)
-        options.addWidget(self.clear_button)
-        body.addLayout(options)
+        header.addWidget(self.clear_button)
+        layout.addLayout(header)
         self.scroll = QScrollArea()
         self.scroll.setObjectName('transferScroll')
         self.scroll.setWidgetResizable(True)
-        self.scroll.setMaximumHeight(245)
-        self.scroll.setMinimumHeight(95)
+        self.scroll.setMinimumHeight(38)
+        self.scroll.setFrameShape(QFrame.NoFrame)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.items = QWidget()
         self.items.setObjectName('transferItems')
         self.rows = QVBoxLayout(self.items)
         self.rows.setContentsMargins(0, 0, 0, 0)
+        self.rows.setSpacing(3)
         self.rows.addStretch()
         self.scroll.setWidget(self.items)
         body.addWidget(self.scroll)
         layout.addWidget(self.body)
         self.toggle.toggled.connect(self.set_expanded)
-        self.toggle.setChecked(window.settings.value('transfer_expanded', False, type=bool))
+        self.toggle.setChecked(window.settings.value('transfer_expanded', True, type=bool))
         self.set_expanded(self.toggle.isChecked(), save=False)
         self.parallel.valueChanged.connect(self.limit_changed)
         self.timer = QTimer(self)
@@ -310,11 +329,15 @@ class TransferOverview(QWidget):
 
     def set_expanded(self, expanded, save=True):
         self.body.setVisible(expanded)
+        self.parallel_label.setVisible(expanded)
+        self.parallel.setVisible(expanded)
         self.toggle.setArrowType(Qt.DownArrow if expanded else Qt.RightArrow)
         if save:
             self.window.settings.setValue('transfer_expanded', expanded)
         if hasattr(self, 'timer'):
             self.render()
+        if save and hasattr(self.window, 'transfers'):
+            self.window.resize_transfer_panel(expanded)
 
     def limit_changed(self, value):
         self.window.settings.setValue('transfer_parallel', value)
@@ -565,9 +588,12 @@ class TransferOverview(QWidget):
             parts.append(f'{queued} {"wartend" if de else "queued"}')
         if paused:
             parts.append(f'{paused} {"gespeichert" if de else "saved"}')
+        if counts['blocked']:
+            parts.append(f'{counts["blocked"]} {"Fehler" if de else "errors"}')
         self.toggle.setText(('Übertragungen' if de else 'Transfers') + ' · ' + (' · '.join(parts) or f'{counts["complete"]} {"abgeschlossen" if de else "completed"}'))
         self.parallel_label.setText('Gleichzeitig:' if de else 'Parallel:')
         self.clear_button.setText('Abgeschlossene ausblenden' if de else 'Hide completed')
+        self.clear_button.setVisible(self.toggle.isChecked() and bool(counts['complete'] or counts['cancelled']))
         w.queue_label.setToolTip('\n'.join(getattr(row[0], 'label', 'Dateivorgang / File operation') for row in w.operation_queue if row[2] is None))
         w.queue_label.setText(' · '.join(parts[1:] if active else parts) or (f'{len(w.operation_queue)} wartend' if w.operation_queue else ''))
         w.pause_button.setVisible(bool(active) and not w.closing)
@@ -579,31 +605,30 @@ class TransferOverview(QWidget):
         w.cancel_button.setVisible(w.busy or bool(paused or queued))
         for card in self.cards.values():
             details = card.render()
-            if active == 1 and card.job['id'] in self.active:
+            if active == 1 and card.job['id'] in self.active and not self.generic_running:
                 w.transfer_details.setText(card.title.text() + ('' if card.minimize.isChecked() else '\n' + details))
                 w.transfer_details.show()
                 w.progress.setRange(card.progress.minimum(), card.progress.maximum())
                 w.progress.setValue(card.progress.value())
                 w.progress.show()
-        width = max(300, self.scroll.viewport().width())
-        height = 4
-        for card in self.cards.values():
-            height += max(card.sizeHint().height(), card.heightForWidth(width)) + self.rows.spacing()
-            if height >= 245:
-                break  # Extra cards cannot increase the capped viewport height.
-        height = min(245, max(65, height))
-        self.scroll.setMinimumHeight(min(95, height))
-        self.scroll.setMaximumHeight(height)
         if active and not self.timer.isActive():
             self.timer.start()
         elif not active:
             self.timer.stop()
-        if active > 1:
+        if active > 1 and not self.generic_running:
             w.transfer_details.setText(self.toggle.text())
             w.transfer_details.show()
             w.progress.hide()
         # Expanded cards already contain progress and details. Keep the legacy
         # summary only when the overview is collapsed (or for generic actions).
-        if self.cards and self.toggle.isChecked() and not self.generic_running:
+        if self.cards and not self.generic_running:
             w.transfer_details.hide()
             w.progress.hide()
+        if hasattr(w, 'transfer_area'):
+            visible = bool(self.cards) or not w.transfer_details.isHidden()
+            was_hidden = w.transfer_area.isHidden()
+            w.transfer_area.setVisible(visible)
+            geometry_key = (self.toggle.isChecked(), tuple(card.minimize.isChecked() for card in self.cards.values()))
+            if visible and (was_hidden or (geometry_key != getattr(self, '_geometry_key', None) and not w.settings.contains('transfer_panel_height'))):
+                w.resize_transfer_panel(self.toggle.isChecked())
+            self._geometry_key = geometry_key

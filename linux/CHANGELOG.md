@@ -1,5 +1,69 @@
 # Linux-Änderungsprotokoll
 
+## Unveröffentlicht – öffentliche Cloud-Anmeldung vorbereiten
+
+- iCloud-Bestätigung mit erreichbaren „SMS-Code anfordern“ / „SMS-Code erneut
+  senden“-Schaltflächen. Vorhandene Anmeldesitzung weiterverwenden statt erneut
+  das Passwort abzufragen; kurze Wartezeit und gesperrte Mehrfachklicks.
+  SMS-Code und Auswahl einer hinterlegten Telefonnummer verständlich beschriften.
+  „sms“ niemals als Bestätigungscode an die SMS-Verifikation senden.
+- iCloud-Pflichtfelder nicht leer überspringen lassen; Apple-ID-/Passwort-/Code-
+  Beschriftung und Eingabe bleiben außerhalb des langen Hilfetexts sichtbar.
+  Enter bestätigt eindeutig den nächsten Schritt. Dienstwechsel während einer
+  laufenden Frage verhindern; während Netzwerkzugriffen die Eingabe sperren.
+- Apple-Anmeldefehler ohne unverarbeitete Antworten erklären: HTTP 401,
+  fehlende Webzugriffsbestätigung oder ungültiges gespeichertes Passwort.
+  Ein fataler Fehler setzt den Assistenten auf einen neuen Anmeldebeginn zurück,
+  statt den technischen Zwischenzustand erneut als Passwortfrage zu behandeln.
+- iCloud-Assistent mit separatem „iCloud Drive im Browser öffnen“-Zugang zur
+  Apple-Webansicht. Sichtbarer Hinweis unterscheidet Website-Anmeldung und
+  Dateiverbindung; Website-Öffnen erzeugt keinen gespeicherten Online-Ort.
+  Browserstart verwendet dieselbe Host-/Wayland-Aktivierung wie OAuth.
+  Veralteten README-Hinweis auf eine nicht implementierte Apple-Anmeldung korrigieren.
+- Innerhalb des Fensters Dateiziehen als Mausgeste führen: Vorschau folgt den
+  Bewegungen direkt im Fenster, Zielmarkierung ohne Auftragserzeugung. Erst
+  Loslassen über einem gültigen Ziel überträgt. Esc, Fokusverlust und ungültige
+  Ziele brechen ohne Kopie ab; Selbst-/Unterordnerziele vorab ablehnen.
+- Ordnerbaum als Ablageziel, Aufklappen nach kurzem Verweilen und Scrollen
+  am Rand. Nachgeladene Baumordner scrollen während des Ziehens nicht weg.
+  Native Datei-URL-Angebote an andere Apps bleiben möglich; bei Rückkehr ins
+  Fenster interne Übertragung bis zum Ende des nativen Drags zurückhalten.
+- Datei-/Ordnersymbol zusätzlich im nativen Drag-Mauszeiger anzeigen, mit
+  Kopieren-/Verschieben-Markierung und Mehrfachanzahl. Eigenes Symbol für ein
+  ungeeignetes Ziel. Große Vorschau neben dem Zeiger positionieren und für
+  hohe Pixeldichte skalieren; weiterhin nur vorhandene Thumbnails verwenden.
+- Klicks im gesamten Dateibereich aktivieren ihn, einschließlich Titel,
+  Auswahlhinweis, Tabellenkopf, Ordnerbaum und freier Ränder. Nicht editierbare
+  Flächen geben der zugehörigen Dateiliste den Tastaturfokus; Pfad- und Suchfelder
+  behalten ihre Texteingabe. Auch Rechtsklicks und Tastaturfokus werden zugeordnet.
+- Übertragungen standardmäßig als eine Zeile pro Auftrag: Fortschritt und
+  Steuerung in derselben Zeile, Details einzeln aufklappbar. Trennbalken über
+  der Liste verändert die Höhe; die gewählte Höhe bleibt gespeichert. Keine
+  fest erzwungene Maximalhöhe oder doppelte Fortschrittsanzeige im Fußbereich.
+- Fehlende rclone-Einbindung mit konkretem Hinweis „Wieder verbinden, danach
+  Fortsetzen“ melden. Der gespeicherte Kopierstand und die Laufwerksprüfung
+  bleiben erhalten; ein lokaler Ordner ersetzt kein fehlendes Cloud-Laufwerk.
+- Eigene öffentliche OneDrive-/Dropbox-App-IDs beim Build oder im Expertenbereich
+  übernehmen. Browser-Anmeldung mit PKCE/S256 und Offline-Token ohne eingebettete
+  Server-Secrets. Abbruch schließt den lokalen Rückleitungsserver; Codes/Tokens werden
+  nicht protokolliert. Fehler erhalten die bisherige PKCE-Anmeldung.
+- Dienstwechsel entfernt fremde Client-Felder; ungültige App-IDs werden im
+  Assistenten erklärt. Frische PKCE-Zustimmung wird nicht zweimal abgefragt.
+- Paketprüfung kann alle drei Herausgeber-Registrierungen einzeln verlangen.
+  Fehlende Registrierungen werden nicht als allgemein freigegeben ausgewiesen.
+- Herausgeber-Desktop-OAuth-Client optional beim Build übernehmen; nur
+  App-Identität, keine Benutzer-Tokens oder Server-/Service-Account-Schlüssel.
+  Bei eingerichteter App-Identität entfällt die Console-Einrichtung für Endnutzer.
+- Eigene bestehende Google-Clients beim erneuten Anmelden bewahren.
+- Nach erfolgreicher Google-Anmeldung den zusätzlichen Shared-Drive-Schritt
+  für das persönliche Laufwerk automatisch abschließen. Eine erfolgreiche
+  Anmeldung wird dadurch nicht mehr als „nicht abgeschlossen“ gemeldet.
+- iCloud-Anleitung mit Web-Datenzugriff, regulärem Passwort, Geräte-Code/SMS
+  und Speicherung im jeweiligen Benutzerprofil; technische erweiterte
+  Standardkonfiguration im Assistenten automatisch beantworten.
+- Homepage, Linux-Datenschutzerklärung und Release-Text als lokale Entwürfe.
+  Kein öffentliches Release, kein Tag und keine gemeinsame Google-Freigabe.
+
 ## 0.3.24 – 13. Oktober 2026
 
 - Bei EIO während der Prüfung fertiger Dateien auf externem Google-Drive-FUSE

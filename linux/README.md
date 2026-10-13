@@ -3,8 +3,30 @@
 Native Qt-Desktop-Version nach dem Vorbild der Mac-Catalyst-App. Keine Browser-
 oder Electron-Hülle. Deutsch und Englisch; helles und dunkles Erscheinungsbild.
 
-Aktueller Stand: **0.3.24**. Die Änderungen und der geprüfte Umfang stehen im
+Vorbereitung: **0.3.25rc9** (nicht veröffentlicht). Die Änderungen und der geprüfte Umfang stehen im
 [Änderungsprotokoll](CHANGELOG.md).
+
+Übertragungen erscheinen standardmäßig als eine kompakte Zeile je Auftrag.
+Fortschritt, Pause/Fortsetzen und Abbrechen bleiben direkt erreichbar. Der kleine
+Pfeil am Auftrag öffnet die ausführlichen Details. Den horizontalen Trennbalken
+über der Übertragungsliste ziehen, um den Bereich höher oder niedriger zu machen;
+die gewählte Höhe bleibt gespeichert. Der Pfeil bei „Übertragungen“ blendet die
+gesamte Liste ein oder aus. Fehler bleiben auch in der kompakten Zeile erkennbar.
+
+Ein Klick an beliebiger Stelle eines Dateibereichs aktiviert diesen, auch im
+Titel oder Tabellenkopf. Die Markierung „Aktiv“ zeigt, welcher Bereich für
+Dateiaktionen und Einfügen verwendet wird. Pfad- und Suchfelder bleiben editierbar.
+
+Beim Ziehen einer Datei oder eines Ordners erscheint eine Vorschau neben dem
+Mauszeiger direkt im App-Fenster. Solange die Maustaste gehalten wird, entsteht
+kein Kopier- oder Verschiebeauftrag. Erst das Loslassen über einem gültigen
+Ziel startet die Übertragung. Ordner in der Dateiliste und im Ordnerbaum sind
+Ablageziele; die Markierung zeigt den Zielordner. Im Baum öffnet kurzes Verweilen
+einen Ordner, an den Rändern scrollt die Ansicht. Esc bricht das Ziehen ab.
+Der Drag-Mauszeiger enthält zusätzlich das Objekt mit Kopieren-/
+Verschieben-Symbol, bei Mehrfachauswahl auch die Anzahl. Ein rotes Zeichen weist
+auf ein ungeeignetes Ablageziel hin. Vorhandene Bild-Thumbnails werden verwendet;
+das Ziehen wartet nicht auf Cloud-Downloads.
 
 **[Ausführliches HTML-Anwenderhandbuch öffnen](docs/handbuch/index.html)** —
 18 Kapitel mit 20 Screenshots, lokaler Suche, Bildvergrößerung, Hell-/Dunkelmodus
@@ -252,13 +274,29 @@ Client-ID-/Secret-Fragen entfallen. Nach erfolgreicher Anmeldung und Laufwerkswa
 wird der Ordner automatisch im aktiven Bereich geöffnet. **Erneut anmelden**
 aktualisiert abgelaufene Verbindungen; vorher einen aktiven Mount trennen.
 
+**iCloud Drive im Browser öffnen** öffnet Apples iCloud-Webansicht mit der
+Anmeldung auf iCloud.com. Diese Website-Anmeldung richtet keine Dateiverbindung
+in OpenCommander ein und speichert keinen verbundenen Ort in der App.
 **iCloud: Mit Apple-ID verbinden** benötigt das reguläre Apple-Passwort und 2FA
 (vertrauenswürdiges Gerät oder SMS). App-spezifische Passwörter werden nicht akzeptiert.
+Apple-ID, Passwort und Bestätigungscode werden in eindeutig beschrifteten
+Feldern abgefragt; leere Pflichtfelder können nicht übersprungen werden. Enter
+geht zum nächsten Schritt. Im Code-Schritt fordert **SMS-Code anfordern** einen
+Code an eine bei Apple hinterlegte Nummer an. **SMS-Code erneut senden** nutzt
+dieselbe Anmeldung; nach einer Anfrage gilt eine Wartezeit von 30 Sekunden.
+Bei mehreren Nummern kann die Auswahl erneut erscheinen. Den zuletzt erhaltenen
+SMS-Code mit **SMS-Code bestätigen** abschicken. Nach einem Anmeldefehler „Neue Anmeldung beginnen“
+wählen; eine HTTP-401-Meldung bedeutet, dass Apple diesen Anmeldeversuch abgelehnt hat.
 Ein Browserlogin allein verbindet iCloud nicht mit diesem Backend: Apple wird über
 SRP und einen Vertrauens-Token angebunden, nicht über Microsoft-artiges OAuth.
 Web-Zugriff auf iCloud-Daten muss im Apple-Konto erlaubt sein; gegebenenfalls den
 Zugriff auf einem vertrauenswürdigen Gerät bestätigen. Siehe
 [rclone iCloud-Anmeldung](https://rclone.org/iclouddrive/).
+Eine Registrierung für „Mit Apple anmelden“ ermöglicht Benutzeridentifikation
+(Name/E-Mail), keinen allgemeinen iCloud-Drive-Zugriff. CloudKit verwaltet Daten
+in eigenen App-Containern. Sie ersetzt diese Dateianmeldung daher nicht.
+Siehe [Apple-Anmeldeberechtigungen](https://developer.apple.com/documentation/signinwithapplejs/clientconfigi/scope)
+und [Apple CloudKit](https://developer.apple.com/icloud/cloudkit/).
 
 Ein aktuelles Backend wird bei Bedarf automatisch **nur für OpenCommander** geladen:
 `~/.local/share/opencommander/runtime/rclone` (beziehungsweise unter `XDG_DATA_HOME`).
@@ -407,8 +445,10 @@ gewählten Archiveintrag, nicht auf die Größe des gesamten Archivs.
 
 Google Drive/OneDrive können über vorhandene GVFS-/rclone-Mounts benutzt werden.
 Dropbox-Sync-Ordner werden auch über die lokale `.dropbox/info.json` erkannt.
-iCloud-Ordner und vorhandene iCloud-Mounts werden ebenfalls angezeigt; eine eigene
-Apple-Anmeldung ist nicht implementiert. Für einen iCloud-Drive-Mount mit rclone
+iCloud-Ordner und vorhandene iCloud-Mounts werden ebenfalls angezeigt. Der
+App-Assistent unterstützt die Apple-ID-/Passwort-/2FA-Anmeldung über rclone;
+eine reine Browser-OAuth-Anmeldung für diese Dateiverbindung ist nicht implementiert.
+Für einen iCloud-Drive-Mount mit rclone
 ist mindestens eine Version mit dem `iclouddrive`-Backend nötig (ab 1.69).
 Siehe [rclone iCloud Drive](https://rclone.org/iclouddrive/),
 [rclone OneDrive](https://rclone.org/onedrive/) und
@@ -617,3 +657,31 @@ eine angefangene einzelne Datei muss auf rclone ohne Append gegebenenfalls neu
 geschrieben werden. Der letzte Fehler bleibt nach Fortsetzen sichtbar und wird
 nach Abschluss in der Historie erhalten. Laufende ältere Sitzungen übernehmen
 diese Änderung erst nach gespeichertem Pausieren, Schließen und Neustart.
+
+
+## Vorbereitung einer öffentlichen Cloud-Anmeldung
+
+Die zentrale Google-Desktop-Anwendung kann beim Paketbau über
+`OPENCOMMANDER_GOOGLE_OAUTH_FILE` bereitgestellt werden. Endnutzer erhalten
+dann den Browser-Anmeldeweg ohne Google-Console-Einrichtung. Jeder Nutzer
+verbindet sein eigenes Konto; Tokens verbleiben in seinem lokalen Benutzerprofil.
+Ohne eingerichteten Herausgeber-Client bleibt der private Expertenweg bestehen.
+Dies ist eine Vorbereitung, noch keine öffentliche OAuth-Freigabe.
+
+Details, Veröffentlichungstexte und lokale Homepage-/Datenschutzentwürfe liegen
+im Quellrepository unter `release/linux/` und im portablen Paket unter
+`docs/public-release/`.
+
+Auch OneDrive und Dropbox unterstützen eine vom Herausgeber bereitgestellte
+öffentliche App-ID: `OPENCOMMANDER_ONEDRIVE_OAUTH_FILE` bzw.
+`OPENCOMMANDER_DROPBOX_OAUTH_FILE`. Diese Registrierungen verwenden PKCE/S256
+ohne eingebettetes Server-Secret. Endnutzer melden sich im Browser mit ihrem
+eigenen Konto an; erneutes Anmelden erhält vorhandene eigene App-Konfigurationen.
+Eine fehlgeschlagene PKCE-Anmeldung überschreibt die bisherige Anmeldung nicht.
+Ohne eingebettete Registrierung weist der Assistent auf die gemeinsame
+rclone-Anwendung hin. Im Expertenbereich lässt sich eine eigene öffentliche
+Client-ID/App-Key eingeben. Die Herausgeber-Anleitung liegt unter
+`release/linux/oauth/` bzw. im Paket unter `docs/public-release/oauth/`.
+iCloud, FTP/FTPS/SFTP und NAS behalten ihre persönlichen Anmeldeverfahren.
+Firmeneinstellungen und öffentliche Provider-Freigaben können zusätzliche
+Zustimmung erfordern; eine Paketprüfung bestätigt keinen Live-Login.

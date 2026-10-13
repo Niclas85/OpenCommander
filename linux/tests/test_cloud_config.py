@@ -7,6 +7,18 @@ import pytest
 from opencommander import cloud_config, online_ui, rclone_runtime
 
 
+@pytest.mark.parametrize('error,expected', [
+    ('SRP complete: HTTP error 401 Unauthorized', '401'),
+    ('Missing PCS cookies from the request', 'Webzugriff'),
+    ('password: base64 decode failed when revealing password - is it obscured?', 'Passwort'),
+])
+def test_icloud_auth_failure_explains_category_without_echoing_reply(error, expected):
+    private = 'synthetic-private-provider-reply'
+    message = cloud_config.login_error('iclouddrive', error + '\n' + private)
+    assert expected in message
+    assert private not in message
+
+
 @pytest.mark.parametrize('length', [8, 22])
 def test_actual_icloud_password_question_stores_encoded_value(tmp_path, length):
     if not rclone_runtime.binary():
