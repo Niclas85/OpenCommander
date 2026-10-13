@@ -4,6 +4,9 @@ import ZIPFoundation
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
+#if DEBUG && targetEnvironment(macCatalyst)
+    static private(set) var macUITestRoot: URL?
+#endif
 
     func application(_ app: UIApplication, open url: URL,
                      options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
@@ -17,6 +20,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         MediaExportFiles.cleanInterruptedExports()
 #endif
 #if DEBUG
+#if targetEnvironment(macCatalyst)
+        if ProcessInfo.processInfo.arguments.contains("--mac-parity-fixtures") || Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander.MacUITests" { prepareMacParityFixtures() }
+#endif
         if ProcessInfo.processInfo.arguments.contains("--reset-file-access-onboarding") {
             UserDefaults.standard.removeObject(forKey: "ios_file_access_onboarding_v2_shown")
             UserDefaults.standard.removeObject(forKey: "ios_main_folder_onboarding_v3_completed")
@@ -48,6 +54,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
 #if DEBUG
     private func prepareAppReviewFixtures() {
+#if targetEnvironment(macCatalyst)
+        // iOS fixtures use its container's Documents. On the desktop that is
+        // the user's actual Documents directory, so use the isolated Mac suite.
+        return
+#else
         let fileManager = FileManager.default
         UserDefaults.standard.set("en", forKey: "language")
         guard let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
@@ -71,7 +82,34 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             .write(to: dragMe.appendingPathComponent("Proof.txt"), options: .atomic)
         try? fileManager.removeItem(at: dropHere.appendingPathComponent("DragMe"))
         try? fileManager.removeItem(at: documents.appendingPathComponent("Source.zip"))
+#endif
     }
+
+#if targetEnvironment(macCatalyst)
+    private func prepareMacParityFixtures() {
+        let testID = "com.github.niklaus85.OpenCommander.MacUITests"
+        guard Bundle.main.bundleIdentifier == testID else { return }
+        // The environment is used by XCTest; an optional root-only resource
+        // allows the same isolated clone to be exercised by visible UI tools.
+        let resourcePath = Bundle.main.url(forResource: "MacUITestRoot", withExtension: "txt")
+            .flatMap { try? String(contentsOf: $0, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines) }
+        guard let path = ProcessInfo.processInfo.environment["OPENCOMMANDER_MAC_UI_ROOT"] ?? resourcePath else { return }
+        let root = URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL
+        guard root.lastPathComponent.hasPrefix("OpenCommander-MacUITest-"),
+              root.resolvingSymlinksInPath() == root,
+              FileManager.default.fileExists(atPath: root.appendingPathComponent("Left").path),
+              FileManager.default.fileExists(atPath: root.appendingPathComponent("Right").path) else { return }
+        Self.macUITestRoot = root
+        let defaults = UserDefaults.standard
+        if ProcessInfo.processInfo.arguments.contains("--mac-parity-reset") { defaults.removePersistentDomain(forName: testID) }
+        defaults.set("en", forKey: "language")
+        for key in ["onboarding_shown", "mac_folder_default_prompt_v1", "mac_full_disk_access_onboarding_shown"] { defaults.set(true, forKey: key) }
+        for (pane, directory) in [("1", "Left"), ("2", "Right")] {
+            defaults.removeObject(forKey: "folder_bookmark_pane_" + pane)
+            defaults.set(root.appendingPathComponent(directory).path, forKey: "folder_path_pane_" + pane)
+        }
+    }
+#endif
 
     private func prepareStaleFolderBookmarkFixture() {
         let defaults = UserDefaults.standard
@@ -91,6 +129,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     private func prepareImageViewerFixtures() {
+#if targetEnvironment(macCatalyst)
+        return
+#else
         let fileManager = FileManager.default
         UserDefaults.standard.set("en", forKey: "language")
         guard let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
@@ -127,6 +168,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             try? archive.addEntry(with: first.lastPathComponent, fileURL: first)
             try? archive.addEntry(with: second.lastPathComponent, fileURL: second)
         }
+#endif
     }
 #endif
 

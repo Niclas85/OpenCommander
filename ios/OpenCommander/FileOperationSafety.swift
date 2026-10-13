@@ -252,6 +252,21 @@ enum OperationType: Codable {
 
 /// Desktop selection rules mirror the Linux context menu and ZIP toolbar.
 enum DesktopInteractionPolicy {
+    static func selection(clicked: String, visible: [String], selected: Set<String>, anchor: String?,
+                          extend: Bool, toggle: Bool) -> (keys: Set<String>, anchor: String?) {
+        guard let end = visible.firstIndex(of: clicked) else { return (selected, anchor) }
+        if extend {
+            let start = anchor.flatMap { visible.firstIndex(of: $0) } ?? end
+            let range = Set(visible[min(start, end)...max(start, end)])
+            return (toggle ? selected.union(range) : range, visible[start])
+        }
+        if toggle {
+            var keys = selected
+            if keys.contains(clicked) { keys.remove(clicked) } else { keys.insert(clicked) }
+            return (keys, clicked)
+        }
+        return ([clicked], clicked)
+    }
     static func contextSelection(clicked: String, selected: Set<String>) -> Set<String> {
         selected.contains(clicked) ? selected : [clicked]
     }

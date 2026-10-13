@@ -26,6 +26,40 @@ import Darwin
 #endif
 
 enum HostFileSystem {
+    private static let providerStatusLock = NSLock()
+    private static let providerStatusKey = "mac_disabled_provider_paths_v1"
+
+    /// Discovery only reads local folder metadata. A provider's contents are
+    /// coordinated when the user opens it; a disconnected provider must not
+    /// hold up the complete drive list.
+    private static func knownProviderDisabled(_ root: URL, defaults: UserDefaults) -> Bool {
+        providerStatusLock.lock(); defer { providerStatusLock.unlock() }
+        let states = defaults.dictionary(forKey: providerStatusKey) ?? [:]
+        guard let recorded = states[root.standardizedFileURL.path] as? TimeInterval else { return false }
+        let age = Date().timeIntervalSince1970 - recorded
+        return age >= 0 && age < 300
+    }
+    static func noteProviderAccess(_ url: URL, error: NSError?, home: URL = homeDirectory, defaults: UserDefaults = .standard) {
+        let path = url.resolvingSymlinksInPath().standardizedFileURL.path
+        let prefixes = ["Library/CloudStorage", "Library/Mobile Documents"].map { home.appendingPathComponent($0).resolvingSymlinksInPath().standardizedFileURL.path + "/" }
+        var root: String?
+        for prefix in prefixes where path.hasPrefix(prefix) {
+            if let account = path.dropFirst(prefix.count).split(separator: "/").first { root = prefix + account }
+        }
+        if root == nil {
+            let prefix = home.resolvingSymlinksInPath().standardizedFileURL.path + "/"
+            if path.hasPrefix(prefix), let first = path.dropFirst(prefix.count).split(separator: "/").first,
+               ["OneDrive", "Dropbox", "Google Drive", "Box"].contains(String(first)) || first.hasPrefix("OneDrive-") || first.hasPrefix("OneDrive - ") || first.hasPrefix("GoogleDrive-") { root = prefix + first }
+        }
+        guard let root, error == nil || isDisabledProvider(error!) else { return }
+        providerStatusLock.lock(); defer { providerStatusLock.unlock() }
+        var states = (defaults.dictionary(forKey: providerStatusKey) ?? [:]).compactMapValues { $0 as? TimeInterval }
+        let now = Date().timeIntervalSince1970
+        states = states.filter { now - $0.value < 300 }
+        if error == nil { states.removeValue(forKey: root) } else { states[root] = now }
+        if states.count > 128, let oldest = states.min(by: { $0.value < $1.value }) { states.removeValue(forKey: oldest.key) }
+        defaults.set(states, forKey: providerStatusKey)
+    }
     static func coordinatedRead<T>(at url: URL, _ read: (URL) throws -> T) throws -> T {
 #if targetEnvironment(macCatalyst) || os(macOS)
         let scope = url.startAccessingSecurityScopedResource()
@@ -168,7 +202,7 @@ enum HostFileSystem {
     /// Discover provider-published folders, not app bundles: an installed client
     /// without a signed-in/syncing account does not expose a filesystem to browse.
     /// Keep preserved Google domains accessible, but never present them as live accounts.
-    static func cloudStorageLocations(in home: URL) -> [StorageLocation] {
+    static func cloudStorageLocations(in home: URL, providerDefaults: UserDefaults = .standard) -> [StorageLocation] {
         let fm = FileManager.default
         var result: [StorageLocation] = []
         var addedPaths = Set<String>()
@@ -178,13 +212,7 @@ enum HostFileSystem {
             let datedGoogleCopy = resolved.lastPathComponent.hasPrefix("GoogleDrive-") &&
                 resolved.lastPathComponent.range(of: #" \(\d{2}\.\d{2}\.\d{2} \d{2}:\d{2}\)$"#, options: .regularExpression) != nil
             let archived = datedGoogleCopy || fm.fileExists(atPath: resolved.appendingPathComponent(".drive_fs_ignore_preserved_domain").path)
-            var disabled = false
-            // Only inspect the top-level names; never hydrate files or recurse.
-            // Permission/transient errors do not mean a provider is disabled.
-            if !archived {
-                do { _ = try coordinatedRead(at: resolved) { try fm.contentsOfDirectory(at: $0, includingPropertiesForKeys: nil) } }
-                catch { disabled = isDisabledProvider(error as NSError) }
-            }
+            let disabled = !archived && knownProviderDisabled(resolved, defaults: providerDefaults)
             result.append(StorageLocation(name: name, url: resolved, kind: .cloudStorage,
                 isLocalArchive: archived, isDisabled: disabled))
         }
@@ -269,9 +297,19 @@ enum HostFileSystem {
                 error: &coordinationError) { coordinatedURL in
                     result = Result { try read(coordinatedURL) }
                 }
-            if let coordinationError { throw coordinationError }
+            if let coordinationError {
+                noteProviderAccess(url, error: coordinationError as NSError)
+                throw coordinationError
+            }
             guard let result else { throw CocoaError(.fileReadUnknown) }
-            return try result.get()
+            do {
+                let contents = try result.get()
+                noteProviderAccess(url, error: nil)
+                return contents
+            } catch {
+                noteProviderAccess(url, error: error as NSError)
+                throw error
+            }
         }
 #endif
         return try read(url)

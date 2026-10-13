@@ -1,9 +1,109 @@
 import XCTest
 
+/// Desktop runs use their own bundle defaults, files and transfer queue.
+/// Assertions check the real output bytes and persisted history, not just UI labels.
+final class MacDesktopParityTests: XCTestCase {
+    private let app = XCUIApplication()
+    private var root: URL!
+
+    override func setUpWithError() throws {
+#if os(macOS) || targetEnvironment(macCatalyst)
+        continueAfterFailure = false
+        root = URL(fileURLWithPath: "/private/tmp/OpenCommander-MacUITest-" + UUID().uuidString, isDirectory: true)
+        let fm = FileManager.default
+        for directory in ["Left/Pack", "Right/DropHere"] { try fm.createDirectory(at: root.appendingPathComponent(directory), withIntermediateDirectories: true) }
+        try Data("Mac parity copy and drag fixture\n".utf8).write(to: root.appendingPathComponent("Left/Alpha.txt"))
+        try Data("nested ZIP contents\n".utf8).write(to: root.appendingPathComponent("Left/Pack/Note.txt"))
+        app.launchArguments = ["--mac-parity-fixtures", "--mac-parity-reset"]
+        app.launchEnvironment["OPENCOMMANDER_MAC_UI_ROOT"] = root.path
+        app.launch()
+        XCTAssertTrue(app.otherElements["TitleToolbar"].waitForExistence(timeout: 15))
+        XCTAssertEqual(canonical(app.textFields["Path-1"].value as? String), canonical(root.appendingPathComponent("Left").path))
+        XCTAssertEqual(canonical(app.textFields["Path-2"].value as? String), canonical(root.appendingPathComponent("Right").path))
+#else
+        throw XCTSkip("Mac desktop acceptance runs on Mac Catalyst")
+#endif
+    }
+
+    override func tearDownWithError() throws {
+        if let root { app.terminate(); try FileManager.default.removeItem(at: root) }
+    }
+
+    private func file(_ name: String, pane: Int) -> XCUIElement { app.descendants(matching: .any)["File-\(pane)-\(name)"] }
+    private func canonical(_ path: String?) -> String? { path.map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path } }
+    private func waitForFile(_ relative: String, exists: Bool) {
+        let path = root.appendingPathComponent(relative).path
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in FileManager.default.fileExists(atPath: path) == exists }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 20), .completed)
+    }
+
+    func testCopyHistoryRelaunchAndUndo() throws {
+#if os(macOS) || targetEnvironment(macCatalyst)
+        file("Alpha.txt", pane: 1).tap()
+        app.typeKey("\u{F708}", modifierFlags: []) // F5
+        waitForFile("Right/Alpha.txt", exists: true)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("Left/Alpha.txt")), try Data(contentsOf: root.appendingPathComponent("Right/Alpha.txt")))
+        app.buttons["HistoryButton"].tap()
+        XCTAssertTrue(app.buttons["HistoryUndo-0"].waitForExistence(timeout: 10))
+        app.terminate()
+        app.launchArguments = ["--mac-parity-fixtures"]
+        app.launch()
+        app.buttons["HistoryButton"].tap()
+        XCTAssertTrue(app.buttons["HistoryUndo-0"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["HistoryTime-0"].exists)
+        app.buttons["UndoButton"].tap()
+        waitForFile("Right/Alpha.txt", exists: false)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("Left/Alpha.txt").path))
+#endif
+    }
+
+    func testSearchUsesPanePathAndShowsResultPath() throws {
+        file("Alpha.txt", pane: 1).tap()
+        app.buttons["CommanderSearchButton"].tap()
+        let path = app.textFields["CommanderSearchPath"]
+        XCTAssertTrue(path.waitForExistence(timeout: 10))
+        XCTAssertEqual(canonical(path.value as? String), canonical(root.appendingPathComponent("Left").path))
+        XCTAssertFalse(app.buttons["CommanderSearchMatchCase"].isSelected)
+        let query = app.textFields["CommanderToolField-0"]
+        query.tap()
+#if os(macOS) || targetEnvironment(macCatalyst)
+        query.typeKey("a", modifierFlags: .command)
+#endif
+        query.typeText("alpha.txt")
+        app.buttons["CommanderToolRun"].tap()
+        let result = app.descendants(matching: .any)["CommanderToolResult-0"]
+        XCTAssertTrue(result.waitForExistence(timeout: 10))
+        XCTAssertTrue(result.label.contains(root.appendingPathComponent("Left/Alpha.txt").path))
+        app.buttons["CommanderToolClose"].tap()
+    }
+
+    func testNativeDragBetweenPanesPublishesCompleteFile() throws {
+        let source = file("Alpha.txt", pane: 1), target = file("DropHere", pane: 2)
+        XCTAssertTrue(source.waitForExistence(timeout: 10)); XCTAssertTrue(target.exists)
+        source.press(forDuration: 1.0, thenDragTo: target, withVelocity: .slow, thenHoldForDuration: 0.5)
+        waitForFile("Right/DropHere/Alpha.txt", exists: true)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("Left/Alpha.txt")), try Data(contentsOf: root.appendingPathComponent("Right/DropHere/Alpha.txt")))
+    }
+
+    func testConnectionsRefreshAndCloseInCurrentWindow() throws {
+        app.buttons["DesktopAction-connections"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["ConnectionsList"].waitForExistence(timeout: 10))
+        app.buttons["ConnectionsRefresh"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["ConnectionsList"].exists)
+        app.buttons["ConnectionsClose"].tap()
+        XCTAssertTrue(app.textFields["Path-1"].waitForExistence(timeout: 10))
+        XCTAssertEqual(canonical(app.textFields["Path-1"].value as? String), canonical(root.appendingPathComponent("Left").path))
+    }
+}
+
+#if !os(macOS) && !targetEnvironment(macCatalyst)
 final class AppReviewVideoTests: XCTestCase {
     private let app = XCUIApplication()
 
     override func setUpWithError() throws {
+#if os(macOS) || targetEnvironment(macCatalyst)
+        throw XCTSkip("iOS review flows are container-specific; run MacDesktopParityTests on Mac Catalyst")
+#else
         continueAfterFailure = false
         if name.contains("testMainFolderOnboarding") {
             app.launchArguments = ["--reset-file-access-onboarding"]
@@ -26,6 +126,7 @@ final class AppReviewVideoTests: XCTestCase {
             if app.buttons["StorageSourcesClose"].waitForExistence(timeout: 5) { app.buttons["StorageSourcesClose"].tap() }
             XCTAssertTrue(app.otherElements["TitleToolbar"].waitForExistence(timeout: 15))
         }
+#endif
     }
 
     func testMainFolderHubAndRelaunch() throws {
@@ -547,3 +648,4 @@ final class MediaLibraryUITests: XCTestCase {
         evidence("music-stopped")
     }
 }
+#endif

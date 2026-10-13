@@ -59,6 +59,16 @@ check(locations.last?.isLocalArchive == true, "preserved domain distinguished an
 check(locations.filter { $0.isLocalArchive }.count == 2, "marked and dated preserved domains are archived")
 check(locations.filter { $0.isLocalArchive }.allSatisfy { !$0.visibleByDefault }, "archives hidden by default")
 check(locations.filter { !$0.isLocalArchive }.allSatisfy { $0.visibleByDefault }, "healthy provider folders visible")
+HostFileSystem.noteProviderAccess(oneDrive, error: NSError(domain: "NSFileProviderErrorDomain", code: -2011), home: fixture, defaults: isolatedDefaults)
+check(HostFileSystem.cloudStorageLocations(in: fixture, providerDefaults: isolatedDefaults).first { $0.url.standardizedFileURL.path == oneDrive.resolvingSymlinksInPath().standardizedFileURL.path }?.isDisabled == true,
+    "Known disabled account is hidden without enumerating its contents during discovery")
+HostFileSystem.noteProviderAccess(oneDrive, error: NSError(domain: "NSFileProviderErrorDomain", code: -2012), home: fixture, defaults: isolatedDefaults)
+check(HostFileSystem.cloudStorageLocations(in: fixture, providerDefaults: isolatedDefaults).first { $0.url.standardizedFileURL.path == oneDrive.resolvingSymlinksInPath().standardizedFileURL.path }?.isDisabled == true,
+    "Transient errors do not overwrite the known disabled state")
+HostFileSystem.noteProviderAccess(oneDrive, error: nil, home: fixture, defaults: isolatedDefaults)
+check(HostFileSystem.cloudStorageLocations(in: fixture, providerDefaults: isolatedDefaults).first { $0.url.standardizedFileURL.path == oneDrive.resolvingSymlinksInPath().standardizedFileURL.path }?.isDisabled == false,
+    "Successful provider access makes its location available again")
+print("PASS provider discovery avoids coordinated content enumeration and preserves bounded disabled-account state")
 let disabledLocation = HostFileSystem.StorageLocation(name: "OneDrive", url: oneDrive,
     kind: .cloudStorage, isDisabled: true)
 check(!disabledLocation.visibleByDefault, "disabled provider hidden by default")

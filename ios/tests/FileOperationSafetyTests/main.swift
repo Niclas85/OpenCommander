@@ -235,6 +235,18 @@ try check(!DesktopInteractionPolicy.showsExtraction(archiveContext: false, selec
 try check(DesktopInteractionPolicy.showsExtraction(archiveContext: false, selectedArchives: [true]), "show extraction for ZIP")
 try check(DesktopInteractionPolicy.showsExtraction(archiveContext: true, selectedArchives: []), "show extraction inside ZIP")
 print("PASS: Linux desktop context-selection and ZIP-action parity")
+let displayedKeys = ["c", "a", "b", "d"]
+let plainSelection = DesktopInteractionPolicy.selection(clicked: "a", visible: displayedKeys, selected: ["a", "d"], anchor: "d", extend: false, toggle: false)
+try check(plainSelection.keys == ["a"] && plainSelection.anchor == "a", "plain desktop click replaces selection")
+let toggledSelection = DesktopInteractionPolicy.selection(clicked: "d", visible: displayedKeys, selected: ["a", "d"], anchor: "a", extend: false, toggle: true)
+try check(toggledSelection.keys == ["a"] && toggledSelection.anchor == "d", "Command click toggles one entry")
+let rangeSelection = DesktopInteractionPolicy.selection(clicked: "d", visible: displayedKeys, selected: ["c"], anchor: "a", extend: true, toggle: false)
+try check(rangeSelection.keys == ["a", "b", "d"] && rangeSelection.anchor == "a", "Shift uses the visible sorted range and retains its anchor")
+let addedRange = DesktopInteractionPolicy.selection(clicked: "d", visible: displayedKeys, selected: ["c"], anchor: "a", extend: true, toggle: true)
+try check(addedRange.keys == Set(displayedKeys), "Command Shift adds a range")
+let staleAnchor = DesktopInteractionPolicy.selection(clicked: "b", visible: displayedKeys, selected: ["a"], anchor: "removed", extend: true, toggle: false)
+try check(staleAnchor.keys == ["b"], "hidden or stale anchors cannot select unrelated entries")
+print("PASS: shared desktop plain/Command/Shift selection, sorted ranges and stale-anchor protection")
 let cloudRecord = CloudOperationRecord(action: "Verschieben", source: "OneDrive online:/Quelle/Grüsse.txt", destination: "OneDrive online:/Ziel/Grüsse.txt")
 let cloudData = try JSONEncoder().encode(cloudRecord)
 try check(JSONDecoder().decode(CloudOperationRecord.self, from: cloudData) == cloudRecord,

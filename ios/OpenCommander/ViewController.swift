@@ -887,7 +887,11 @@ class ViewController: UIViewController {
         
         buildLayout()
 #if targetEnvironment(macCatalyst)
-        let queue = DurableTransferQueue(directory: HostFileSystem.homeDirectory.appendingPathComponent("Library/Application Support/OpenCommander/Transfers"))
+        var queueDirectory = HostFileSystem.homeDirectory.appendingPathComponent("Library/Application Support/OpenCommander/Transfers")
+#if DEBUG
+        if let root = AppDelegate.macUITestRoot { queueDirectory = root.appendingPathComponent("Transfers") }
+#endif
+        let queue = DurableTransferQueue(directory: queueDirectory)
         transferQueue = queue
         queue.changed = { [weak self] jobs, limit, error in
             guard let self else { return }
@@ -3768,62 +3772,28 @@ extension ViewController: UIDocumentPickerDelegate {
 
     @objc func showConnections() {
         guard !operationInProgress, presentedViewController == nil, let bridge = DesktopBridge.shared else { return }
-        updateGlobalStatus(L10n.get("connections_loading"))
-        bridge.unmountedVolumes { [weak self] unmounted, discoveryError in
-            guard let self, !self.operationInProgress, self.presentedViewController == nil else { return }
-            DispatchQueue.global(qos: .utility).async {
-                let locations = HostFileSystem.availableStorageLocations()
-                let ejectablePaths = Set(locations.compactMap { location -> String? in
-                    guard location.kind != .cloudStorage, bridge.isEjectableVolume(location.url)
-                    else { return nil }
-                    return location.url.path
-                })
-                DispatchQueue.main.async {
-                    guard !self.operationInProgress, self.presentedViewController == nil else { return }
-                    let alert = UIAlertController(title: L10n.get("connections"),
-                        message: discoveryError?.localizedDescription, preferredStyle: .actionSheet)
-                    for location in locations {
-                        alert.addAction(UIAlertAction(title: "\(L10n.get("open")): \(location.name)", style: .default) { _ in
-                            self.openLocation(location.url, in: self.activePane ?? self.leftPane)
-                        })
-                        if ejectablePaths.contains(location.url.path) {
-                            alert.addAction(UIAlertAction(title: "\(L10n.get("eject_volume")): \(location.name)", style: .default) { _ in
-                                self.showProgress(L10n.get("eject_volume"), progress: 0)
-                                bridge.ejectVolume(location.url) { error in
-                                    self.finishProgress(error?.localizedDescription ?? L10n.get("volume_operation_complete"))
-                                    self.reloadStorageLocationsBar()
-                                    self.refreshAllPanes(clearSelectionIn: [])
-                                }
-                            })
-                        }
-                    }
-                    for volume in unmounted {
-                        guard let identifier = volume["identifier"], let name = volume["name"] else { continue }
-                        alert.addAction(UIAlertAction(title: "\(L10n.get("mount_volume")): \(name)", style: .default) { _ in
-                            self.showProgress(L10n.get("mount_volume"), progress: 0)
-                            bridge.mountVolume(identifier) { error in
-                                self.finishProgress(error?.localizedDescription ?? L10n.get("volume_operation_complete"))
-                                self.reloadStorageLocationsBar()
-                            }
-                        })
-                    }
-                    alert.addAction(UIAlertAction(title: L10n.get("connect_to_server"), style: .default) { _ in self.showConnectToServerDialog() })
-                    for application in bridge.installedCloudApplications() {
-                        guard let name = application["name"], let path = application["path"] else { continue }
-                        alert.addAction(UIAlertAction(title: "\(L10n.get("cloud_setup")): \(name)", style: .default) { _ in
-                            bridge.openFile(URL(fileURLWithPath: path), application: nil) { _, error in
-                                if let error { self.updateGlobalStatus(error.localizedDescription) }
-                            }
-                        })
-                    }
-                    alert.addAction(UIAlertAction(title: L10n.get("cancel"), style: .cancel))
-                    alert.popoverPresentationController?.sourceView = self.view
-                    alert.popoverPresentationController?.sourceRect = CGRect(x: self.view.bounds.midX, y: 100, width: 1, height: 1)
-                    self.present(alert, animated: true)
-                    self.updateGlobalStatus(L10n.get("connections"))
+        let panel = DesktopConnectionsController(bridge: bridge)
+        panel.openLocationRequested = { [weak self] url in
+            guard let self else { return }
+            self.dismiss(animated: true) { [weak self] in
+                guard let self else { return }
+                self.openLocation(url, in: self.activePane ?? self.leftPane)
+            }
+        }
+        panel.connectRequested = { [weak self] in self?.dismiss(animated: true) { self?.showConnectToServerDialog() } }
+        panel.applicationRequested = { [weak self] url in
+            self?.dismiss(animated: true) {
+                bridge.openFile(url, application: nil) { _, error in
+                    if let error { self?.updateGlobalStatus(HistoryFailure(error).message) }
                 }
             }
         }
+        panel.volumesChanged = { [weak self] in self?.reloadStorageLocationsBar(); self?.refreshAllPanes(clearSelectionIn: []) }
+        let navigation = UINavigationController(rootViewController: panel)
+        navigation.modalPresentationStyle = .formSheet
+        navigation.overrideUserInterfaceStyle = darkMode ? .dark : .light
+        present(navigation, animated: true)
+        updateGlobalStatus(L10n.get("connections"))
     }
 
     @objc private func showConnectToServerDialog() {

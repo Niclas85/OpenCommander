@@ -23,7 +23,7 @@ private final class OneDriveCell: UITableViewCell {
 
 /// Embedded in a commander pane; remote items never become local FileEntry paths.
 @MainActor final class OneDriveBrowser: UIViewController, UITableViewDataSource, UITableViewDelegate, UIDocumentPickerDelegate {
-    let tableView = UITableView(frame: .zero, style: .plain)
+    let tableView = CommanderSelectionTableView(frame: .zero, style: .plain)
     private let treeView = UITableView(frame: .zero, style: .plain)
     private var refreshControl: UIRefreshControl?
     private let pathLabel = UILabel()
@@ -80,6 +80,7 @@ private final class OneDriveCell: UITableViewCell {
     private var backHistory: [[OneDriveItem]] = []
     private var forwardHistory: [[OneDriveItem]] = []
     private var selectedIDs = Set<String>()
+    private var selectionAnchor: String?
     private var generation = UUID()
     static var clipboard: (selection: OneDriveSelection, move: Bool)?
     weak var commander: ViewController?
@@ -242,7 +243,7 @@ private final class OneDriveCell: UITableViewCell {
         let deleteTitle = self.deleteTitle
         let alert = UIAlertController(title: deleteTitle, message: selected.map(\.name).joined(separator: "\n"), preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: deleteTitle, style: .destructive) { [weak self] _ in
-            self?.run(transfer: true) { [weak self] in
+            self?.run(transfer: true, historyAction: "delete") { [weak self] in
                 guard let self, let client = self.client else { return }
                 for item in selected {
                     try Task.checkCancellation(); try await client.recycle(item)
@@ -259,8 +260,9 @@ private final class OneDriveCell: UITableViewCell {
     func zipOnlineSelection() {
         let selected = selectedItems, parent = folders.last?.id
         guard !selected.isEmpty, !busy else { return }
-        run(transfer: true) { [weak self] in
+        run(transfer: true, historyAction: "zip") { [weak self] in
             guard let self, let client = self.client else { return }
+            let account = try await client.accountIdentity()
             let staging = FileManager.default.temporaryDirectory.appendingPathComponent("OpenCommanderOnlineZIP-\(UUID().uuidString)", isDirectory: true)
             try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
             defer { try? FileManager.default.removeItem(at: staging) }
@@ -284,16 +286,19 @@ private final class OneDriveCell: UITableViewCell {
             }
             try await withTaskCancellationHandler(operation: { try await worker.value }, onCancel: { worker.cancel() })
             try Task.checkCancellation()
+            let proof = try await RemoteContent.snapshotAsync(destination)
             try await client.upload(destination, parent: parent)
-            self.record(L10n.get("zip"), source: selected.map { self.onlineLocation($0.name) }.joined(separator: ", "), destination: self.onlineLocation(name))
+            let undo = try await PersistentOnlineUndo.uploaded(client, parent: parent, name: name, content: proof, account: account)
+            self.record(L10n.get("zip"), source: selected.map { self.onlineLocation($0.name) }.joined(separator: ", "), destination: self.onlineLocation(name), undo: undo)
             try await self.load()
         }
     }
     func extractOnlineSelection() {
         let selected = selectedItems.filter { !$0.isFolder && CommanderNativeArchive.supports($0.name) }, parent = folders.last?.id
         guard !selected.isEmpty, !busy else { return }
-        run(transfer: true) { [weak self] in
+        run(transfer: true, historyAction: "extract_archive") { [weak self] in
             guard let self, let client = self.client else { return }
+            let account = try await client.accountIdentity()
             var names = Set(try await client.children(of: parent).map { $0.name.lowercased() })
             for item in selected {
                 let downloaded = try await client.download(item)
@@ -306,8 +311,10 @@ private final class OneDriveCell: UITableViewCell {
                 let worker = Task.detached(priority: .userInitiated) { try Self.extractOnlineArchive(downloaded, to: destination) }
                 try await withTaskCancellationHandler(operation: { try await worker.value }, onCancel: { worker.cancel() })
                 try Task.checkCancellation()
+                let proof = try await RemoteContent.snapshotAsync(destination)
                 try await client.uploadTree(destination, parent: parent)
-                self.record(L10n.get("extract_archive"), source: self.onlineLocation(item.name), destination: self.onlineLocation(name))
+                let undo = try await PersistentOnlineUndo.uploaded(client, parent: parent, name: name, content: proof, account: account)
+                self.record(L10n.get("extract_archive"), source: self.onlineLocation(item.name), destination: self.onlineLocation(name), undo: undo)
             }
             try await self.load()
         }
@@ -379,8 +386,9 @@ private final class OneDriveCell: UITableViewCell {
     func duplicateOnlineSelection() {
         let selected = selectedItems, parent = folders.last?.id
         guard !selected.isEmpty else { return }
-        run(transfer: true) { [weak self] in
+        run(transfer: true, historyAction: "duplicate") { [weak self] in
             guard let self, let client = self.client else { return }
+            let account = try await client.accountIdentity()
             var names = Set(try await client.children(of: parent).map { $0.name.lowercased() })
             for item in selected {
                 let url = try await client.downloadTree(item)
@@ -395,8 +403,10 @@ private final class OneDriveCell: UITableViewCell {
                 names.insert(name.lowercased())
                 let renamed = url.deletingLastPathComponent().appendingPathComponent(name)
                 try FileManager.default.moveItem(at: url, to: renamed)
+                let proof = try await RemoteContent.snapshotAsync(renamed)
                 try await client.uploadTree(renamed, parent: parent)
-                self.record(L10n.get("duplicate"), source: self.onlineLocation(item.name), destination: self.onlineLocation(name))
+                let undo = try await PersistentOnlineUndo.uploaded(client, parent: parent, name: name, content: proof, account: account)
+                self.record(L10n.get("duplicate"), source: self.onlineLocation(item.name), destination: self.onlineLocation(name), undo: undo)
             }
             try await self.load()
         }
@@ -1018,13 +1028,13 @@ private final class OneDriveCell: UITableViewCell {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { tableView === treeView ? treeRows.count : visibleItems.count }
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = OneDriveCell(style: .default, reuseIdentifier: nil)
-        cell.activateEntry = { [weak self, weak tableView] in
-            guard let self, let tableView else { return }
-            self.tableView(tableView, didSelectRowAt: indexPath)
-        }
         let theme = palette
         if tableView === treeView {
             let path = treeRows[indexPath.row], id = key(path)
+            cell.activateEntry = { [weak self, weak tableView] in
+                guard let self, let tableView, let row = self.treeRows.firstIndex(where: { self.key($0) == id }) else { return }
+                self.tableView(tableView, didSelectRowAt: IndexPath(row: row, section: 0))
+            }
             cell.textLabel?.text = String(repeating: "  ", count: path.count) + (expanded.contains(id) ? "▼ " : "▶ ") + (path.last?.name ?? locationTitle)
             cell.textLabel?.font = .systemFont(ofSize: 12); cell.textLabel?.textColor = theme.primaryText
             cell.backgroundColor = id == key(folders) ? theme.selectionBackground : .clear
@@ -1032,6 +1042,11 @@ private final class OneDriveCell: UITableViewCell {
             return cell
         }
         let item = visibleItems[indexPath.row]
+        cell.activateEntry = { [weak self, weak tableView] in
+            guard let self, let tableView, let row = self.visibleItems.firstIndex(where: { $0.id == item.id }) else { return }
+            (tableView as? CommanderSelectionTableView)?.resetSelectionModifiers()
+            self.tableView(tableView, didSelectRowAt: IndexPath(row: row, section: 0))
+        }
         let row = UIStackView(); row.spacing = 4; row.alignment = .center; row.translatesAutoresizingMaskIntoConstraints = false
         let icon = UIImageView(image: UIImage(systemName: item.isFolder ? "folder.fill" : "doc"))
         icon.tintColor = item.isFolder ? .systemOrange : .systemBlue
@@ -1065,8 +1080,12 @@ private final class OneDriveCell: UITableViewCell {
             if expanded.contains(id) { expanded.remove(id) } else { expanded.insert(id) }
             if id == key(folders) { rebuildTree() } else { navigate(path) }
         } else {
+            guard visibleItems.indices.contains(indexPath.row) else { return }
             let item = visibleItems[indexPath.row]
-            if selectedIDs.contains(item.id) { selectedIDs.remove(item.id) } else { selectedIDs.insert(item.id) }
+            let modifiers = (tableView as? CommanderSelectionTableView)?.consumeSelectionModifiers() ?? []
+            let selection = DesktopInteractionPolicy.selection(clicked: item.id, visible: visibleItems.map(\.id), selected: selectedIDs,
+                anchor: selectionAnchor, extend: modifiers.contains(.shift), toggle: modifiers.contains(.command))
+            selectedIDs = selection.keys; selectionAnchor = selection.anchor
             tableView.reloadData(); updateNavigation(); onActivate?()
         }
     }
@@ -1277,7 +1296,7 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
     func exportOnline(_ selection: OneDriveSelection, to directory: URL, move: Bool) {
         guard !busy, selection.generation == generation, !selection.items.isEmpty else { return }
         guard commander?.allowTransferPaths(writing: selection.items.map { directory.appendingPathComponent($0.name) }) != false else { return }
-        run(transfer: true) { [weak self] in
+        run(transfer: true, historyAction: move ? "move" : "copy") { [weak self] in
             guard let self, let client = self.client else { return }
             let scope = directory.startAccessingSecurityScopedResource()
             defer { if scope { directory.stopAccessingSecurityScopedResource() } }

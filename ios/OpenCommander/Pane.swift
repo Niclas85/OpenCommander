@@ -2,6 +2,22 @@ import UIKit
 import QuickLookThumbnailing
 
 #if targetEnvironment(macCatalyst)
+/// Capture the actual pointer event before UITableView sends its selection
+/// callback, including Shift and Command. Consume once so accessibility clicks
+/// cannot inherit a modifier from an earlier pointer action.
+final class CommanderSelectionTableView: UITableView {
+    private var selectionModifiers: UIKeyModifierFlags = []
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        selectionModifiers = event?.modifierFlags ?? []
+        super.touchesBegan(touches, with: event)
+    }
+    func consumeSelectionModifiers() -> UIKeyModifierFlags {
+        defer { selectionModifiers = [] }
+        return selectionModifiers
+    }
+    func resetSelectionModifiers() { selectionModifiers = [] }
+}
+
 /// A directory menu for the unused area of a list. Existing row menus still
 /// own file selections; returning nil on rows leaves their semantics intact.
 final class CommanderDirectoryMenu: NSObject, UIContextMenuInteractionDelegate {
@@ -68,6 +84,7 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     private var treeWidthConstraint: NSLayoutConstraint?
     private var treeFraction: CGFloat = 0.28
     var selectedKeys: Set<String> = []
+    private var selectionAnchor: String?
     
     
     var rootNode: TreeNode!
@@ -343,7 +360,11 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         }
         fileColumn.addArrangedSubview(sortRow)
 #endif
+#if targetEnvironment(macCatalyst)
+        fileList = CommanderSelectionTableView()
+#else
         fileList = UITableView()
+#endif
 #if targetEnvironment(macCatalyst)
         directoryMenu = CommanderDirectoryMenu(table: fileList) { [weak self] in
             guard let self, let controller = self.viewController else { return nil }
@@ -893,6 +914,9 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
             cell.configure(with: entry, theme: viewController!.theme, isSelected: selectedKeys.contains(entry.key()))
             cell.activateEntry = { [weak self, weak tableView] in
                 guard let self, let tableView, let row = self.visibleEntries.firstIndex(where: { $0.key() == entry.key() }) else { return }
+#if targetEnvironment(macCatalyst)
+                (tableView as? CommanderSelectionTableView)?.resetSelectionModifiers()
+#endif
                 self.tableView(tableView, didSelectRowAt: IndexPath(row: row, section: 0))
             }
             cell.isAccessibilityElement = true
@@ -920,13 +944,20 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
             rebuildTree()
             refreshFiles()
         } else {
+            guard visibleEntries.indices.contains(indexPath.row) else { return }
             let entry = visibleEntries[indexPath.row]
-            
+#if targetEnvironment(macCatalyst)
+            let modifiers = (tableView as? CommanderSelectionTableView)?.consumeSelectionModifiers() ?? []
+            let selection = DesktopInteractionPolicy.selection(clicked: entry.key(), visible: visibleEntries.map { $0.key() },
+                selected: selectedKeys, anchor: selectionAnchor, extend: modifiers.contains(.shift), toggle: modifiers.contains(.command))
+            selectedKeys = selection.keys; selectionAnchor = selection.anchor
+#else
             if selectedKeys.contains(entry.key()) {
                 selectedKeys.remove(entry.key())
             } else {
                 selectedKeys.insert(entry.key())
             }
+#endif
             updateSelectionStatus()
             tableView.reloadData()
         }
