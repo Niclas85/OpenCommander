@@ -22,7 +22,22 @@ import CryptoKit
     private let pathValidator: (String) -> Bool
     private let describePath: (String) -> String
     func validFileName(_ name: String) -> Bool { nameValidator(name) }
+    func accountIdentity() async throws -> String {
+        try profile.validate()
+        var account = profile; account.name = ""
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(account)
+        return clientID + ":" + SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
     func logicalPath(_ id: String?) throws -> String { try path(id) }
+    func persistentPath(_ id: String?) throws -> String? { try path(id) }
+    func restoreReference(_ id: String?, path: String?) async throws -> OneDriveItem {
+        if let path {
+            guard pathValidator(path), path.hasPrefix("/"), !path.contains("\0"), !path.split(separator: "/").contains("..") else { throw RemoteConnection.failure("remote_invalid") }
+            return try await metadata(identifier(path))
+        }
+        return try await metadata(id)
+    }
     init(_ profile: RemoteConnection, transport: Transport? = nil, cancel: ((String) -> Void)? = nil,
          password: (() throws -> String?)? = nil, validName: @escaping (String) -> Bool = RemoteConnection.validName,
          validPath: ((String) -> Bool)? = nil, describePath: ((String) -> String)? = nil) {

@@ -82,7 +82,21 @@ import CryptoKit
             // Dependency-injected test transports never read a real config.
             self.configurationIdentity = { "injected:" + profile.id }
         } else {
+#if targetEnvironment(macCatalyst)
+            self.configurationIdentity = {
+                guard let bridge = DesktopBridge.shared else { throw CloudConnection.failure("cloud_backend_unavailable") }
+                let data = try JSONEncoder().encode(profile)
+                return try await withCheckedThrowingContinuation { continuation in
+                    bridge.cloudIdentity(data) { identity, error in
+                        if let error { continuation.resume(throwing: error) }
+                        else if let identity { continuation.resume(returning: identity) }
+                        else { continuation.resume(throwing: CloudConnection.failure("cloud_config_changed")) }
+                    }
+                }
+            }
+#else
             self.configurationIdentity = { try await Task.detached { try CloudConfigurationValidator.identity(profile) }.value }
+#endif
         }
 #if targetEnvironment(macCatalyst)
         self.transport = transport ?? { id, connection, operation, path, destination, local, completion in
@@ -107,6 +121,11 @@ import CryptoKit
         NotificationCenter.default.post(name: OneDriveClient.listingChanged, object: clientID)
     }
     func validFileName(_ name: String) -> Bool { CloudConnection.validName(name) }
+    func accountIdentity() async throws -> String {
+        clientID + ":" + (try await configurationIdentity())
+    }
+    func persistentPath(_ id: String?) throws -> String? { try core.persistentPath(id) }
+    func restoreReference(_ id: String?, path: String?) async throws -> OneDriveItem { try await core.restoreReference(id, path: path) }
     func children(of id: String?) async throws -> [OneDriveItem] { try await core.children(of: id) }
     func browserListing(of id: String?) async throws -> OnlineBrowserListing {
         let key = id ?? "root"

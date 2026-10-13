@@ -180,14 +180,58 @@ enum CommanderNativeArchive {
 }
 #endif
 
-/// Remote audit entries are not local filesystem undo records. Persist only
-/// human-readable locations, never credentials or temporary download URLs.
+/// Content proof and logical references only, never credentials/download URLs.
+/// Item paths let non-Graph clients restore their ID registry after restart.
+struct CloudUndoPayload: Codable, Equatable {
+    struct Object: Codable, Equatable {
+        let id: String
+        let name: String
+        let path: String?
+        let parent: String?
+        let parentPath: String?
+        let content: [String: String]
+    }
+    let endpoint: String
+    let account: String
+    let kind: String
+    let current: Object
+    var previous: Object? = nil
+    var originalName: String? = nil
+    var originalParent: String? = nil
+    var originalParentPath: String? = nil
+    func validate() throws {
+        func bounded(_ text: String?, limit: Int = 8192) -> Bool { text == nil || (text!.utf8.count <= limit && !text!.contains("\0")) }
+        func name(_ text: String) -> Bool { !text.isEmpty && text != "." && text != ".." && !text.contains("/") && !text.contains("\0") }
+        let objects = [current] + [previous].compactMap { $0 }
+        guard ["relocate", "replacement", "remove"].contains(kind), !endpoint.isEmpty, !account.isEmpty,
+            bounded(endpoint, limit: 512), bounded(account, limit: 1024), bounded(originalParent), bounded(originalParentPath),
+            originalName.map(name) != false, objects.allSatisfy({ object in
+                !object.id.isEmpty && bounded(object.id) && name(object.name) && bounded(object.path) && bounded(object.parent) && bounded(object.parentPath) &&
+                !object.content.isEmpty && object.content.count <= 100_000 && object.content.allSatisfy({ path, digest in
+                    bounded(path) && !path.hasPrefix("/") && !path.split(separator: "/", omittingEmptySubsequences: false).contains(where: { $0 == "." || $0 == ".." }) &&
+                    (digest == "directory" || (digest.hasPrefix("sha256:") && digest.utf8.count == 51))
+                })
+            }), kind != "replacement" || previous != nil,
+            kind != "relocate" || originalName != nil, try JSONEncoder().encode(self).count <= 16 * 1024 * 1024 else {
+            throw NSError(domain: "OpenCommander.Cloud", code: 1, userInfo: [NSLocalizedDescriptionKey: "cloud_undo_changed"])
+        }
+    }
+}
+
+/// Legacy audit entries remain readable; new optional fields support safe
+/// remote Undo and localized failures without treating online paths as files.
 struct CloudOperationRecord: Codable, Equatable {
     let action: String
     let source: String
     let destination: String
     var createdAt = Date()
     var actionKey: String? = nil
+    var identifier: String? = nil
+    var undo: CloudUndoPayload? = nil
+    var status: String? = nil
+    var failure: HistoryFailure? = nil
+    var failureKey: String? = nil
+    var failureMessage: String? { failureKey.map { L10n.get($0) } ?? failure?.message }
     var displayAction: String {
         if let actionKey { return L10n.get(actionKey) }
         // Match only established labels, not arbitrary provider error sentences.
@@ -451,7 +495,7 @@ enum SafeFileOperations {
 
 /// Store stable error identity, not an OS sentence in the system language.
 /// Render using the current app language, including after restarting/switching language.
-struct HistoryFailure: Codable {
+struct HistoryFailure: Codable, Equatable {
     let domain: String
     let code: Int
     init(_ error: Error) {

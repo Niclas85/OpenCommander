@@ -153,6 +153,9 @@ struct OneDriveKeychain: OneDriveTokenStore {
 @MainActor protocol CommanderOnlineClient: AnyObject {
     var clientID: String { get }
     var moveBackupLocation: String? { get }
+    func accountIdentity() async throws -> String
+    func persistentPath(_ id: String?) throws -> String?
+    func restoreReference(_ id: String?, path: String?) async throws -> OneDriveItem
     func validFileName(_ name: String) -> Bool
     func children(of id: String?) async throws -> [OneDriveItem]
     func browserListing(of id: String?) async throws -> OnlineBrowserListing
@@ -175,6 +178,9 @@ struct OneDriveKeychain: OneDriveTokenStore {
     func disconnect() throws
 }
 extension CommanderOnlineClient {
+    func accountIdentity() async throws -> String { clientID + ":" + (try await metadata(nil)).id }
+    func persistentPath(_ id: String?) throws -> String? { nil }
+    func restoreReference(_ id: String?, path: String?) async throws -> OneDriveItem { try await metadata(id) }
     func validFileName(_ name: String) -> Bool { OneDriveClient.validName(name) }
     func browserListing(of id: String?) async throws -> OnlineBrowserListing {
         OnlineBrowserListing(items: try await children(of: id), cachedAt: nil, warning: nil)

@@ -73,6 +73,17 @@ final class DesktopBridge: NSObject, DesktopBridgeProtocol {
         }
     }
     func cancelCloudOperation(_ requestID: String) { cloudRunner.cancel(requestID) }
+    func cloudIdentity(_ connection: Data, completion: @escaping (String?, NSError?) -> Void) {
+        DispatchQueue.global(qos: .utility).async {
+            do {
+                guard connection.count <= 64 * 1024 else { throw CloudConnection.failure("cloud_invalid") }
+                let profile = try JSONDecoder().decode(CloudConnection.self, from: connection)
+                let lease = try CloudConfigurationLease(profile)
+                let identity = lease.identity
+                DispatchQueue.main.async { completion(identity, nil) }
+            } catch { DispatchQueue.main.async { completion(nil, error as NSError) } }
+        }
+    }
     func cloudSetup(_ requestID: String, connection: Data, state: String?, answer: String?, password: Bool, oauthClient: Data?,
                     browser: @escaping (URL) -> Void, completion: @escaping (Data?, NSError?) -> Void) {
         DispatchQueue.global(qos: .utility).async {
@@ -149,9 +160,14 @@ final class DesktopBridge: NSObject, DesktopBridgeProtocol {
                         destination: String?, localURL: URL?, completion: @escaping (Data?, NSError?) -> Void) {
         DispatchQueue.global(qos: .utility).async {
             defer { self.cloudRunner.finish(requestID) }
+            var lease: CloudConfigurationLease?
             do {
                 guard UUID(uuidString: requestID) != nil, connection.count <= 64 * 1024 else { throw CloudConnection.failure("cloud_invalid") }
-                let profile = try JSONDecoder().decode(CloudConnection.self, from: connection)
+                var profile = try JSONDecoder().decode(CloudConnection.self, from: connection)
+                if operation != "profiles" {
+                    lease = try CloudConfigurationLease(profile, check: { try self.cloudRunner.check(requestID) })
+                    profile = lease!.profile
+                }
                 var arguments = try RcloneCommandPlan.arguments(profile: profile, operation: operation, path: path, destination: destination, local: localURL)
                 var info = stat()
                 guard lstat(profile.configPath, &info) == 0, info.st_mode & S_IFMT == S_IFREG,
@@ -171,6 +187,7 @@ final class DesktopBridge: NSObject, DesktopBridgeProtocol {
                 }
                 let binary = try RcloneRuntime(runner: self.cloudRunner).executable(id: requestID)
                 let profiles = try self.cloudRunner.run(binary, try RcloneCommandPlan.arguments(profile: profile, operation: "profiles", path: ""), id: requestID)
+                try lease?.checkSource()
                 let available = try JSONDecoder().decode([RcloneRemoteInfo].self, from: profiles)
                 guard available.count <= 1000 else { throw CloudConnection.failure("cloud_limit") }
                 if operation == "profiles" {
@@ -181,6 +198,7 @@ final class DesktopBridge: NSObject, DesktopBridgeProtocol {
                 guard available.contains(where: { $0.name == profile.remote && $0.type == profile.kind && $0.source == "file" }) else { throw CloudConnection.failure("cloud_config_changed") }
                 if ["copy", "rename"].contains(operation) {
                     let metadata = try self.cloudRunner.run(binary, RcloneCommandPlan.arguments(profile: profile, operation: "stat", path: path), id: requestID)
+                    try lease?.checkSource()
                     let item = try JSONDecoder().decode(RcloneListingItem.self, from: metadata)
                     if item.IsDir { arguments = try RcloneCommandPlan.arguments(profile: profile, operation: operation + "tree", path: path, destination: destination) }
                 }
@@ -190,9 +208,18 @@ final class DesktopBridge: NSObject, DesktopBridgeProtocol {
                 } else if operation == "upload" {
                     guard let localURL, lstat(localURL.path, &info) == 0, info.st_mode & S_IFMT == S_IFREG else { throw CloudConnection.failure("cloud_invalid") }
                 }
+                try lease?.checkSource()
                 let data = try self.cloudRunner.run(binary, arguments, id: requestID, timeout: ["download", "upload", "copy", "rename"].contains(operation) ? 900 : 60)
+                try lease?.commit()
                 DispatchQueue.main.async { completion(data, nil) }
-            } catch { DispatchQueue.main.async { completion(nil, error as NSError) } }
+            } catch {
+                var failure = error
+                // A failed request may still have legitimately rotated its
+                // refresh token. Preserve that rotation only with the same pin.
+                do { try lease?.commit() } catch { failure = error }
+                let result = failure as NSError
+                DispatchQueue.main.async { completion(nil, result) }
+            }
         }
     }
     var sshAskPassURL = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("OpenCommanderSSHAskPass")

@@ -2,7 +2,7 @@
   "reference": "origin/codex/linux-desktop@9db136167489b46bc6c7ad0a96375b8487c9be6e",
   "target": "macOS / Mac Catalyst",
   "verified_on": "2026-10-13",
-  "status": "Linux 0.3.25rc10 source imported; native compact/resizable transfers, drop hover/preflight, cloud assistant and publisher PKCE added; targeted checks passed, full parity remains open",
+  "status": "Linux 0.3.25rc10 source imported; online-account pinning and persistent cloud Undo added and regression-tested; full Mac/Linux parity remains open",
   "implemented": [
     "Shared light/dark palette and two-pane styling",
     "Linux toolbar order, context-only extraction action, header Copy/Move and Dark switches",
@@ -24,6 +24,8 @@
     "Local and online tree drop-hover/edge-scroll implementation with pre-transfer self/cycle/no-op guards; complete native DnD acceptance remains open",
     "Private new-account backend setup assistant with browser routing, explicit iCloud fields and SMS cooldown; no authenticated provider login claimed",
     "Publisher/custom desktop OAuth identities use shared Linux packaging schema; native Microsoft/Dropbox S256 PKCE with bounded cancellable loopback and token exchange; real account acceptance remains unverified",
+    "Private cloud configuration leases pin the selected account, isolate child token refreshes and publish only safe refresh-token rotations",
+    "Persistent OneDrive/direct-cloud operation proofs support guarded rename, replacement and upload Undo across saved history",
     "Direct-cloud display-only bounded retries, explicit stale cache, Google project-quota cooldown and mutation non-replay",
     "Configuration-bound display cache purges old-account rows and rejects in-flight source changes",
     "Preflight for incomplete OAuth, OneDrive drive selection and iCloud device verification",
@@ -31,13 +33,16 @@
     "Preflight missing/changed recovery backups before current target displacement on Mac and Linux"
   ],
   "verified": {
-    "builds": ["Final Mac Catalyst signed experimental NTFS build on 2026-10-13", "Final iOS device-platform control build with signing disabled on 2026-10-13; earlier simulator build also passed"],
+    "builds": ["Mac Catalyst arm64 build with signing disabled passed on 2026-10-13", "Final Mac Catalyst signed experimental NTFS build on 2026-10-13", "Final iOS device-platform control build with signing disabled on 2026-10-13; earlier simulator build also passed"],
     "automated": [
       "Swift operation safety, persisted undo, permissions-only modification protection",
       "Cancelled staged copies preserve the original destination",
       "ZIP traversal, symlinks, duplicate names and expansion limits",
       "Synthetic cloud-location discovery including moved Dropbox",
-      "Coordinated image loading and native desktop bridge protocol"
+      "Coordinated image loading and native desktop bridge protocol",
+      "Private child cloud config snapshot, account-switch refusal, refresh-token crash recovery and in-flight source-race protection",
+      "Persistent cloud Undo relocation, replacement and upload proofs, account mismatch refusal and malicious payload validation",
+      "Cloud client, OAuth, runtime/setup, Commander tools, durable copy/tree, operation safety, queue, handbook and OneDrive automated groups passed on 2026-10-13"
     ],
     "visible_ui": [
       "F5 copies nine synthetic files without removing originals",
@@ -57,17 +62,19 @@
   "remaining": [
     "Toolkit-native widgets are not pixel-identical; Mac-only default-app preferences remain accessible",
     "Mouse modifier/range-selection behavior still needs a complete Linux/Mac equivalence pass",
-    "Authenticated publisher wizard acceptance, config/account mutation identity pinning and refresh-token rotation gates",
-    "Durable direct-cloud checkpoints, restart, cross-backend move Undo and legacy staging adoption",
-    "Persistent online replacement Undo and per-cloud-history-card Undo; Replace for online moves",
+    "Authenticated publisher wizard acceptance, live provider login and refresh-token rotation with a consenting test account",
+    "Durable direct-cloud checkpoints, restart and legacy staging adoption",
+    "Cross-backend online move Undo and full failed/partial cloud-operation history coverage",
     "Full native Google document export and bounded media-cache/external save lifecycle",
     "Global resource reservations across all workflows and app windows",
-    "Failed cloud actions are not yet always persisted as standalone failed history entries",
+    "Some bulk cloud operations still need exact per-item failure history and recovery actions",
     "Connections dialog does not refresh while open; the storage bar refreshes separately",
     "Not every Linux reachable state or macOS external drag-and-drop permutation was retested",
     "Full illustrated Mac screenshot handbook and interaction acceptance-plan parity",
     "Complete native mouse drag/lift/hover/cancel and external-app acceptance; automated drag emitted no transfer",
-    "Complete latest Linux suite/FUSE/package/live UI requires an accessible Linux host"
+    "Complete latest Linux suite/FUSE/package/live UI requires an accessible Linux host",
+    "Catalyst UI automation cannot run on this Mac host: its macOS 15.6 runtime is below the UI-test target's macOS 26.2 deployment target",
+    "Universal x86_64 Catalyst NTFS linkage is not available from the current arm64-only bundled NTFS archive; arm64 Catalyst builds successfully"
   ],
   "ntfs": {
     "build_condition": "OPENCOMMANDER_NTFS3G_EXPERIMENTAL",

@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        D01520261013000000000002 = {isa = PBXBuildFile; fileRef = D01520261013000000000012; };
+        D01520261013000000000001 = {isa = PBXBuildFile; fileRef = D01520261013000000000011; };
         D01420261013000000000001 = {isa = PBXBuildFile; fileRef = D01420261013000000000011; };
         D01420261013000000000002 = {isa = PBXBuildFile; fileRef = D01420261013000000000011; };
         D01320261013000000000001 = {isa = PBXBuildFile; fileRef = D01320261013000000000011; };
@@ -106,6 +108,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+        D01520261013000000000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineUndo.swift; sourceTree = "<group>"; };
+        D01520261013000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCommanderMacBridge/CloudConfigurationLease.swift; sourceTree = SOURCE_ROOT; };
         D01420261013000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicCloudOAuth.swift; sourceTree = "<group>"; };
         D01320261013000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSetupPanel.swift; sourceTree = "<group>"; };
         D01220261012000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurableFileCopy.swift; sourceTree = "<group>"; };
@@ -219,6 +223,8 @@
                 D01220261012000000000013,
                 D01320261013000000000011,
                 D01420261013000000000011,
+                D01520261013000000000011,
+                D01520261013000000000012,
                 D01220261012000000000014,
                 D01220261012000000000015,
                 D01220261012000000000016,
@@ -475,7 +481,7 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-        A66000000000000000000031 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A66000000000000000000002, A66000000000000000000003, C08020261008000000000002, D01220261012000000000009, D0122026101200000000000B, D0122026101200000000000D, D01420261013000000000002); runOnlyForDeploymentPostprocessing = 0; };
+        A66000000000000000000031 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A66000000000000000000002, A66000000000000000000003, C08020261008000000000002, D01220261012000000000009, D0122026101200000000000B, D0122026101200000000000D, D01420261013000000000002, D01520261013000000000001); runOnlyForDeploymentPostprocessing = 0; };
 		2D748C0EB7CAA662C857EF35 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -513,6 +519,7 @@
                 D01220261012000000000003,
                 D01320261013000000000001,
                 D01420261013000000000001,
+                D01520261013000000000002,
                 D01220261012000000000004,
                 D01220261012000000000005,
                 D01220261012000000000006,

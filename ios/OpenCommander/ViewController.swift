@@ -791,6 +791,7 @@ class ViewController: UIViewController {
     private var settingsPanel: UINavigationController?
     private var helpPanel: CommanderHelpPanel?
     private var cloudSetupTask: Task<Void, Never>?
+    private var cloudUndoTask: Task<Void, Never>?
     private var cloudWizard: CloudSetupPanel?
     private var operationHelpButton: UIButton?
     private var settingsDiscoveryPending = false
@@ -2801,6 +2802,48 @@ extension ViewController {
         } else { updateGlobalStatus(L10n.get("undo_empty")) }
     }
 
+#if targetEnvironment(macCatalyst)
+    func undoLatestCloudOperation(endpoint: String) {
+        if let index = operationHistory.lastIndex(where: {
+            if case .cloud(let record) = $0 { return record.undo?.endpoint == endpoint && record.status != "undone" }
+            return false
+        }) { undoOperation(at: index) }
+        else { updateGlobalStatus(L10n.get("undo_empty")) }
+    }
+    private func undoCloudOperation(at index: Int, record: CloudOperationRecord) {
+        guard let payload = record.undo, record.status != "undone" else { return }
+        showProgress(String(format: L10n.get("undo_progress"), record.displayAction), progress: 0, cancellable: true, indeterminate: true,
+            onCancel: { [weak self] in self?.cloudUndoTask?.cancel() })
+        cloudUndoTask = Task { [weak self] in
+            guard let self else { return }
+            defer { self.cloudUndoTask = nil }
+            do {
+                let client = try PersistentOnlineUndo.client(payload.endpoint)
+                let retained = try await PersistentOnlineUndo.undo(payload, client: client)
+                guard self.operationHistory.indices.contains(index), case .cloud(var current) = self.operationHistory[index], current.identifier == record.identifier else {
+                    throw CloudConnection.failure("cloud_undo_changed")
+                }
+                current.undo = nil; current.status = "undone"; current.failure = nil; current.failureKey = nil
+                self.operationHistory[index] = .cloud(record: current)
+                if let retained {
+                    var recovery = CloudOperationRecord(action: L10n.get("remote_recovery"), source: record.destination, destination: retained, actionKey: "remote_recovery")
+                    recovery.identifier = UUID().uuidString; self.operationHistory.append(.cloud(record: recovery))
+                }
+                self.finishProgress(String(format: L10n.get("undo_done"), 1))
+            } catch {
+                if self.operationHistory.indices.contains(index), case .cloud(var current) = self.operationHistory[index], current.identifier == record.identifier {
+                    current.failure = HistoryFailure(error)
+                    let key = (error as NSError).localizedDescription
+                    current.failureKey = L10n.strings.values.contains(where: { $0[key] != nil }) ? key : nil
+                    self.operationHistory[index] = .cloud(record: current)
+                }
+                self.finishProgress(String(format: L10n.get("undo_failed"), (error as NSError).domain == "OpenCommander.Cloud" ? L10n.get((error as NSError).localizedDescription) : HistoryFailure(error).message))
+            }
+            self.refreshAllPanes(clearSelectionIn: [])
+        }
+    }
+#endif
+
     private func undoOperation(at index: Int) {
         guard !operationInProgress else { return }
         guard operationHistory.indices.contains(index) else {
@@ -2808,7 +2851,12 @@ extension ViewController {
             return
         }
         let lastOp = operationHistory[index]
-        if case .cloud = lastOp { return }
+        if case .cloud(let record) = lastOp {
+#if targetEnvironment(macCatalyst)
+            undoCloudOperation(at: index, record: record)
+#endif
+            return
+        }
 #if targetEnvironment(macCatalyst)
         let records: [FileUndoRecord]
         switch lastOp {
@@ -3122,7 +3170,7 @@ extension ViewController {
                 if case .cloud(let record) = op {
                     createdAt = record.createdAt
                     paths = record.source + " → " + record.destination
-                    canUndo = false // Audit entries do not contain safe remote undo data.
+                    canUndo = record.undo != nil && record.status != "undone"
                 } else {
                     createdAt = records.first?.createdAt
                     paths = records.map { ($0.displaySource ?? $0.source.path) + " → " + $0.destination.path }.joined(separator: "\n")
@@ -3146,6 +3194,9 @@ extension ViewController {
                 let content = UIStackView(); content.axis = .vertical; content.spacing = 5
                 let heading = UIStackView(); heading.spacing = 5; heading.axis = compact ? .vertical : .horizontal
                 let name = UILabel(); name.text = title; name.font = .systemFont(ofSize: 13, weight: .semibold)
+                if case .cloud(let record) = op, let status = record.status {
+                    name.text = title + " · " + L10n.get(status == "undone" ? "undo" : "transfer_" + status)
+                }
                 name.textColor = theme.primaryText; name.lineBreakMode = .byTruncatingTail
                 let timestamp = UILabel()
                 timestamp.text = createdAt.map { DateFormatter.localizedString(from: $0, dateStyle: .short, timeStyle: .medium) } ?? "—"
@@ -3162,6 +3213,10 @@ extension ViewController {
                     let warning = UILabel(); warning.text = "⚠ " + error; warning.numberOfLines = 2
                     warning.font = .systemFont(ofSize: 12); warning.textColor = .systemRed
                     content.addArrangedSubview(warning)
+                }
+                if case .cloud(let record) = op, let error = record.failureMessage {
+                    let warning = UILabel(); warning.text = "⚠ " + error; warning.numberOfLines = 2
+                    warning.font = .systemFont(ofSize: 12); warning.textColor = .systemRed; content.addArrangedSubview(warning)
                 }
                 if !canUndo {
                     let hint = UILabel(); hint.text = L10n.get("history_undo_unavailable")

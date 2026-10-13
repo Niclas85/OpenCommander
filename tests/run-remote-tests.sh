@@ -13,6 +13,7 @@ xcrun --sdk macosx clang -Os -Wall -Wextra -Werror ios/OpenCommanderMacBridge/SS
 xcrun swiftc -parse-as-library -DREMOTE_TRANSPORT_TESTS \
     ios/OpenCommander/CloudConnection.swift \
     ios/OpenCommander/PublicCloudOAuth.swift \
+    ios/OpenCommanderMacBridge/CloudConfigurationLease.swift \
     ios/OpenCommander/VolumeIdentity.swift \
     ios/OpenCommanderMacBridge/RcloneRuntime.swift \
     ios/OpenCommander/SharedDirectoryReads.swift \

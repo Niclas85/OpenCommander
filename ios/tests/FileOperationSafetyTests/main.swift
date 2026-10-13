@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 let fm = FileManager.default
 let fixture = fm.temporaryDirectory.appendingPathComponent("OpenCommander-SafetyTests-\(UUID().uuidString)")
@@ -239,6 +240,28 @@ let cloudData = try JSONEncoder().encode(cloudRecord)
 try check(JSONDecoder().decode(CloudOperationRecord.self, from: cloudData) == cloudRecord,
           "cloud history preserves action, Unicode locations and completion date across restart")
 print("PASS: persistent cloud audit history round-trip")
+let fileDigest = "sha256:" + Data(SHA256.hash(data: Data("fixture".utf8))).base64EncodedString()
+let cloudObject = CloudUndoPayload.Object(id: "item-1", name: "Grüsse.txt", path: "/Grüsse.txt", parent: nil,
+    parentPath: nil, content: ["": fileDigest])
+let cloudUndo = CloudUndoPayload(endpoint: "drive-account-1", account: "account-pin-1", kind: "relocate",
+    current: cloudObject, originalName: "Vorher.txt", originalParent: nil, originalParentPath: nil)
+try cloudUndo.validate()
+let cloudUndoRoundTrip = try JSONDecoder().decode(CloudUndoPayload.self, from: JSONEncoder().encode(cloudUndo))
+try check(cloudUndoRoundTrip == cloudUndo, "persistent cloud Undo proof survives serialization")
+let unsafeName = CloudUndoPayload(endpoint: "drive-account-1", account: "account-pin-1", kind: "relocate",
+    current: cloudObject, originalName: "../escape", originalParent: nil, originalParentPath: nil)
+mustFail("unsafe cloud Undo name") { try unsafeName.validate() }
+let unsafePathObject = CloudUndoPayload.Object(id: "item-1", name: "Grüsse.txt", path: "/Grüsse.txt", parent: nil,
+    parentPath: nil, content: ["../escape": fileDigest])
+let unsafePath = CloudUndoPayload(endpoint: "drive-account-1", account: "account-pin-1", kind: "relocate",
+    current: unsafePathObject, originalName: "Vorher.txt", originalParent: nil, originalParentPath: nil)
+mustFail("unsafe cloud Undo manifest path") { try unsafePath.validate() }
+let invalidDigestObject = CloudUndoPayload.Object(id: "item-1", name: "Grüsse.txt", path: "/Grüsse.txt", parent: nil,
+    parentPath: nil, content: ["": "sha256:invalid"])
+let invalidDigest = CloudUndoPayload(endpoint: "drive-account-1", account: "account-pin-1", kind: "relocate",
+    current: invalidDigestObject, originalName: "Vorher.txt", originalParent: nil, originalParentPath: nil)
+mustFail("invalid cloud Undo content proof") { try invalidDigest.validate() }
+print("PASS: cloud Undo proof round-trip and unsafe name/path/digest refusal")
 let mixedHistory: [OperationType] = [.copy(files: [permissionsRecord]), .cloud(record: cloudRecord)]
 let decodedHistory = try JSONDecoder().decode([OperationType].self, from: JSONEncoder().encode(mixedHistory))
 try check(decodedHistory.count == 2, "local and online history coexist")

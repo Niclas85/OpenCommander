@@ -21,6 +21,7 @@ protocol DesktopBridgeProtocol {
     func cloudOperation(_ requestID: String, connection: Data, operation: String, path: String,
                         destination: String?, localURL: URL?, completion: @escaping (Data?, NSError?) -> Void)
     func cancelCloudOperation(_ requestID: String)
+    func cloudIdentity(_ connection: Data, completion: @escaping (String?, NSError?) -> Void)
     func cloudSetup(_ requestID: String, connection: Data, state: String?, answer: String?, password: Bool, oauthClient: Data?,
                     browser: @escaping (URL) -> Void, completion: @escaping (Data?, NSError?) -> Void)
     func chooseCloudConfiguration(title: String, completion: @escaping (URL?) -> Void)

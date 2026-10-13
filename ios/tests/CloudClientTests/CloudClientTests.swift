@@ -99,10 +99,37 @@ import CryptoKit
         let replacement = try await CommanderOnlineTools.replace(client, existing: old, with: localReplacement, parent: nil)
         require(try Data(contentsOf: remoteReplacement) == newContent, "replacement data differs")
         require(try Data(contentsOf: remote.appendingPathComponent(replacement.previous.name)) == oldContent, "previous content not retained")
-        let retainedNew = try await CommanderOnlineTools.undoReplacement(client, record: replacement)
+        let account = try await client.accountIdentity()
+        let persistedUndo = try PersistentOnlineUndo.replacement(client, record: replacement, account: account)
+        let retainedNewName = try await PersistentOnlineUndo.undo(persistedUndo, client: client)
+        let retainedNew = try await client.children(of: nil).first { $0.name == retainedNewName! }!
         require(try Data(contentsOf: remoteReplacement) == oldContent, "Undo did not restore previous data")
         require(try Data(contentsOf: remote.appendingPathComponent(retainedNew.name)) == newContent, "Undo discarded replacement data")
         print("PASS verified online replacement retains old content; Undo restores it and keeps new content recoverable")
+        let undoLocal = local.appendingPathComponent("PersistentUndo.txt")
+        try Data("persistent online undo".utf8).write(to: undoLocal)
+        try await client.uploadTree(undoLocal, parent: nil)
+        let undoItem = try await client.children(of: nil).first { $0.name == undoLocal.lastPathComponent }!
+        let undoContent = try await CommanderOnlineTools.contentSnapshot(client, item: undoItem)
+        try await client.rename(undoItem, to: "PersistentUndo-Renamed.txt")
+        let renamedUndoItem = try await client.metadata(undoItem.id)
+        let relocation = try PersistentOnlineUndo.relocation(client, current: renamedUndoItem, content: undoContent,
+            parent: nil, parentPath: nil, name: undoLocal.lastPathComponent, account: account)
+        _ = try await PersistentOnlineUndo.undo(relocation, client: client)
+        require(try await client.children(of: nil).contains { $0.name == undoLocal.lastPathComponent },
+            "persistent relocation Undo did not restore the original name")
+        let removal = try await PersistentOnlineUndo.uploaded(client, parent: nil, name: undoLocal.lastPathComponent,
+            content: undoContent, account: account)
+        let mismatchedAccount = CloudUndoPayload(endpoint: removal.endpoint, account: "another-account", kind: removal.kind,
+            current: removal.current, previous: removal.previous, originalName: removal.originalName,
+            originalParent: removal.originalParent, originalParentPath: removal.originalParentPath)
+        let writesBeforeAccountRefusal = requests.count
+        do { _ = try await PersistentOnlineUndo.undo(mismatchedAccount, client: client); fatalError("Undo crossed account boundary") } catch {}
+        require(requests.count == writesBeforeAccountRefusal, "wrong-account Undo issued a cloud request")
+        _ = try await PersistentOnlineUndo.undo(removal, client: client)
+        require(!(try await client.children(of: nil)).contains { $0.name == undoLocal.lastPathComponent },
+            "persistent upload Undo left the new item in its original location")
+        print("PASS persistent online rename/remove Undo, reference round-trip and account mismatch refusal")
         failUploads = true
         let beforeFailure = try await client.children(of: nil).first { $0.name == "Replace.txt" }!
         do { _ = try await CommanderOnlineTools.replace(client, existing: beforeFailure, with: localReplacement, parent: nil); fatalError("failed upload reported success") } catch {}

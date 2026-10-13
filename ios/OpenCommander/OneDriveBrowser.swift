@@ -58,10 +58,17 @@ private final class OneDriveCell: UITableViewCell {
         }
         return locationTitle + ":/" + components.joined(separator: "/")
     }
-    private func record(_ action: String, source: String, destination: String) {
+    private func record(_ action: String, source: String, destination: String, undo: CloudUndoPayload? = nil, error: Error? = nil) {
         let keys = ["undo", "rename", "rename_button", "move_to_trash", "delete", "zip", "extract_archive", "duplicate", "remote_recovery", "folder", "copy", "move"]
         let actionKey = keys.first { L10n.get($0) == action }
-        commander?.operationHistory.append(.cloud(record: CloudOperationRecord(action: action, source: source, destination: destination, actionKey: actionKey)))
+        var record = CloudOperationRecord(action: action, source: source, destination: destination, actionKey: actionKey)
+        record.identifier = UUID().uuidString; record.undo = undo
+        if let error {
+            record.status = error is CancellationError ? "cancelled" : "failed"; record.failure = HistoryFailure(error)
+            let key = (error as NSError).localizedDescription
+            if L10n.strings.values.contains(where: { $0[key] != nil }) { record.failureKey = key }
+        }
+        commander?.operationHistory.append(.cloud(record: record))
     }
     private let filterField = CommanderFilterField()
     private let filterStatus = UILabel()
@@ -77,12 +84,6 @@ private final class OneDriveCell: UITableViewCell {
     static var clipboard: (selection: OneDriveSelection, move: Bool)?
     weak var commander: ViewController?
     private var previewURLs: [URL] = []
-    private enum OnlineUndo {
-        case rename(OneDriveItem, String)
-        case move(OneDriveItem, String?, String)
-        case replacement(CommanderOnlineTools.Replacement)
-    }
-    private var undoHistory: [OnlineUndo] = []
     private enum ConflictChoice { case keepBoth, replace, skip, cancel }
     private struct DestinationPlan { let name: String; var replacing: OneDriveItem? = nil }
     private var conflictPrompt: (UIAlertController, CheckedContinuation<ConflictChoice, Never>)?
@@ -128,32 +129,10 @@ private final class OneDriveCell: UITableViewCell {
         }
     }
     func undoOnlineOperation() {
-        guard let record = undoHistory.last, !busy else {
+        guard let client, !busy else {
             commander?.updateGlobalStatus(L10n.get("undo_empty")); return
         }
-        run(transfer: true) { [weak self] in
-            guard let self, let client = self.client else { return }
-            switch record {
-            case .rename(let item, let name):
-                guard item.eTag != nil else { throw OneDriveFailure.message("Cannot safely undo without a OneDrive version.") }
-                try await client.rename(item, to: name)
-                self.record(L10n.get("undo"), source: self.onlineLocation(item.name), destination: self.onlineLocation(name))
-            case .move(let item, let parent, let oldName):
-                guard item.eTag != nil else { throw OneDriveFailure.message("Cannot safely undo without a OneDrive version.") }
-                let current = try await client.metadata(item.id)
-                let source = try await self.destinationLocation(current.parentReference?.id, name: item.name)
-                let destination = try await self.destinationLocation(parent, name: oldName)
-                try await client.move(item, parent: parent, name: oldName)
-                self.record(L10n.get("undo"), source: source, destination: destination)
-            case .replacement(let replacement):
-                let preserved = try await CommanderOnlineTools.undoReplacement(client, record: replacement)
-                self.record(L10n.get("undo"), source: self.onlineLocation(replacement.name), destination: self.onlineLocation(replacement.name))
-                self.record(L10n.get("remote_recovery"), source: self.onlineLocation(replacement.name), destination: self.onlineLocation(preserved.name))
-            }
-            self.undoHistory.removeLast()
-            self.treeChildren = [:]
-            try await self.load()
-        }
+        commander?.undoLatestCloudOperation(endpoint: client.clientID)
     }
     private var sortField = 0
     private var ascending = true
@@ -229,9 +208,23 @@ private final class OneDriveCell: UITableViewCell {
                     self.busy = false; self.treeChildren = [:]; self.updateNavigation()
                     Task { try? await self.load() }
                 }
+                let account = try await client.accountIdentity()
+                var proofs: [String: [String: String]] = [:], parentPaths: [String: String] = [:]
+                for row in plan {
+                    proofs[row.item.id] = try await CommanderOnlineTools.contentSnapshot(client, item: row.item)
+                    parentPaths[row.item.id] = try client.persistentPath(row.item.parentReference?.id)
+                }
                 return try await CommanderOnlineTools.rename(client, plan: plan) { row in
-                    self.record(L10n.get("rename"), source: self.onlineLocation(row.item.name), destination: self.onlineLocation(row.name))
-                    if let renamed = try? await client.metadata(row.item.id) { self.undoHistory.append(.rename(renamed, row.item.name)) }
+                    do {
+                        guard try await client.accountIdentity() == account else { throw CloudConnection.failure("cloud_undo_account") }
+                        let renamed = try await client.metadata(row.item.id)
+                        let undo = try PersistentOnlineUndo.relocation(client, current: renamed, content: proofs[row.item.id] ?? [:], parent: row.item.parentReference?.id,
+                            parentPath: parentPaths[row.item.id], name: row.item.name, account: account)
+                        self.record(L10n.get("rename"), source: self.onlineLocation(row.item.name), destination: self.onlineLocation(row.name), undo: undo)
+                    } catch {
+                        self.record(L10n.get("rename"), source: self.onlineLocation(row.item.name), destination: self.onlineLocation(row.name))
+                        self.record(L10n.get("remote_recovery"), source: self.onlineLocation(row.item.name), destination: self.onlineLocation(row.name), error: error)
+                    }
                 }
             }
         }
@@ -798,7 +791,7 @@ private final class OneDriveCell: UITableViewCell {
     }
     private func resetAccountView() {
         authenticated = false; items = []; folders = []; visibleItems = []
-        selectedIDs = []; generation = UUID(); treeChildren = [:]; expanded = ["root"]; undoHistory = []
+        selectedIDs = []; generation = UUID(); treeChildren = [:]; expanded = ["root"]
         if Self.clipboard?.selection.browser === self { Self.clipboard = nil }
         backHistory = []; forwardHistory = []
         applyListingOrder(); rebuildTree()
@@ -846,7 +839,7 @@ private final class OneDriveCell: UITableViewCell {
         record(L10n.get("remote_recovery"), source: source, destination: backup)
         completionNotice = L10n.get("remote_recovery_notice") + "\n" + backup
     }
-    private func run(transfer: Bool = false, _ action: @escaping () async throws -> Void) {
+    private func run(transfer: Bool = false, historyAction: String? = nil, _ action: @escaping () async throws -> Void) {
         guard !busy, commander?.operationInProgress != true else { return }
         busy = true; completionNotice = nil
         updateNavigation()
@@ -863,11 +856,15 @@ private final class OneDriveCell: UITableViewCell {
                 if transfer { self.stopObservingTransfer(self.client) }
             }
             do { try await action(); status = self.completionNotice ?? status }
-            catch is CancellationError { status = self.text("Abgebrochen; abgeschlossene Schritte bleiben erhalten.", "Cancelled; completed steps are retained.") + (self.completionNotice.map { "\n" + $0 } ?? "") }
+            catch is CancellationError {
+                status = self.text("Abgebrochen; abgeschlossene Schritte bleiben erhalten.", "Cancelled; completed steps are retained.") + (self.completionNotice.map { "\n" + $0 } ?? "")
+                if let historyAction { self.record(L10n.get(historyAction), source: self.onlineLocation(), destination: self.onlineLocation(), error: CancellationError()) }
+            }
             catch {
                 let nsError = error as NSError
                 let description = ["OpenCommander.Remote", "OpenCommander.Cloud"].contains(nsError.domain) ? L10n.get(nsError.localizedDescription) : error.localizedDescription
                 status = description + (self.completionNotice.map { "\n" + $0 } ?? ""); self.error(status)
+                if let historyAction { self.record(L10n.get(historyAction), source: self.onlineLocation(), destination: self.onlineLocation(), error: error) }
             }
         }
     }
@@ -1105,12 +1102,17 @@ private final class OneDriveCell: UITableViewCell {
         alert.addTextField { $0.text = item?.name }
         alert.addAction(UIAlertAction(title: text("Speichern", "Save"), style: .default) { [weak self] _ in
             let name = alert.textFields?.first?.text ?? ""
-            self?.run { [weak self] in
+            self?.run(historyAction: item == nil ? "folder" : "rename_button") { [weak self] in
                 guard let self, let client = self.client else { return }
                 if let item {
+                    let account = try await client.accountIdentity()
+                    let content = try await CommanderOnlineTools.contentSnapshot(client, item: item)
+                    let parent = try await client.metadata(item.id).parentReference?.id
+                    let parentPath = try client.persistentPath(parent)
                     try await client.rename(item, to: name)
-                    self.record(L10n.get("rename_button"), source: self.onlineLocation(item.name), destination: self.onlineLocation(name))
-                    self.undoHistory.append(.rename(try await client.metadata(item.id), item.name))
+                    let undo = try PersistentOnlineUndo.relocation(client, current: await client.metadata(item.id), content: content,
+                        parent: parent, parentPath: parentPath, name: item.name, account: account)
+                    self.record(L10n.get("rename_button"), source: self.onlineLocation(item.name), destination: self.onlineLocation(name), undo: undo)
                 }
                 else {
                     try await client.createFolder(name, parent: self.folders.last?.id)
@@ -1125,7 +1127,7 @@ private final class OneDriveCell: UITableViewCell {
     private func confirmRecycle(_ item: OneDriveItem) {
         let alert = UIAlertController(title: deleteTitle, message: item.name, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: text("Verschieben", "Move"), style: .destructive) { [weak self] _ in
-            self?.run { [weak self] in
+            self?.run(historyAction: "delete") { [weak self] in
                 guard let self, let client = self.client else { return }
                 try await client.recycle(item)
                 self.record(self.deleteTitle, source: self.onlineLocation(item.name), destination: client.moveBackupLocation ?? (self.isOneDrive ? "OneDrive Papierkorb / Recycle bin" : L10n.get("remote_deleted")))
@@ -1157,9 +1159,10 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
         guard !busy, authenticated, !urls.isEmpty, commander?.operationInProgress != true else { completion(); return }
         let destination = useCurrentFolder ? folders.last?.id : parent
         guard commander?.allowTransferPaths(reading: move ? [] : urls, writing: move ? urls : []) != false else { completion(); return }
-        run(transfer: true) { [weak self] in
+        run(transfer: true, historyAction: move ? "move" : "copy") { [weak self] in
             defer { completion() }
             guard let self, let client = self.client else { return }
+            let account = try await client.accountIdentity()
             for (index, url) in urls.enumerated() {
                 self.transferProgress(index, total: urls.count, name: url.lastPathComponent)
                 try Task.checkCancellation()
@@ -1177,12 +1180,16 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
                 try await Task.detached { try FileManager.default.copyItem(at: url, to: staged) }.value
                 let preparedSnapshot = try await RemoteContent.snapshotAsync(staged)
                 guard preparedSnapshot == before else { throw OneDriveFailure.message("Source changed while preparing transfer. Source retained.") }
+                var undo: CloudUndoPayload?
                 if let existing = plan.replacing {
                     let replacement = try await CommanderOnlineTools.replace(client, existing: existing, with: staged, parent: destination)
-                    self.undoHistory.append(.replacement(replacement))
+                    undo = try PersistentOnlineUndo.replacement(client, record: replacement, account: account)
                     self.record(L10n.get("remote_recovery"), source: targetLocation, destination: try await self.destinationLocation(destination, name: replacement.previous.name))
-                } else { try await client.uploadTree(staged, parent: destination) }
-                self.record(L10n.get("copy"), source: url.path, destination: targetLocation)
+                } else {
+                    try await client.uploadTree(staged, parent: destination)
+                    undo = try await PersistentOnlineUndo.uploaded(client, parent: destination, name: name, content: preparedSnapshot, account: account)
+                }
+                self.record(L10n.get("copy"), source: url.path, destination: targetLocation, undo: move ? nil : undo)
                 if move {
                     try Task.checkCancellation()
                     let currentSnapshot = try await RemoteContent.snapshotAsync(url)
@@ -1200,8 +1207,9 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
         let source = selection.browser
         guard !busy, authenticated, selection.generation == source.generation, !selection.items.isEmpty else { return }
         let destination = useCurrentFolder ? folders.last?.id : parent
-        run(transfer: true) { [weak self] in
+        run(transfer: true, historyAction: move ? "move" : "copy") { [weak self] in
             guard let self, let targetClient = self.client, let sourceClient = source.client else { return }
+            let sourceAccount = try await sourceClient.accountIdentity(), targetAccount = try await targetClient.accountIdentity()
             self.observeTransfer(sourceClient)
             defer { self.stopObservingTransfer(sourceClient) }
             for (index, item) in selection.items.enumerated() {
@@ -1210,18 +1218,25 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
                 let sourceLocation = try await source.destinationLocation(selection.parentID, name: item.name)
                 // Validate ancestors with metadata, including collapsed/unloaded
                 // tree targets. Never copy a folder into itself or descendants.
-                let sameConnection = targetClient.clientID == sourceClient.clientID
+                // Two panes may use the same provider implementation while
+                // being signed into different accounts. Only treat a move as
+                // an in-provider atomic relocation when both the connection
+                // identity and the account behind that connection match.
+                let sameConnection = targetClient.clientID == sourceClient.clientID && targetAccount == sourceAccount
                 if sameConnection { try await targetClient.validateDestination(destination, excluding: item.id) }
                 guard let plan = try await self.destinationPlan(item.name, folder: item.isFolder, parent: destination, excluding: move ? item.id : nil, allowReplacement: !move) else { continue }
                 let name = plan.name
                 let targetLocation = try await self.destinationLocation(destination, name: name)
                 if move && sameConnection {
+                    let content = try await CommanderOnlineTools.contentSnapshot(sourceClient, item: item)
+                    let parentPath = try sourceClient.persistentPath(selection.parentID)
                     // Name and parent change atomically; never rename the source first.
                     do { try await sourceClient.move(item, parent: destination, name: name) }
                     catch { self.rememberRecovery(sourceClient, source: sourceLocation); throw error }
-                    self.record(L10n.get("move"), source: sourceLocation, destination: targetLocation)
+                    let undo = try PersistentOnlineUndo.relocation(sourceClient, current: await sourceClient.metadata(item.id), content: content,
+                        parent: selection.parentID, parentPath: parentPath, name: item.name, account: sourceAccount)
+                    self.record(L10n.get("move"), source: sourceLocation, destination: targetLocation, undo: undo)
                     self.rememberRecovery(sourceClient, source: sourceLocation)
-                    self.undoHistory.append(.move(try await sourceClient.metadata(item.id), selection.parentID, item.name))
                 } else {
                     let snapshot = move ? try await sourceClient.remoteSnapshot(item) : [:]
                     let url = try await sourceClient.downloadTree(item)
@@ -1230,12 +1245,16 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
                     if move, !(sourceClient is OneDriveClient), content != snapshot { throw RemoteConnection.failure("remote_changed") }
                     let staged = url.deletingLastPathComponent().appendingPathComponent(name)
                     if staged != url { try FileManager.default.moveItem(at: url, to: staged) }
+                    var undo: CloudUndoPayload?
                     if let existing = plan.replacing {
                         let replacement = try await CommanderOnlineTools.replace(targetClient, existing: existing, with: staged, parent: destination)
-                        self.undoHistory.append(.replacement(replacement))
+                        undo = try PersistentOnlineUndo.replacement(targetClient, record: replacement, account: targetAccount)
                         self.record(L10n.get("remote_recovery"), source: targetLocation, destination: try await self.destinationLocation(destination, name: replacement.previous.name))
-                    } else { try await targetClient.uploadTree(staged, parent: destination) }
-                    self.record(L10n.get("copy"), source: sourceLocation, destination: targetLocation)
+                    } else {
+                        try await targetClient.uploadTree(staged, parent: destination)
+                        undo = try await PersistentOnlineUndo.uploaded(targetClient, parent: destination, name: name, content: content, account: targetAccount)
+                    }
+                    self.record(L10n.get("copy"), source: sourceLocation, destination: targetLocation, undo: move ? nil : undo)
                     if move {
                         // Verify the complete destination before changing the source.
                         guard let uploaded = try await targetClient.children(of: destination).first(where: { $0.name == name }) else { throw RemoteConnection.failure("remote_changed") }
