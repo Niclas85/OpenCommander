@@ -34,6 +34,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: tests/run-swift-safety.sh
+      - name: Verify cloud clients and local provider discovery
+        run: |
+          sh tests/run-cloud-client-tests.sh
+          sh tests/run-cloud-storage-tests.sh
+          sh tests/run-cloud-lease-tests.sh
       - run: swift test --package-path ntfs/OpenCommanderNTFS
       - name: Build iOS Simulator app
         run: >-
@@ -54,6 +59,14 @@ jobs:
           python-version: '3.12'
       - run: python -m venv linux/.venv
       - run: linux/.venv/bin/python -m pip install -r linux/requirements-dev.txt
+      - name: Prepare verified recent cloud runtime
+        env:
+          PYTHONPATH: linux
+          QT_QPA_PLATFORM: offscreen
+        run: >-
+          linux/.venv/bin/python -c
+          'import threading; from opencommander import rclone_runtime;
+          rclone_runtime.ensure_cloud_backend(threading.Event())'
       - run: QT_QPA_PLATFORM=offscreen linux/.venv/bin/python -m pytest linux/tests -q
       - run: ./linux/build.sh
       - uses: actions/upload-artifact@v4
