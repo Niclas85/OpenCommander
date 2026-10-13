@@ -1,13 +1,14 @@
 {
   "reference": "origin/codex/linux-desktop@9db136167489b46bc6c7ad0a96375b8487c9be6e",
   "target": "macOS / Mac Catalyst",
-  "verified_on": "2026-10-13",
-  "status": "Linux 0.3.25rc10 source imported; online-account pinning and persistent cloud Undo added and regression-tested; full Mac/Linux parity remains open",
+  "verified_on": "2026-10-14",
+  "status": "Universal Mac app and UI-test target build; native cloud/location/selection regressions and real Linux CI/package checks pass; full interaction parity remains open",
   "implemented": [
     "Shared light/dark palette and two-pane styling",
     "Linux toolbar order, context-only extraction action, header Copy/Move and Dark switches",
     "System-root tree and actual Name/Size/Type/Date columns",
     "Context menu preserves an existing multi-selection; properties target the clicked entry",
+    "Shared local/online desktop plain-click replacement, Command toggle and Shift/Command-Shift sorted range selection; iOS tap-to-toggle unchanged",
     "Media opens in-app on double-click or Return; audio hides video playback controls",
     "Per-pane navigation history, name filter, sortable metadata and adjustable tree divider",
     "F2 rename, F5 copy, F6 move alongside existing Command shortcuts",
@@ -26,6 +27,10 @@
     "Publisher/custom desktop OAuth identities use shared Linux packaging schema; native Microsoft/Dropbox S256 PKCE with bounded cancellable loopback and token exchange; real account acceptance remains unverified",
     "Private cloud configuration leases pin the selected account, isolate child token refreshes and publish only safe refresh-token rotations",
     "Persistent OneDrive/direct-cloud operation proofs support guarded rename, replacement and upload Undo across saved history",
+    "Online ZIP, extraction and duplicate results retain verified upload Undo proofs; failed bulk delete/archive/duplicate/export operations create history entries",
+    "Live Connections table refreshes every five seconds and after mount/eject in the current window, with explicit Refresh and accessible eject action",
+    "Cloud-place discovery avoids coordinated content enumeration; recent disabled-domain observations are bounded, expire and clear after successful access",
+    "Universal arm64/x86_64 NTFS engine from verified per-architecture source builds; separate native image-test tools retained",
     "Direct-cloud display-only bounded retries, explicit stale cache, Google project-quota cooldown and mutation non-replay",
     "Configuration-bound display cache purges old-account rows and rejects in-flight source changes",
     "Preflight for incomplete OAuth, OneDrive drive selection and iCloud device verification",
@@ -33,7 +38,7 @@
     "Preflight missing/changed recovery backups before current target displacement on Mac and Linux"
   ],
   "verified": {
-    "builds": ["Mac Catalyst arm64 build with signing disabled passed on 2026-10-13", "Final Mac Catalyst signed experimental NTFS build on 2026-10-13", "Final iOS device-platform control build with signing disabled on 2026-10-13; earlier simulator build also passed"],
+    "builds": ["Universal Mac Catalyst app, NTFS extension and UI-test target build-for-testing passed on 2026-10-14; arm64 and x86_64 binaries verified", "Mac Catalyst arm64 build with signing disabled passed on 2026-10-13", "Final Mac Catalyst signed experimental NTFS build on 2026-10-13", "Final iOS device-platform control build with signing disabled on 2026-10-13; current GitHub iOS Simulator build also passed"],
     "automated": [
       "Swift operation safety, persisted undo, permissions-only modification protection",
       "Cancelled staged copies preserve the original destination",
@@ -42,7 +47,11 @@
       "Coordinated image loading and native desktop bridge protocol",
       "Private child cloud config snapshot, account-switch refusal, refresh-token crash recovery and in-flight source-race protection",
       "Persistent cloud Undo relocation, replacement and upload proofs, account mismatch refusal and malicious payload validation",
-      "Cloud client, OAuth, runtime/setup, Commander tools, durable copy/tree, operation safety, queue, handbook and OneDrive automated groups passed on 2026-10-13"
+      "Cloud client, OAuth, runtime/setup, Commander tools, durable copy/tree, operation safety, queue, handbook and OneDrive automated groups passed on 2026-10-13",
+      "Native NTFS image engine: all twelve groups passed on arm64 and x86_64 under Rosetta, including real writes, reopen, disk-full/fault propagation and hibernation refusal",
+      "Real loopback FTP, FTPS, SFTP key and SFTP password transfer/search/rename/recovery/cancellation/authentication groups passed; --live installs fixture dependencies into an isolated temporary venv",
+      "GitHub Linux job: 403 passed, 3 skipped; Linux package build and artifact upload succeeded at code commit 16e7923",
+      "GitHub Apple job: operation safety, cloud client/discovery/config lease checks, 31 NTFS package tests and iOS Simulator build passed at code commit 16e7923"
     ],
     "visible_ui": [
       "F5 copies nine synthetic files without removing originals",
@@ -56,30 +65,31 @@
       "Extraction action visible for ZIP and hidden for mixed ZIP/ordinary selection",
       "Right-click Rename retains two selected entries and requests a single item",
       "Image double-click opens in-app; audio omits video controls and video exposes controls",
-      "Installed app visually shows separate metadata columns, ZIP icon/size and a system-root tree"
+      "Installed app visually shows separate metadata columns, ZIP icon/size and a system-root tree",
+      "Isolated current Mac clone: plain click replaces selection, F5 publishes identical bytes, timestamped History/Undo survives restart and Undo retains source",
+      "Isolated current Mac clone: default search uses the active pane, match-case starts unchecked and a lower-case query finds the absolute-path result",
+      "Current Connections panel: newly created HFS+ image appears, is ejected through the panel, and disappears without closing the panel"
     ]
   },
   "remaining": [
     "Toolkit-native widgets are not pixel-identical; Mac-only default-app preferences remain accessible",
-    "Mouse modifier/range-selection behavior still needs a complete Linux/Mac equivalence pass",
+    "Native physical Command/Shift click and complete range-selection acceptance still need verification; shared policy and plain-click UI checks pass",
     "Authenticated publisher wizard acceptance, live provider login and refresh-token rotation with a consenting test account",
     "Durable direct-cloud checkpoints, restart and legacy staging adoption",
     "Cross-backend online move Undo and full failed/partial cloud-operation history coverage",
     "Full native Google document export and bounded media-cache/external save lifecycle",
     "Global resource reservations across all workflows and app windows",
     "Some bulk cloud operations still need exact per-item failure history and recovery actions",
-    "Connections dialog does not refresh while open; the storage bar refreshes separately",
     "Not every Linux reachable state or macOS external drag-and-drop permutation was retested",
     "Full illustrated Mac screenshot handbook and interaction acceptance-plan parity",
     "Complete native mouse drag/lift/hover/cancel and external-app acceptance; automated drag emitted no transfer",
-    "Complete latest Linux suite/FUSE/package/live UI requires an accessible Linux host",
-    "Catalyst UI automation cannot run on this Mac host: its macOS 15.6 runtime is below the UI-test target's macOS 26.2 deployment target",
-    "Universal x86_64 Catalyst NTFS linkage is not available from the current arm64-only bundled NTFS archive; arm64 Catalyst builds successfully"
+    "Linux FUSE-dependent cases and interactive real Linux desktop acceptance remain unverified; the full headless suite and package build now pass on Linux CI",
+    "Xcode UI runner builds for this host but times out enabling automation mode; Developer mode is disabled and administrator authorization is unavailable. Separate visible CUA acceptance passed for the listed cases"
   ],
   "ntfs": {
     "build_condition": "OPENCOMMANDER_NTFS3G_EXPERIMENTAL",
     "preflight": "Previously passed against the already installed per-user extension on an isolated new image",
-    "current_write_activation": "isolated 64 MiB FSKit write/read/rename/delete/truncate/fsync and Apple read-only remount passed in the earlier continuation; not repeated in the current upstream pull",
+    "current_write_activation": "isolated FSKit write activation passed in the earlier continuation. Current check-only finds the installed registered module but FSClient omits it, so current activation is not confirmed; native engine image writes pass on both architectures",
     "existing_disks_written": false
   },
   "latest_upstream_batch": {
@@ -103,6 +113,18 @@
     "oauth_verification": "8 synthetic/mock/packaging groups passed; actual loopback tested; no authenticated provider flow, grant, token refresh or production approval claim",
     "visible_ui": "OneDrive expert field opens in current window without secret field; invalid synthetic client ID refused with German status before backend/browser; Escape closes assistant",
     "status": "Work in progress; committing tested implementation does not assert complete Linux/Mac parity"
+  },
+  "continuation_2026_10_14": {
+    "code_commit": "16e79233b5f8453f64865739374b12507345b9fb",
+    "ci_url": "https://github.com/Niclas85/OpenCommander/actions/runs/38474662853",
+    "apple_job": "success",
+    "linux_job": "success: 403 passed, 3 skipped and packaged artifact uploaded",
+    "android_job": "failure: pre-existing incomplete iOS locale key sets surfaced after SDK setup was fixed; not a Mac/Linux success claim",
+    "mac_ui_clone": "com.github.niklaus85.OpenCommander.MacUITests; separate defaults, /private/tmp/OpenCommander-MacUITest-fCsi4e files and transfer queue",
+    "xcode_ui_run": "build succeeds; execution fails before tests while enabling host automation mode. No OS security setting changed",
+    "ntfs_images": "new synthetic images only, including /private/tmp/OpenCommander-NTFS-x86_64-5DiNQx/test.ntfs; no existing disk writes",
+    "personal_cloud_writes": false,
+    "installed_app_replaced": false
   },
   "safety": {
     "test_data": "/tmp/OpenCommander-MacParity.RgAWSn",

@@ -759,3 +759,67 @@ Google document export/external edit lifecycle, global reservations, failed-acti
 history, live Connections refresh and full native/Linux interaction gates are
 still listed in the manifest. Commit/push publishes this tested source progress,
 not a release or a declaration that all reachable behaviors are identical.
+
+## Continuation: 2026-10-14
+
+Code commit `16e7923` closes the build and discovery problems identified in the
+previous batch. NTFS now builds verified, separate arm64 and x86_64 archives and
+combines them for the Mac extension. The native image tools remain separate.
+The universal Mac application, extension and UI-test target build successfully;
+both architectures are present in the application and extension executables.
+All twelve native NTFS image-test groups pass on arm64 and on x86_64 under
+Rosetta, including writes/reopen, disk-full/fault propagation and hibernation
+refusal. Only newly generated image files were written.
+
+Connections is now a list inside the current application window. It refreshes
+every five seconds, on request and after mount/eject. A visible test created a
+new HFS+ image, observed it in the panel, ejected that exact image with the panel
+control, and observed its removal while the panel stayed open. Discovery no
+longer coordinates/enumerates every provider's contents: an unavailable cloud
+account previously held up the entire list. Explicit access records recent
+disabled-domain observations for up to five minutes; successful access clears
+that observation. No provider credentials enter this state.
+
+Local and online panes now share plain-click replacement, Command toggle and
+Shift/Command-Shift range selection over the displayed order. Pure policy tests
+cover ranges, sorted order and stale anchors. Visible plain-click checks pass;
+physical modifier-click acceptance is still pending. Online ZIP, extraction and
+duplicate operations now retain verified upload Undo proofs. Bulk delete,
+archive, duplicate and export failures are persisted in history; precise
+per-item failure/recovery coverage remains an open audit item.
+
+`sh tests/run-remote-tests.sh --live` creates its own temporary Python environment
+and runs real loopback FTP, FTPS, SFTP-key and SFTP-password fixtures. All four
+groups passed, including transfer bytes, navigation/search/rename, recovery,
+cancellation, TLS/host-key refusal and wrong-password protection.
+
+The UI target no longer inherits macOS 26.2 as its minimum. The isolated debug
+application uses `com.github.niklaus85.OpenCommander.MacUITests`, separate defaults,
+private temporary files and its own transfer queue. `sh tests/run-mac-ui-tests.sh`
+builds that clone without registering an Apple app/profile. The Xcode UI runner
+still times out while enabling this host's automation mode: Developer mode is
+disabled and no administrator authorization is available. No OS security setting
+was changed. Existing CUA access independently verified plain selection, F5 copy
+with matching bytes, timestamped History and Undo after relaunch, default search
+path, unchecked match-case and absolute-path results, and the Connections flow.
+An automated CUA drag did not lift/publish a file and is not counted as a pass.
+
+The [GitHub verification for the code commit](https://github.com/Niclas85/OpenCommander/actions/runs/38474662853)
+has successful Apple and Linux jobs. Linux ran **403 passed, 3 skipped**, then
+built and uploaded its package. Qt/PulseAudio runtime dependencies are installed
+before tests; the existing verified recent-rclone installer prepares the backend
+instead of relying on Ubuntu's obsolete backend. The transfer regression now
+opens the current compact card's Details and verifies its totals, duration, rate
+and actual copied bytes. Apple ran safety, cloud client/discovery/configuration
+lease tests, **31 NTFS package tests**, and a successful iOS Simulator build.
+The independent Android job still fails its pre-existing incomplete iOS locale
+key-set gate; the workflow is not reported as entirely green.
+
+Current FSKit `--check-only` finds the installed registered module but FSClient
+omits it. That neither proves it disabled nor confirms present write activation.
+A fresh isolated mount/write acceptance needs administrator authorization.
+The installed application, existing disks, personal cloud data and permissions
+were not changed in this continuation. Durable direct-cloud restart, cross-backend
+move Undo, Google native-document export/external editing and the remaining
+interaction gates are still tracked in `ios/MAC-LINUX-PARITY.json`; full parity
+has not been declared.
