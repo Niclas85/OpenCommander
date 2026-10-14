@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import threading
+import io
 from types import SimpleNamespace
 import pytest
 from opencommander import online_ui
@@ -24,9 +25,11 @@ def test_password_passed_without_arguments_or_logs(tmp_path, monkeypatch):
         returncode = 0
         def __init__(self, command, **kwargs):
             calls.append((command, kwargs))
+            self.stdout = io.StringIO('{"State":""}')
+            self.stderr = io.StringIO('')
         def __enter__(self): return self
         def __exit__(self, *args): pass
-        def communicate(self, **kwargs): return '{"State":""}', ''
+        def wait(self, **kwargs): return 0
         def poll(self): return 0
     monkeypatch.setattr(online_ui.shutil, 'which', lambda _: '/usr/bin/rclone')
     monkeypatch.setattr(online_ui.subprocess, 'Popen', Process)

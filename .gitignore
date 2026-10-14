@@ -40,3 +40,6 @@ release/*.apk.sha256
 /linux/opencommander/assets/dropbox-oauth.json
 /release/private-oauth/
 .pytest_cache/
+/windows/dist/
+/windows/artifacts/
+/windows/*.log

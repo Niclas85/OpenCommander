@@ -1,0 +1,130 @@
+# Windows-Prüfstand – 14. Oktober 2026
+
+Geprüft auf Windows 11 Pro 25H2 x64, Python 3.12.14, Qt/PySide6 6.11.2,
+OpenCommander 0.3.25rc10 und rclone 1.75.2. Ohne Administratorrechte und ohne
+aktivierten Windows-Symlink-Modus.
+
+## Automatisiert geprüft
+
+- Aktueller Gesamtlauf: **268 bestanden, 29 übersprungen**, keine Fehler.
+  Ergebnis: `build/pytest.xml`; Protokoll: `build/login-recovery-build.log`.
+- Nach zusätzlicher Absicherung von Windows-Junctions: **84 bestanden,
+  16 übersprungen** im Datei-/Wiederaufnahme-/Windows-Sicherheitstestlauf.
+  Dieser Lauf enthält einen neuen Test für einen manipulierten Zwischenordner.
+  Ergebnis: `build/windows-safety.xml`; Protokoll: `build-safety.log`.
+- Quellcode-Smoke-Test: Qt-Fenster, JPEG, isolierter Download, TAR/7z,
+  Cloud-Kontextmenü und Kopie nach Pause/Neustart erfolgreich.
+- Paket-Smoke-Test: tatsächliche `OpenCommander.exe`, mitgelieferter Helfer,
+  Unicode-Pfade, bytegenaue Downloads und rclone-EXE erfolgreich.
+  Ergebnis: `build/package-smoke.json`; Protokoll des abschließenden Builds:
+  `build/login-recovery-build.log`.
+- Die Windows-Tests umfassen Explorer-Zwischenablageformat, überschreibungsfreie
+  Umbenennung, gefährliche Archivnamen/NTFS-Datenströme, Binärdateien,
+  Dateieigenschaften, verborgene Dateien, private NTFS-ACLs,
+  Windows-Anmeldeinformationen und verschlüsselte OpenSSH-Schlüssel.
+- Native Qt-Darstellung zusätzlich über `QT_QPA_PLATFORM=windows` geprüft.
+  `offscreen` rendert hier mangels eigener Schriftbibliothek Platzhalter;
+  das native Windows-Backend zeigt die Schrift korrekt.
+
+Übersprungen werden ausdrücklich Linux-Dienste/FIFO-/POSIX-Rechte-Prüfungen,
+Symlink-Erstellung ohne erforderliches Windows-Recht und optionale ffmpeg-
+Videofix­turen. Linux-Tests mit exakten Betriebssystem-Fehlertexten werden nicht
+als Windows-Integrationstest ausgegeben. Gemeinsame Qt-Tests verwenden dieselben
+Testfunktionen wie unter Linux; Warteschritte wurden auf tatsächlich geladene
+Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
+
+## Praktisch auf diesem Computer geprüft
+
+- Installation für den aktuellen Benutzer mit Startmenü-Verknüpfung und
+  Explorer-Kontextmenü; WinFsp 2.1.25156 installiert.
+- Letzte Anmeldekorrektur installiert und SHA-256 der installierten EXE mit dem
+  geprüften Build abgeglichen. Abgelaufene Anmeldungen und Fehler ohne weitere
+  Provider-Frage beenden den Dialog sauber; eine neue Anmeldung entfernt alte
+  Antworten und Fehlermeldungen. Zwei zusätzliche Qt-Regressionstests bestanden.
+- Explorer-Zwischenablage praktisch in beiden Richtungen geprüft: eine Datei
+  mit Umlauten und japanischen Zeichen kopiert und alle drei Exemplare per
+  SHA-256 bytegenau verglichen (47 Byte).
+- Tatsächliches Explorer-Kontextmenü unter „Weitere Optionen anzeigen“ aufgerufen:
+  der gewählte Prüfungsordner öffnet sich im aktiven Bereich des bestehenden
+  OpenCommander-Fensters; die drei gespeicherten Cloud-Einträge bleiben erhalten.
+- Im nativen Dialog OpenCommander vorübergehend als Standard-Dateimanager gewählt
+  und einen Ordner über die Windows-Shell geöffnet. Der anschließende Registry-
+  Rundlauf außerhalb der Entwicklungsumgebung bestätigt: vorherige Zuordnung
+  wiederhergestellt, Kontextmenü und Startmenü-Verknüpfung durch das mitgelieferte
+  Deinstallationsskript entfernt und erneut eingerichtet. Auch ein ursprünglich
+  fehlender Standardwert wurde exakt wiederhergestellt. OpenCommander bleibt
+  nach dem Test nicht als Standard-Dateimanager ausgewählt.
+- Die Entwicklungsumgebung leitet Teile von Benutzerprofil und Registry um.
+  Deshalb wurde die Shell-Integration zusätzlich außerhalb dieser Umgebung
+  installiert und geprüft. Startmenü und Kontextmenü verwenden hier ausdrücklich
+  das vorhandene Profil über `--state-dir`; das Installationsskript unterstützt
+  dafür optional `-StateDirectory`. Der einmalige Prüfauftrag wurde entfernt.
+- Lokale Dateiaktionen einschließlich Konfliktbehandlung, Verschieben,
+  Umbenennen, Ordnern, Wiederherstellungskopien und Rückgängig nach Neustart.
+- 16-MiB-Kopie mit Pause/Wiederaufnahme; Rückgängig verweigert das Entfernen
+  einer zwischenzeitlich geänderten Zieldatei.
+- Tatsächliches Verschieben zwischen NTFS auf C: und exFAT auf SanDisk D:,
+  danach Rückgängig und bytegenauer Vergleich. D: bleibt verbunden;
+  es wurde kein USB-Auswurf ausgelöst.
+- SMB-NAS `\\192.168.0.22\Test`: Unicode-Dateinamen, 256-KiB-Binärdatei,
+  Kopieren/Verschieben/Entfernen mit Wiederherstellung und Rückgängig,
+  Verzeichnisabfrage durch den mitgelieferten Helfer und Dateieigenschaften.
+  Schreibtests verwenden ausschließlich den eigenen Prüfungsordner.
+- ZIP erstellen/lesen sowie TAR, GZIP, BZIP2, XZ, Zstandard, 7z und RAR5 lesen
+  und entpacken; Suche, Inhaltsvergleich und Mehrfachumbenennung mit Rückgängig.
+- Tatsächlicher rclone-/WinFsp-Verzeichnismount mit Auflisten, Upload,
+  Rückgängig und authentifiziertem ordentlichem Trennen. Dabei entdeckte
+  Windows-Fehler 1005 bei Pfad- und Anmeldeinformationsabfragen korrigiert.
+- OneDrive und Dropbox: echte Browseranmeldung durch den Benutzer, gespeichertes
+  Profil, Verzeichnisabfrage, WinFsp-Mount, 256-KiB-Upload, bytegenaues Lesen,
+  mitgelieferter Helfer und Rückgängig mit neu geöffnetem FileEngine bestanden.
+- FTP, SFTP und WebDAV gegen eigene laufende Loopback-Testserver: 256-KiB-Upload,
+  Lesen, Helfer, persistente Rücknahme, Verbindungsabbruch und ordentliches Trennen
+  bestanden. SFTP weist einen geänderten Hostschlüssel ab. WebDAV wurde über
+  rclone/WinFsp geprüft, nicht über den nativen Windows-WebClient.
+- FTPS erneut mit der aktualisierten Installation gegen Apache FtpServer 1.2.1
+  bestanden: 256-KiB-Upload, bytegenaues Lesen, Helfer, Rückgängig nach Neustart,
+  Ablehnung eines nicht vertrauten Zertifikats, Verbindungsabbruch in 0,16 Sekunden
+  und ordentliches Trennen. Der eigene Test-CA wurde nur für diesen Test verwendet;
+  die Zertifikatsprüfung blieb aktiv. Frühere TLS-Übertragungsfehler betrafen den
+  Python-Testserver; der unabhängige Apache-Server bestätigt den FTPS-Datenpfad.
+- Native Bild-/WAV-/H.264-Vorschau sowie Vor/Zurück, Videowiedergabe, Zeitsuche
+  und Neustart der Wiedergabe geprüft. F5 kopiert die Unicode-Prüfdatei vollständig.
+- Google-OAuth mit echtem rclone bis zum Browserübergang geprüft, ohne
+  Benutzeranmeldung: Browseradresse während der laufenden Anmeldung empfangen,
+  lokaler HTTP-Endpunkt und Weiterleitung zu Google bestätigt. Windows liefert
+  bei `communicate(timeout)` keine Zwischenstände von stderr; der korrigierte
+  Ablauf liest die Ausgaben fortlaufend. Ein eigener Windows-Regressionstest
+  prüft den Link vor Prozessende. Weitere sieben gezielte gemeinsame Tests
+  für Passwortübergabe, Browseradressen und OAuth sind erfolgreich.
+- Die tatsächliche Google-Anmeldung wurde gespeichert; das anschließende
+  Auflisten scheitert mit HTTP 403 und Meldungen zum gemeinsamen OAuth-Client,
+  dessen Einstellung und Quota. Google-Dateizugriff bleibt offen; dafür wird
+  eine eigene zugelassene OAuth-Anwendung benötigt. Keine Google-Schreibtests.
+- Dropbox-Browserübergang und frischer lokaler OAuth-Endpunkt bestätigt.
+  Nach dem ursprünglichen `ERR_CONNECTION_REFUSED` wurde eine neue Anmeldung
+  mit laufendem lokalem Server durchgeführt und der vollständige Dateizugriff
+  erfolgreich geprüft.
+
+Ergebnisse: `build/live-results.json`, `build/cloud-live-results.json`,
+`build/protocol-live-results.json`, `build/ftps-installed-final.log`,
+`build/browser-probe.json`, `build/browser-probe-dropbox.json`,
+`build/explorer-clipboard-results.json`, `build/explorer-context-results.json`
+und `build/explorer-shell-results.json`.
+Der Live-Bericht enthält auch frühere fehlgeschlagene Versuche; maßgeblich ist
+das jüngste Ergebnis je Testfall. Kontoanmeldungen gelten erst nach gespeichertem
+Profil und erfolgreichem Dateizugriff als vollständig geprüft.
+
+## Noch zu prüfen
+
+| Bereich | Offener Nachweis |
+| --- | --- |
+| Cloud | Google-Dateizugriff mit eigener OAuth-Anwendung; iCloud, anbieterspezifische Kontenrichtlinien und Freigabelinks |
+| Server | Externe Server mit abweichenden Richtlinien; nativer Windows-WebClient für WebDAV. Eigene laufende FTP/FTPS/SFTP/WebDAV-Testserver sind geprüft |
+| USB | Sicheres Auswerfen wurde auf Benutzerwunsch nicht getestet |
+| Medien | Weitere Codec-/Hardwarekombinationen; PNG, WAV und H.264 sind praktisch geprüft |
+| Betriebssysteme | Windows 10, ARM64 und weitere Windows-11-Versionen |
+| Linux | Der vollständige Linux-Lauf muss in der vorhandenen Ubuntu-CI erfolgen |
+
+Die gemeinsame Implementierung übernimmt die Linux-Funktionen. Vollständige
+Live-Parität mit allen Providern und Geräten ist damit noch nicht nachgewiesen.

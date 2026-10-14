@@ -386,7 +386,7 @@ def test_audio_opens_in_media_viewer_and_stops_on_close(window, app):
         output.writeframes(b'\x00\x00' * 8000)
     window.open_entry(Entry(path.name, path, False))
     viewer = window.preview_dialog
-    wait(app, lambda: viewer.player.source().toLocalFile() == str(path))
+    wait(app, lambda: Path(viewer.player.source().toLocalFile()) == path)
     assert viewer.play.isEnabled()
     wait(app, lambda: viewer.player.duration() > 0)
     viewer.shutdown()
@@ -453,6 +453,9 @@ def test_mouse_gesture_starts_drag_and_transfers(window, app, move, target_kind)
         wait(app, lambda: right.proxy.rowCount() == 1)
     if target_kind == 'tree':
         index = right.tree_model.index(str(destination))
+        # Keep this synthetic drop target independent of host drive enumeration
+        # and asynchronous expansion/scrolling of the full filesystem tree.
+        right.tree.setRootIndex(right.tree_model.index(str(right.directory)))
         right.tree.expand(right.tree_model.index(str(right.directory)))
         right.tree.scrollTo(index)
         wait(app, lambda: right.tree.visualRect(index).isValid())
@@ -561,7 +564,7 @@ def test_drag_folder_into_its_child_is_rejected_before_transfer(window, app):
     child = source / 'Child'
     child.mkdir(parents=True)
     left.refresh(); right.navigate(child)
-    wait(app, lambda: left.proxy.rowCount() == 1)
+    wait(app, lambda: left.proxy.rowCount() == 1 and left.model.entries[0].path == source)
     from PySide6.QtCore import QPoint
     point = right.table.viewport().mapToGlobal(QPoint(20, 150))
     viewport, drag = begin_file_drag(window, app)
@@ -1067,13 +1070,13 @@ def test_copy_progress_has_totals_and_keeps_summary(window, app):
     window.activate(left)
     window.transfer(False)
     wait(app, lambda: not window.busy)
-    details = window.transfer_details.text()
+    details = next(iter(window.transfers.cards.values())).details.text()
     assert '100%' in details
     assert '1 / 1' in details
     assert '/s' in details
     assert 'Zeit ' in details or 'Time ' in details
     assert ' s' in details
-    assert window.transfer_details.isVisible()
+    assert next(iter(window.transfers.cards.values())).title.isVisible()
     assert (right.directory / 'Grüße.txt').exists()
 
 
@@ -2587,7 +2590,8 @@ def test_transfer_details_copy_includes_saved_error_and_route(window):
     text = QApplication.clipboard().text()
     assert job['id'] in text and job['sources'][0] in text
     assert job['directory'] in text and job['last_error'] in text
-    assert 'OpenCommander Linux' in text
+    from opencommander.platform_support import PLATFORM_NAME
+    assert 'OpenCommander ' + PLATFORM_NAME in text
     card.minimize.setChecked(True)
     assert card.copy_details.isHidden()
     window.engine.transfers.delete(job['id'])
@@ -2879,7 +2883,9 @@ def test_publisher_native_oauth_saves_private_token_and_avoids_second_login(wind
     section=parser[dialog.profile['id']]
     assert section['client_id']==data['client_id'] and section['client_secret']==''
     assert section['oc_oauth_flow']=='pkce' and json.loads(section['token'])==obtained
-    assert dialog.config.stat().st_mode & 0o777 == 0o600
+    import os
+    if os.name != 'nt':
+        assert dialog.config.stat().st_mode & 0o777 == 0o600
     assert obtained['access_token'] not in str(window.settings.value('online_profiles'))
     dialog.state='';dialog.close()
 

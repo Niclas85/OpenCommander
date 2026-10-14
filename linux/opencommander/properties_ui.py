@@ -3,8 +3,9 @@ from datetime import datetime
 from pathlib import Path
 import stat
 import os
-import pwd
-import grp
+if os.name != 'nt':
+    import pwd
+    import grp
 import zipfile
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton
@@ -27,6 +28,9 @@ def properties(entry):
     try:
         return invoke('properties', str(entry.path))
     except (RuntimeError, FileNotFoundError):
+        if os.name == 'nt':
+            from .windows_native import properties as windows_properties
+            return windows_properties(str(entry.path))
         from .filesystem import remote_location
         if remote_location(entry.path):
             raise

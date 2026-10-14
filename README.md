@@ -96,6 +96,15 @@ app/build/outputs/apk/debug/app-debug.apk
 
 Beim ersten Start muss Android den benoetigten Dateizugriff erlauben. Unter Android 10 wird dafuer ein Ordner im Systemdialog ausgewaehlt; unter Android 11 und neuer wird der spezielle Zugriff auf alle Dateien verwendet.
 
+### Windows
+
+Die native Windows-App verwendet dieselbe Qt-Oberfläche und denselben Funktionskern
+wie die Linux-Version. Start aus dem Quellcode: `./windows/run.ps1`.
+`./windows/build.ps1` erstellt ein portables Windows-x64-Paket mit EXE,
+Offline-Handbuch und rclone unter `windows/artifacts/`.
+Voraussetzungen, Windows-Anbindungen und Testgrenzen stehen in
+[windows/README.md](windows/README.md).
+
 ### Linux
 
 Die native Qt-Desktop-Version unter `linux/` orientiert sich an der Mac-Version:

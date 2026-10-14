@@ -9,7 +9,7 @@ from opencommander.operations import FileEngine, checked_members, SafetyError
 
 
 @pytest.mark.parametrize('kind,filter,suffix', [('ustar','gzip','.tgz'), ('ustar','bzip2','.tar.bz2'),
-                                             ('ustar','xz','.tar.xz'), ('7zip',None,'.7z')])
+                                             ('ustar','xz','.tar.xz'), ('ustar','zstd','.tar.zst'), ('7zip',None,'.7z')])
 def test_native_archive_browse_preview_extract_and_undo(tmp_path, kind, filter, suffix):
     archive_path = tmp_path / ('fixture' + suffix)
     contents = b'archive fixture content'
