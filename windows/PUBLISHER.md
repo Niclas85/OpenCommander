@@ -18,11 +18,19 @@ Das vorhandene Google-Profil wurde umgestellt; die übrigen Provider bleiben erh
 Nur eingetragene Testnutzer können sich anmelden; Google begrenzt im Testmodus
 die Refresh-Token-Laufzeit auf sieben Tage. Eine erneute Browseranmeldung kann
 danach erforderlich sein. Dies ist keine dauerhaft verifizierte öffentliche App.
-Der Benutzer hat `opencommander.top` gewählt, hat aber noch keinen Hosting-Zugang.
-Die Domain lieferte bei der Prüfung keine funktionierende HTTPS-Seite.
-Homepage, Datenschutzerklärung und bestätigte Domain fehlen daher weiterhin in
-der Google-Konsole. Es wurde keine unzutreffende URL eingetragen oder öffentliche
-Freigabe beantragt.
+Die Domain `opencommander.top` wurde im angemeldeten Dynadot-Konto gefunden;
+ihre gespeicherte Einstellung ist noch Dynadot Parking. Eine gehostete Homepage
+und Datenschutzerklärung sind als private Sites-Vorschau bereitgestellt:
+https://opencommander-desktop.nikki719610.chatgpt.site .
+Projekt: `appgprj_6acfd14405848191826b2e20926fe64d`, Version 1,
+Quellstand `34b71064bf346c46841650051c2202c7878685cb`.
+Die eigene Domain ist beim Hosting vorgemerkt, DNS und HTTPS sind noch nicht aktiv.
+Zwei Apex-A-Einträge sowie die Google-, Sites- und Zertifikats-TXT-Nachweise
+sind im Dynadot-Dialog vorbereitet, aber noch nicht gespeichert.
+Die öffentliche Freigabe der Seiten und die Google-Inhaberschaftsbestätigung
+warten auf die konkrete Benutzerbestätigung. Das Branding enthält die vorgesehenen
+Homepage-/Datenschutz-URLs und die Domain lediglich als ungespeicherten Entwurf.
+Es wurde keine öffentliche Google-Verifizierung eingereicht.
 
 ## Registrierung prüfen und abschließen
 
@@ -51,9 +59,9 @@ App-Herausgeber, Kontakte und Domain-Zugriff müssen
 zum verwendeten Google-Cloud-Projekt passen. Google entscheidet über die
 Marken-/Scope-Verifizierung; eine lokale Einrichtung ersetzt diese Prüfung nicht.
 
-Für `opencommander.top` sind als nächste Schritte Hosting und Domain-Verwaltung
-bereitzustellen, eine gültige HTTPS-Konfiguration einzurichten und die Homepage
-sowie eine für Windows und Linux zutreffende Datenschutzerklärung zu veröffentlichen.
+Für `opencommander.top` sind als nächste Schritte die vorbereiteten DNS-Nachweise
+zu speichern, die HTTPS-Konfiguration abzunehmen und die fertige Homepage sowie
+Datenschutzerklärung öffentlich freizugeben.
 Der vorhandene Desktop-Entwurf liegt weiterhin in `release/linux/site` und wurde
 um Windows-NTFS-DACLs und Windows-Anmeldeinformationen ergänzt. Anbieterangaben
 und Veröffentlichungsinhalt müssen vor der öffentlichen Freigabe geprüft werden.
