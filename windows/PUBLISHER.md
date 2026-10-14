@@ -43,10 +43,13 @@ Homepage-/Datenschutz-URLs und autorisierte Domain sind in Google gespeichert.
 **Nächster Pflichtnachweis:** Die Konsole verlangt für `auth/drive` die
 Datennutzung, Scope-Begründung und ein YouTube-Demovideo. Die Begründung für
 „Drive-Produktivität“ ist vorbereitet; Speichern und Absenden bleiben ohne
-Videolink gesperrt. Das Video muss den tatsächlichen OAuth-Zustimmungsprozess
-und die Verwendung der Berechtigung für den vorhandenen Desktop-Client zeigen.
-Es wurde kein Videolink erfunden und kein unvollständiger Antrag abgesendet.
-Die Aufnahme und der dafür verwendete YouTube-Kanal sind noch zu klären.
+Videolink gesperrt. Eine 106 Sekunden lange, kommentierte Schrittfolge aus echten
+Browser-/App-Aufnahmen ist lokal fertig und überprüft. Sie zeigt Anmeldung,
+Drive-Scope, Lesen, Upload, Download, Umbenennen und Rückgängig mit synthetischen
+Dateien. Kontoangaben und lokale Profilpfade sind verdeckt. Der vorhandene
+YouTube-Kanal „Nikki Haenggi“ ist angemeldet. Der Upload als nicht gelistetes Video
+wartet auf konkrete Freigabe; es wurde noch kein Videolink eingetragen und kein
+unvollständiger Antrag abgesendet.
 
 ## Registrierung prüfen und abschließen
 

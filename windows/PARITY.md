@@ -95,7 +95,7 @@ gebaut. Der abschließende Windows-CI-Lauf besteht **406 Tests mit 39 Ausnahmen*
 und baut GUI, Helfer und ZIP erfolgreich:
 [CI-Lauf 38592350691](https://github.com/Niclas85/OpenCommander/actions/runs/38592350691),
 Commit `2e801e1`. Der vollständige lokale Windows-Lauf besteht
-**398 Tests mit 47 begründeten Ausnahmen**. Der abschließende Prüfstand und
+**403 Tests mit 47 begründeten Ausnahmen**. Der abschließende Prüfstand und
 die installierte Version stehen in [TESTING.md](TESTING.md).
 
 Die eigene Desktop-OAuth-Registrierung ist jetzt eingerichtet und im Windows-

@@ -6,8 +6,8 @@ aktivierten Windows-Symlink-Modus.
 
 ## Automatisiert geprüft
 
-- Aktueller vollständiger Windows-Lauf: **398 bestanden, 47 übersprungen**, keine Fehler.
-  Ergebnis: `build/pytest.xml`; Protokoll: `build/publisher-google-final-build.log`.
+- Aktueller vollständiger Windows-Lauf: **403 bestanden, 47 übersprungen**, keine Fehler.
+  Ergebnis: `build/pytest.xml`; Protokoll: `build/google-demo-fixed-build.log`.
   Alle 23 Linux-Testmodule sind jetzt in der Windows-Suite vertreten; ihre
   plattformgebundenen Fälle werden begründet übersprungen, nicht als bestanden gezählt.
   Import-Inventar: `build/parity-test-inventory.json`, keine fehlenden Module.
@@ -31,7 +31,7 @@ aktivierten Windows-Symlink-Modus.
 - Paket-Smoke-Test: tatsächliche `OpenCommander.exe`, mitgelieferter Helfer,
   Unicode-Pfade, bytegenaue Downloads und rclone-EXE erfolgreich.
   Ergebnis: `build/package-smoke.json`; Protokoll des abschließenden Builds:
-  `build/publisher-google-final-build.log`.
+  `build/google-demo-fixed-build.log`.
 - Die Windows-Tests umfassen Explorer-Zwischenablageformat, überschreibungsfreie
   Umbenennung, gefährliche Archivnamen/NTFS-Datenströme, Binärdateien,
   Dateieigenschaften, verborgene Dateien, private NTFS-ACLs,
@@ -55,10 +55,25 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   geprüften Build abgeglichen. Abgelaufene Anmeldungen und Fehler ohne weitere
   Provider-Frage beenden den Dialog sauber; eine neue Anmeldung entfernt alte
   Antworten und Fehlermeldungen. Zwei zusätzliche Qt-Regressionstests bestanden.
-- Abschließenden Herausgeber-/Langpfad-Build installiert. Die installierte EXE
+- Herausgeber-/Langpfad-Build und anschließend Cloud-Rückgängig-Korrektur installiert. Die installierte EXE
   entspricht bytegenau dem frisch geprüften Paket:
-  SHA-256 `4e5b76690d04646386af2a20cf7b58fa2810f9feb20bc96a056b656abe6b5913`.
+  SHA-256 `f2348e5b3ad226ad90f6515b12d9bc279ed671eceb28dd62a89a0becd9694ae5`.
   Die vorherige Installation bleibt als Sicherung erhalten.
+- Bei der OAuth-Demo erkannter Fehler: WinFsp/rclone vergibt nach Verzeichnis-
+  aktualisierung neue virtuelle Inode-Werte für unveränderte Drive-Dateien.
+  Neue Provider-Snapshots verwenden deshalb ein versioniertes Format ohne diese
+  instabile Kennung. Namen, Mountkennung, Dateityp, Zeitstempel und vollständige
+  Inhaltsprüfsummen bleiben geprüft; Änderungen während des Lesens stoppen die
+  Überprüfung. Alte Historieneinträge werden nicht umgedeutet. Fünf Regressionen
+  prüfen Cache-Aktualisierung, persistentes Rückgängig, echte Inhalts-/Metadaten-
+  Änderung, fehlende Einbindung und die unveränderte Prüfung alter Einträge.
+  Nach Neuinstallation in der tatsächlichen App erneut bestanden: Drive-Vorschau,
+  70-Byte-Upload, Umbenennen, Verzeichnis aktualisieren, erfolgreiches Rückgängig;
+  82-Byte-Download mit exaktem Bytevergleich sowie Umbenennen und Rücknahme einer
+  vor der Anmeldung angelegten Drive-Testdatei. Ein Download ins eigene
+  Wiederherstellungsprofil wurde korrekt abgewiesen; das endgültige Testziel
+  liegt getrennt davon. Eigene synthetische Dateien, kein Zugriffstest mit
+  persönlichen Dateiinhalten. Google-Demovideo lokal fertig, Upload noch offen.
 - Explorer-Zwischenablage praktisch in beiden Richtungen geprüft: eine Datei
   mit Umlauten und japanischen Zeichen kopiert und alle drei Exemplare per
   SHA-256 bytegenau verglichen (47 Byte).
@@ -160,8 +175,8 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   Produktion. Homepage und Datenschutzerklärung unter `opencommander.top` anonym
   per HTTPS mit HTTP 200 geprüft. Dynadot-DNS gespeichert, Google-Domaininhaberschaft
   bestätigt; Branding automatisch geprüft und veröffentlicht. Der vollständige
-  Drive-Scope bleibt ungeprüft: Begründung vorbereitet, erforderliches YouTube-
-  Demovideo fehlt, Antrag noch nicht abgesendet. Details: [PUBLISHER.md](PUBLISHER.md).
+  Drive-Scope bleibt ungeprüft: Begründung und lokales Demovideo fertig;
+  YouTube-Upload/Link noch offen, Antrag noch nicht abgesendet. Details: [PUBLISHER.md](PUBLISHER.md).
 - Dropbox-Browserübergang und frischer lokaler OAuth-Endpunkt bestätigt.
   Nach dem ursprünglichen `ERR_CONNECTION_REFUSED` wurde eine neue Anmeldung
   mit laufendem lokalem Server durchgeführt und der vollständige Dateizugriff

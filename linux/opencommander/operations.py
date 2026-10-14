@@ -76,7 +76,7 @@ def remove_tree(path: Path):
         path.unlink()
 
 
-def fingerprint(path: Path, check=None) -> str:
+def fingerprint(path: Path, check=None, *, ignore_inode=False) -> str:
     digest = hashlib.sha256()
 
     def field(value):
@@ -88,7 +88,9 @@ def fingerprint(path: Path, check=None) -> str:
             check()
         info = item.lstat()
         field(item.name)
-        for value in (info.st_dev, info.st_ino, info.st_mode, info.st_mtime_ns):
+        values = (info.st_dev, info.st_mode, info.st_mtime_ns) if ignore_inode else (
+            info.st_dev, info.st_ino, info.st_mode, info.st_mtime_ns)
+        for value in values:
             field(value)
         if stat.S_ISLNK(info.st_mode) or (os.name == 'nt' and item.is_junction()):
             field(os.readlink(item))
@@ -114,8 +116,10 @@ def fingerprint(path: Path, check=None) -> str:
     return digest.hexdigest()
 
 
-def safe_snapshot(path, check=None):
+def safe_snapshot(path, check=None, *, ignore_inode=False):
     try:
+        if ignore_inode:
+            return fingerprint(path, check, ignore_inode=True)
         return fingerprint(path, check) if check else fingerprint(path)
     except Cancelled:
         raise
@@ -216,23 +220,35 @@ class FileEngine:
 
     def record(self, operation, source, destination, kind, backup=None, cancellable=False):
         check = self.check_cancel if cancellable else None
-        snapshot = safe_snapshot(destination, check) if check else safe_snapshot(destination)
         from .provider_mounts import managed, provider_mount
-        if managed(destination) or provider_mount(destination) is not None:
+        provider = managed(destination) or provider_mount(destination) is not None
+        def capture():
+            if provider:
+                # Provider mounts expose ephemeral inode numbers. Directory cache
+                # refresh can assign a new inode to unchanged remote bytes.
+                # Keep content, names, modes, times and mount identity in the hash;
+                # fingerprint still rejects identity changes during a read.
+                return safe_snapshot(destination, check, ignore_inode=True)
+            return safe_snapshot(destination, check) if check else safe_snapshot(destination)
+        snapshot = capture()
+        if provider:
             # FUSE may refresh attributes on the first read following a rename.
             # Record only a settled fingerprint, keeping undo's strict comparison.
             for _ in range(3):
                 time.sleep(0.02)
-                current = safe_snapshot(destination, check) if check else safe_snapshot(destination)
+                current = capture()
                 if current is not None and current == snapshot:
                     break
                 snapshot = current
             else:
                 snapshot = None
         with self.history_lock:
-            operation['records'].append({'source': str(source), 'destination': str(destination),
+            record = {'source': str(source), 'destination': str(destination),
                 'kind': kind, 'backup': str(backup) if backup else None,
-                'snapshot': snapshot, 'reverted': False})
+                'snapshot': snapshot, 'reverted': False}
+            if provider:
+                record['snapshot_version'] = 2
+            operation['records'].append(record)
             self.save()
 
     def finish(self, operation):
@@ -529,7 +545,17 @@ class FileEngine:
             self.check_cancel()
             source, target = Path(record['source']), Path(record['destination'])
             if not record['reverted']:
-                if record['snapshot'] is None or safe_snapshot(target, self.check_cancel) != record['snapshot']:
+                version = record.get('snapshot_version', 1)
+                if version == 2:
+                    from .provider_mounts import managed, provider_mount
+                    if not managed(target) and provider_mount(target) is None:
+                        raise SafetyError(f'Undo stopped: provider mount is unavailable.\n{target}')
+                    snapshot = safe_snapshot(target, self.check_cancel, ignore_inode=True)
+                elif version == 1:
+                    snapshot = safe_snapshot(target, self.check_cancel)
+                else:
+                    raise SafetyError('Undo stopped: unsupported snapshot format.')
+                if record['snapshot'] is None or snapshot != record['snapshot']:
                     raise SafetyError(f'Undo stopped: file changed or cannot be verified.\n{target}')
                 if record['kind'] == 'move':
                     if exists(source):

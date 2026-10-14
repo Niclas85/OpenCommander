@@ -38,6 +38,24 @@ Keine Passwörter, Tokens, Codes oder persönlichen Drive-Dateien aufnehmen.
    Begründung speichern, Antragsübersicht prüfen und vollständigen Antrag senden.
    Etwaige neue Vertrags-/Sicherheitsprüfungsanforderungen separat bewerten.
 
-Die vorhandenen Testprotokolle bestätigen bereits den Dateizugriff, ersetzen
-aber den geforderten visuellen OAuth-Nachweis nicht. Es wurde kein Video
-hochgeladen und noch kein Antrag zur Drive-Scope-Prüfung abgesendet.
+## Fertiger lokaler Nachweis
+
+`windows/build/google-verification-video/OpenCommander-Google-OAuth-Demo.mp4`:
+106 Sekunden, 14 kommentierte Szenen, H.264; vollständig ohne Decodierfehler
+geprüft. Es handelt sich um eine Schrittfolge aus tatsächlich aufgenommenen
+Screenshots, keine kontinuierliche Bildschirmaufnahme. Die Titelseite sagt dies
+ausdrücklich. Keine simulierten Anwendungsschirme oder fremden Drive-Dateien.
+Kontoangaben und lokale Profilpfade sind verdeckt.
+
+Die Aufnahme zeigt den vorhandenen Desktop-Client und den echten OAuth-Ablauf.
+Beim bereits autorisierten Testkonto zeigte Google die bestehende Drive-
+Berechtigung; ein Warnbildschirm wurde in diesem Ablauf nicht eingeblendet.
+Die App-Demo verwendet den installierten, korrigierten Windows-Build. Upload,
+Download (82 Byte, bytegenau geprüft), Umbenennen und Rückgängig nach
+Verzeichnisaktualisierung sowie die Umbenennung einer vor der Anmeldung
+vorhandenen synthetischen Drive-Datei sind bestätigt.
+
+Der vorhandene Kanal „Nikki Haenggi“ ist angemeldet. Upload als „Nicht gelistet“
+und Übernahme des Links warten auf konkrete Benutzerfreigabe. Es wurde kein Video
+hochgeladen und kein Antrag zur Drive-Scope-Prüfung abgesendet. Google entscheidet
+über die Anerkennung des Nachweises und kann ergänzende Aufnahmen verlangen.
