@@ -156,9 +156,12 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   Nach erneutem GUI-Start bleiben alle vier Cloud-Orte sichtbar. „Google Drive
   online“ öffnet die Dateiansicht ohne erneute Anmeldung, lädt 711 sichtbare
   Einträge und erreicht den Zustand „Bereit“ (versteckte Einträge werden gefiltert).
-  **Öffentliche Verifizierung offen:** Projekt External/Test, begrenzte Token-
-  Laufzeit. Hosting, HTTPS-Homepage, Datenschutzerklärung und Domain-Bestätigung
-  unter `opencommander.top` fehlen. Details stehen in [PUBLISHER.md](PUBLISHER.md).
+  Veröffentlichung mit konkreter Benutzerbestätigung: Projekt External/In
+  Produktion. Homepage und Datenschutzerklärung unter `opencommander.top` anonym
+  per HTTPS mit HTTP 200 geprüft. Dynadot-DNS gespeichert, Google-Domaininhaberschaft
+  bestätigt; Branding automatisch geprüft und veröffentlicht. Der vollständige
+  Drive-Scope bleibt ungeprüft: Begründung vorbereitet, erforderliches YouTube-
+  Demovideo fehlt, Antrag noch nicht abgesendet. Details: [PUBLISHER.md](PUBLISHER.md).
 - Dropbox-Browserübergang und frischer lokaler OAuth-Endpunkt bestätigt.
   Nach dem ursprünglichen `ERR_CONNECTION_REFUSED` wurde eine neue Anmeldung
   mit laufendem lokalem Server durchgeführt und der vollständige Dateizugriff

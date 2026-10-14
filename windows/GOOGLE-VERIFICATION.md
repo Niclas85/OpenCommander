@@ -1,0 +1,43 @@
+# Ausstehender Google-Drive-Nachweis
+
+Stand: 14. Oktober 2026. Projekt `opencommander-511504`, vorhandener nativer
+Desktop-Client „OpenCommander Linux Desktop“, gemeinsame Windows-/Linux-App.
+Produktionsmodus, Domaininhaberschaft und veröffentlichtes Branding sind
+bestätigt. Der eingeschränkte Scope `https://www.googleapis.com/auth/drive`
+ist noch nicht genehmigt.
+
+## Vorbereitete Datennutzung
+
+Kategorie: **Drive-Produktivität**. Kein zusätzlicher Scope ist vorgesehen.
+
+Scope-Begründung (941 Zeichen; passend zum 1000-Zeichen-Feld der Konsole):
+
+> OpenCommander is an open-source desktop file manager for Windows and Linux. Users browse their existing Drive folders, read and upload files, copy or move files between local storage and Drive, rename and delete selected items, undo supported changes and create or revoke sharing links. These actions are explicitly initiated by the user. The drive.file scope cannot list or manage arbitrary pre-existing files that were not created or individually opened with this app, so it cannot support a general file manager. The app uses the native Desktop OAuth client and a local rclone backend. OAuth tokens and caches stay in the local user profile. Drive contents and metadata are exchanged directly with Google or with another user-selected destination during an explicit transfer. There is no OpenCommander server receiving account data, no advertising use, sale or AI training. The public privacy policy explains data handling and revocation.
+
+## Video vorbereiten
+
+Die Konsole verlangt ausdrücklich einen **YouTube-Link**. Das Video muss die
+tatsächliche Browser-Zustimmung einschließlich des Hinweises auf die ungeprüfte
+App zeigen. App-Name und öffentliche Desktop-Client-ID müssen erkennbar sein.
+Keine Passwörter, Tokens, Codes oder persönlichen Drive-Dateien aufnehmen.
+
+1. Separates lokales Abnahmeprofil und ausschließlich eigene synthetische
+   Testdateien verwenden; das vorhandene Benutzerprofil nicht überschreiben.
+2. Im Browser den tatsächlichen Desktop-OAuth-Zustimmungsprozess zeigen.
+   Die öffentlichen Links zur Homepage und Datenschutzerklärung erläutern.
+3. In der App den vorbereiteten Testordner öffnen. Auflisten, Lesen/Download,
+   Upload, Umbenennen, Rückgängig und einen Freigabelink mit Aufhebung zeigen.
+   Bestehende, außerhalb der App erzeugte Testdateien demonstrieren, weshalb
+   `drive.file` für allgemeine Dateiverwaltung nicht genügt.
+4. Direkten lokalen Zugriff über rclone, lokale Token-Ablage und Widerruf beim
+   Anbieter erklären. Keine private Token-Datei öffnen.
+5. Aufnahme vor Veröffentlichung prüfen; einen vorhandenen Herausgeberkanal
+   verwenden. Ein öffentlich zugängliches, nicht gelistetes Video ermöglicht
+   Google die Prüfung, ohne es im Kanalfeed zu bewerben.
+6. Erst den tatsächlichen Videolink in die Konsole eintragen, Datennutzung und
+   Begründung speichern, Antragsübersicht prüfen und vollständigen Antrag senden.
+   Etwaige neue Vertrags-/Sicherheitsprüfungsanforderungen separat bewerten.
+
+Die vorhandenen Testprotokolle bestätigen bereits den Dateizugriff, ersetzen
+aber den geforderten visuellen OAuth-Nachweis nicht. Es wurde kein Video
+hochgeladen und noch kein Antrag zur Drive-Scope-Prüfung abgesendet.

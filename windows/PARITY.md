@@ -46,7 +46,7 @@ die öffentliche Google-Verifizierung steht weiterhin aus.
 | --- | --- | --- |
 | OneDrive per Browser-OAuth ohne Sync-Client | Gleicher Assistent; WinFsp statt FUSE | Anmeldung, gespeichertes Profil, 256-KiB-Upload, Lesen, Helfer und persistente Rücknahme bestanden |
 | Dropbox per Browser-OAuth | Gleicher Assistent; WinFsp statt FUSE | Vollständiger Datei-Roundtrip bestanden; Browserübergang und lokaler OAuth-Server korrigiert |
-| Google per rclone-Browser-OAuth | Gleicher Assistent; WinFsp statt FUSE | Eigener Herausgeber-Client eingebettet, Browseranmeldung und 256-KiB-Roundtrip bestanden. Projekt noch im Testmodus; öffentliche Verifizierung offen |
+| Google per rclone-Browser-OAuth | Gleicher Assistent; WinFsp statt FUSE | Eigener Herausgeber-Client eingebettet, Browseranmeldung und 256-KiB-Roundtrip bestanden. Projekt in Produktion, Branding geprüft und veröffentlicht; Drive-Scope-Prüfung offen |
 | Google über GNOME Online Accounts / GVFS | Kein entsprechender Windows-Systemdienst | Linux kann zusätzlich ein vom Desktop eingerichtetes GVFS-Laufwerk benutzen. Diese separate GNOME-OAuth-Anwendung ist nicht die rclone-Anmeldung |
 | iCloud per Apple-ID und Zwei-Faktor-Code | Gleicher Assistent | Benutzeranmeldung, Mount, 256-KiB-Upload, bytegenaues Lesen, Helfer und Rücknahme bestanden. Apple verwendet hier keinen reinen Browser-OAuth-Ablauf |
 | Freigabelink Dropbox | Gleiche Provider-Aktion | Anonymer HTTP-Download bytegenau bestanden; synthetische Datei und Ordner entfernt |
@@ -100,8 +100,10 @@ die installierte Version stehen in [TESTING.md](TESTING.md).
 
 Die eigene Desktop-OAuth-Registrierung ist jetzt eingerichtet und im Windows-
 Paket enthalten. Endbenutzer melden sich weiterhin im Browser an; sie benötigen
-keine eigene Google-Cloud-Anwendung. Das Projekt steht noch auf External/Test;
-die Refresh-Tokens sind zeitlich begrenzt. Für öffentliche Nutzung fehlen Hosting
-und HTTPS-Seiten unter `opencommander.top`, Domain-Bestätigung sowie Googles
-Marken-/Scope-Verifizierung. Details: [PUBLISHER.md](PUBLISHER.md). Hintergrund:
+keine eigene Google-Cloud-Anwendung. Das Projekt ist External/In Produktion.
+Homepage und Datenschutzerklärung sind unter `opencommander.top` per HTTPS
+öffentlich, die Domaininhaberschaft und das Branding sind bestätigt. Offen bleibt
+die Prüfung des vollständigen Drive-Scopes, einschließlich des erforderlichen
+YouTube-Demovideos. Bis dahin gelten Warnhinweise und die Nutzerobergrenze.
+Details: [PUBLISHER.md](PUBLISHER.md). Hintergrund:
 [rclone Google Drive](https://rclone.org/drive/#making-your-own-client-id).

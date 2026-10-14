@@ -14,23 +14,39 @@ Die Browseranmeldung mit dieser Identität, 256-KiB-Dateizugriff, Helfer,
 persistentes Rückgängig und anonyme Freigabelinks wurden praktisch bestätigt.
 Das vorhandene Google-Profil wurde umgestellt; die übrigen Provider bleiben erhalten.
 
-**Öffentliche Freigabe bleibt offen:** Zielgruppe External, Status Test.
-Nur eingetragene Testnutzer können sich anmelden; Google begrenzt im Testmodus
-die Refresh-Token-Laufzeit auf sieben Tage. Eine erneute Browseranmeldung kann
-danach erforderlich sein. Dies ist keine dauerhaft verifizierte öffentliche App.
-Die Domain `opencommander.top` wurde im angemeldeten Dynadot-Konto gefunden;
-ihre gespeicherte Einstellung ist noch Dynadot Parking. Eine gehostete Homepage
-und Datenschutzerklärung sind als private Sites-Vorschau bereitgestellt:
-https://opencommander-desktop.nikki719610.chatgpt.site .
-Projekt: `appgprj_6acfd14405848191826b2e20926fe64d`, Version 1,
-Quellstand `34b71064bf346c46841650051c2202c7878685cb`.
-Die eigene Domain ist beim Hosting vorgemerkt, DNS und HTTPS sind noch nicht aktiv.
-Zwei Apex-A-Einträge sowie die Google-, Sites- und Zertifikats-TXT-Nachweise
-sind im Dynadot-Dialog vorbereitet, aber noch nicht gespeichert.
-Die öffentliche Freigabe der Seiten und die Google-Inhaberschaftsbestätigung
-warten auf die konkrete Benutzerbestätigung. Das Branding enthält die vorgesehenen
-Homepage-/Datenschutz-URLs und die Domain lediglich als ungespeicherten Entwurf.
-Es wurde keine öffentliche Google-Verifizierung eingereicht.
+**Produktionsmodus und Branding veröffentlicht; Drive-Prüfung noch offen.**
+Die Zielgruppe ist External, der Veröffentlichungsstatus „In Produktion“.
+Google hat das Branding geprüft; die Konsole bestätigt, dass es Nutzern angezeigt
+wird. Das ist noch keine Genehmigung des eingeschränkten Drive-Scopes.
+Bis zur Scope-Genehmigung gelten Warnhinweise und die Obergrenze von 100 Nutzern.
+Eine Umstellung auf Produktion ist kein Nachweis, dass bereits im Testmodus
+ausgestellte Tokens eine andere Laufzeit erhalten haben.
+
+Homepage https://opencommander.top/ und Datenschutz
+https://opencommander.top/privacy sind öffentlich per HTTPS erreichbar.
+Domain und DNS werden bei Dynadot verwaltet; die statischen Seiten liegen bei
+OpenAI Sites und werden über Cloudflare ausgeliefert. Es wurde kein gesonderter
+kostenpflichtiger Hosting-Tarif gebucht und kein neuer Vertrag angenommen.
+Sites ist während der öffentlichen Beta in berechtigten ChatGPT-Abos enthalten.
+Eine dauerhafte kostenlose Bereitstellung oder der Weiterbetrieb nach Kündigung
+des Abos ist dadurch nicht zugesichert.
+
+Sites-Projekt: `appgprj_6acfd14405848191826b2e20926fe64d`, öffentliche Version 2,
+Quellstand `e6583f7694cec722c6594f4ff64f295a9867c2ff`.
+Die vier statischen Quelldateien sind zusätzlich in `release/linux/site` gesichert
+und lassen sich auf unabhängiges Hosting übertragen.
+Die fünf vorbereiteten DNS-Einträge wurden mit ausdrücklicher Bestätigung
+gespeichert: zwei Apex-A-Einträge, Google-Inhaberschafts-TXT sowie Sites- und
+Zertifikats-TXT. Google Search Console bestätigt die Domaininhaberschaft.
+Homepage-/Datenschutz-URLs und autorisierte Domain sind in Google gespeichert.
+
+**Nächster Pflichtnachweis:** Die Konsole verlangt für `auth/drive` die
+Datennutzung, Scope-Begründung und ein YouTube-Demovideo. Die Begründung für
+„Drive-Produktivität“ ist vorbereitet; Speichern und Absenden bleiben ohne
+Videolink gesperrt. Das Video muss den tatsächlichen OAuth-Zustimmungsprozess
+und die Verwendung der Berechtigung für den vorhandenen Desktop-Client zeigen.
+Es wurde kein Videolink erfunden und kein unvollständiger Antrag abgesendet.
+Die Aufnahme und der dafür verwendete YouTube-Kanal sind noch zu klären.
 
 ## Registrierung prüfen und abschließen
 
@@ -51,23 +67,12 @@ Es wurde keine öffentliche Google-Verifizierung eingereicht.
    Nicht in Chats, Issues oder Git einfügen. Build und Normalisierung übernehmen
    nur die Desktop-App-Identität; Konto-/Refresh-Tokens werden abgewiesen.
 
-Für öffentliche Nutzung sind eine tatsächlich erreichbare Homepage und eine
-zutreffende Desktop-Datenschutzerklärung nötig. Der bestehende Website-Entwurf
-beschreibt jetzt auch Windows-NTFS-Rechte und die Anmeldeinformationsverwaltung,
-ist aber weiterhin kein bestätigter öffentlicher OAuth-Endpunkt.
-App-Herausgeber, Kontakte und Domain-Zugriff müssen
-zum verwendeten Google-Cloud-Projekt passen. Google entscheidet über die
-Marken-/Scope-Verifizierung; eine lokale Einrichtung ersetzt diese Prüfung nicht.
-
-Für `opencommander.top` sind als nächste Schritte die vorbereiteten DNS-Nachweise
-zu speichern, die HTTPS-Konfiguration abzunehmen und die fertige Homepage sowie
-Datenschutzerklärung öffentlich freizugeben.
-Der vorhandene Desktop-Entwurf liegt weiterhin in `release/linux/site` und wurde
-um Windows-NTFS-DACLs und Windows-Anmeldeinformationen ergänzt. Anbieterangaben
-und Veröffentlichungsinhalt müssen vor der öffentlichen Freigabe geprüft werden.
-Erst anschließend Domain-Eigentum bestätigen, die erreichbaren URLs in Google
-Auth Platform speichern und die Marken-/Drive-Scope-Verifizierung einreichen.
-Es wurden kein kostenpflichtiges Hosting gebucht und keine neuen Verträge angenommen.
+Die öffentliche Homepage und Datenschutzerklärung sind abgenommen. Der
+Herausgeber, die Kontaktadressen und die bestätigte Domain bleiben dem bestehenden
+Google-Projekt zugeordnet. Google entscheidet über die Scope-Genehmigung;
+erfolgreiche lokale Dateitests und die Branding-Freigabe ersetzen diese Prüfung
+nicht. Die Vorbereitung des Videonachweises steht in
+[GOOGLE-VERIFICATION.md](GOOGLE-VERIFICATION.md).
 
 ## Windows-Paket mit verpflichtender Herausgeberanbindung
 
@@ -102,3 +107,5 @@ Quellen: [Google Desktop OAuth](https://developers.google.com/identity/protocols
 [Google OAuth-Testmodus und Token-Laufzeit](https://developers.google.com/identity/protocols/oauth2#expiration),
 [Google-Verifizierung eingeschränkter Scopes](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification),
 [rclone Google Drive](https://rclone.org/drive/#making-your-own-client-id).
+
+Hosting: [Sites-Verfügbarkeit und Limits](https://learn.chatgpt.com/docs/sites?surface=web), [Sites-Preise in der Beta](https://learn.chatgpt.com/docs/pricing#how-much-does-sites-cost).
