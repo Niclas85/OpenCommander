@@ -6,19 +6,21 @@ aktivierten Windows-Symlink-Modus.
 
 ## Automatisiert geprüft
 
-- Aktueller vollständiger Windows-Lauf: **394 bestanden, 47 übersprungen**, keine Fehler.
-  Ergebnis: `build/pytest.xml`; Protokoll: `build/parity-installed-build.log`.
+- Aktueller vollständiger Windows-Lauf: **398 bestanden, 47 übersprungen**, keine Fehler.
+  Ergebnis: `build/pytest.xml`; Protokoll: `build/publisher-google-final-build.log`.
   Alle 23 Linux-Testmodule sind jetzt in der Windows-Suite vertreten; ihre
   plattformgebundenen Fälle werden begründet übersprungen, nicht als bestanden gezählt.
   Import-Inventar: `build/parity-test-inventory.json`, keine fehlenden Module.
-- Vollständiger Linux-Lauf unter Ubuntu 24.04: **397 bestanden**, keine Ausnahmen;
+- Vollständiger Linux-Lauf unter Ubuntu 24.04: **400 bestanden**, keine Ausnahmen;
   Linux-Paket erfolgreich gebaut.
-- Abschließender Windows-CI-Lauf: **402 bestanden, 39 übersprungen**;
+  Aktueller Lauf für Commit `2e801e1`:
+  [CI-Lauf 38592350691](https://github.com/Niclas85/OpenCommander/actions/runs/38592350691).
+- Abschließender Windows-CI-Lauf: **406 bestanden, 39 übersprungen**;
   GUI, Helfer, Quellcode-/Paket-Smoke-Test und ZIP-Bau erfolgreich.
   Der CI-Host kann zusätzliche Linktests ausführen, für die dem lokalen Konto
   Windows-Rechte fehlen. Beide Desktop-Jobs sind grün:
-  [CI-Lauf 38522129270](https://github.com/Niclas85/OpenCommander/actions/runs/38522129270),
-  Commit `5679aaf`. Der unabhängige Android-Job scheitert bereits beim SDK-Setup;
+  [CI-Lauf 38592350691](https://github.com/Niclas85/OpenCommander/actions/runs/38592350691),
+  Commit `2e801e1`. Der unabhängige Android-Job ist fehlgeschlagen;
   das betrifft weder den Windows- noch den Linux-Desktop-Build.
 - Nach zusätzlicher Absicherung von Windows-Junctions: **84 bestanden,
   16 übersprungen** im Datei-/Wiederaufnahme-/Windows-Sicherheitstestlauf.
@@ -29,7 +31,7 @@ aktivierten Windows-Symlink-Modus.
 - Paket-Smoke-Test: tatsächliche `OpenCommander.exe`, mitgelieferter Helfer,
   Unicode-Pfade, bytegenaue Downloads und rclone-EXE erfolgreich.
   Ergebnis: `build/package-smoke.json`; Protokoll des abschließenden Builds:
-  `build/parity-installed-build.log`.
+  `build/publisher-google-final-build.log`.
 - Die Windows-Tests umfassen Explorer-Zwischenablageformat, überschreibungsfreie
   Umbenennung, gefährliche Archivnamen/NTFS-Datenströme, Binärdateien,
   Dateieigenschaften, verborgene Dateien, private NTFS-ACLs,
@@ -53,9 +55,9 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   geprüften Build abgeglichen. Abgelaufene Anmeldungen und Fehler ohne weitere
   Provider-Frage beenden den Dialog sauber; eine neue Anmeldung entfernt alte
   Antworten und Fehlermeldungen. Zwei zusätzliche Qt-Regressionstests bestanden.
-- Abschließende Paritäts-/WebDAV-Korrektur installiert. Die installierte EXE
+- Abschließenden Herausgeber-/Langpfad-Build installiert. Die installierte EXE
   entspricht bytegenau dem frisch geprüften Paket:
-  SHA-256 `71b58b81e70515f981f85d5200fbe7fd1bddf5ac220d9ff79691befe9044a6b8`.
+  SHA-256 `4e5b76690d04646386af2a20cf7b58fa2810f9feb20bc96a056b656abe6b5913`.
   Die vorherige Installation bleibt als Sicherung erhalten.
 - Explorer-Zwischenablage praktisch in beiden Richtungen geprüft: eine Datei
   mit Umlauten und japanischen Zeichen kopiert und alle drei Exemplare per
@@ -127,21 +129,36 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   Ablauf liest die Ausgaben fortlaufend. Ein eigener Windows-Regressionstest
   prüft den Link vor Prozessende. Weitere sieben gezielte gemeinsame Tests
   für Passwortübergabe, Browseradressen und OAuth sind erfolgreich.
-- Die tatsächliche Google-Browseranmeldung ist gespeichert. Mount und Auflisten
-  bestanden einmal mit 718 Einträgen; Upload und Freigabelink-Erstellung gelangen
-  ebenfalls zeitweise. Der reine 2624-Byte-Testinhalt war im anonymen Browser
-  ohne Anmeldung sichtbar. Andere Aufrufe und der vollständige 256-KiB-Roundtrip
-  scheitern weiterhin mit HTTP 403 und Meldungen zu gemeinsamem OAuth-Client,
-  Einstellung und Quota. Stabiler Google-Dateizugriff bleibt offen.
-  Entfernen über die App-Anbindung war ebenfalls durch die Provider-Quota blockiert.
-  Die eigene synthetische Freigabetestdatei wurde deshalb über den bereits
-  verbundenen Google-Drive-Connector anhand ihrer exakten ID und ihres Testinhalts
-  entfernt. Der eigene Ordner wurde erst nach bestätigtem Leerstand entfernt;
-  anschließende Metadatenabfragen bestätigen „nicht gefunden“ für beide IDs.
-  Keine öffentliche Testfreigabe bleibt zurück. Dies ist ausdrücklich kein
-  bestandener Google-Datei-Roundtrip der OpenCommander-App.
-  Eine eigene zugelassene OAuth-Anwendung des **Herausgebers** kann im vorhandenen
-  Build eingebettet werden; Benutzer melden sich dann weiter nur im Browser an.
+- Google: Die früheren Fehler des gemeinsamen rclone-Clients wurden durch die
+  eigene Herausgeber-Identität im vorhandenen OpenCommander-Projekt behoben.
+  Ein zusätzlicher Schlüssel wurde mit ausdrücklicher Bestätigung erzeugt;
+  Browseranmeldung und 256-KiB-Datei-Roundtrip im privaten Abnahmeprofil bestanden.
+  Die bestehende Google-Verbindung wurde auf den neuen Client umgestellt; andere
+  Provider-Konfigurationen und alle vier gespeicherten Profile bleiben erhalten.
+  Der erste Test im langen MSIX-Profilpfad deckte einen Windows-MAX_PATH-Fehler
+  beim Umbenennen in die Rückgängig-Ablage auf. Windows-Dateiumbenennung und
+  temporäre Transfer-/Archiv-/Wiederherstellungsablagen verwenden nun erweiterte
+  Pfade. Ein realer Regressionstest prüft Rückgängig über 260 Zeichen und
+  überschreibungsfreie Umbenennung. Die globale Windows-Richtlinie bleibt unverändert.
+  Die beiden eigenen Diagnose-Dateien wurden anhand von Name, Größe und exaktem
+  Testinhalt geprüft und anschließend samt ihren Testordnern entfernt.
+  Google-Freigabelink, anonymer HTTP-Download (2624 Byte), Aufheben und Bereinigung
+  über dieselbe Herausgeberanbindung bestanden.
+  Nach Installation des endgültigen Pakets im vorhandenen Benutzerprofil erneut
+  bestanden: Auflisten (718 Einträge), WinFsp-Mount, 256-KiB-Upload und bytegenaues
+  Lesen, eingefrorener Helfer, Eigenschaften, Unicode-Umbenennung samt Rücknahme,
+  persistentes Rückgängig und Bereinigung des eigenen Testordners. Der lange
+  MSIX-Pfad funktioniert jetzt auch mit der Rückgängig-Ablage über 260 Zeichen.
+  Freigabelink und bytegenauer anonymer Download ebenfalls erneut bestanden;
+  alle eigenen Freigabetest-Dateien und -Ordner wurden über dieselbe Anbindung entfernt.
+  Installierte Herausgeber-Identität und tatsächlicher EXE-Helfer bestehen die
+  abschließende Paketprüfung; persönliche Tokens sind nicht im App-Paket.
+  Nach erneutem GUI-Start bleiben alle vier Cloud-Orte sichtbar. „Google Drive
+  online“ öffnet die Dateiansicht ohne erneute Anmeldung, lädt 711 sichtbare
+  Einträge und erreicht den Zustand „Bereit“ (versteckte Einträge werden gefiltert).
+  **Öffentliche Verifizierung offen:** Projekt External/Test, begrenzte Token-
+  Laufzeit. Hosting, HTTPS-Homepage, Datenschutzerklärung und Domain-Bestätigung
+  unter `opencommander.top` fehlen. Details stehen in [PUBLISHER.md](PUBLISHER.md).
 - Dropbox-Browserübergang und frischer lokaler OAuth-Endpunkt bestätigt.
   Nach dem ursprünglichen `ERR_CONNECTION_REFUSED` wurde eine neue Anmeldung
   mit laufendem lokalem Server durchgeführt und der vollständige Dateizugriff
@@ -167,6 +184,9 @@ Zusätzliche Ergebnisse: `build/native-webdav-results.json`,
 `build/icloud-installed-final.log`, `build/google-installed-final.log`,
 `build/share-live-results.json` (erster Dropbox-Erfolg),
 `build/share-live-onedrive.json` und `build/share-live-drive.json`.
+Herausgeber-Abnahme: `build/publisher-google-final-build.log`,
+`build/publisher-installed-package.log`, `build/google-publisher-installed-final.log`
+und `build/google-publisher-installed-share.log`.
 Der Live-Bericht enthält auch frühere fehlgeschlagene Versuche; maßgeblich ist
 das jüngste Ergebnis je Testfall. Kontoanmeldungen gelten erst nach gespeichertem
 Profil und erfolgreichem Dateizugriff als vollständig geprüft.
@@ -175,7 +195,7 @@ Profil und erfolgreichem Dateizugriff als vollständig geprüft.
 
 | Bereich | Offener Nachweis |
 | --- | --- |
-| Cloud | Stabiler Google-Dateizugriff mit zugelassener Herausgeber-OAuth-Anwendung; weitere anbieterspezifische Kontenrichtlinien |
+| Cloud | Öffentliche Google-Marken-/Scope-Verifizierung, Hosting und HTTPS unter opencommander.top; weitere anbieterspezifische Kontenrichtlinien |
 | Server | Externe Server mit abweichenden Richtlinien; persönlicher Windows-SSH-Agent. Eigene laufende FTP/FTPS/SFTP/WebDAV-Testserver und nativer WebClient sind geprüft |
 | USB | Sicheres Auswerfen wurde auf Benutzerwunsch nicht getestet |
 | Medien | Weitere Codec-/Hardwarekombinationen; PNG, WAV und H.264 sind praktisch geprüft |

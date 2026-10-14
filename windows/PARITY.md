@@ -7,8 +7,8 @@ aus `linux/opencommander`; Betriebssystemdienste haben eigene Adapter.
 
 **Kein uneingeschränktes 1:1-Versprechen:** Der Funktionskern ist gemeinsam,
 aber GNOME/GVFS, Windows-Shell, Dateirechte, Geräte und Provider-Regeln unterscheiden
-sich. Insbesondere ist stabiler Google-Dateizugriff mit dem gemeinsam genutzten
-rclone-OAuth-Client aktuell nicht bestätigt.
+sich. Google-Dateizugriff wurde mit dem eigenen Herausgeber-Client bestätigt;
+die öffentliche Google-Verifizierung steht weiterhin aus.
 
 ## Oberfläche und Dateiwerkzeuge
 
@@ -46,12 +46,12 @@ rclone-OAuth-Client aktuell nicht bestätigt.
 | --- | --- | --- |
 | OneDrive per Browser-OAuth ohne Sync-Client | Gleicher Assistent; WinFsp statt FUSE | Anmeldung, gespeichertes Profil, 256-KiB-Upload, Lesen, Helfer und persistente Rücknahme bestanden |
 | Dropbox per Browser-OAuth | Gleicher Assistent; WinFsp statt FUSE | Vollständiger Datei-Roundtrip bestanden; Browserübergang und lokaler OAuth-Server korrigiert |
-| Google per rclone-Browser-OAuth | Gleicher Assistent; WinFsp statt FUSE | Anmeldung gespeichert, Mount und Auflisten erfolgreich; Upload/Freigabe zeitweise möglich, weitere Aufrufe HTTP 403/Quota. Kein stabiler vollständiger Nachweis |
+| Google per rclone-Browser-OAuth | Gleicher Assistent; WinFsp statt FUSE | Eigener Herausgeber-Client eingebettet, Browseranmeldung und 256-KiB-Roundtrip bestanden. Projekt noch im Testmodus; öffentliche Verifizierung offen |
 | Google über GNOME Online Accounts / GVFS | Kein entsprechender Windows-Systemdienst | Linux kann zusätzlich ein vom Desktop eingerichtetes GVFS-Laufwerk benutzen. Diese separate GNOME-OAuth-Anwendung ist nicht die rclone-Anmeldung |
 | iCloud per Apple-ID und Zwei-Faktor-Code | Gleicher Assistent | Benutzeranmeldung, Mount, 256-KiB-Upload, bytegenaues Lesen, Helfer und Rücknahme bestanden. Apple verwendet hier keinen reinen Browser-OAuth-Ablauf |
 | Freigabelink Dropbox | Gleiche Provider-Aktion | Anonymer HTTP-Download bytegenau bestanden; synthetische Datei und Ordner entfernt |
 | Freigabelink OneDrive | Gleiche Provider-Aktion | Dateiinhalt im nicht angemeldeten Browser sichtbar; synthetische Datei und Ordner entfernt |
-| Freigabelink Google | Gleiche Provider-Aktion | Linkerstellung und anonymer Dateiinhalt bestätigt. Entfernen über die App-Anbindung durch Quota blockiert; synthetische Datei und leerer Ordner separat über verbundenen Drive-Connector entfernt und geprüft |
+| Freigabelink Google | Gleiche Provider-Aktion | Mit eigenem Herausgeber-Client: Linkerstellung, bytegenauer anonymer HTTP-Download, Aufheben und Bereinigung über dieselbe App-Anbindung bestanden |
 | Freigaben im Provider-Browser verwalten; Online-Pfad kopieren | Gleiche Aktionen | Gemeinsame Tests; iCloud-Linkerstellung ist auf beiden Plattformen nicht implementiert, Browser-Verwaltung bleibt verfügbar |
 | Online-Suche, Vergleich, Umbenennen, ZIP, Vorschau und Transfers | Gemeinsame Werkzeuge auf dem Mount | Gemeinsame Tests und echte Mounts; einzelne Provider können Attribute/Funktionen einschränken |
 | FTP | Gleicher Assistent; WinFsp statt FUSE | Eigener Loopback-Server: 256-KiB-Datei, Helfer, Rücknahme, Abbruch und Trennen bestanden |
@@ -90,18 +90,18 @@ Secret Service, FIFO, POSIX-Rechte und Symlink-Erstellung ohne Windows-Recht.
 Diese Ausnahmen sind kein bestandener Windows-Nachweis. Die Windows-Adapter
 haben eigene Tests und die oben beschriebenen Live-Prüfungen.
 
-Der vollständige Ubuntu-24.04-Lauf hat **397 Tests bestanden** und das Linux-Paket
-gebaut. Der abschließende Windows-CI-Lauf besteht **402 Tests mit 39 Ausnahmen**
+Der vollständige Ubuntu-24.04-Lauf hat **400 Tests bestanden** und das Linux-Paket
+gebaut. Der abschließende Windows-CI-Lauf besteht **406 Tests mit 39 Ausnahmen**
 und baut GUI, Helfer und ZIP erfolgreich:
-[CI-Lauf 38522129270](https://github.com/Niclas85/OpenCommander/actions/runs/38522129270),
-Commit `5679aaf`. Der vollständige lokale Windows-Lauf besteht
-**394 Tests mit 47 begründeten Ausnahmen**. Der abschließende Prüfstand und
+[CI-Lauf 38592350691](https://github.com/Niclas85/OpenCommander/actions/runs/38592350691),
+Commit `2e801e1`. Der vollständige lokale Windows-Lauf besteht
+**398 Tests mit 47 begründeten Ausnahmen**. Der abschließende Prüfstand und
 die installierte Version stehen in [TESTING.md](TESTING.md).
 
-Für zuverlässigen Google-Zugriff benötigt der Herausgeber eine zugelassene eigene
-Desktop-OAuth-Registrierung, die der vorhandene Build bereits einbetten kann.
-Endbenutzer melden sich dann weiterhin ausschließlich im Browser an; eine eigene
-Google-Cloud-Anwendung pro Benutzer ist nicht das gewünschte Produktmodell.
-Ohne eine solche bereitgestellte Registrierung kann die Windows-Portierung die
-Quota des gemeinsamen rclone-Projekts nicht reparieren. Hintergrund:
+Die eigene Desktop-OAuth-Registrierung ist jetzt eingerichtet und im Windows-
+Paket enthalten. Endbenutzer melden sich weiterhin im Browser an; sie benötigen
+keine eigene Google-Cloud-Anwendung. Das Projekt steht noch auf External/Test;
+die Refresh-Tokens sind zeitlich begrenzt. Für öffentliche Nutzung fehlen Hosting
+und HTTPS-Seiten unter `opencommander.top`, Domain-Bestätigung sowie Googles
+Marken-/Scope-Verifizierung. Details: [PUBLISHER.md](PUBLISHER.md). Hintergrund:
 [rclone Google Drive](https://rclone.org/drive/#making-your-own-client-id).
