@@ -27,6 +27,7 @@ int nk_test_fail_move_after_backup;
 #include <ntfs-3g/device.h>
 #include <ntfs-3g/reparse.h>
 #include <ntfs-3g/runlist.h>
+#include <ntfs-3g/logfile.h>
 
 struct nk_volume {
     ntfs_volume *vol;
@@ -162,23 +163,102 @@ static nk_volume *mount_once(const nk_io *io, char *errbuf, size_t errlen) {
     return v;
 }
 
+static void safety_message(const nk_safety_report *report, char *buffer, size_t length) {
+    if (!buffer || !length) return;
+    const char *reason = "Write refused: NTFS safety inspection failed";
+    if (report->blockers & NK_BLOCK_IO)
+        reason = "Write refused: NTFS metadata could not be read or closed reliably";
+    else if (report->blockers & NK_BLOCK_JOURNAL_INVALID)
+        reason = "Write refused: NTFS journal is invalid or unreadable; repair is required";
+    else if (report->blockers & NK_BLOCK_WINDOWS_CACHE)
+        reason = "Write refused: Windows cached metadata/fast restart must be resolved on Windows";
+    else if (report->blockers & NK_BLOCK_HIBERNATED)
+        reason = "Write refused: Windows is hibernated; resume and shut down Windows fully";
+    else if (report->blockers & NK_BLOCK_VERSION)
+        reason = "Write refused: this NTFS version is not supported for writing";
+    else if (report->blockers & NK_BLOCK_REPLAY_REQUIRED)
+        reason = "Write refused: NTFS journal replay is required; no journal was cleared or replayed";
+    else if (report->blockers & NK_BLOCK_DIRTY)
+        reason = "Write refused: NTFS is marked dirty and requires a filesystem check";
+    snprintf(buffer, length, "%s", reason);
+}
+
+int nk_inspect_io(const nk_io *io, nk_safety_report *report, char *errbuf, size_t errlen) {
+    if (errbuf && errlen) errbuf[0] = '\0';
+    if (report) memset(report, 0, sizeof(*report));
+    if (!io || !report || !io->pread || io->size < 512) {
+        if (report) { report->blockers = NK_BLOCK_IO; report->error_code = EINVAL; }
+        errno = EINVAL; return -1;
+    }
+    if (ntfs_set_char_encoding("UTF-8")) {
+        report->blockers = NK_BLOCK_IO; report->error_code = errno ? errno : EIO;
+        safety_message(report, errbuf, errlen); return -1;
+    }
+    nk_io check = *io;
+    check.readonly = 1;
+    check.pwrite = NULL;
+    check.sync = NULL;
+    nk_volume *probe = mount_once(&check, errbuf, errlen);
+    if (!probe) {
+        report->blockers = NK_BLOCK_IO; report->error_code = errno ? errno : EIO;
+        errno = report->error_code; return -1;
+    }
+    report->major_version = probe->vol->major_ver;
+    report->minor_version = probe->vol->minor_ver;
+    report->volume_flags = le16_to_cpu(probe->vol->flags);
+    if (report->major_version != 3 || report->minor_version != 1) report->blockers |= NK_BLOCK_VERSION;
+    if (probe->vol->flags & VOLUME_IS_DIRTY) report->blockers |= NK_BLOCK_DIRTY;
+    errno = 0;
+    if (ntfs_volume_check_hiberfile(probe->vol, 0)) {
+        report->hibernation_state = errno == EPERM ? 1 : 2;
+        report->blockers |= errno == EPERM ? NK_BLOCK_HIBERNATED : NK_BLOCK_IO;
+        report->error_code = errno ? errno : EIO;
+    }
+
+    ntfs_inode *inode = ntfs_inode_open(probe->vol, FILE_LogFile);
+    ntfs_attr *attribute = inode ? ntfs_attr_open(inode, AT_DATA, AT_UNNAMED, 0) : NULL;
+    RESTART_PAGE_HEADER *restart = NULL;
+    if (!attribute || !ntfs_check_logfile(attribute, &restart)) {
+        report->journal_state = NK_JOURNAL_INVALID;
+        report->blockers |= NK_BLOCK_JOURNAL_INVALID;
+    } else if (restart && restart->major_ver == const_cpu_to_sle16(2) &&
+               restart->minor_ver == const_cpu_to_sle16(0)) {
+        // Match NTFS-3G's additional cache/fast-restart guard, even if the
+        // restart area's clean bit is set. Never drop cached Windows metadata.
+        report->journal_state = NK_JOURNAL_WINDOWS_CACHE;
+        report->blockers |= NK_BLOCK_WINDOWS_CACHE;
+    } else if (!ntfs_is_logfile_clean(attribute, restart)) {
+        report->journal_state = NK_JOURNAL_REPLAY_REQUIRED;
+        report->blockers |= NK_BLOCK_REPLAY_REQUIRED;
+    } else {
+        report->journal_state = NK_JOURNAL_CLEAN;
+    }
+    free(restart);
+    if (attribute) ntfs_attr_close(attribute);
+    if (inode && ntfs_inode_close(inode)) {
+        report->blockers |= NK_BLOCK_IO;
+        report->error_code = errno ? errno : EIO;
+    }
+    if (nk_umount(probe)) {
+        report->blockers |= NK_BLOCK_IO;
+        report->error_code = errno ? errno : EIO;
+    }
+    if (report->blockers) safety_message(report, errbuf, errlen);
+    if (report->blockers & NK_BLOCK_IO) { errno = report->error_code; return -1; }
+    return 0;
+}
+
 nk_volume *nk_mount_io(const nk_io *io, char *errbuf, size_t errlen) {
+    if (errbuf && errlen) errbuf[0] = '\0';
     if (!io || !io->pread || io->size < 512 ||
         (!io->readonly && (!io->pwrite || !io->sync))) {
         errno = EINVAL; return NULL;
     }
     if (ntfs_set_char_encoding("UTF-8")) return NULL;
     if (!io->readonly) {
-        nk_io check = *io;
-        check.readonly = 1;
-        nk_volume *probe = mount_once(&check, errbuf, errlen);
-        if (!probe) return NULL;
-        int unsafe = probe->vol->major_ver != 3 || probe->vol->minor_ver != 1 ||
-            (probe->vol->flags & VOLUME_IS_DIRTY) ||
-            ntfs_volume_check_hiberfile(probe->vol, 0);
-        int closed = nk_umount(probe);
-        if (unsafe || closed) {
-            if (errbuf && errlen) snprintf(errbuf, errlen, "Write refused: dirty, hibernated, unsupported, or unreadable NTFS volume");
+        nk_safety_report report;
+        if (nk_inspect_io(io, &report, errbuf, errlen)) return NULL;
+        if (report.blockers) {
             errno = EROFS; return NULL;
         }
     }
@@ -216,12 +296,21 @@ int nk_statvfs(nk_volume *v, long long *total_bytes, long long *free_bytes,
                int *cluster_size) {
     if (!v) return -1;
     ntfs_volume *vol = v->vol;
-    if (ntfs_volume_get_free_space(vol) < 0) return -1;
+    // The engine maintains these counts during allocation/free. Re-scanning
+    // the entire $Bitmap for every statfs call stalls multi-terabyte FSKit
+    // volumes and serializes unrelated directory and file operations behind it.
+    if (!NVolFreeSpaceKnown(vol) && ntfs_volume_get_free_space(vol) < 0) return -1;
     if (total_bytes)  *total_bytes  = (long long)vol->nr_clusters * vol->cluster_size;
     if (free_bytes)   *free_bytes   = (long long)vol->free_clusters * vol->cluster_size;
     if (cluster_size) *cluster_size = (int)vol->cluster_size;
     return 0;
 }
+#ifdef NK_TESTING
+long long nk_test_recount_free(nk_volume *v) {
+    if (ntfs_volume_get_free_space(v->vol)) return -1;
+    return (long long)v->vol->free_clusters * v->vol->cluster_size;
+}
+#endif
 
 int nk_label(nk_volume *v, char *buf, size_t buflen) {
     if (!v || !buf || buflen == 0) return -1;
@@ -237,6 +326,17 @@ static int is_intx_symlink(ntfs_attr *na) {
     le64 magic = 0;
     if (ntfs_attr_pread(na, 0, sizeof(magic), &magic) != sizeof(magic)) return 0;
     return magic == INTX_SYMBOLIC_LINK;
+}
+
+static void unpack_time(ntfs_time value, long long *seconds, int32_t *nanoseconds) {
+    /* Floor, rather than truncate, fractional pre-1970 dates. Wide arithmetic
+     * also avoids signed overflow when subtracting the NTFS epoch offset. */
+    __int128 ticks = (__int128)sle64_to_cpu(value) - NTFS_TIME_OFFSET;
+    __int128 sec = ticks / 10000000;
+    __int128 remainder = ticks % 10000000;
+    if (remainder < 0) { sec--; remainder += 10000000; }
+    *seconds = (long long)sec;
+    *nanoseconds = (int32_t)(remainder * 100);
 }
 
 static void fill_stat(ntfs_inode *ni, ntfs_attr *na, nk_stat *st) {
@@ -256,23 +356,27 @@ static void fill_stat(ntfs_inode *ni, ntfs_attr *na, nk_stat *st) {
         st->koio_ok = !(na->data_flags & (ATTR_IS_COMPRESSED | ATTR_IS_ENCRYPTED)) &&
                       !st->is_symlink;
     }
-    st->atime = ntfs2timespec(ni->last_access_time).tv_sec;
-    st->mtime = ntfs2timespec(ni->last_data_change_time).tv_sec;
-    st->ctime = ntfs2timespec(ni->last_mft_change_time).tv_sec;
-    st->btime = ntfs2timespec(ni->creation_time).tv_sec;
+    unpack_time(ni->last_access_time, &st->atime, &st->atime_nsec);
+    unpack_time(ni->last_data_change_time, &st->mtime, &st->mtime_nsec);
+    unpack_time(ni->last_mft_change_time, &st->ctime, &st->ctime_nsec);
+    unpack_time(ni->creation_time, &st->btime, &st->btime_nsec);
 }
 
 int nk_stat_path(nk_volume *v, const char *path, nk_stat *st) {
-    if (!v || !st) return -1;
+    if (!v || !path || !st) { errno = EINVAL; return -1; }
     ntfs_inode *ni = ntfs_pathname_to_inode(v->vol, NULL, path);
     if (!ni) return -1;
     ntfs_attr *na = NULL;
-    if (!(ni->mrec->flags & MFT_RECORD_IS_DIRECTORY))
+    if (!(ni->mrec->flags & MFT_RECORD_IS_DIRECTORY)) {
         na = ntfs_attr_open(ni, AT_DATA, AT_UNNAMED, 0);
+        if (!na) {
+            int saved = errno;
+            ntfs_inode_close(ni); errno = saved; return -1;
+        }
+    }
     fill_stat(ni, na, st);
     if (na) ntfs_attr_close(na);
-    ntfs_inode_close(ni);
-    return 0;
+    return ntfs_inode_close(ni);
 }
 
 struct list_ctx {
@@ -280,53 +384,67 @@ struct list_ctx {
     nk_dirent_cb cb;
     void        *ctx;
     int          stop;
+    int          error;
 };
 
 static int nk_filldir(void *ctx, const ntfschar *name, const int name_len,
                       const int name_type, const s64 pos, const MFT_REF mref,
                       const unsigned dt_type) {
-    (void)pos;
     struct list_ctx *lc = ctx;
-    if (lc->stop) return 0;
+    if (lc->stop || lc->error) return 1;
     if (name_type == FILE_NAME_DOS) return 0;          /* skip 8.3 aliases */
     if (MREF(mref) < (u64)FILE_first_user) return 0;   /* skip $MFT & friends */
 
     char *utf8 = NULL;
-    if (ntfs_ucstombs(name, name_len, &utf8, 0) < 0 || !utf8) return 0;
+    if (ntfs_ucstombs(name, name_len, &utf8, 0) < 0 || !utf8) {
+        free(utf8); lc->error = errno ? errno : EILSEQ; return 1;
+    }
 
     int is_dot = utf8[0] == '.' &&
                  (utf8[1] == '\0' || (utf8[1] == '.' && utf8[2] == '\0'));
     if (!is_dot) {
+        if (pos < 0 || pos == LLONG_MAX) { free(utf8); lc->error = EOVERFLOW; return 1; }
         nk_dirent e = { .name = utf8, .is_dir = dt_type == NTFS_DT_DIR,
-                        .size = 0, .inode = MREF(mref) };
+                        .size = 0, .inode = MREF(mref), .next_cookie = (uint64_t)pos + 1 };
         if (!e.is_dir) {
             ntfs_inode *ni = ntfs_inode_open(lc->v->vol, mref);
             if (ni) {
                 ntfs_attr *na = ntfs_attr_open(ni, AT_DATA, AT_UNNAMED, 0);
                 if (na) { e.size = (long long)na->data_size; ntfs_attr_close(na); }
-                ntfs_inode_close(ni);
+                else lc->error = errno ? errno : EIO;
+                if (ntfs_inode_close(ni) && !lc->error) lc->error = errno ? errno : EIO;
             }
+            else lc->error = errno ? errno : EIO;
         }
-        if (lc->cb(lc->ctx, &e) != 0) lc->stop = 1;
+        if (!lc->error && lc->cb(lc->ctx, &e) != 0) lc->stop = 1;
     }
     free(utf8);
-    return 0;
+    return lc->stop || lc->error ? 1 : 0;
 }
 
 int nk_list(nk_volume *v, const char *dir_path, nk_dirent_cb cb, void *ctx) {
-    if (!v || !cb) return -1;
+    return nk_list_from(v, dir_path, 0, cb, ctx);
+}
+
+int nk_list_from(nk_volume *v, const char *dir_path, uint64_t cookie, nk_dirent_cb cb, void *ctx) {
+    if (!v || !dir_path || !cb || cookie > LLONG_MAX) { errno = EINVAL; return -1; }
     ntfs_inode *dir = ntfs_pathname_to_inode(v->vol, NULL, dir_path);
     if (!dir) return -1;
-    struct list_ctx lc = { v, cb, ctx, 0 };
-    s64 pos = 0;
+    struct list_ctx lc = { v, cb, ctx, 0, 0 };
+    s64 pos = (s64)cookie;
     int r = ntfs_readdir(dir, &pos, &lc, nk_filldir);
-    ntfs_inode_close(dir);
-    return r ? -1 : 0;
+    int saved = lc.error ? lc.error : (r && !lc.stop ? (errno ? errno : EIO) : 0);
+    int close_result = ntfs_inode_close(dir);
+    if (close_result && !saved) saved = errno ? errno : EIO;
+    if (saved) { errno = saved; return -1; }
+    return 0;
 }
 
 long long nk_read(nk_volume *v, const char *path, long long offset,
                   long long count, void *buf) {
-    if (!v) return -1;
+    if (!v || !path || offset < 0 || count < 0 || count > LLONG_MAX - offset || (!buf && count)) {
+        errno = EINVAL; return -1;
+    }
     ntfs_inode *ni = ntfs_pathname_to_inode(v->vol, NULL, path);
     if (!ni) return -1;
     long long n = -1;
@@ -335,7 +453,9 @@ long long nk_read(nk_volume *v, const char *path, long long offset,
         n = (long long)ntfs_attr_pread(na, offset, count, buf);
         ntfs_attr_close(na);
     }
-    ntfs_inode_close(ni);
+    int saved = n < 0 ? (errno ? errno : EIO) : 0;
+    if (ntfs_inode_close(ni) && !saved) saved = errno ? errno : EIO;
+    if (saved) { errno = saved; return -1; }
     return n;
 }
 
@@ -509,6 +629,52 @@ int nk_truncate(nk_volume *v, const char *path, long long size) {
     ntfs_inode_update_times(ni, NTFS_UPDATE_MCTIME);
     if (ntfs_inode_close(ni)) r = -1;
     return r ? -1 : 0;
+}
+
+static int pack_time(nk_timestamp input, ntfs_time *output) {
+    if (input.nanoseconds < 0 || input.nanoseconds >= 1000000000) {
+        errno = EINVAL; return -1;
+    }
+    __int128 ticks = (__int128)input.seconds * 10000000 + NTFS_TIME_OFFSET + input.nanoseconds / 100;
+    if (ticks < 0 || ticks > INT64_MAX) { errno = EOVERFLOW; return -1; }
+    *output = cpu_to_sle64((int64_t)ticks);
+    return 0;
+}
+
+int nk_validate_times(const nk_times *times) {
+    if (!times || (times->valid & ~(NK_TIME_ACCESS | NK_TIME_MODIFY | NK_TIME_CHANGE | NK_TIME_BIRTH))) {
+        errno = EINVAL; return -1;
+    }
+    ntfs_time unused;
+    if (((times->valid & NK_TIME_ACCESS) && pack_time(times->access, &unused)) ||
+        ((times->valid & NK_TIME_MODIFY) && pack_time(times->modify, &unused)) ||
+        ((times->valid & NK_TIME_CHANGE) && pack_time(times->change, &unused)) ||
+        ((times->valid & NK_TIME_BIRTH) && pack_time(times->birth, &unused))) return -1;
+    return 0;
+}
+
+int nk_set_times(nk_volume *v, const char *path, const nk_times *times) {
+    if (!v || !path) { errno = EINVAL; return -1; }
+    if (nk_validate_times(times)) return -1;
+    if (NVolReadOnly(v->vol)) { errno = EROFS; return -1; }
+    ntfs_time access = 0, modify = 0, change = 0, birth = 0;
+    if (((times->valid & NK_TIME_ACCESS) && pack_time(times->access, &access)) ||
+        ((times->valid & NK_TIME_MODIFY) && pack_time(times->modify, &modify)) ||
+        ((times->valid & NK_TIME_CHANGE) && pack_time(times->change, &change)) ||
+        ((times->valid & NK_TIME_BIRTH) && pack_time(times->birth, &birth))) return -1;
+    if (!times->valid) return 0;
+    ntfs_inode *ni = ntfs_pathname_to_inode(v->vol, NULL, path);
+    if (!ni) return -1;
+    if (ni->mft_no < FILE_first_user && ni->mft_no != FILE_root) {
+        ntfs_inode_close(ni); errno = EPERM; return -1;
+    }
+    if (times->valid & NK_TIME_ACCESS) ni->last_access_time = access;
+    if (times->valid & NK_TIME_MODIFY) ni->last_data_change_time = modify;
+    if (times->valid & NK_TIME_BIRTH) ni->creation_time = birth;
+    ni->last_mft_change_time = (times->valid & NK_TIME_CHANGE) ? change : ntfs_current_time();
+    NInoFileNameSetDirty(ni);
+    NInoSetDirty(ni);
+    return ntfs_inode_close(ni);
 }
 
 int nk_sync(nk_volume *v) {

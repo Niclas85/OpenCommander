@@ -32,12 +32,16 @@ def settings(kind, host, port, user, mode, key='', directory=''):
             keypath = Path(key).expanduser().absolute()
             if not keypath.is_file() or keypath.stat().st_size > 1024 * 1024:
                 raise ValueError('Private SSH-Schlüsseldatei auswählen / Select a private SSH key')
-            if keypath.stat().st_mode & 0o077:
+            if os.name != 'nt' and keypath.stat().st_mode & 0o077:
                 raise ValueError('SSH-Schlüssel ist für andere Benutzer lesbar. Rechte auf 600 setzen / Set private key permissions to 600')
             data = keypath.read_bytes()
             encrypted_pem = b'ENCRYPTED' in data
             if b'PRIVATE KEY-----' not in data:
                 raise ValueError('Privaten Schlüssel auswählen; .pub und PuTTY .ppk werden nicht unterstützt / Select a private OpenSSH or PEM key')
+            if os.name == 'nt':
+                from .windows_native import private_key_readers
+                if not private_key_readers(keypath):
+                    raise ValueError('Privater SSH-Schlüssel ist für andere Benutzer lesbar. NTFS-Leserechte auf dein Konto beschränken. / Restrict private SSH key NTFS read permissions to your account.')
             if b'BEGIN OPENSSH PRIVATE KEY' in data:
                 try:
                     raw = base64.b64decode(b''.join(data.splitlines()[1:-1]), validate=True)
@@ -82,6 +86,9 @@ def write_config(path, identifier, section):
 
 
 def keyring(state, identifier, action, secret=None):
+    if os.name == 'nt':
+        from .windows_native import keyring as windows_keyring
+        return windows_keyring(state, identifier, action, secret)
     request = dict(state=str(Path(state).resolve()), profile=identifier, action=action)
     if secret is not None:
         request['secret'] = secret
@@ -108,6 +115,19 @@ def credential_environment(main, profile):
     if secret is None and profile.get('secret_required', mode == 'password'):
         raise RuntimeError('Anmeldung benötigt: „Erneut anmelden“ wählen / Sign in again to enter credentials')
     if profile.get('agent_key'):
+        if os.name == 'nt':
+            from cryptography.hazmat.primitives import serialization
+            try:
+                key = serialization.load_ssh_private_key(Path(profile['key_path']).read_bytes(),
+                                                         password=secret.encode() if secret else None)
+                pem = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                                        serialization.NoEncryption()).decode('ascii')
+            except (ValueError, TypeError):
+                raise RuntimeError('SSH-Schlüssel konnte nicht entsperrt werden / Could not unlock SSH key') from None
+            prefix = 'RCLONE_CONFIG_' + profile['id'].upper()
+            env[prefix + '_KEY_PEM'] = pem.replace('\n', r'\n')
+            env[prefix + '_KEY_USE_AGENT'] = 'false'
+            return env
         if not env.get('SSH_AUTH_SOCK'):
             raise RuntimeError('SSH-Agent fehlt. Linux-Schlüsselverwaltung aktivieren / SSH agent unavailable')
         askpass = Path(__file__).with_name('secret_bridge.py')
@@ -118,7 +138,7 @@ def credential_environment(main, profile):
                                 capture_output=True, env=agent_env, timeout=30)
         if result.returncode:
             raise RuntimeError('SSH-Schlüssel konnte nicht entsperrt werden. Passphrase und Agent prüfen / Could not unlock SSH key')
-    elif mode == 'agent' and not env.get('SSH_AUTH_SOCK'):
+    elif mode == 'agent' and not env.get('SSH_AUTH_SOCK') and os.name != 'nt':
         raise RuntimeError('SSH-Agent fehlt / SSH agent unavailable')
     elif secret:
         # Obscure only for rclone's wire format, not for persistent storage.

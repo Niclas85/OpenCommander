@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        D01720261014000000000001 = {isa = PBXBuildFile; fileRef = D01720261014000000000011; };
+        D01820261014000000000001 = {isa = PBXBuildFile; fileRef = D01820261014000000000011; };
+        D01820261014000000000002 = {isa = PBXBuildFile; fileRef = D01820261014000000000012; };
         D01620261013000000000001 = {isa = PBXBuildFile; fileRef = D01620261013000000000011; };
         D01520261013000000000002 = {isa = PBXBuildFile; fileRef = D01520261013000000000012; };
         D01520261013000000000001 = {isa = PBXBuildFile; fileRef = D01520261013000000000011; };
@@ -109,6 +112,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+        D01720261014000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCommanderMacBridge/NTFSExtensionRegistration.swift; sourceTree = SOURCE_ROOT; };
+        D01820261014000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCommanderMacBridge/NTFSAccessPolicy.swift; sourceTree = SOURCE_ROOT; };
+        D01820261014000000000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCommanderMacBridge/NTFSAutoMount.swift; sourceTree = SOURCE_ROOT; };
         D01620261013000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopConnectionsController.swift; sourceTree = "<group>"; };
         D01520261013000000000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineUndo.swift; sourceTree = "<group>"; };
         D01520261013000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCommanderMacBridge/CloudConfigurationLease.swift; sourceTree = SOURCE_ROOT; };
@@ -216,6 +222,9 @@
 				4446BB5DED9CF5F765ACB678 /* AppDelegate.swift */,
                 A66000000000000000000011,
                 A66000000000000000000012,
+                D01720261014000000000011,
+                D01820261014000000000011,
+                D01820261014000000000012,
 				4CADCE370033D94E97C19D6C /* Assets.xcassets */,
 				556918D3DC87DF614F200378 /* FileEntry.swift */,
 				DAD000000000000000000002 /* FileDropTransfer.swift */,
@@ -362,6 +371,7 @@
 			buildConfigurationList = E00DBB1612B94F9E4DD9E3D7 /* Build configuration list for PBXNativeTarget "OpenCommander" */;
 			buildPhases = (
                 C08020261008000000000020 /* Build SSH password helper */,
+                D01820261014000000000020 /* Build NTFS access helper */,
 				664B47E5B1BD4453AB12B48C /* Sources */,
 				AE61A00DE1C9FF2C2478036D /* Resources */,
                 D01420261013000000000020 /* Package public desktop OAuth identities */,
@@ -458,6 +468,11 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+        D01820261014000000000020 /* Build NTFS access helper */ = {
+            isa = PBXShellScriptBuildPhase; alwaysOutOfDate = 1; buildActionMask = 2147483647;
+            files = (); inputPaths = (); outputPaths = (); name = "Build NTFS access helper"; runOnlyForDeploymentPostprocessing = 0;
+            shellPath = /bin/sh; shellScript = "sh \"$SRCROOT/build-ntfs-access-helper.sh\"\n";
+        };
         D01420261013000000000020 /* Package public desktop OAuth identities */ = {
             isa = PBXShellScriptBuildPhase; alwaysOutOfDate = 1; buildActionMask = 2147483647;
             files = (); inputPaths = ("$(SRCROOT)/prepare-public-oauth.py", "$(SRCROOT)/../linux/opencommander/public_oauth.py");
@@ -474,7 +489,7 @@
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = ();
-			inputPaths = ("$(PROJECT_DIR)/../ntfs/NTFS3G/build-engine.sh", "$(PROJECT_DIR)/../ntfs/NTFS3G/build-universal.sh", "$(PROJECT_DIR)/../ntfs/NTFS3G/vendor/ntfs-3g_ntfsprogs-2026.7.7.tgz");
+			inputPaths = ("$(PROJECT_DIR)/../ntfs/NTFS3G/build-engine.sh", "$(PROJECT_DIR)/../ntfs/NTFS3G/build-universal.sh", "$(PROJECT_DIR)/../ntfs/NTFS3G/apply-engine-patches.sh", "$(PROJECT_DIR)/../ntfs/NTFS3G/case-preserving-readdir.patch", "$(PROJECT_DIR)/../ntfs/NTFS3G/directory-cookies.patch", "$(PROJECT_DIR)/../ntfs/NTFS3G/vendor/ntfs-3g_ntfsprogs-2026.7.7.tgz");
 			outputPaths = ("$(PROJECT_DIR)/../ntfs/NTFS3G/.build-native/libntfs-3g-universal.a", "$(PROJECT_DIR)/../ntfs/NTFS3G/.build-native/ntfs-3g-2026.7.7/config.h");
 			name = "Build NTFS-3G engine";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -484,7 +499,7 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-        A66000000000000000000031 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A66000000000000000000002, A66000000000000000000003, C08020261008000000000002, D01220261012000000000009, D0122026101200000000000B, D0122026101200000000000D, D01420261013000000000002, D01520261013000000000001); runOnlyForDeploymentPostprocessing = 0; };
+        A66000000000000000000031 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A66000000000000000000002, A66000000000000000000003, C08020261008000000000002, D01220261012000000000009, D0122026101200000000000B, D0122026101200000000000D, D01420261013000000000002, D01520261013000000000001, D01720261014000000000001, D01820261014000000000001, D01820261014000000000002); runOnlyForDeploymentPostprocessing = 0; };
 		2D748C0EB7CAA662C857EF35 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -570,11 +585,15 @@
 				CODE_SIGN_ENTITLEMENTS = OpenCommanderNTFSModule/OpenCommanderNTFSModule.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 14;
 				DEVELOPMENT_TEAM = WB497999XX;
 				ENABLE_APP_SANDBOX = YES;
-				INFOPLIST_FILE = OpenCommanderNTFSModule/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "OpenCommander NTFS";
+				ENABLE_DEBUG_DYLIB = NO;
+				INFOPLIST_FILE = "$(OPENCOMMANDER_NTFS_INFO_PLIST)";
+				OPENCOMMANDER_NTFS_INFO_PLIST = OpenCommanderNTFSModule/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "$(OPENCOMMANDER_NTFS_DISPLAY_NAME)";
+				OPENCOMMANDER_NTFS_DISPLAY_NAME = "OpenCommander NTFS";
+				OPENCOMMANDER_NTFS_SHORT_NAME = openntfs;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -583,7 +602,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.4;
 				MARKETING_VERSION = 1.3;
 				OPENCOMMANDER_APP_BUNDLE_IDENTIFIER = com.github.niklaus85.OpenCommander;
-				PRODUCT_BUNDLE_IDENTIFIER = "$(OPENCOMMANDER_APP_BUNDLE_IDENTIFIER).NTFSModule";
+				OPENCOMMANDER_NTFS_BUNDLE_IDENTIFIER = "$(OPENCOMMANDER_APP_BUNDLE_IDENTIFIER).NTFSModule";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(OPENCOMMANDER_NTFS_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = OpenCommanderNTFSModule;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -598,11 +618,12 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = OpenCommander/OpenCommanderMac.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 14;
 				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = NO;
 				DEVELOPMENT_TEAM = WB497999XX;
 				GENERATE_INFOPLIST = YES;
-				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_FILE = "$(OPENCOMMANDER_APP_INFO_PLIST)";
+				OPENCOMMANDER_APP_INFO_PLIST = Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -651,11 +672,12 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = OpenCommander/OpenCommanderMac.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 14;
 				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = NO;
 				DEVELOPMENT_TEAM = WB497999XX;
 				GENERATE_INFOPLIST = YES;
-				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_FILE = "$(OPENCOMMANDER_APP_INFO_PLIST)";
+				OPENCOMMANDER_APP_INFO_PLIST = Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -818,11 +840,15 @@
 				CODE_SIGN_ENTITLEMENTS = OpenCommanderNTFSModule/OpenCommanderNTFSModule.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 14;
 				DEVELOPMENT_TEAM = WB497999XX;
 				ENABLE_APP_SANDBOX = YES;
-				INFOPLIST_FILE = OpenCommanderNTFSModule/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "OpenCommander NTFS";
+				ENABLE_DEBUG_DYLIB = NO;
+				INFOPLIST_FILE = "$(OPENCOMMANDER_NTFS_INFO_PLIST)";
+				OPENCOMMANDER_NTFS_INFO_PLIST = OpenCommanderNTFSModule/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "$(OPENCOMMANDER_NTFS_DISPLAY_NAME)";
+				OPENCOMMANDER_NTFS_DISPLAY_NAME = "OpenCommander NTFS";
+				OPENCOMMANDER_NTFS_SHORT_NAME = openntfs;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -831,7 +857,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.4;
 				MARKETING_VERSION = 1.3;
 				OPENCOMMANDER_APP_BUNDLE_IDENTIFIER = com.github.niklaus85.OpenCommander;
-				PRODUCT_BUNDLE_IDENTIFIER = "$(OPENCOMMANDER_APP_BUNDLE_IDENTIFIER).NTFSModule";
+				OPENCOMMANDER_NTFS_BUNDLE_IDENTIFIER = "$(OPENCOMMANDER_APP_BUNDLE_IDENTIFIER).NTFSModule";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(OPENCOMMANDER_NTFS_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = OpenCommanderNTFSModule;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;

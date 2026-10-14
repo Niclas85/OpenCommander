@@ -83,6 +83,18 @@ rejects { _ = try CloudSetupQuestion.decode(Data(#"{"State":"broken"}"#.utf8), k
 rejects { _ = try CloudSetupQuestion.decode(Data(#"{"State":"broken","Option":{"Name":"--bad-option"}}"#.utf8), kind: "drive") }
 rejects { _ = try CloudSetupQuestion.decode(Data(#"{"Error":"401 SYNTHETIC-SECRET"}"#.utf8), kind: "iclouddrive") }
 require(CloudSetupQuestion.loginFailure(kind: "iclouddrive", detail: "requestPCS: SYNTHETIC-SECRET").localizedDescription == "cloud_icloud_web_access", "Apple web approval error not sanitized")
+for (detail, key) in [("shared app retired SYNTHETIC_SECRET", "cloud_google_shared_unavailable"),
+                      ("rate limit SYNTHETIC_SECRET", "cloud_rate_limited"),
+                      ("shared quota invalid_grant SYNTHETIC_SECRET", "cloud_google_login_expired"),
+                      ("HTTP 401 SYNTHETIC_SECRET", "cloud_google_login_expired")] {
+    require(CloudSetupQuestion.loginFailure(kind: "drive", detail: detail).localizedDescription == key, "Google setup classification leaks/misclassifies reply")
+}
+let sharedQuestion = try CloudSetupQuestion.decode(Data(#"{"State":"shared","Option":{"Name":"config_shared_client_id","DefaultStr":"true"}}"#.utf8), kind: "drive")
+require(sharedQuestion.automaticAnswer(kind: "drive") == nil, "shared Google client silently accepted")
+do {
+    _ = try runner.run(URL(fileURLWithPath: "/bin/sleep"), ["10"], id: "setup-timeout", timeout: 0.2, setupKind: "drive")
+    fatalError("expired setup accepted")
+} catch { require((error as NSError).localizedDescription == "cloud_setup_expired", "setup timeout lacks restart guidance") }
 require(CloudSetupQuestion.browserURL(Data("http://127.0.0.1:53682/auth?state=abcdefghijklmnopqrstuv\n".utf8))?.host == "127.0.0.1", "valid backend loopback URL missing")
 for url in ["https://evil.invalid/auth?state=abcdefghijklmnopqrstuv", "http://127.0.0.1:1234/auth?state=abcdefghijklmnopqrstuv", "http://127.0.0.1:53682/auth?state=abcdefghijklmnopqrstuvEXTRA"] {
     require(CloudSetupQuestion.browserURL(Data(url.utf8)) == nil, "untrusted sign-in URL accepted")

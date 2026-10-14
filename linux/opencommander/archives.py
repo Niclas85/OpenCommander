@@ -8,7 +8,7 @@ import stat
 import sys
 import zipfile
 
-if getattr(sys, 'frozen', False):
+if getattr(sys, 'frozen', False) and os.name != 'nt':
     os.environ['LIBARCHIVE'] = str(Path(sys._MEIPASS) / 'libarchive.so.13')
 import libarchive
 from .operations import SafetyError, checked_members

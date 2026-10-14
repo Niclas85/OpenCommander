@@ -80,6 +80,8 @@ class CloudListings:
         self.cache = OrderedDict()
         self.cooldowns = {}
         self.revision = 0
+        self.request_serial = 0
+        self.completed_requests = {}
 
     def invalidate(self):
         """File mutations invalidate fallback lists and any older in-flight result."""
@@ -92,6 +94,8 @@ class CloudListings:
         requested = time.monotonic()
         deadline = requested + timeout
         with self.lock:
+            self.request_serial += 1
+            request_id = self.request_serial
             serial = self.locks.setdefault(key, threading.Lock())
         while not serial.acquire(timeout=.05):
             if cancel.is_set():
@@ -105,8 +109,9 @@ class CloudListings:
             with self.lock:
                 cached = self.cache.get(key)
                 cooldown = self.cooldowns.get(key)
+                completed_request = self.completed_requests.get(key, 0)
             # Repeated pane requests share one query; never present old data silently.
-            if cached and cached[0] >= requested and not cooldown:
+            if cached and completed_request >= request_id and not cooldown:
                 return CloudRows(cached[1])
             if cooldown and now < cooldown[0]:
                 return self.stale(key, cached, cooldown[1])
@@ -139,11 +144,13 @@ class CloudListings:
                         if revision != self.revision:
                             continue
                         self.cache[key] = (time.monotonic(), rows)
+                        self.completed_requests[key] = self.request_serial
                         self.cache.move_to_end(key)
                         self.cooldowns.pop(key, None)
                         while len(self.cache) > 32:
                             old, _ = self.cache.popitem(last=False)
                             self.cooldowns.pop(old, None)
+                            self.completed_requests.pop(old, None)
                     return CloudRows(rows)
             raise CloudError('Dateiliste während Dateiänderungen erneut laden / Reload listing after file changes', True)
         finally:

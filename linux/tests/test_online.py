@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import threading
+import io
 from types import SimpleNamespace
 import pytest
 from opencommander import online_ui
@@ -11,8 +12,9 @@ def test_private_config_and_mount_are_separate(tmp_path):
     state = tmp_path / 'state'
     state.mkdir()
     path = online_ui.private_config(state)
-    assert path.stat().st_mode & 0o777 == 0o600
-    assert path.parent.stat().st_mode & 0o777 == 0o700
+    from desktop_test_support import assert_private_file
+    assert_private_file(path)
+    assert_private_file(path.parent)
     mount = online_ui.mount_path(state, 'oc_example')
     assert state not in mount.parents
 
@@ -24,9 +26,11 @@ def test_password_passed_without_arguments_or_logs(tmp_path, monkeypatch):
         returncode = 0
         def __init__(self, command, **kwargs):
             calls.append((command, kwargs))
+            self.stdout = io.StringIO('{"State":""}')
+            self.stderr = io.StringIO('')
         def __enter__(self): return self
         def __exit__(self, *args): pass
-        def communicate(self, **kwargs): return '{"State":""}', ''
+        def wait(self, **kwargs): return 0
         def poll(self): return 0
     monkeypatch.setattr(online_ui.shutil, 'which', lambda _: '/usr/bin/rclone')
     monkeypatch.setattr(online_ui.subprocess, 'Popen', Process)
@@ -57,7 +61,8 @@ def test_real_rclone_config_state_machine_without_account(tmp_path):
     second = online_ui.command_json(config, ['config', 'update', 'oc_fixture', '--continue', '--state', first['State'], '--non-interactive'],
                                     threading.Event(), result='false')
     assert second['Option']['Name'] == 'config_token'
-    assert config.stat().st_mode & 0o777 == 0o600
+    from desktop_test_support import assert_private_file
+    assert_private_file(config)
 
 
 def test_cancel_before_start(tmp_path):
@@ -316,6 +321,9 @@ def test_remote_alias_detected_without_probing_provider(tmp_path, monkeypatch):
     mount = tmp_path / 'cloud'
     alias = tmp_path / 'OneDrive'
     alias.symlink_to(mount)
+    if os.name == 'nt':
+        from opencommander import provider_mounts
+        monkeypatch.setattr(provider_mounts, '_roots', {mount})
     data = f'1 0 0:1 / {mount} rw - fuse.rclone oc_fixture: rw\n'
     real_read, real_link = Path.read_text, os.readlink
     monkeypatch.setattr(Path, 'read_text', lambda path, *a, **kw: data if str(path) == '/proc/self/mountinfo' else real_read(path, *a, **kw))

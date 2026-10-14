@@ -160,6 +160,17 @@ struct CloudSetupQuestion: Codable {
     }
     static func loginFailure(kind: String, detail: String) -> NSError {
         let value = detail.prefix(16384).lowercased()
+        if kind == "drive" {
+            // Never display raw backend replies: they can contain credentials.
+            // Authentication takes precedence over an incidental quota mention.
+            if value.contains("invalid_grant") || value.contains("invalid credentials") || value.range(of: #"\b401\b"#, options: .regularExpression) != nil {
+                return CloudConnection.failure("cloud_google_login_expired")
+            }
+            if value.contains("shared") && ["retired", "quota", "ratelimit", "rate limit"].contains(where: value.contains) {
+                return CloudConnection.failure("cloud_google_shared_unavailable")
+            }
+            if ["quota", "ratelimit", "rate limit"].contains(where: value.contains) { return CloudConnection.failure("cloud_rate_limited") }
+        }
         if kind == "iclouddrive" {
             if value.contains("missing pcs cookies") || value.contains("requestpcs:") { return CloudConnection.failure("cloud_icloud_web_access") }
             if value.range(of: #"\b401\b"#, options: .regularExpression) != nil || value.contains("invalid credentials") { return CloudConnection.failure("cloud_icloud_login_denied") }

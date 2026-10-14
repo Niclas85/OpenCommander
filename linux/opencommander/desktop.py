@@ -24,7 +24,7 @@ def host_environment():
 def folder_argument(value):
     if value.startswith('file:'):
         url = QUrl(value)
-        if not url.isLocalFile() or url.host() not in ('', 'localhost'):
+        if not url.isLocalFile() or (os.name != 'nt' and url.host() not in ('', 'localhost')):
             raise ValueError('Only local folder URLs are supported.')
         value = url.toLocalFile()
     elif '://' in value:
@@ -86,6 +86,9 @@ def listen(window, name):
 
 
 def ask_default(window):
+    if os.name == 'nt':
+        from .windows_shell import ask_default as windows_default
+        return windows_default(window)
     settings = window.settings
     if settings.value('default_manager_prompted', False, type=bool):
         return

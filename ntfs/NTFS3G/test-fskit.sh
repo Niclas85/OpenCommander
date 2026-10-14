@@ -5,12 +5,24 @@ set -eu
 test "$(id -u)" != 0 || { echo "Run as your normal user, not with sudo." >&2; exit 1; }
 task_root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 case "${1:-}" in
-    ""|--check-only) ;;
-    *) echo "Usage: sh test-fskit.sh [--check-only]" >&2; exit 1 ;;
+    ""|--check-only|--diagnostic) ;;
+    *) echo "Usage: sh test-fskit.sh [--check-only|--diagnostic]" >&2; exit 1 ;;
 esac
 test "$#" -le 1 || { echo "Too many arguments." >&2; exit 1; }
 # Discovery is advisory where FSClient omits a pluginkit-registered module.
-xcrun swift "$task_root/tests/fskit_preflight.swift"
+task_type=openntfs
+if test "${1:-}" = --diagnostic; then
+    task_type=openntfsdiag
+    xcrun swift "$task_root/tests/signature_preflight.swift" --diagnostic \
+        '/Applications/OpenCommander NTFS Starttest.app/Contents/Extensions/OpenCommanderNTFSModule.appex'
+    xcrun swift "$task_root/tests/fskit_preflight.swift" --diagnostic
+else
+    task_extension=/Applications/OpenCommander.app/Contents/Extensions/OpenCommanderNTFSModule.appex
+    xcrun swift "$task_root/tests/signature_preflight.swift" "$task_extension"
+    xcrun swift "$task_root/tests/fskit_preflight.swift"
+    task_type=$(plutil -extract EXAppExtensionAttributes.FSShortName raw -o - "$task_extension/Contents/Info.plist")
+    case "$task_type" in openntfs|openntfs2) ;; *) echo "Unexpected normal module mount alias" >&2; exit 1 ;; esac
+fi
 test "${1:-}" != --check-only || exit 0
 task_available_kib=$(df -Pk "$task_root" | awk 'END { print $4 }')
 case "$task_available_kib" in
@@ -47,7 +59,8 @@ task_protocol=$(diskutil info -plist "$task_disk" | plutil -extract BusProtocol 
 task_size=$(diskutil info -plist "$task_disk" | plutil -extract TotalSize raw -o - -)
 test "$task_virtual" = Virtual && test "$task_protocol" = "Disk Image" && test "$task_size" = 67108864
 echo "Mounting only the NEW test image $task_image ($task_disk) in the login user's FSKit context."
-if /sbin/mount -F -t openntfs -o nosuid,nodev,noowners "$task_disk" "$task_mount"; then
+if xcrun swift "$task_root/tests/run_bounded.swift" 45 \
+    /sbin/mount -F -t "$task_type" -o nosuid,nodev,noowners "$task_disk" "$task_mount"; then
     :
 else
     task_mount_status=$?

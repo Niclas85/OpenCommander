@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+from .platform_support import is_link, canonical_path, native_path
 import shutil
 import stat
 import tempfile
@@ -41,6 +42,10 @@ def exists(path: Path) -> bool:
 
 def rename_new(source: Path, target: Path):
     """Linux atomic no-replace rename, including dangling symlink conflicts."""
+    if os.name == 'nt':
+        # MoveFileEx without REPLACE_EXISTING: Windows os.rename never replaces.
+        os.rename(native_path(source), native_path(target))
+        return
     libc = ctypes.CDLL(None, use_errno=True)
     rename = libc.renameat2
     rename.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
@@ -85,7 +90,7 @@ def fingerprint(path: Path, check=None) -> str:
         field(item.name)
         for value in (info.st_dev, info.st_ino, info.st_mode, info.st_mtime_ns):
             field(value)
-        if stat.S_ISLNK(info.st_mode):
+        if stat.S_ISLNK(info.st_mode) or (os.name == 'nt' and item.is_junction()):
             field(os.readlink(item))
         elif stat.S_ISDIR(info.st_mode):
             children = sorted(item.iterdir(), key=lambda p: p.name)
@@ -136,7 +141,7 @@ def selected_roots(paths):
 
 def validate_target(source, directory):
     if source.is_dir() and not source.is_symlink():
-        origin, target = source.resolve(), directory.resolve()
+        origin, target = canonical_path(source), canonical_path(directory)
         if origin == target or origin in target.parents:
             raise SafetyError(f'A folder cannot be copied into itself: {source}')
 
@@ -264,6 +269,8 @@ class FileEngine:
                 self.check_cancel()
                 item = queue.pop()
                 info = item.lstat()
+                if os.name == 'nt' and item.is_junction():
+                    raise SafetyError(f'Junction nicht rekursiv kopieren / Cannot recursively copy junction: {item}')
                 if stat.S_ISDIR(info.st_mode):
                     queue.extend(item.iterdir())
                 else:
@@ -289,6 +296,17 @@ class FileEngine:
         self.compatibility_warnings.add(warning)
 
     def copy_metadata(self, source, target):
+        if os.name == 'nt':
+            from .windows_native import set_times
+            info = source.stat(follow_symlinks=False)
+            for callback in (lambda: set_times(target, info),
+                             lambda: os.chmod(target, stat.S_IMODE(info.st_mode), follow_symlinks=False)):
+                try:
+                    callback()
+                except (OSError, NotImplementedError) as error:
+                    self.unsupported_provider_feature(error, target,
+                        'NAS/Online: Dateiattribute nur teilweise übernommen / Some file attributes unsupported')
+            return
         try:
             shutil.copystat(source, target, follow_symlinks=False)
         except (OSError, NotImplementedError) as error:
@@ -313,7 +331,8 @@ class FileEngine:
         info = source.lstat()
         self.report_transfer('copying', source.name)
         if stat.S_ISLNK(info.st_mode):
-            os.symlink(os.readlink(source), target)
+            os.symlink(os.readlink(source), target,
+                       target_is_directory=bool(getattr(info, 'st_file_attributes', 0) & 16))
         elif stat.S_ISDIR(info.st_mode):
             target.mkdir()
             for item in sorted(source.iterdir()):
@@ -360,7 +379,7 @@ class FileEngine:
         return backup
 
     def copy_to(self, source: Path, target: Path, replace=False):
-        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=target.parent))
+        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=native_path(target.parent)))
         try:
             payload = staging / 'payload'
             self.copy_file(source, payload)
@@ -396,8 +415,8 @@ class FileEngine:
         for path in paths:
             path = Path(path)
             if not path.is_symlink():
-                resolved = path.resolve()
-                state = self.state_dir.resolve()
+                resolved = canonical_path(path)
+                state = canonical_path(self.state_dir)
                 if resolved == state or resolved in state.parents or state in resolved.parents:
                     raise SafetyError(f'The active recovery profile cannot be modified: {path}')
 
@@ -412,7 +431,7 @@ class FileEngine:
         if move:
             self.protect_state(sources)
         # Only forbid writing within the profile, not to its ancestors.
-        if directory.resolve() == self.state_dir.resolve() or self.state_dir.resolve() in directory.resolve().parents:
+        if canonical_path(directory) == canonical_path(self.state_dir) or canonical_path(self.state_dir) in canonical_path(directory).parents:
             raise SafetyError('The recovery profile cannot be a destination')
         for source in sources:
             validate_target(source, directory)
@@ -458,6 +477,8 @@ class FileEngine:
         return operation
 
     def rename(self, source, name):
+        from .platform_support import validate_component
+        validate_component(name)
         source = Path(source)
         self.protect_state([source])
         if not name or name in ('.', '..') or '/' in name or '\0' in name:
@@ -471,6 +492,8 @@ class FileEngine:
             self.finish(operation)
 
     def mkdir(self, directory, name):
+        from .platform_support import validate_component
+        validate_component(name)
         if not name or name in ('.', '..') or '/' in name or '\0' in name:
             raise SafetyError('Invalid name')
         target = Path(directory) / name
@@ -488,9 +511,9 @@ class FileEngine:
         try:
             for source in selected_roots(paths):
                 self.check_cancel()
-                if source == Path('/'):
+                if source == Path(source.anchor):
                     raise SafetyError('The filesystem root cannot be removed')
-                root = Path(tempfile.mkdtemp(prefix='.OpenCommanderTrash-', dir=source.parent))
+                root = Path(tempfile.mkdtemp(prefix='.OpenCommanderTrash-', dir=native_path(source.parent)))
                 target = root / source.name
                 rename_new(source, target)
                 self.record(operation, source, target, 'move')
@@ -530,7 +553,7 @@ class FileEngine:
                         self.save()
                         raise
                 else:
-                    recovery = Path(tempfile.mkdtemp(prefix='.OpenCommanderUndo-', dir=target.parent)) / target.name
+                    recovery = Path(tempfile.mkdtemp(prefix='.OpenCommanderUndo-', dir=native_path(target.parent))) / target.name
                     rename_new(target, recovery)
                     record['recovery'] = str(recovery)
                 record['reverted'] = True
@@ -549,13 +572,13 @@ class FileEngine:
             validate_target(source, target.parent)
         operation = self.begin('zip')
         operation['inputs'] = [str(source) for source in sources]
-        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=target.parent))
+        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=native_path(target.parent)))
         try:
             payload = staging / 'payload'
             with zipfile.ZipFile(payload, 'x', zipfile.ZIP_DEFLATED) as archive:
                 def add(path, name):
                     self.check_cancel()
-                    if path.is_symlink():
+                    if is_link(path):
                         raise SafetyError(f'ZIP does not follow symbolic links: {path}')
                     if path.is_dir():
                         archive.mkdir(name + '/')
@@ -583,7 +606,7 @@ class FileEngine:
         directory = Path(directory)
         operation = self.begin('extract')
         operation['inputs'] = [str(archive_path)]
-        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=directory))
+        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=native_path(directory)))
         try:
             payload = staging / 'contents'
             payload.mkdir()
@@ -632,6 +655,11 @@ def checked_members(archive):
         if not name or path.is_absolute() or '..' in path.parts or '\\' in name or '\0' in name:
             raise SafetyError(f'Unsafe ZIP path: {name}')
         normalized = str(path)
+        if os.name == 'nt':
+            from .platform_support import validate_component
+            for component in path.parts:
+                validate_component(component)
+            normalized = normalized.casefold()
         if normalized in ('.', '') or normalized in names:
             raise SafetyError(f'Duplicate or empty ZIP path: {name}')
         names.add(normalized)

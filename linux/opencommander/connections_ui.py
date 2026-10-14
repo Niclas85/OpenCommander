@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QListWidget,
                               QListWidgetItem, QPushButton, QLineEdit, QMessageBox, QProgressBar)
@@ -57,6 +58,9 @@ class ConnectionsDialog(QDialog):
                             'Existing GVFS and rclone mounts appear automatically.\n'
                             'More cloud services and saved servers: connect through “Online locations”.'))
         note.setWordWrap(True)
+        if os.name == 'nt':
+            note.setText(self.t('Windows-Laufwerke und SMB/WebDAV-Freigaben. Cloud und SFTP/FTP/FTPS über Online-Orte verbinden. Cloud-Laufwerke benötigen WinFsp.',
+                                'Windows drives and SMB/WebDAV shares. Connect cloud and SFTP/FTP/FTPS through Online locations. Cloud mounts require WinFsp.'))
         layout.addWidget(note)
         self.status = QLabel()
         self.status.setWordWrap(True)
@@ -171,6 +175,9 @@ class ConnectionsDialog(QDialog):
         self.main.pool.start(task)
 
     def accounts(self):
+        if os.name == 'nt':
+            self.main.online_locations()
+            return
         try:
             integrations.open_accounts()
         except OSError as error:

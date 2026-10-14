@@ -20,8 +20,22 @@ let folder = folders[0]
 let payload = Data("OpenCommander → FSKit → NTFS-3G\n".utf8)
 let small = try Data(contentsOf: folder.appendingPathComponent("Grüsse-文件.txt"))
 precondition(small == payload, "Unicode file did not persist")
+let displayedNames = try fm.contentsOfDirectory(atPath: folder.path)
+precondition(displayedNames.contains("Grüsse-文件.txt") && displayedNames.contains("mIxEd-NAME.txt"),
+             "Original spelling and case-only rename must persist on disk")
+let mixed = try Data(contentsOf: folder.appendingPathComponent("mIxEd-NAME.txt"))
+precondition(mixed == payload)
 let large = try Data(contentsOf: folder.appendingPathComponent("large.bin"))
 precondition(large == Data((0..<517).map { UInt8($0 % 251) }), "Truncated file did not persist")
 precondition(!fm.fileExists(atPath: folder.appendingPathComponent("copy.bin").path))
 precondition(!fm.fileExists(atPath: folder.appendingPathComponent("renamed.bin").path))
+for name in ["Zeitstempel.txt", "Zeitstempel-Kopie.txt"] {
+    var datedStat = stat()
+    precondition(lstat(folder.appendingPathComponent(name).path, &datedStat) == 0)
+    precondition(datedStat.st_mtimespec.tv_sec == 1_500_000_001 && datedStat.st_mtimespec.tv_nsec == 456_789_100,
+                 "Modification timestamp did not persist")
+}
+var birthStat = stat()
+precondition(lstat(folder.appendingPathComponent("Zeitstempel.txt").path, &birthStat) == 0 && birthStat.st_birthtimespec.tv_sec == 1_234_567_890)
+print("PASS independent Apple NTFS read-only reopen: persisted exact modification/creation timestamps")
 print("PASS independent Apple NTFS read-only reopen: exact Unicode content, 517-byte data, rename/delete persistence")

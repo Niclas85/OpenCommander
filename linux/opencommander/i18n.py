@@ -54,7 +54,12 @@ TEXT = {
 
 
 def text(language, key):
-    return TEXT.get(language, TEXT['en']).get(key, TEXT['en'].get(key, key))
+    value = TEXT.get(language, TEXT['en']).get(key, TEXT['en'].get(key, key))
+    from .platform_support import WINDOWS
+    if WINDOWS and key == 'help_text':
+        value = value.replace('Linux-Online-Konten', 'Online-Orte (WinFsp benötigt)').replace('Linux Online Accounts', 'Online locations (requires WinFsp)')
+        value = value.replace('von Linux', 'von Windows').replace('Linux permissions', 'Windows permissions')
+    return value
 
 
 def operation_error(error, language):

@@ -32,6 +32,9 @@ xcrun swiftc -parse-as-library -DREMOTE_TRANSPORT_TESTS \
     ios/OpenCommander/RemoteConnection.swift \
     ios/OpenCommander/DesktopBridgeProtocol.swift \
     ios/OpenCommanderMacBridge/DesktopBridge.swift \
+    ios/OpenCommanderMacBridge/NTFSExtensionRegistration.swift \
+    ios/OpenCommanderMacBridge/NTFSAccessPolicy.swift \
+    ios/OpenCommanderMacBridge/NTFSAutoMount.swift \
     ios/OpenCommander/OneDriveClient.swift \
     ios/OpenCommander/RemoteFileClient.swift \
     ios/tests/RemoteTests/RemoteTests.swift -o "$task_output/remote-tests"

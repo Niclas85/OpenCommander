@@ -7,15 +7,25 @@ func fail(_ message: String, code: Int32) -> Never {
     exit(code)
 }
 
-let expected = "com.github.niklaus85.OpenCommander.NTFSModule"
+let diagnostic = CommandLine.arguments.count == 2 && CommandLine.arguments[1] == "--diagnostic"
+guard diagnostic || CommandLine.arguments.count == 1 else { fail("Expected no arguments or --diagnostic", code: 1) }
+let identities = diagnostic ? ["com.github.niklaus85.OpenCommander.NTFSStartTest.NTFSModule": "openntfsdiag"] :
+    ["com.github.niklaus85.OpenCommander.NTFSModule": "openntfs", "com.github.niklaus85.OpenCommander.NTFSModuleV2": "openntfs2"]
+let appPath = diagnostic ? "/Applications/OpenCommander NTFS Starttest.app" : "/Applications/OpenCommander.app"
 
 // Registration alone does not mean this build implements loadResource().
 // Ordinary builds intentionally return ENOTSUP. Detect that before creating an image.
-let installedInfo = URL(fileURLWithPath:
-    "/Applications/OpenCommander.app/Contents/Extensions/OpenCommanderNTFSModule.appex/Contents/Info.plist")
+let installedInfo = URL(fileURLWithPath: appPath + "/Contents/Extensions/OpenCommanderNTFSModule.appex/Contents/Info.plist")
 guard let data = try? Data(contentsOf: installedInfo),
       let info = (try? PropertyListSerialization.propertyList(from: data, format: nil)) as? [String: Any],
-      info["OpenCommanderNTFSWriteCondition"] as? String == "OPENCOMMANDER_NTFS3G_EXPERIMENTAL" else {
+      info["OpenCommanderNTFSWriteCondition"] as? String == "OPENCOMMANDER_NTFS3G_EXPERIMENTAL",
+      let expected = info["CFBundleIdentifier"] as? String, let shortName = identities[expected],
+      let attributes = info["EXAppExtensionAttributes"] as? [String: Any],
+      attributes["FSShortName"] as? String == shortName,
+      !diagnostic || (attributes["FSMediaTypes"] as? [String: Any])?.isEmpty == true else {
+    if diagnostic {
+        fail("The signed launch diagnostic is not installed at \(appPath). Build with sh ntfs/NTFS3G/build-launch-diagnostic.sh and install it separately only after signing succeeds. No image created.", code: 6)
+    }
     fail("The installed app has no verified experimental NTFS write build. Registration/permissions cannot enable code omitted at build time. Build with sh ntfs/NTFS3G/build-experimental-app.sh and explicitly install that app. No image created.", code: 6)
 }
 

@@ -3873,6 +3873,9 @@ extension ViewController: UIDocumentPickerDelegate {
             message: L10n.get("ntfs_extension_message"),
             preferredStyle: .alert
         )
+        alert.addAction(UIAlertAction(title: L10n.get("ntfs_automatic_write_settings"), style: .default) { _ in
+            DesktopBridge.shared?.showNTFSWriteSettings()
+        })
         alert.addAction(UIAlertAction(title: L10n.get("open_system_settings"), style: .default) { _ in
             self.openSystemSettings("x-apple.systempreferences:com.apple.LoginItems-Settings.extension", status: nil)
         })

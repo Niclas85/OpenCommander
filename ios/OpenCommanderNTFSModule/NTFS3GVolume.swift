@@ -17,7 +17,14 @@ private final class EngineItem: FSItem {
 }
 
 private final class EngineDirectory {
-    var entries: [(String, Bool)] = []
+    let consume: (String, Bool, UInt64) throws -> Bool
+    var failure: Error?
+    init(consume: @escaping (String, Bool, UInt64) throws -> Bool) { self.consume = consume }
+    func visit(_ entry: nk_dirent) -> Int32 {
+        guard let name = entry.name else { failure = POSIXError(.EIO); return 1 }
+        do { return try consume(String(cString: name), entry.is_dir != 0, entry.next_cookie) ? 0 : 1 }
+        catch { failure = error; return 1 }
+    }
 }
 
 final class NTFS3GVolume: FSVolume, FSVolume.Operations, FSVolume.ReadWriteOperations {
@@ -77,8 +84,7 @@ final class NTFS3GVolume: FSVolume, FSVolume.Operations, FSVolume.ReadWriteOpera
         return item
     }
 
-    private func open() throws {
-        if engine != nil { return }
+    private static func makeIO(device: FSKitBlockDevice, readOnly: Bool) -> nk_io {
         var io = nk_io()
         io.ctx = Unmanaged.passUnretained(device).toOpaque()
         io.size = Int64(device.size)
@@ -107,6 +113,30 @@ final class NTFS3GVolume: FSVolume, FSVolume.Operations, FSVolume.ReadWriteOpera
                 return 0
             } catch { return -1 }
         }
+        return io
+    }
+
+    /// Same read-only preflight as the writer, before automatic media claiming.
+    /// The local device stays alive for the entire synchronous C inspection.
+    static func validateAutomaticWriteMount(resource: FSBlockDeviceResource) throws {
+        // A probe resource may itself be read-only. Actual write capability is
+        // checked on the separately loaded resource, not during recognition.
+        let device = try FSKitBlockDevice(resource: resource)
+        var io = makeIO(device: device, readOnly: true)
+        var report = nk_safety_report()
+        var reason = [CChar](repeating: 0, count: 512)
+        let result = withExtendedLifetime(device) {
+            nk_inspect_io(&io, &report, &reason, reason.count)
+        }
+        guard result == 0, report.blockers == 0 else {
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(EROFS),
+                          userInfo: [NSLocalizedDescriptionKey: String(cString: reason)])
+        }
+    }
+
+    private func open() throws {
+        if engine != nil { return }
+        var io = Self.makeIO(device: device, readOnly: readOnly)
         var reason = [CChar](repeating: 0, count: 512)
         guard let handle = nk_mount_io(&io, &reason, reason.count) else {
             throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno == 0 ? EIO : errno),
@@ -144,6 +174,7 @@ final class NTFS3GVolume: FSVolume, FSVolume.Operations, FSVolume.ReadWriteOpera
 
     var supportedVolumeCapabilities: FSVolume.SupportedCapabilities {
         let caps = FSVolume.SupportedCapabilities()
+        caps.caseFormat = .insensitiveCasePreserving
         caps.supportsHardLinks = false
         caps.supportsSymbolicLinks = false
         caps.supportsPersistentObjectIDs = false
@@ -153,6 +184,7 @@ final class NTFS3GVolume: FSVolume, FSVolume.Operations, FSVolume.ReadWriteOpera
     }
     var maximumLinkCount: Int { 1 }
     var maximumNameLength: Int { 255 }
+    var maximumFileSize: UInt64 { UInt64(Int64.max) }
     var restrictsOwnershipChanges: Bool { true }
     var truncatesLongNames: Bool { false }
     var volumeStatistics: FSStatFSResult {
@@ -182,10 +214,10 @@ final class NTFS3GVolume: FSVolume, FSVolume.Operations, FSVolume.ReadWriteOpera
         a.parentID = item.path == "/" ? .parentOfRoot : try self.item((item.path as NSString).deletingLastPathComponent).id
         a.uid = getuid(); a.gid = getgid(); a.linkCount = 1; a.flags = 0
         a.inhibitKernelOffloadedIO = true
-        a.accessTime = timespec(tv_sec: Int(st.atime), tv_nsec: 0)
-        a.modifyTime = timespec(tv_sec: Int(st.mtime), tv_nsec: 0)
-        a.changeTime = timespec(tv_sec: Int(st.ctime), tv_nsec: 0)
-        a.birthTime = timespec(tv_sec: Int(st.btime), tv_nsec: 0)
+        a.accessTime = timespec(tv_sec: Int(st.atime), tv_nsec: Int(st.atime_nsec))
+        a.modifyTime = timespec(tv_sec: Int(st.mtime), tv_nsec: Int(st.mtime_nsec))
+        a.changeTime = timespec(tv_sec: Int(st.ctime), tv_nsec: Int(st.ctime_nsec))
+        a.birthTime = timespec(tv_sec: Int(st.btime), tv_nsec: Int(st.btime_nsec))
         return a
     }
     func attributes(_ request: FSItem.GetAttributesRequest, of item: FSItem) async throws -> FSItem.Attributes {
@@ -193,12 +225,30 @@ final class NTFS3GVolume: FSVolume, FSVolume.Operations, FSVolume.ReadWriteOpera
     }
     private func apply(_ request: FSItem.SetAttributesRequest, to item: EngineItem) throws {
         if readOnly { throw error(EROFS) }
+        var times = nk_times()
+        func converted(_ value: timespec) throws -> nk_timestamp {
+            guard value.tv_nsec >= 0, value.tv_nsec < 1_000_000_000 else { throw error(EINVAL) }
+            return nk_timestamp(seconds: Int64(value.tv_sec), nanoseconds: Int32(value.tv_nsec))
+        }
+        if request.isValid(.accessTime) { times.access = try converted(request.accessTime); times.valid |= UInt32(NK_TIME_ACCESS) }
+        if request.isValid(.modifyTime) { times.modify = try converted(request.modifyTime); times.valid |= UInt32(NK_TIME_MODIFY) }
+        if request.isValid(.changeTime) { times.change = try converted(request.changeTime); times.valid |= UInt32(NK_TIME_CHANGE) }
+        if request.isValid(.birthTime) { times.birth = try converted(request.birthTime); times.valid |= UInt32(NK_TIME_BIRTH) }
+        // Reject an overflowing/invalid date before a combined size request
+        // can change file contents. The C validation performs no device I/O.
+        try check(nk_validate_times(&times))
         if request.isValid(.size) {
             guard request.size <= UInt64(Int64.max) else { throw error(EFBIG) }
             try check(nk_truncate(engine, item.path, Int64(request.size)))
             request.consumedAttributes.insert(.size)
         }
-        // Unsupported ownership/time attributes remain unconsumed; never claim
+        if times.valid != 0 {
+            try check(nk_set_times(engine, item.path, &times))
+            for attribute: FSItem.Attribute in [.accessTime, .modifyTime, .changeTime, .birthTime] where request.isValid(attribute) {
+                request.consumedAttributes.insert(attribute)
+            }
+        }
+        // Unsupported ownership attributes remain unconsumed; never claim
         // that a metadata update persisted when the engine has not applied it.
     }
     func setAttributes(_ request: FSItem.SetAttributesRequest, on item: FSItem) async throws -> FSItem.Attributes {
@@ -218,25 +268,33 @@ final class NTFS3GVolume: FSVolume, FSVolume.Operations, FSVolume.ReadWriteOpera
         try queue.sync {
             let directory = try requireItem(directory)
             if cookie.rawValue != 0 && verifier.rawValue != generation { throw FSError(.invalidDirectoryCookie) }
-            let collector = EngineDirectory()
-            try check(nk_list(engine, directory.path, { ctx, entry in
-                guard let ctx, let entry, let name = entry.pointee.name else { return 1 }
-                Unmanaged<EngineDirectory>.fromOpaque(ctx).takeUnretainedValue().entries.append((String(cString: name), entry.pointee.is_dir != 0))
-                return 0
-            }, Unmanaged.passUnretained(collector).toOpaque()))
-            var entries = collector.entries
-            if request == nil { entries.insert(contentsOf: [(".", true), ("..", true)], at: 0) }
-            guard let first = Int(exactly: cookie.rawValue), first <= entries.count else { throw FSError(.invalidDirectoryCookie) }
-            for i in first..<entries.count {
-                let (name, isDir) = entries[i]
-                let path = name == "." ? directory.path : name == ".." ?
-                    (directory.path == "/" ? "/" : (directory.path as NSString).deletingLastPathComponent) :
-                    try childPath(directory, FSFileName(string: name))
-                let child = try item(path)
-                let attrs = request == nil ? nil : try attributes(child)
-                if !packer.packEntry(name: FSFileName(string: name), itemType: isDir ? .directory : .file,
-                                     itemID: child.id, nextCookie: FSDirectoryCookie(rawValue: UInt64(i + 1)), attributes: attrs) { break }
+            // Cookies 1/2 cover synthetic dot entries; >=3 wrap native opaque
+            // byte positions. Never buffer the entire directory to serve a page.
+            if request == nil {
+                if cookie.rawValue == 0 && !packer.packEntry(name: FSFileName(string: "."), itemType: .directory,
+                    itemID: directory.id, nextCookie: FSDirectoryCookie(rawValue: 1), attributes: nil) {
+                    return FSDirectoryVerifier(rawValue: generation)
+                }
+                if cookie.rawValue < 2 {
+                    let parent = try item(directory.path == "/" ? "/" : (directory.path as NSString).deletingLastPathComponent)
+                    if !packer.packEntry(name: FSFileName(string: ".."), itemType: .directory, itemID: parent.id,
+                        nextCookie: FSDirectoryCookie(rawValue: 2), attributes: nil) { return FSDirectoryVerifier(rawValue: generation) }
+                }
             }
+            let collector = EngineDirectory { [self] name, isDir, next in
+                guard next <= UInt64.max - 3 else { throw error(EOVERFLOW) }
+                let child = try item(childPath(directory, FSFileName(string: name)))
+                let attrs = request == nil ? nil : try attributes(child)
+                return packer.packEntry(name: FSFileName(string: name), itemType: isDir ? .directory : .file,
+                    itemID: child.id, nextCookie: FSDirectoryCookie(rawValue: next + 3), attributes: attrs)
+            }
+            let nativeCookie = cookie.rawValue >= 3 ? cookie.rawValue - 3 : 0
+            let result = nk_list_from(engine, directory.path, nativeCookie, { ctx, entry in
+                guard let ctx, let entry else { return 1 }
+                return Unmanaged<EngineDirectory>.fromOpaque(ctx).takeUnretainedValue().visit(entry.pointee)
+            }, Unmanaged.passUnretained(collector).toOpaque())
+            if let failure = collector.failure { throw failure }
+            try check(result)
             return FSDirectoryVerifier(rawValue: generation)
         }
     }

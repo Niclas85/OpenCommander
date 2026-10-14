@@ -44,6 +44,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.rootViewController = ViewController()
         window?.makeKeyAndVisible()
 #if targetEnvironment(macCatalyst)
+        // Initialize native services at launch, including the once-per-update
+        // refresh of the installed FSKit extension registration.
+        _ = DesktopBridge.shared
         if let windowScene = window?.windowScene {
             windowScene.title = "OpenCommander"
             windowScene.sizeRestrictions?.minimumSize = CGSize(width: 900, height: 600)

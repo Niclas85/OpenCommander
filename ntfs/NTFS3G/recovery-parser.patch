@@ -1,0 +1,68 @@
+--- ntfsrecover.c
++++ ntfsrecover.c
+@@ -1067,7 +1067,9 @@
+ 		 * Return an error if syncing is requested, otherwise
+ 		 * try to find a starting record.
+ 		 */
+-	if (k && prevbuf && (prevbuf->num > buf->num)) {
++	/* A continuation can occupy the entire page: never inspect past it. */
++	if (k && (k <= blocksz - LOG_RECORD_HEAD_SZ)
++	    && prevbuf && (prevbuf->num > buf->num)) {
+ 		logr = (const LOG_RECORD*)&data[k];
+ 			/* Accept reaching the end with no record beginning */
+ 		if ((k != le16_to_cpu(rph->next_record_offset))
+@@ -3580,6 +3582,32 @@
+ 	return (state);
+ }
+ 
++/* Initial traversal needs the same continuation distance as later pages.
++ * Version 1 tail copies (physical pages 2/3) represent file_offset, not 2/3.
++ * Reject impossible geometry instead of scanning for a plausible record. */
++static int initial_skipped(const struct BUFFER *buf,
++		const struct BUFFER *prevbuf)
++{
++	u64 logical = buf->num;
++	u64 base = log_major < 2 ? BASEBLKS : BASEBLKS2;
++	u64 pages = logfilesz >> blockbits;
++	u64 previous;
++	if (!prevbuf)
++		return 0;
++	if ((log_major < 2) && (logical >= RSTBLKS) && (logical < BASEBLKS)) {
++		u64 offset = le64_to_cpu(buf->block.record.copy.file_offset);
++		if (offset & (blocksz - 1))
++			return -1;
++		logical = offset >> blockbits;
++	}
++	previous = prevbuf->num;
++	if (logical < base || logical >= pages || previous < base
++	    || previous >= pages || previous == logical)
++		return -1;
++	return (logical > previous ? logical - previous - 1
++		: logical - base + pages - previous - 1);
++}
++
+ static int walkback(CONTEXT *ctx, const struct BUFFER *buf, u32 blk,
+ 			const struct BUFFER *prevbuf, u32 prevblk)
+ {
+@@ -3588,6 +3616,7 @@
+ 	NTFS_RECORD_TYPES magic;
+ 	u32 stopblk;
+ 	TRISTATE state;
++	int skipped_initial;
+ 
+ 	if (optv) {
+ 		if ((log_major >= 2) && (buf->rnum != blk))
+@@ -3601,7 +3630,12 @@
+ 	ctx->lastaction = (struct ACTION_RECORD*)NULL;
+ 	nextbuf = (const struct BUFFER*)NULL;
+ 	stopblk = prevblk + 2; // wraparound !
+-	state = backward_rcrd(ctx, blk, 0, buf,
++	skipped_initial = initial_skipped(buf, prevbuf);
++	if (skipped_initial < 0) {
++		printf("** Invalid initial continuation geometry\n");
++		return 1;
++	}
++	state = backward_rcrd(ctx, blk, skipped_initial, buf,
+ 			prevbuf, (struct BUFFER*)NULL);
+ 	while ((state == T_OK)
+ 	   && !((blk > stopblk) && (prevblk <= stopblk))

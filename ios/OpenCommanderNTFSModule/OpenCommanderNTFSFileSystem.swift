@@ -28,6 +28,17 @@ final class OpenCommanderNTFSFileSystem: FSUnaryFileSystem & FSUnaryFileSystemOp
             // Recognized, rather than usable: FSKit must not replace macOS's reader until the
             // complete volume and crash-recovery layers pass the image test suite.
             #if OPENCOMMANDER_NTFS3G_EXPERIMENTAL
+            if Bundle.main.object(forInfoDictionaryKey: "OpenCommanderNTFSAutomaticMounting") as? Bool == true {
+                do {
+                    try NTFS3GVolume.validateAutomaticWriteMount(resource: blockResource)
+                } catch {
+                    // Let the system try its read-only implementation. Never claim
+                    // dirty/hibernated/replay-required media for automatic writes.
+                    ntfsLogger.notice("Automatic NTFS write mount declined: \(error.localizedDescription, privacy: .public)")
+                    replyHandler(.notRecognized, nil)
+                    return
+                }
+            }
             resourceLock.lock()
             loadedResource = blockResource
             resourceLock.unlock()

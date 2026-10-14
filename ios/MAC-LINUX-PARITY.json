@@ -1,8 +1,8 @@
 {
-  "reference": "origin/codex/linux-desktop@9db136167489b46bc6c7ad0a96375b8487c9be6e",
+  "reference": "origin/codex/linux-desktop@a8839e0b191795c52729229d2aef31b9f8afee0c (application source unchanged since 653690e; newest commit only Windows publisher documentation)",
   "target": "macOS / Mac Catalyst",
   "verified_on": "2026-10-14",
-  "status": "Universal Mac app and UI-test target build; native cloud/location/selection regressions and real Linux CI/package checks pass; full interaction parity remains open",
+  "status": "Latest Linux sources integrated with safety backports; signed arm64 Mac build 13 installed. After verified user-performed restart, normal V2 passed two synthetic mounted write suites and independent Apple readback. Physical Elements remains read-only and untouched. Full parity and production readiness remain open; see docs/mac-linux-parity-2026-10-14.md",
   "implemented": [
     "Shared light/dark palette and two-pane styling",
     "Linux toolbar order, context-only extraction action, header Copy/Move and Dark switches",
@@ -35,11 +35,16 @@
     "Configuration-bound display cache purges old-account rows and rejects in-flight source changes",
     "Preflight for incomplete OAuth, OneDrive drive selection and iCloud device verification",
     "Offline 18-topic handbook, literal localized search/highlighting/counts and print preview",
-    "Preflight missing/changed recovery backups before current target displacement on Mac and Linux"
+    "Preflight missing/changed recovery backups before current target displacement on Mac and Linux",
+    "Explicit shared/custom Google setup selection, complete custom-client validation, sanitized login classifications and new-sign-in timeout/restart guidance",
+    "Experimental NTFS precise timestamp updates, streaming native-cookie enumeration, checked read/metadata errors and resumed index-bitmap correction"
   ],
   "verified": {
     "builds": ["Universal Mac Catalyst app, NTFS extension and UI-test target build-for-testing passed on 2026-10-14; arm64 and x86_64 binaries verified", "Mac Catalyst arm64 build with signing disabled passed on 2026-10-13", "Final Mac Catalyst signed experimental NTFS build on 2026-10-13", "Final iOS device-platform control build with signing disabled on 2026-10-13; current GitHub iOS Simulator build also passed"],
     "automated": [
+      "Read-only upstream CI run 38621972845 at a8839e0: Linux 400 passed, package build/upload and Apple job success. Does not verify this unpushed modified worktree or current FSKit module",
+      "2026-10-14 continuation: 76 portable Linux cloud/config/OAuth/protocol/recovery tests and 27 portable Qt setup/transfer-details cases pass on this Mac, not a current real-Linux desktop run",
+      "2026-10-14: NTFS metadata/pagination native regressions pass on arm64 and x86_64/Rosetta; independent Apple reader verifies post-1970 100ns timestamps, file contents and 200 exact names. Apple negative-epoch birth-date underflow is explicitly not a passed independent check",
       "Swift operation safety, persisted undo, permissions-only modification protection",
       "Cancelled staged copies preserve the original destination",
       "ZIP traversal, symlinks, duplicate names and expansion limits",
@@ -54,6 +59,7 @@
       "GitHub Apple job: operation safety, cloud client/discovery/config lease checks, 31 NTFS package tests and iOS Simulator build passed at code commit 16e7923"
     ],
     "visible_ui": [
+      "Build 12 normal installed app starts with original iCloud/Downloads panes; German Google wizard refuses empty explicit client data without saving an account; Cancel restores the panes",
       "F5 copies nine synthetic files without removing originals",
       "History survives app relaunch",
       "JPG, PNG, WAV and MP4 previews; arrow navigation and Escape close",
@@ -88,9 +94,10 @@
   ],
   "ntfs": {
     "build_condition": "OPENCOMMANDER_NTFS3G_EXPERIMENTAL",
-    "preflight": "Previously passed against the already installed per-user extension on an isolated new image",
-    "current_write_activation": "isolated FSKit write activation passed in the earlier continuation. Current check-only finds the installed registered module but FSClient omits it, so current activation is not confirmed; native engine image writes pass on both architectures",
-    "existing_disks_written": false
+    "preflight": "Valid signatures and required sandbox/FSKit entitlements; normal V1/V2 identities explicitly allowlisted. User approved NTFS 2 and Settings is ON; discovery is not proof of successful startup",
+    "current_write_activation": "After verified user-performed restart on 2026-10-14, unchanged normal-host V2 build13 passed two complete synthetic mounted write/timestamp suites and independent Apple read-only reopen (uLwHKI, m9cu0T). Single installed registration unchanged. Both detached normally. Physical Elements remains read-only; no physical acceptance or production readiness implied",
+    "existing_disks_written": true,
+    "physical_evidence": "Earlier explicitly authorized Elements synthetic write/UI-copy and independent Apple hash verification are documented in NTFS3G/README.md. This continuation made no physical-drive writes/remounts/permission changes; Elements remains Apple-read-only"
   },
   "latest_upstream_batch": {
     "date": "2026-10-13",

@@ -104,6 +104,9 @@ class TransferStore:
 
 def mount_identity(path):
     """Stable mount identity without touching a possibly stalled filesystem."""
+    if os.name == 'nt':
+        from .windows_native import mount_identity as windows_identity
+        return windows_identity(path)
     import re
     path = Path(os.path.abspath(path))
     result = None

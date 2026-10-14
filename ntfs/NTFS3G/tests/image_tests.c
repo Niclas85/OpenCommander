@@ -12,10 +12,13 @@
 #include <unistd.h>
 
 #define CHECK(x) do { if (!(x)) { fprintf(stderr, "FAIL line %d: %s (errno=%d %s)\n", __LINE__, #x, errno, strerror(errno)); exit(1); } } while (0)
-struct image { int fd; unsigned writes, flushes; int fail_flush, fail_writes; };
+struct image { int fd; unsigned reads, writes, flushes; int fail_flush, fail_writes, fail_reads; };
 extern int nk_test_fail_move_after_backup;
+extern long long nk_test_recount_free(nk_volume *v);
 static long long image_read(void *ctx, void *buf, long long count, long long offset) {
-    return pread(((struct image *)ctx)->fd, buf, (size_t)count, offset);
+    struct image *im = ctx; im->reads++;
+    if (im->fail_reads) { errno = EIO; return -1; }
+    return pread(im->fd, buf, (size_t)count, offset);
 }
 static long long image_write(void *ctx, const void *buf, long long count, long long offset) {
     struct image *im = ctx; im->writes++;
@@ -29,8 +32,60 @@ static int image_sync(void *ctx) {
 }
 static int count_entry(void *ctx, const nk_dirent *entry) {
     CHECK(entry->name && *entry->name);
+    CHECK(!strncmp(entry->name, "Entry-", 6) && strstr(entry->name, ".TxT"));
     (*(unsigned *)ctx)++;
     return 0;
+}
+struct page_entries { unsigned seen[200]; unsigned total, count, limit; uint64_t cookie; };
+static int page_entry(void *ctx, const nk_dirent *entry) {
+    struct page_entries *page = ctx;
+    int index = -1;
+    CHECK(sscanf(entry->name, "Entry-%d.TxT", &index) == 1 && index >= 0 && index < 200);
+    CHECK(!page->seen[index] && entry->next_cookie > page->cookie);
+    page->seen[index] = 1; page->total++; page->count++; page->cookie = entry->next_cookie;
+    return page->count == page->limit;
+}
+static void verify_pages(nk_volume *v) {
+    const unsigned limits[] = {1, 2, 7, 13, 31};
+    for (unsigned variant = 0; variant < sizeof(limits) / sizeof(limits[0]); variant++) {
+        struct page_entries page = {.limit = limits[variant]};
+        for (unsigned iteration = 0; iteration < 201; iteration++) {
+            page.count = 0;
+            int result = nk_list_from(v, "/many", page.cookie, page_entry, &page);
+            if (result) fprintf(stderr, "Pagination failed: limit=%u iteration=%u cookie=%llu total=%u count=%u\n", page.limit, iteration, (unsigned long long)page.cookie, page.total, page.count);
+            CHECK(!result);
+            if (!page.count) break;
+        }
+        CHECK(page.total == 200 && page.count == 0);
+    }
+}
+struct expected_names { const char **names; unsigned count, seen; int stop; nk_volume *volume; };
+static int exact_entry(void *ctx, const nk_dirent *entry) {
+    struct expected_names *expected = ctx;
+    CHECK(expected->count < 32);
+    unsigned i;
+    for (i = 0; i < expected->count; i++)
+        if (!strcmp(entry->name, expected->names[i])) break;
+    if (i == expected->count) fprintf(stderr, "Unexpected directory spelling: %s\n", entry->name);
+    CHECK(i < expected->count && !(expected->seen & (1u << i)));
+    expected->seen |= 1u << i;
+    /* Case-insensitive lookups must work even inside an enumeration callback. */
+    nk_stat st;
+    CHECK(!nk_stat_path(expected->volume, "/CASE-PROOF/mIxEd.TxT", &st));
+    return expected->stop;
+}
+static void verify_case_listing(nk_volume *v) {
+    /* NTFS-3G's macOS UTF-8 conversion returns decomposed Unicode. */
+    const char *names[] = { "MiXeD.txt", "Gru\xcc\x88sse-文件.TXT", "NestedFolder" };
+    struct expected_names expected = { names, 3, 0, 0, v };
+    CHECK(!nk_list(v, "/CASE-PROOF", exact_entry, &expected));
+    CHECK(expected.seen == 7);
+    expected.seen = 0; expected.stop = 1;
+    CHECK(!nk_list(v, "/case-proof", exact_entry, &expected));
+    CHECK(expected.seen && !(expected.seen & (expected.seen - 1)));
+    CHECK(nk_list(v, "/case-proof/mixed.txt", exact_entry, &expected) == -1);
+    nk_stat st;
+    CHECK(!nk_stat_path(v, "/CASE-PROOF/MIXED.TXT", &st));
 }
 static nk_volume *mount_image(nk_io *io) {
     char error[512] = {0};
@@ -66,10 +121,71 @@ int main(int argc, char **argv) {
     nk_io io = { .ctx = &im, .pread = image_read, .pwrite = image_write,
                  .sync = image_sync, .size = capacity, .readonly = 0 };
     nk_volume *v = mount_image(&io);
+    long long stat_total, stat_free, stat_after; int stat_cluster;
+    CHECK(!nk_statvfs(v, &stat_total, &stat_free, &stat_cluster) && stat_total > 0 && stat_free > 0 && stat_cluster > 0);
+    unsigned stat_reads = im.reads;
+    for (int i = 0; i < 100; i++) CHECK(!nk_statvfs(v, NULL, NULL, NULL));
+    CHECK(im.reads == stat_reads);
+    CHECK(!nk_create(v, "/", "statfs-proof.bin"));
+    unsigned char *stat_payload = malloc(1024 * 1024);
+    CHECK(stat_payload); memset(stat_payload, 0x35, 1024 * 1024);
+    CHECK(nk_write(v, "/statfs-proof.bin", 0, 1024 * 1024, stat_payload) == 1024 * 1024);
+    free(stat_payload);
+    CHECK(!nk_statvfs(v, NULL, &stat_after, NULL) && stat_after <= stat_free - 1024 * 1024);
+    CHECK(stat_after == nk_test_recount_free(v));
+    CHECK(!nk_delete(v, "/statfs-proof.bin"));
+    CHECK(!nk_statvfs(v, NULL, &stat_after, NULL) && stat_after == nk_test_recount_free(v));
+    puts("PASS statfs: repeated queries avoid bitmap reads; allocation/delete keep cached free space accurate");
     CHECK(!nk_create(v, "/", "hello.txt"));
     CHECK(nk_write(v, "/hello.txt", 0, 13, "Hello NTFS!\r\n") == 13);
     verify(v, "/hello.txt", "Hello NTFS!\r\n", 13);
     puts("PASS create, write, read small file");
+
+    CHECK(!nk_create(v, "/", "timestamps.txt"));
+    nk_times dates = { .valid = NK_TIME_ACCESS | NK_TIME_MODIFY | NK_TIME_CHANGE | NK_TIME_BIRTH,
+        .access = {1600000000, 123456789}, .modify = {1500000000, 987654321},
+        .change = {1700000000, 765432100}, .birth = {1234567890, 234567890} };
+    CHECK(!nk_set_times(v, "/timestamps.txt", &dates));
+    nk_stat dated;
+    CHECK(!nk_stat_path(v, "/timestamps.txt", &dated));
+    CHECK(dated.atime == 1600000000 && dated.atime_nsec == 123456700);
+    CHECK(dated.mtime == 1500000000 && dated.mtime_nsec == 987654300);
+    CHECK(dated.ctime == 1700000000 && dated.ctime_nsec == 765432100);
+    CHECK(dated.btime == 1234567890 && dated.btime_nsec == 234567800);
+    CHECK(!nk_create(v, "/", "pre-1970.txt"));
+    nk_times historical = {.valid = NK_TIME_BIRTH, .birth = {-1, 234567890}};
+    CHECK(!nk_set_times(v, "/pre-1970.txt", &historical));
+    CHECK(!nk_stat_path(v, "/pre-1970.txt", &dated));
+    CHECK(dated.btime == -1 && dated.btime_nsec == 234567800);
+    dates.valid = NK_TIME_MODIFY; dates.modify = (nk_timestamp){1500000001, 456789123};
+    CHECK(!nk_set_times(v, "/timestamps.txt", &dates));
+    CHECK(!nk_stat_path(v, "/timestamps.txt", &dated));
+    CHECK(dated.atime == 1600000000 && dated.atime_nsec == 123456700);
+    CHECK(dated.btime == 1234567890 && dated.btime_nsec == 234567800);
+    CHECK(dated.mtime == 1500000001 && dated.mtime_nsec == 456789100);
+    CHECK(dated.ctime > 1700000000);
+    unsigned time_writes = im.writes;
+    dates.valid = 1u << 31;
+    CHECK(nk_set_times(v, "/timestamps.txt", &dates) == -1 && errno == EINVAL);
+    dates.valid = NK_TIME_MODIFY; dates.modify.nanoseconds = -1;
+    CHECK(nk_set_times(v, "/timestamps.txt", &dates) == -1 && errno == EINVAL);
+    dates.modify.nanoseconds = 1000000000;
+    CHECK(nk_set_times(v, "/timestamps.txt", &dates) == -1 && errno == EINVAL);
+    dates.modify = (nk_timestamp){INT64_MAX, 0};
+    CHECK(nk_set_times(v, "/timestamps.txt", &dates) == -1 && errno == EOVERFLOW);
+    dates.modify = (nk_timestamp){-11644473601LL, 0};
+    CHECK(nk_set_times(v, "/timestamps.txt", &dates) == -1 && errno == EOVERFLOW);
+    dates.modify = (nk_timestamp){1500000001, 456789100};
+    CHECK(nk_set_times(v, "/$MFT", &dates) == -1 && errno == EPERM);
+    CHECK(nk_set_times(v, "/timestamps.txt", NULL) == -1 && errno == EINVAL);
+    CHECK(nk_set_times(NULL, "/timestamps.txt", &dates) == -1 && errno == EINVAL);
+    CHECK(im.writes == time_writes);
+    puts("PASS timestamps: 100ns precision, pre-1970 fractions, partial updates, overflow/invalid/system-file refusal without writes");
+    im.fail_writes = 1; dates.modify.seconds++;
+    CHECK(nk_set_times(v, "/timestamps.txt", &dates) == -1);
+    im.fail_writes = 0; dates.modify.seconds--;
+    CHECK(!nk_set_times(v, "/timestamps.txt", &dates));
+    puts("PASS timestamp metadata write failure propagates; subsequent explicit update succeeds");
 
     CHECK(!nk_mkdir(v, "/", "Grüsse-文件"));
     CHECK(!nk_create(v, "/Grüsse-文件", "données.txt"));
@@ -79,6 +195,14 @@ int main(int argc, char **argv) {
     CHECK(nk_create(v, "/", "../escape") == -1);
     CHECK(nk_create(v, "/", "bad:name") == -1);
     puts("PASS Unicode, case-insensitive collision, invalid names");
+
+    CHECK(!nk_mkdir(v, "/", "case-proof"));
+    CHECK(!nk_create(v, "/case-proof", "MiXeD.txt"));
+    CHECK(!nk_create(v, "/case-proof", "Grüsse-文件.TXT"));
+    CHECK(!nk_mkdir(v, "/case-proof", "NestedFolder"));
+    verify_case_listing(v);
+    CHECK(nk_create(v, "/CASE-PROOF", "MIXED.TXT") == -1 && errno == EEXIST);
+    puts("PASS exact mixed-case/Unicode listing, early stop, error path, callback lookup and collision protection");
 
     const size_t large_size = 2 * 1024 * 1024 + 37;
     unsigned char *large = malloc(large_size);
@@ -153,11 +277,23 @@ int main(int argc, char **argv) {
     // Force an index root to grow into allocation-backed directory index blocks.
     CHECK(!nk_mkdir(v, "/", "many"));
     for (int i = 0; i < 200; i++) {
-        char name[32]; snprintf(name, sizeof(name), "entry-%03d.txt", i);
+        char name[32]; snprintf(name, sizeof(name), "Entry-%03d.TxT", i);
         CHECK(!nk_create(v, "/many", name));
     }
     unsigned count = 0;
     CHECK(!nk_list(v, "/many", count_entry, &count) && count == 200);
+    verify_pages(v);
+    struct page_entries page = {.limit = 7};
+    unsigned cookie_reads = im.reads;
+    CHECK(nk_list_from(v, "/many", UINT64_MAX, page_entry, &page) == -1 && errno == EINVAL);
+    CHECK(im.reads == cookie_reads);
+    unsigned before_bad_read = im.writes;
+    im.fail_reads = 1;
+    CHECK(nk_list_from(v, "/many", 0, page_entry, &page) == -1 && errno == EIO);
+    im.fail_reads = 0;
+    CHECK(im.writes == before_bad_read);
+    verify_pages(v);
+    puts("PASS directory pagination: native cookies, 1/2/7/13/31-entry pages, 200 unique names, EOF, invalid-cookie and read-error refusal");
     CHECK(!nk_sync(v) && im.flushes > 0);
     CHECK(!nk_umount(v));
     puts("PASS directory index growth (200 files), flush and close");
@@ -166,13 +302,21 @@ int main(int argc, char **argv) {
     unsigned before = im.writes;
     v = mount_image(&io);
     verify(v, "/hello.txt", "Hello NTFS!\r\n", 13);
+    verify_case_listing(v);
     verify(v, "/Moved/données.txt", "Unicode", 7);
     verify(v, "/large.bin", extended, sizeof(extended));
     count = 0;
     CHECK(!nk_list(v, "/many", count_entry, &count) && count == 200);
+    verify_pages(v);
     CHECK(nk_write(v, "/hello.txt", 0, 1, "X") == -1 && errno == EROFS);
     CHECK(nk_create(v, "/", "forbidden") == -1 && errno == EROFS);
     CHECK(nk_delete(v, "/hello.txt") == -1 && errno == EROFS);
+    CHECK(!nk_stat_path(v, "/timestamps.txt", &dated));
+    CHECK(dated.mtime == 1500000001 && dated.mtime_nsec == 456789100);
+    CHECK(dated.btime == 1234567890 && dated.btime_nsec == 234567800);
+    CHECK(!nk_stat_path(v, "/pre-1970.txt", &dated));
+    CHECK(dated.btime == -1 && dated.btime_nsec == 234567800);
+    CHECK(nk_set_times(v, "/timestamps.txt", &dates) == -1 && errno == EROFS);
     CHECK(!nk_umount(v));
     CHECK(before == im.writes);
     puts("PASS persistence after reopen, readonly causes zero writes");

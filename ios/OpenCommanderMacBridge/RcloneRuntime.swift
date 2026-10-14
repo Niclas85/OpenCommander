@@ -82,7 +82,10 @@ final class RcloneProcessRunner {
         }
         process.waitUntilExit(); try check(id)
         _ = errorFinished.wait(timeout: .now() + 1)
-        guard !timeoutState.value else { throw CloudProviderErrors.temporary("cloud_timeout") }
+        guard !timeoutState.value else {
+            if setupKind != nil { throw CloudConnection.failure("cloud_setup_expired") }
+            throw CloudProviderErrors.temporary("cloud_timeout")
+        }
         guard process.terminationStatus == 0 else {
             if let setupKind { throw CloudSetupQuestion.loginFailure(kind: setupKind, detail: String(decoding: errorOutput.data, as: UTF8.self)) }
             throw CloudProviderErrors.classify(errorOutput.data)

@@ -41,8 +41,10 @@ def listing(directory: Path, hidden=False, cancel=None):
                 continue
             try:
                 info = item.stat(follow_symlinks=False)
+                if not hidden and (item.name.startswith('.') or getattr(info, 'st_file_attributes', 0) & 2):
+                    continue
                 entries.append(Entry(item.name, Path(item.path), item.is_dir(), info.st_size,
-                                     info.st_mtime, item.is_symlink()))
+                                     info.st_mtime, item.is_symlink() or (os.name == 'nt' and item.is_junction())))
             except FileNotFoundError:
                 continue  # An external writer removed this entry while listing.
             except PermissionError as error:
@@ -68,6 +70,9 @@ def archive_listing(path: Path, prefix=''):
 
 
 def mounted_locations():
+    if os.name == 'nt':
+        from .windows_native import drive_roots
+        return drive_roots()
     result = []
     try:
         for line in Path('/proc/self/mountinfo').read_text().splitlines():
@@ -86,6 +91,15 @@ def cloud_locations(home=None):
     home = Path(home or Path.home())
     candidates = [home / name for name in ('Dropbox', 'OneDrive', 'Google Drive', 'Nextcloud',
                                             'iCloud', 'iCloud Drive', 'iCloudDrive')]
+    if os.name == 'nt':
+        candidates.extend(Path(os.environ[key]) for key in ('OneDrive', 'OneDriveConsumer', 'OneDriveCommercial')
+                          if os.environ.get(key))
+        try:
+            info = json.loads((Path(os.environ.get('LOCALAPPDATA', home / 'AppData/Local')) / 'Dropbox/info.json').read_text(encoding='utf-8'))
+            candidates.extend(Path(account['path']) for account in info.values()
+                              if isinstance(account, dict) and isinstance(account.get('path'), str))
+        except (OSError, ValueError, AttributeError):
+            pass
     # Dropbox's public installation metadata may point outside the home folder.
     try:
         info = json.loads((home / '.dropbox/info.json').read_text())
@@ -100,6 +114,9 @@ def cloud_locations(home=None):
 
 def remote_location(directory):
     """Identify provider paths without probing a potentially unavailable server."""
+    if os.name == 'nt':
+        from .windows_native import remote_location as windows_remote
+        return windows_remote(directory)
     directory = Path(os.path.abspath(directory))
     mounts = []
     try:

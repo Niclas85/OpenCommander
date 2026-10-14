@@ -12,6 +12,8 @@ final class CloudSetupPanel: UIViewController {
     private let activity = UIActivityIndicatorView(style: .medium)
     private let clientID = UITextField(), clientSecret = UITextField()
     private let expert = UIButton(type: .system), clientHelp = UILabel()
+    private let restart = UIButton(type: .system)
+    private var customClientRequested = false
     private var selectedClient: PublicCloudOAuth?
     private var question: CloudSetupQuestion?
     private var selectedValue = ""
@@ -85,9 +87,16 @@ final class CloudSetupPanel: UIViewController {
         expert.addAction(UIAction { [weak self] _ in
             guard let self, !self.pending, self.question == nil else { return }
             let hidden = !self.clientID.isHidden
+            self.customClientRequested = !hidden
             self.clientID.isHidden = hidden; self.clientSecret.isHidden = hidden || self.profile.kind != "drive"; self.clientHelp.isHidden = hidden
         }, for: .touchUpInside)
-        let content = UIStackView(arrangedSubviews: [header, name, help, expert, clientID, clientSecret, clientHelp, status, fieldLabel, answer, choice, buttons, existing])
+        restart.setTitle(L10n.get("cloud_setup_restart"), for: .normal)
+        restart.accessibilityIdentifier = "CloudSetupRestart"
+        restart.addAction(UIAction { [weak self] _ in
+            guard let self, !self.pending else { return }
+            self.resetConnection(); self.displayQuestion(); self.status.text = nil
+        }, for: .touchUpInside)
+        let content = UIStackView(arrangedSubviews: [header, name, help, expert, clientID, clientSecret, clientHelp, status, fieldLabel, answer, choice, buttons, restart, existing])
         content.axis = .vertical; content.spacing = 12; content.translatesAutoresizingMaskIntoConstraints = false
         let scroll = UIScrollView(); scroll.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(scroll); scroll.addSubview(content)
@@ -109,10 +118,18 @@ final class CloudSetupPanel: UIViewController {
     func cancel() {
         work?.cancel()
         if let requestID { self.requestID = nil; DesktopBridge.shared?.cancelCloudOperation(requestID) }
-        answer.text = nil; smsTimer?.invalidate(); smsTimer = nil
+        answer.text = nil; clientSecret.text = nil; browserURL = nil; smsTimer?.invalidate(); smsTimer = nil
+    }
+    private func resetConnection() {
+        question = nil; browserURL = nil; selectedClient = nil; selectedValue = ""
+        answer.text = nil; smsSentAt = nil; smsTimer?.invalidate(); smsTimer = nil
+        profile.id = UUID().uuidString
+        profile.remote = "oc_" + profile.id.replacingOccurrences(of: "-", with: "").lowercased()
+        profile.configPath = HostFileSystem.homeDirectory.appendingPathComponent("Library/Application Support/OpenCommander/CloudSetup/" + profile.id + "/rclone.conf").path
     }
     private func displayQuestion() {
         let option = question?.Option
+        restart.isHidden = question == nil && browserURL == nil
         fieldLabel.isHidden = option == nil; answer.isHidden = option == nil || !(option?.Examples ?? []).isEmpty
         choice.isHidden = (option?.Examples ?? []).isEmpty
         if let option {
@@ -130,7 +147,11 @@ final class CloudSetupPanel: UIViewController {
             answer.isSecureTextEntry = option.IsPassword == true || option.Name == "config_2fa" || option.Name == "config_2fa_sms"
             answer.text = nil // Never reuse a password, device code or another question's answer.
             selectedValue = option.Examples?.first?.Value ?? ""
-            let choices = option.Examples ?? []
+            let choices: [CloudSetupQuestion.Field.Choice] = profile.kind == "drive" && option.Name == "config_shared_client_id" ? [
+                .init(Value: "false", Help: L10n.get("cloud_google_custom_choice")),
+                .init(Value: "true", Help: L10n.get("cloud_google_shared_choice"))
+            ] : option.Examples ?? []
+            if !choices.isEmpty { selectedValue = choices[0].Value; answer.isHidden = true; choice.isHidden = false }
             choice.setTitle(choices.first?.Help ?? choices.first?.Value, for: .normal)
             choice.menu = UIMenu(children: choices.map { example in
                 UIAction(title: example.Help?.isEmpty == false ? example.Help! : example.Value) { [weak self] _ in
@@ -139,6 +160,9 @@ final class CloudSetupPanel: UIViewController {
             })
         }
         nextButton.setTitle(L10n.get(option == nil ? "cloud_setup_begin" : "cloud_setup_continue"), for: .normal)
+        if profile.kind == "drive" && option?.Name == "config_shared_client_id" {
+            help.text = L10n.get("cloud_google_signin_choice")
+        } else { help.text = L10n.get(profile.kind == "iclouddrive" ? "cloud_setup_icloud_help" : "cloud_setup_oauth_help") }
         browserButton.isHidden = profile.kind != "iclouddrive" && browserURL == nil
         updateSMS()
     }
@@ -167,6 +191,12 @@ final class CloudSetupPanel: UIViewController {
         guard !selectedName.isEmpty else { status.text = L10n.get("cloud_invalid"); return }
         profile.name = selectedName
         var value = choice.isHidden ? answer.text ?? "" : selectedValue
+        if profile.kind == "drive", question?.Option?.Name == "config_shared_client_id", value == "false" {
+            resetConnection(); customClientRequested = true
+            clientID.isHidden = false; clientSecret.isHidden = false; clientHelp.isHidden = false
+            displayQuestion(); status.text = L10n.get("cloud_oauth_client_invalid"); clientID.becomeFirstResponder()
+            return
+        }
         if let option = question?.Option {
             if option.Name.hasPrefix("config_2fa") { value = value.trimmingCharacters(in: .whitespacesAndNewlines) }
             if ["config_2fa", "config_2fa_sms"].contains(option.Name) && value.lowercased() == "sms" {
@@ -182,6 +212,7 @@ final class CloudSetupPanel: UIViewController {
     private func setPending(_ value: Bool) {
         pending = value; name.isEnabled = !value; nextButton.isEnabled = !value; answer.isEnabled = !value; choice.isEnabled = !value
         expert.isEnabled = !value && question == nil; clientID.isEnabled = !value && question == nil; clientSecret.isEnabled = !value && question == nil
+        restart.isEnabled = !value
         value ? activity.startAnimating() : activity.stopAnimating(); updateSMS()
     }
     private func step(state: String?, answer: String?, password: Bool) async throws -> CloudSetupQuestion {
@@ -216,7 +247,7 @@ final class CloudSetupPanel: UIViewController {
                 if state == nil {
                     let manualID = self.clientID.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                     let manualSecret = self.clientSecret.text ?? ""
-                    if !manualID.isEmpty || !manualSecret.isEmpty {
+                    if self.customClientRequested || !manualID.isEmpty || !manualSecret.isEmpty {
                         let value = self.profile.kind == "drive" ? ["client_id": manualID, "client_secret": manualSecret] : ["client_id": manualID, "flow": "pkce"]
                         self.selectedClient = try PublicCloudOAuth.decode(JSONSerialization.data(withJSONObject: value), kind: self.profile.kind)
                     } else { self.selectedClient = try PublicCloudOAuth.bundled(kind: self.profile.kind) }
@@ -243,12 +274,9 @@ final class CloudSetupPanel: UIViewController {
                     let error = error as NSError
                     self.status.text = error.domain == "OpenCommander.Cloud" ? L10n.get(error.localizedDescription) : L10n.get("cloud_login_incomplete")
                 }
-                self.question = nil; self.browserURL = nil; self.displayQuestion()
                 // Retry is another NEW private connection. Partial setup never
                 // gets reused as an existing account or overwritten.
-                self.profile.id = UUID().uuidString
-                self.profile.remote = "oc_" + self.profile.id.replacingOccurrences(of: "-", with: "").lowercased()
-                self.profile.configPath = HostFileSystem.homeDirectory.appendingPathComponent("Library/Application Support/OpenCommander/CloudSetup/" + self.profile.id + "/rclone.conf").path
+                self.resetConnection(); self.displayQuestion()
             }
         }
     }

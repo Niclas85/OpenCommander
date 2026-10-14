@@ -12,6 +12,16 @@ MIT-licensed OpenCommanderNTFS Swift package.
 - The complete unmodified release source is retained in `vendor/`.
 - Copyright, AUTHORS, COPYING and COPYING.LIB are in the source archive.
 - Build uses the GPL-covered NTFS engine; no FUSE library is linked.
+- `case-preserving-readdir.patch` changes directory enumeration to return the
+  original on-disk spelling, without changing case-insensitive lookups or
+  collision checks. The native and both universal builds apply it with zero
+  fuzz to generated copies only. Include this patch and its application script
+  in the corresponding source for distributed engine binaries.
+- `directory-cookies.patch` fixes the bitmap-bit offset when directory
+  enumeration resumes within a bitmap byte. Without it, a resumed final page
+  can read unallocated index blocks and report EIO. It also applies only to
+  generated native/universal copies with zero fuzz; include it in corresponding
+  source along with the pagination and early-stop regression tests.
 
 ## NTFSKit engine facade
 
@@ -24,6 +34,34 @@ MIT-licensed OpenCommanderNTFS Swift package.
 - OpenCommander changes include required flush callback, checked I/O bounds,
   no automatic journal reset, read-only safety preflight, duplicate/name checks,
   propagated close errors and recovery-name-based replacement.
+
+## Recovery inspection laboratory tool
+
+- `build-recovery-inspector.sh` also compiles the pinned upstream
+  `ntfsprogs/ntfsrecover.c`, `playlog.c` and `utils.c` under GPL-2.0-or-later.
+- The entry-point symbol is renamed at compile time. `recovery-parser.patch`
+  is applied only to a generated build copy, with zero fuzz; the retained vendor
+  archive stays unmodified. The patch corrects the initial multi-page
+  continuation distance and prevents a past-page record dereference. Both
+  recovery tools include this patch; distribute it and the regression tests
+  as part of their corresponding source. OpenCommander's
+  GPL wrapper supplies fixed read-only/dry-run options and accepts regular
+  test images only. The original copyright and license notices remain in the
+  corresponding vendor source archive.
+- This is not a physical-device repair tool or an installed app component.
+  Its binary, if distributed, has the same corresponding-source obligations.
+- The additional recovery sandbox compiles the same patched `ntfsrecover`
+  source with renamed `main`, `ntfs_mount` and `fopen` symbols so that the GPL
+  laboratory wrapper supplies a read-only boot stream and a disposable memory
+  device. `playlog` remains unmodified. No source-device write implementation
+  or physical apply operation is included; corresponding-source obligations
+  also apply to distribution of this laboratory binary.
+- `build-recovery-checkpoint.sh` builds a **separate** opt-in experimental
+  checkpoint tool from the same GPL sources. Its additional GPL writer is
+  restricted to exactly the two mapped `$LogFile` restart pages after sandbox
+  replay, validation and durable local backup. The default overlay binary has
+  no device-write implementation. Include the checkpoint source, patch,
+  tests and build scripts in corresponding source for that experimental binary.
 
 ## Distribution gate
 

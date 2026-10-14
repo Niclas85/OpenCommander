@@ -1,5 +1,16 @@
 # Linux-Abgleich mit dem Mac-Paritätsbranch
 
+Nachtrag 14.10.2026: Der aktuelle Linux-Branch wurde bis `a8839e0` abgerufen;
+dieser letzte Commit ändert nur Windows-Veröffentlichungsdokumentation.
+Der aktuelle Linux-Quellstand `653690e` ist unter `linux/`
+übernommen; bestehende Sicherheitskorrekturen bleiben erhalten. Native Mac-
+Cloud-Anmeldung und NTFS-Metadaten/Ordnerauflistung wurden weiterentwickelt.
+76 portable Tests und 27 Qt-Teilprüfungen auf dem Mac bestehen. Das ist noch
+keine vollständige native Linux-/Mac-Abnahme. Der Upstream-Linux-CI-Lauf bei
+`a8839e0` besteht mit 400 Tests und Paketbau; die lokalen zusätzlichen Änderungen
+sind damit nicht automatisch mitgeprüft. Aktueller Stand und Grenzen:
+[Fortsetzungsbericht](../docs/mac-linux-parity-2026-10-14.md).
+
 Aktueller Arbeitsabgleich vom 13.10.2026: Linux-Referenz **0.3.25rc10**, Commit
 `9db1361`, wurde vollständig unter `linux/`
 in den Mac-Arbeitsbranch übernommen, ohne dessen Swift-/AppKit-Änderungen zu

@@ -1,0 +1,14 @@
+--- a/libntfs-3g/dir.c
++++ b/libntfs-3g/dir.c
+@@ -1305,7 +1305,10 @@
+ 		goto err_out;
+ 	}
+ 
+-	bmp_buf_pos = 0;
++	/* OpenCommander: a resumed cookie may start inside a bitmap byte.
++	 * The buffer begins at bmp_pos / 8, not at bit zero of that byte.
++	 * Otherwise later pages can read unallocated index blocks. */
++	bmp_buf_pos = bmp_pos & 7;
+ 	/* If the index block is not in use find the next one that is. */
+ 	while (!(bmp[bmp_buf_pos >> 3] & (1 << (bmp_buf_pos & 7)))) {
+ find_next_index_buffer:

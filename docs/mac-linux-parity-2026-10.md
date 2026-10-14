@@ -1,5 +1,9 @@
 # Linux → macOS parity transfer, October 2026
 
+Latest continuation: [14 October NTFS and Linux update](mac-linux-parity-2026-10-14.md).
+The fixed reference and results below are historical; latest fetched Linux is
+`653690e0c585c6a4ea664bd2d31acd1813e6702c`. Complete parity is still open.
+
 Current fixed reference: `origin/codex/linux-desktop` at `9db136167489b46bc6c7ad0a96375b8487c9be6e` (Linux 0.3.25rc10, not a public release).
 Previous upstream batch reference: `9d79ef1fc47d1ff57e1496336dc02098d3388cce` (0.3.24).
 Earlier continuation reference: `60ea0635bea0451ae370fddb586773143619552a`.

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>OpenCommander NTFS</string>
+	<string>$(OPENCOMMANDER_NTFS_DISPLAY_NAME)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -46,7 +46,7 @@
 			<key>OpenCommanderNTFSPersonality</key>
 			<dict>
 				<key>FSName</key>
-				<string>OpenCommander NTFS</string>
+				<string>$(OPENCOMMANDER_NTFS_DISPLAY_NAME)</string>
 				<key>FSfileObjectsAreCaseSensitive</key>
 				<false/>
 			</dict>
@@ -54,7 +54,7 @@
 		<key>FSRequiresSecurityScopedPathURLResources</key>
 		<false/>
 		<key>FSShortName</key>
-		<string>openntfs</string>
+		<string>$(OPENCOMMANDER_NTFS_SHORT_NAME)</string>
 		<key>FSSupportsBlockResources</key>
 		<true/>
 		<key>FSSupportsGenericURLResources</key>

@@ -83,9 +83,9 @@ import UIKit
         for app in applications { values.append(["app", app["name"] ?? "", app["path"] ?? ""].joined(separator: "\0")) }
         return values
     }
-    override func numberOfSections(in tableView: UITableView) -> Int { 4 }
+    override func numberOfSections(in tableView: UITableView) -> Int { 5 }
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        switch section { case 0: return locations.count; case 1: return unmounted.count; case 2: return 1; default: return applications.count }
+        switch section { case 0: return locations.count; case 1: return unmounted.count; case 2, 4: return 1; default: return applications.count }
     }
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         switch section { case 0: return locations.isEmpty ? nil : L10n.get("drives"); case 1: return unmounted.isEmpty ? nil : L10n.get("mount_volume"); case 3: return applications.isEmpty ? nil : L10n.get("cloud_setup"); default: return nil }
@@ -117,6 +117,9 @@ import UIKit
             cell.textLabel?.text = L10n.get("mount_volume") + ": " + (device["name"] ?? "")
             cell.detailTextLabel?.text = device["identifier"]
         case 2: cell.textLabel?.text = L10n.get("connect_to_server")
+        case 4:
+            cell.textLabel?.text = L10n.get("ntfs_automatic_write_settings")
+            cell.accessibilityIdentifier = "NTFSAutomaticWriteSettings"
         default: cell.textLabel?.text = applications[indexPath.row]["name"]; cell.detailTextLabel?.text = L10n.get("cloud_setup")
         }
         cell.isUserInteractionEnabled = !changingVolume
@@ -143,6 +146,7 @@ import UIKit
             guard let id = unmounted[indexPath.row]["identifier"] else { return }
             changeVolume(L10n.get("mount_volume")) { [weak self] done in self?.bridge.mountVolume(id, completion: done) }
         case 2: connectRequested?()
+        case 4: bridge.showNTFSWriteSettings()
         default:
             if let path = applications[indexPath.row]["path"] { applicationRequested?(URL(fileURLWithPath: path)) }
         }

@@ -55,6 +55,12 @@ private final class SSHPasswordBroker {
 /// Native AppKit bundle loaded only by the Mac Catalyst host. Uses public
 /// NSWorkspace APIs, the same Launch Services associations as Finder, no shell.
 final class DesktopBridge: NSObject, DesktopBridgeProtocol {
+    override init() {
+        super.init()
+        NTFSExtensionRegistration.start()
+        NTFSAutoMount.shared.start()
+    }
+    func showNTFSWriteSettings() { NTFSAutoMount.shared.showSettings() }
     private var applicationPanel: NSOpenPanel?
     private var locationPanel: NSOpenPanel?
     private var archivePanel: NSSavePanel?

@@ -381,10 +381,10 @@ class Pane(QFrame):
         splitter = QSplitter(Qt.Horizontal)
         self.tree_model = QFileSystemModel(self)
         self.tree_model.setFilter(QDir.AllDirs | QDir.NoDotAndDotDot | (QDir.Hidden if main.hidden else QDir.Filter(0)))
-        self.tree_model.setRootPath('/')
+        self.tree_model.setRootPath('' if os.name == 'nt' else '/')
         self.tree = FolderTree(self)
         self.tree.setModel(self.tree_model)
-        self.tree.setRootIndex(self.tree_model.index('/'))
+        self.tree.setRootIndex(self.tree_model.index('' if os.name == 'nt' else '/'))
         for column in range(1, 4):
             self.tree.hideColumn(column)
         self.tree.clicked.connect(lambda index: self.navigate(Path(self.tree_model.filePath(index))))
@@ -759,7 +759,8 @@ class MainWindow(QMainWindow):
         except (TypeError, ValueError):
             self.online_profiles = []
         self.external_cloud_profiles = []
-        locale = os.environ.get('LANG', 'en')
+        from PySide6.QtCore import QLocale
+        locale = os.environ.get('LANG', QLocale.system().name() if os.name == 'nt' else 'en')
         self.language = str(self.settings.value('language', 'de' if locale.startswith('de') else 'en'))
         self.dark = self.settings.value('dark', True, type=bool)
         self.hidden = self.settings.value('hidden', False, type=bool)
@@ -778,7 +779,8 @@ class MainWindow(QMainWindow):
         self.operation_pool = QThreadPool(self)
         self.operation_pool.setMaxThreadCount(1)
         self.thumbnails = ThumbnailCache(self)
-        self.setWindowTitle(f'OpenCommander · Linux {__version__}')
+        from .platform_support import PLATFORM_NAME
+        self.setWindowTitle(f'OpenCommander · {PLATFORM_NAME} {__version__}')
         self.resize(1440, 880)
         self.setMinimumSize(1000, 580)
         icon = Path(__file__).resolve().parent / 'assets' / 'opencommander.png'
@@ -792,7 +794,7 @@ class MainWindow(QMainWindow):
         brand = QLabel('OpenCommander')
         brand.setObjectName('brand')
         header.addWidget(brand)
-        label = QLabel('LINUX ' + __version__)
+        label = QLabel(PLATFORM_NAME.upper() + ' ' + __version__)
         label.setObjectName('badge')
         header.addWidget(label)
         header.addStretch()
@@ -871,7 +873,8 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(0, self.scan_integrations)
         split = QSplitter(Qt.Horizontal)
         downloads = Path(QStandardPaths.writableLocation(QStandardPaths.DownloadLocation))
-        defaults = [left or self.settings.value('pane1', '/'), right or self.settings.value('pane2', str(downloads or Path.home()))]
+        from .platform_support import root_directory
+        defaults = [left or self.settings.value('pane1', str(root_directory())), right or self.settings.value('pane2', str(downloads or Path.home()))]
         for index, path in enumerate(defaults, 1):
             pane = Pane(self, index, Path(path))
             self.panes.append(pane)
@@ -1300,6 +1303,9 @@ class MainWindow(QMainWindow):
         mime.setData('x-special/gnome-copied-files',
                      (('cut' if move else 'copy') + '\n' + '\n'.join(url.toString(QUrl.FullyEncoded) for url in urls)).encode())
         mime.setData('application/x-kde-cutselection', b'1' if move else b'0')
+        if os.name == 'nt':
+            mime.setData('application/x-qt-windows-mime;value="Preferred DropEffect"',
+                         (2 if move else 1).to_bytes(4, 'little'))
         QApplication.clipboard().setMimeData(mime)
         self.status.setText(self.tr_key('cut' if move else 'clipboard'))
 
@@ -1316,6 +1322,9 @@ class MainWindow(QMainWindow):
         if not urls or any(not url.isLocalFile() for url in urls):
             return
         move = gnome.startswith(b'cut\n') or bytes(mime.data('application/x-kde-cutselection')) == b'1'
+        if os.name == 'nt':
+            effect = bytes(mime.data('application/x-qt-windows-mime;value="Preferred DropEffect"'))
+            move = move or (len(effect) == 4 and int.from_bytes(effect, 'little') == 2)
         paths, directory = [Path(url.toLocalFile()) for url in urls], self.active.directory
         mode = self.conflict_mode(paths, directory)
         if mode:
@@ -1797,7 +1806,8 @@ class MainWindow(QMainWindow):
             if item.widget():
                 item.widget().hide()
                 item.widget().deleteLater()
-        locations = [(self.tr_key('root'), Path('/')), (self.tr_key('home'), Path.home())]
+        from .platform_support import root_directory
+        locations = [(self.tr_key('root'), root_directory()), (self.tr_key('home'), Path.home())]
         downloads = Path(QStandardPaths.writableLocation(QStandardPaths.DownloadLocation))
         if downloads.is_absolute():
             locations.append((self.tr_key('downloads'), downloads))

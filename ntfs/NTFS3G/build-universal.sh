@@ -14,6 +14,7 @@ for task_arch in arm64 x86_64; do
     if [ ! -d "$task_source" ]; then tar -xzf "$task_archive" -C "$task_directory"; fi
     (
         cd "$task_source"
+        sh "$task_root/apply-engine-patches.sh" "$PWD"
         if [ ! -f Makefile ]; then
             case "$task_arch" in arm64) task_host=aarch64-apple-darwin ;; x86_64) task_host=x86_64-apple-darwin ;; esac
             ./configure --build="$(sh config.guess)" --host="$task_host" \
