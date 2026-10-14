@@ -8,10 +8,18 @@ aktivierten Windows-Symlink-Modus.
 
 - Aktueller vollständiger Windows-Lauf: **394 bestanden, 47 übersprungen**, keine Fehler.
   Ergebnis: `build/pytest.xml`; Protokoll: `build/parity-installed-build.log`.
-  Alle Linux-Testmodule sind jetzt in der Windows-Suite vertreten; ihre
+  Alle 23 Linux-Testmodule sind jetzt in der Windows-Suite vertreten; ihre
   plattformgebundenen Fälle werden begründet übersprungen, nicht als bestanden gezählt.
+  Import-Inventar: `build/parity-test-inventory.json`, keine fehlenden Module.
 - Vollständiger Linux-Lauf unter Ubuntu 24.04: **397 bestanden**, keine Ausnahmen;
-  Linux-Paket erfolgreich gebaut. CI-Lauf `38521261807`, Commit `15b3c56`.
+  Linux-Paket erfolgreich gebaut.
+- Abschließender Windows-CI-Lauf: **402 bestanden, 39 übersprungen**;
+  GUI, Helfer, Quellcode-/Paket-Smoke-Test und ZIP-Bau erfolgreich.
+  Der CI-Host kann zusätzliche Linktests ausführen, für die dem lokalen Konto
+  Windows-Rechte fehlen. Beide Desktop-Jobs sind grün:
+  [CI-Lauf 38522129270](https://github.com/Niclas85/OpenCommander/actions/runs/38522129270),
+  Commit `5679aaf`. Der unabhängige Android-Job scheitert bereits beim SDK-Setup;
+  das betrifft weder den Windows- noch den Linux-Desktop-Build.
 - Nach zusätzlicher Absicherung von Windows-Junctions: **84 bestanden,
   16 übersprungen** im Datei-/Wiederaufnahme-/Windows-Sicherheitstestlauf.
   Dieser Lauf enthält einen neuen Test für einen manipulierten Zwischenordner.
@@ -125,10 +133,13 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   ohne Anmeldung sichtbar. Andere Aufrufe und der vollständige 256-KiB-Roundtrip
   scheitern weiterhin mit HTTP 403 und Meldungen zu gemeinsamem OAuth-Client,
   Einstellung und Quota. Stabiler Google-Dateizugriff bleibt offen.
-  Auch das Entfernen der aktuellen synthetischen Freigabetestdatei ist durch die
-  Provider-Quota blockiert: Ordner `OpenCommander-Freigabepruefung-cf8b7246d8fd425081ae41219b749e45`,
-  Datei `Freigabe Grüße 日本語.txt`. Sie enthält ausschließlich den öffentlichen
-  Testmarker, keine Benutzerdateien. Offene Bereinigung ist protokolliert.
+  Entfernen über die App-Anbindung war ebenfalls durch die Provider-Quota blockiert.
+  Die eigene synthetische Freigabetestdatei wurde deshalb über den bereits
+  verbundenen Google-Drive-Connector anhand ihrer exakten ID und ihres Testinhalts
+  entfernt. Der eigene Ordner wurde erst nach bestätigtem Leerstand entfernt;
+  anschließende Metadatenabfragen bestätigen „nicht gefunden“ für beide IDs.
+  Keine öffentliche Testfreigabe bleibt zurück. Dies ist ausdrücklich kein
+  bestandener Google-Datei-Roundtrip der OpenCommander-App.
   Eine eigene zugelassene OAuth-Anwendung des **Herausgebers** kann im vorhandenen
   Build eingebettet werden; Benutzer melden sich dann weiter nur im Browser an.
 - Dropbox-Browserübergang und frischer lokaler OAuth-Endpunkt bestätigt.
@@ -164,7 +175,7 @@ Profil und erfolgreichem Dateizugriff als vollständig geprüft.
 
 | Bereich | Offener Nachweis |
 | --- | --- |
-| Cloud | Stabiler Google-Dateizugriff mit zugelassener Herausgeber-OAuth-Anwendung und Bereinigung der synthetischen Google-Testfreigabe; weitere anbieterspezifische Kontenrichtlinien |
+| Cloud | Stabiler Google-Dateizugriff mit zugelassener Herausgeber-OAuth-Anwendung; weitere anbieterspezifische Kontenrichtlinien |
 | Server | Externe Server mit abweichenden Richtlinien; persönlicher Windows-SSH-Agent. Eigene laufende FTP/FTPS/SFTP/WebDAV-Testserver und nativer WebClient sind geprüft |
 | USB | Sicheres Auswerfen wurde auf Benutzerwunsch nicht getestet |
 | Medien | Weitere Codec-/Hardwarekombinationen; PNG, WAV und H.264 sind praktisch geprüft |

@@ -51,7 +51,7 @@ rclone-OAuth-Client aktuell nicht bestätigt.
 | iCloud per Apple-ID und Zwei-Faktor-Code | Gleicher Assistent | Benutzeranmeldung, Mount, 256-KiB-Upload, bytegenaues Lesen, Helfer und Rücknahme bestanden. Apple verwendet hier keinen reinen Browser-OAuth-Ablauf |
 | Freigabelink Dropbox | Gleiche Provider-Aktion | Anonymer HTTP-Download bytegenau bestanden; synthetische Datei und Ordner entfernt |
 | Freigabelink OneDrive | Gleiche Provider-Aktion | Dateiinhalt im nicht angemeldeten Browser sichtbar; synthetische Datei und Ordner entfernt |
-| Freigabelink Google | Gleiche Provider-Aktion | Linkerstellung und anonymer Dateiinhalt im Browser bestätigt; Entfernen der synthetischen Testdatei durch Provider-Quota blockiert |
+| Freigabelink Google | Gleiche Provider-Aktion | Linkerstellung und anonymer Dateiinhalt bestätigt. Entfernen über die App-Anbindung durch Quota blockiert; synthetische Datei und leerer Ordner separat über verbundenen Drive-Connector entfernt und geprüft |
 | Freigaben im Provider-Browser verwalten; Online-Pfad kopieren | Gleiche Aktionen | Gemeinsame Tests; iCloud-Linkerstellung ist auf beiden Plattformen nicht implementiert, Browser-Verwaltung bleibt verfügbar |
 | Online-Suche, Vergleich, Umbenennen, ZIP, Vorschau und Transfers | Gemeinsame Werkzeuge auf dem Mount | Gemeinsame Tests und echte Mounts; einzelne Provider können Attribute/Funktionen einschränken |
 | FTP | Gleicher Assistent; WinFsp statt FUSE | Eigener Loopback-Server: 256-KiB-Datei, Helfer, Rücknahme, Abbruch und Trennen bestanden |
@@ -83,14 +83,18 @@ rclone-OAuth-Client aktuell nicht bestätigt.
 
 ## Vergleichsverfahren und Ergebnis
 
-Alle Linux-Testmodule werden auch vom Windows-Testpaket importiert. Ausschließlich
+Alle 23 Linux-Testmodule werden auch vom Windows-Testpaket importiert; das
+automatisch erstellte Import-Inventar enthält keine fehlenden Module. Ausschließlich
 plattformgebundene Fälle erhalten begründete Ausnahmen, etwa `/proc`, GVFS,
 Secret Service, FIFO, POSIX-Rechte und Symlink-Erstellung ohne Windows-Recht.
 Diese Ausnahmen sind kein bestandener Windows-Nachweis. Die Windows-Adapter
 haben eigene Tests und die oben beschriebenen Live-Prüfungen.
 
 Der vollständige Ubuntu-24.04-Lauf hat **397 Tests bestanden** und das Linux-Paket
-gebaut (CI-Lauf 38521261807, Commit `15b3c56`). Der vollständige lokale Windows-Lauf besteht
+gebaut. Der abschließende Windows-CI-Lauf besteht **402 Tests mit 39 Ausnahmen**
+und baut GUI, Helfer und ZIP erfolgreich:
+[CI-Lauf 38522129270](https://github.com/Niclas85/OpenCommander/actions/runs/38522129270),
+Commit `5679aaf`. Der vollständige lokale Windows-Lauf besteht
 **394 Tests mit 47 begründeten Ausnahmen**. Der abschließende Prüfstand und
 die installierte Version stehen in [TESTING.md](TESTING.md).
 
