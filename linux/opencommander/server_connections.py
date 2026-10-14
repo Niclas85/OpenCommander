@@ -38,6 +38,10 @@ def settings(kind, host, port, user, mode, key='', directory=''):
             encrypted_pem = b'ENCRYPTED' in data
             if b'PRIVATE KEY-----' not in data:
                 raise ValueError('Privaten Schlüssel auswählen; .pub und PuTTY .ppk werden nicht unterstützt / Select a private OpenSSH or PEM key')
+            if os.name == 'nt':
+                from .windows_native import private_key_readers
+                if not private_key_readers(keypath):
+                    raise ValueError('Privater SSH-Schlüssel ist für andere Benutzer lesbar. NTFS-Leserechte auf dein Konto beschränken. / Restrict private SSH key NTFS read permissions to your account.')
             if b'BEGIN OPENSSH PRIVATE KEY' in data:
                 try:
                     raw = base64.b64decode(b''.join(data.splitlines()[1:-1]), validate=True)

@@ -145,7 +145,8 @@ def test_own_google_client_is_private_preserves_other_profiles_and_invalidates_o
     assert saved['oc_drive']['client_id'] == client and saved['oc_drive']['client_secret'] == secret
     assert 'token' not in saved['oc_drive'] and saved['oc_drive']['root_folder_id'] == 'folder-id'
     assert saved['oc_other']['token'] == 'UNRELATED_FIXTURE'
-    assert stat.S_IMODE(config.stat().st_mode) == 0o600
+    from desktop_test_support import assert_private_file
+    assert_private_file(config)
     with pytest.raises(ValueError):
         online_ui.save_drive_client(config, 'oc_other', client, secret)
     with pytest.raises(ValueError):

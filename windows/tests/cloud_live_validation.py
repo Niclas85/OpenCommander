@@ -26,14 +26,14 @@ from PySide6.QtCore import QSettings
 
 
 def main():
-    parser = argparse.ArgumentParser(); parser.add_argument('--writes', action='store_true'); parser.add_argument('--provider'); args=parser.parse_args()
-    state = Path(os.environ['LOCALAPPDATA']) / 'OpenCommander'
+    parser = argparse.ArgumentParser(); parser.add_argument('--writes', action='store_true'); parser.add_argument('--provider'); parser.add_argument('--state-dir', type=Path); args=parser.parse_args()
+    state = args.state_dir or Path(os.environ['LOCALAPPDATA']) / 'OpenCommander'
     settings = QSettings(str(state / 'settings.ini'), QSettings.IniFormat)
     profiles = json.loads(settings.value('online_profiles', '[]'))
     config = private_config(state)
     results=[]
     for profile in profiles:
-        if profile['kind'] not in ('drive', 'onedrive', 'dropbox'):
+        if profile['kind'] not in ('drive', 'onedrive', 'dropbox', 'iclouddrive'):
             continue
         if args.provider and profile['kind'] != args.provider:
             continue

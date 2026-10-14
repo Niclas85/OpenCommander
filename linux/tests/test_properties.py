@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import json
 import zipfile
 from opencommander.filesystem import Entry, cloud_locations
@@ -32,7 +33,10 @@ def test_local_properties_without_gvfs(monkeypatch, tmp_path):
     monkeypatch.setattr(properties_ui, 'invoke', unavailable)
     result = properties_ui.properties(Entry(path.name, path, False, size=99))
     assert result['size'] == 3
-    assert result['created'] is None
+    if os.name == 'nt':
+        assert result['created'] is not None
+    else:
+        assert result['created'] is None
 
 
 def test_archive_properties_use_member_not_container(tmp_path):

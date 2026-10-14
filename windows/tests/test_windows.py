@@ -352,3 +352,27 @@ def test_transfer_reservations_normalize_native_alias_targets(tmp_path, monkeypa
     copy = dict(sources=[str(remote / 'source')], directory=str(tmp_path / 'destination'))
     move = dict(sources=[str(alias / 'source')], directory=str(tmp_path / 'other'), move=True)
     assert conflicts(resources(copy), resources(move))
+
+
+def test_private_ssh_key_rejects_world_readable_ntfs_acl(tmp_path):
+    import win32security
+    import ntsecuritycon
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+    from cryptography.hazmat.primitives import serialization
+    from opencommander import server_connections
+    windows_native.protect_private_directory(tmp_path)
+    path = tmp_path / 'private-key'
+    path.write_bytes(ed25519.Ed25519PrivateKey.generate().private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.OpenSSH, serialization.NoEncryption()))
+    assert windows_native.private_key_readers(path)
+    descriptor = win32security.GetNamedSecurityInfo(str(path), win32security.SE_FILE_OBJECT,
+                                                  win32security.DACL_SECURITY_INFORMATION)
+    acl = descriptor.GetSecurityDescriptorDacl()
+    acl.AddAccessAllowedAce(win32security.ACL_REVISION, ntsecuritycon.FILE_GENERIC_READ,
+                           win32security.CreateWellKnownSid(win32security.WinWorldSid, None))
+    win32security.SetNamedSecurityInfo(str(path), win32security.SE_FILE_OBJECT,
+        win32security.DACL_SECURITY_INFORMATION | win32security.PROTECTED_DACL_SECURITY_INFORMATION,
+        None, None, acl, None)
+    assert not windows_native.private_key_readers(path)
+    with pytest.raises(ValueError, match='NTFS'):
+        server_connections.settings('sftp', 'localhost', 22, 'fixture', 'key', str(path))

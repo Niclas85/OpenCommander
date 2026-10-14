@@ -294,15 +294,23 @@ class FileEngine:
         self.compatibility_warnings.add(warning)
 
     def copy_metadata(self, source, target):
+        if os.name == 'nt':
+            from .windows_native import set_times
+            info = source.stat(follow_symlinks=False)
+            for callback in (lambda: set_times(target, info),
+                             lambda: os.chmod(target, stat.S_IMODE(info.st_mode), follow_symlinks=False)):
+                try:
+                    callback()
+                except (OSError, NotImplementedError) as error:
+                    self.unsupported_provider_feature(error, target,
+                        'NAS/Online: Dateiattribute nur teilweise übernommen / Some file attributes unsupported')
+            return
         try:
             shutil.copystat(source, target, follow_symlinks=False)
         except (OSError, NotImplementedError) as error:
             self.unsupported_provider_feature(error, target,
                 'NAS/Online: Dateiattribute nur teilweise übernommen / Some file attributes unsupported')
             info = source.stat(follow_symlinks=False)
-            if os.name == 'nt':
-                from .windows_native import set_times
-                set_times(target, info)
             # A missing chmod implementation must not prevent supported timestamps,
             # nor should unsupported timestamps prevent supported permissions.
             for callback in (lambda: os.utime(target, ns=(info.st_atime_ns, info.st_mtime_ns), follow_symlinks=False),

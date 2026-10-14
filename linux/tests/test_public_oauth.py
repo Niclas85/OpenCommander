@@ -1,6 +1,7 @@
 import json
 import secrets
 import pytest
+from desktop_test_support import assert_private_file
 from opencommander import public_oauth
 
 
@@ -14,7 +15,7 @@ def test_desktop_export_is_reduced_to_application_identity(tmp_path):
     source.write_text(json.dumps({'installed':dict(data,project_id='fixture',redirect_uris=['http://localhost'])}))
     public_oauth.prepare(source,target)
     assert json.loads(target.read_text()) == data
-    assert target.stat().st_mode & 0o777 == 0o600
+    assert_private_file(target)
 
 
 @pytest.mark.parametrize('bad',['web','refresh_token','access_token','password','extra'])

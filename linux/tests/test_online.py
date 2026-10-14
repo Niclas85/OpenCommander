@@ -12,8 +12,9 @@ def test_private_config_and_mount_are_separate(tmp_path):
     state = tmp_path / 'state'
     state.mkdir()
     path = online_ui.private_config(state)
-    assert path.stat().st_mode & 0o777 == 0o600
-    assert path.parent.stat().st_mode & 0o777 == 0o700
+    from desktop_test_support import assert_private_file
+    assert_private_file(path)
+    assert_private_file(path.parent)
     mount = online_ui.mount_path(state, 'oc_example')
     assert state not in mount.parents
 
@@ -60,7 +61,8 @@ def test_real_rclone_config_state_machine_without_account(tmp_path):
     second = online_ui.command_json(config, ['config', 'update', 'oc_fixture', '--continue', '--state', first['State'], '--non-interactive'],
                                     threading.Event(), result='false')
     assert second['Option']['Name'] == 'config_token'
-    assert config.stat().st_mode & 0o777 == 0o600
+    from desktop_test_support import assert_private_file
+    assert_private_file(config)
 
 
 def test_cancel_before_start(tmp_path):

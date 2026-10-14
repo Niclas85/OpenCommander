@@ -79,7 +79,7 @@ def main():
     if (backend.parent / 'rclone-README.txt').is_file():
         shutil.copy2(backend.parent / 'rclone-README.txt', bundle / 'tools/rclone-README.txt')
     shutil.copytree(dist / 'OpenCommanderHelper', bundle / 'helpers', dirs_exist_ok=True)
-    for name in ('README.md', 'TESTING.md', 'install-local.ps1', 'uninstall-local.ps1'):
+    for name in ('README.md', 'TESTING.md', 'PARITY.md', 'install-local.ps1', 'uninstall-local.ps1'):
         shutil.copy2(ROOT / name, bundle / name)
     shutil.copy2(REPO / 'LICENSE', bundle / 'LICENSE')
     shutil.copy2(SOURCE / 'THIRD-PARTY.md', bundle / 'THIRD-PARTY-LINUX.md')

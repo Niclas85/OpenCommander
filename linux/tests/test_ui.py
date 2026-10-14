@@ -1,4 +1,5 @@
 import time
+import os
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,11 @@ def app():
     return QApplication.instance() or QApplication([])
 
 
-def wait(app, predicate, timeout=5):
+def wait(app, predicate, timeout=None):
+    # Cold helper startup and filesystem scans on hosted Windows runners can
+    # exceed five seconds. Explicit interaction deadlines keep their own limits.
+    if timeout is None:
+        timeout = 20 if os.name == 'nt' else 5
     until = time.monotonic() + timeout
     while time.monotonic() < until:
         app.processEvents()

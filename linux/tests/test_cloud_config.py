@@ -38,7 +38,8 @@ def test_actual_icloud_password_question_stores_encoded_value(tmp_path, length):
     parser.read(config)
     assert parser['oc_fixture']['password'] != secret
     assert cloud_config.obscured(parser['oc_fixture']['password'])
-    assert config.stat().st_mode & 0o777 == 0o600
+    from desktop_test_support import assert_private_file
+    assert_private_file(config)
 
 
 def test_incomplete_onedrive_requires_login_and_drive_selection(tmp_path):

@@ -1,6 +1,7 @@
 """Publisher-provided Google Desktop OAuth identity; never account tokens."""
 import configparser
 import json
+import os
 from pathlib import Path
 import re
 
@@ -31,6 +32,9 @@ def prepare(source, destination):
         raise ValueError('Offizieller Google-Desktop-Export erforderlich / Google Desktop export required')
     client = normalized(exported)
     destination.parent.mkdir(parents=True, exist_ok=True)
+    if os.name == 'nt':
+        from .windows_native import protect_private_directory
+        protect_private_directory(destination.parent)
     destination.write_text(json.dumps(client, indent=2) + '\n')
     destination.chmod(0o600)
 
@@ -90,6 +94,9 @@ def prepare_native(kind, source, destination):
         raise ValueError('OAuth configuration too large')
     client = normalized_native(kind, json.loads(source.read_text()))
     destination.parent.mkdir(parents=True, exist_ok=True)
+    if os.name == 'nt':
+        from .windows_native import protect_private_directory
+        protect_private_directory(destination.parent)
     destination.write_text(json.dumps(client, indent=2) + '\n')
     destination.chmod(0o600)
 

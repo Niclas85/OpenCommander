@@ -365,3 +365,29 @@ def protect_private_directory(path):
     win32security.SetNamedSecurityInfo(str(path), win32security.SE_FILE_OBJECT,
         win32security.DACL_SECURITY_INFORMATION | win32security.PROTECTED_DACL_SECURITY_INFORMATION,
         None, None, acl, None)
+
+
+def private_key_readers(path):
+    """Only this user, SYSTEM and local administrators may read a private key."""
+    import win32api
+    import win32con
+    import win32security
+    import ntsecuritycon
+    token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
+    try:
+        user = win32security.GetTokenInformation(token, win32security.TokenUser)[0]
+    finally:
+        token.Close()
+    allowed = {str(user), str(win32security.CreateWellKnownSid(win32security.WinLocalSystemSid, None)),
+               str(win32security.CreateWellKnownSid(win32security.WinBuiltinAdministratorsSid, None))}
+    acl = win32security.GetNamedSecurityInfo(str(path), win32security.SE_FILE_OBJECT,
+                                            win32security.DACL_SECURITY_INFORMATION).GetSecurityDescriptorDacl()
+    if acl is None:
+        return False
+    for index in range(acl.GetAceCount()):
+        header, mask, sid = acl.GetAce(index)
+        if header[0] == win32security.ACCESS_ALLOWED_ACE_TYPE and mask & ntsecuritycon.FILE_READ_DATA:
+            identity = str(sid)
+            if identity not in allowed and not identity.startswith('S-1-5-5-'):
+                return False
+    return True
