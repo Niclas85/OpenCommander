@@ -61,6 +61,8 @@ Verbinden. Siehe auch die [rclone-Windows-Anleitung](https://rclone.org/commands
 
 Cloud-Konten bleiben persönlich. Öffentliche Herausgeber-OAuth-IDs werden beim
 Bauen mit denselben `OPENCOMMANDER_*_OAUTH_FILE`-Variablen wie unter Linux eingebettet.
+Google-Herausgeber-Builds mit `build.ps1 -RequirePublisherGoogle` prüfen das
+Vorhandensein der Desktop-App-Identität ausdrücklich; siehe [PUBLISHER.md](PUBLISHER.md).
 Ohne diese Registrierung gelten die bestehenden Experten-/Provider-Verfahren.
 SMB verwendet Windows-Anmeldedaten; WebDAV benötigt den Windows-WebClient-Dienst
 und dessen unterstützte Authentifizierung. SFTP-Hostschlüssel werden weiterhin

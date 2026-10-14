@@ -15,6 +15,19 @@ class CloudSetupError(RuntimeError):
 
 def login_error(kind, error):
     """Translate known failures without echoing provider replies or credentials."""
+    if kind == 'drive':
+        text = str(error).lower()
+        if 'shared' in text and any(word in text for word in ('retired', 'quota', 'ratelimit', 'rate limit')):
+            return ('Gemeinsame Google-Anwendung nicht verfügbar oder am Abfragelimit. '
+                    'Eine OpenCommander-Ausgabe mit eigener Herausgeber-Anmeldung verwenden; '
+                    'danach erneut im Browser anmelden. / Shared Google application unavailable; '
+                    'use an OpenCommander build with its publisher Google application, then sign in again.')
+        if 'invalid_grant' in text or 'invalid credentials' in text or re.search(r'\b401\b', text):
+            return ('Google-Anmeldung abgelaufen oder widerrufen. „Erneut anmelden“ wählen. '
+                    '/ Google sign-in expired or revoked; sign in again.')
+        if any(word in text for word in ('quota', 'ratelimit', 'rate limit')):
+            return ('Google-Abfragelimit erreicht. Später erneut versuchen. '
+                    '/ Google request limit reached; try again later.')
     if kind == 'iclouddrive':
         text = str(error).lower()
         if 'missing pcs cookies' in text or 'requestpcs:' in text:

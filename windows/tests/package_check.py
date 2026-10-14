@@ -1,11 +1,24 @@
 """Verify frozen helper I/O and dependencies using a disposable local fixture."""
 import json
+import argparse
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 
-bundle = Path(sys.argv[1])
+parser = argparse.ArgumentParser()
+parser.add_argument('bundle', type=Path)
+parser.add_argument('--require-publisher-google', action='store_true')
+args = parser.parse_args()
+bundle = args.bundle
+publisher = bundle / '_internal/opencommander/assets/google-oauth.json'
+if args.require_publisher_google and not publisher.is_file():
+    raise SystemExit('Publisher Google Desktop OAuth identity missing from the Windows package.')
+if publisher.exists():
+    sys.path.insert(0, str(bundle / 'source/linux'))
+    from opencommander.public_oauth import normalized
+    exported = json.loads(publisher.read_text(encoding='utf-8'))
+    assert exported == normalized(exported), 'Only the sanitized publisher application identity may be packaged'
 helper = bundle / 'helpers/OpenCommanderHelper.exe'
 with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)

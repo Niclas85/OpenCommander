@@ -8,6 +8,18 @@ from opencommander import cloud_config, online_ui, rclone_runtime
 
 
 @pytest.mark.parametrize('error,expected', [
+    ('403 shared client_id is retired; quota rateLimitExceeded', 'Herausgeber'),
+    ('401 invalid_grant', 'Erneut anmelden'),
+    ('403 userRateLimitExceeded quota', 'Später'),
+])
+def test_google_failure_explains_action_without_echoing_private_reply(error, expected):
+    private = 'synthetic-private-token-should-not-appear'
+    message = cloud_config.login_error('drive', error + '\n' + private)
+    assert expected in message
+    assert private not in message
+
+
+@pytest.mark.parametrize('error,expected', [
     ('SRP complete: HTTP error 401 Unauthorized', '401'),
     ('Missing PCS cookies from the request', 'Webzugriff'),
     ('password: base64 decode failed when revealing password - is it obscured?', 'Passwort'),

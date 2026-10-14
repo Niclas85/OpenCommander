@@ -1,4 +1,4 @@
-param([string]$Python = 'python', [switch]$SkipTests)
+param([string]$Python = 'python', [switch]$SkipTests, [switch]$RequirePublisherGoogle)
 $ErrorActionPreference = 'Stop'
 $env:PYTHONUTF8 = '1'
 $taskRoot = $PSScriptRoot
@@ -10,5 +10,8 @@ if (-not (Test-Path -LiteralPath $venv)) {
 }
 & $venv -m pip install -r (Join-Path $taskRoot 'requirements-dev.txt')
 if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
-& $venv (Join-Path $taskRoot 'build.py') $(if ($SkipTests) { '--skip-tests' })
+$buildArguments = @()
+if ($SkipTests) { $buildArguments += '--skip-tests' }
+if ($RequirePublisherGoogle) { $buildArguments += '--require-publisher-google' }
+& $venv (Join-Path $taskRoot 'build.py') @buildArguments
 if ($LASTEXITCODE -ne 0) { throw 'Windows build failed.' }

@@ -22,9 +22,13 @@ def run(*args, **kwargs):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--skip-tests', action='store_true')
+    parser.add_argument('--require-publisher-google', action='store_true',
+                        help='Fail unless a publisher Desktop OAuth export is provided and packaged.')
     args = parser.parse_args()
     if sys.platform != 'win32' or sys.maxsize < 2**32:
         raise SystemExit('Build on Windows with 64-bit Python 3.12 or newer.')
+    if args.require_publisher_google and not os.environ.get('OPENCOMMANDER_GOOGLE_OAUTH_FILE'):
+        raise SystemExit('Publisher Google Desktop OAuth export required: set OPENCOMMANDER_GOOGLE_OAUTH_FILE.')
     build, dist = ROOT / 'build', ROOT / 'dist'
     build.mkdir(exist_ok=True)
     env = dict(os.environ, QT_QPA_PLATFORM='offscreen', PYTHONUTF8='1', PYTHONPATH=str(SOURCE))
@@ -79,7 +83,7 @@ def main():
     if (backend.parent / 'rclone-README.txt').is_file():
         shutil.copy2(backend.parent / 'rclone-README.txt', bundle / 'tools/rclone-README.txt')
     shutil.copytree(dist / 'OpenCommanderHelper', bundle / 'helpers', dirs_exist_ok=True)
-    for name in ('README.md', 'TESTING.md', 'PARITY.md', 'install-local.ps1', 'uninstall-local.ps1'):
+    for name in ('README.md', 'TESTING.md', 'PARITY.md', 'PUBLISHER.md', 'install-local.ps1', 'uninstall-local.ps1'):
         shutil.copy2(ROOT / name, bundle / name)
     shutil.copy2(REPO / 'LICENSE', bundle / 'LICENSE')
     shutil.copy2(SOURCE / 'THIRD-PARTY.md', bundle / 'THIRD-PARTY-LINUX.md')
@@ -103,7 +107,8 @@ def main():
     import json
     if not json.loads(report.read_text(encoding='utf-8'))['ok']:
         raise RuntimeError('Packaged application did not confirm smoke test success')
-    run(sys.executable, ROOT / 'tests/package_check.py', bundle, env=env)
+    publisher_check = ['--require-publisher-google'] if args.require_publisher_google else []
+    run(sys.executable, ROOT / 'tests/package_check.py', bundle, *publisher_check, env=env)
     artifacts = ROOT / 'artifacts'
     artifacts.mkdir(exist_ok=True)
     archive = artifacts / 'OpenCommander-windows-x64.zip'
