@@ -2054,6 +2054,9 @@ def test_transfer_resource_checks_never_probe_provider_paths(tmp_path, monkeypat
     remote = tmp_path / 'provider'
     remote.mkdir()
     monkeypatch.setattr(fs, 'remote_location', lambda path: remote == Path(path) or remote in Path(path).parents)
+    if os.name == 'nt':
+        from opencommander import provider_mounts
+        monkeypatch.setattr(provider_mounts, '_roots', {remote})
     probe = Path.is_symlink
     def local_only(path):
         assert not fs.remote_location(path), 'GUI must not stat a provider'

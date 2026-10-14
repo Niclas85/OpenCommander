@@ -22,7 +22,8 @@ Für ein bereits vorhandenes Profil außerhalb des Standardpfads unterstützt da
 Skript `-StateDirectory "C:\Pfad\zum\Profil"`. Startmenü und Kontextmenü öffnen
 dann dasselbe Profil. Die Integration im normalen Windows-Benutzerkontext
 ausführen; paketierte Entwicklungsumgebungen können Registry und AppData umleiten.
-Der praktische Prüfstand steht in `TESTING.md`.
+Der praktische Prüfstand steht in [TESTING.md](TESTING.md), der vollständige
+Vergleich mit Linux einschließlich verbleibender Unterschiede in [PARITY.md](PARITY.md).
 
 ## Funktionsumfang
 

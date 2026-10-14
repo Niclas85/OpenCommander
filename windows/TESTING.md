@@ -6,8 +6,12 @@ aktivierten Windows-Symlink-Modus.
 
 ## Automatisiert geprüft
 
-- Aktueller Gesamtlauf: **268 bestanden, 29 übersprungen**, keine Fehler.
-  Ergebnis: `build/pytest.xml`; Protokoll: `build/login-recovery-build.log`.
+- Aktueller vollständiger Windows-Lauf: **394 bestanden, 47 übersprungen**, keine Fehler.
+  Ergebnis: `build/pytest.xml`; Protokoll: `build/parity-installed-build.log`.
+  Alle Linux-Testmodule sind jetzt in der Windows-Suite vertreten; ihre
+  plattformgebundenen Fälle werden begründet übersprungen, nicht als bestanden gezählt.
+- Vollständiger Linux-Lauf unter Ubuntu 24.04: **397 bestanden**, keine Ausnahmen;
+  Linux-Paket erfolgreich gebaut. CI-Lauf `38521261807`, Commit `15b3c56`.
 - Nach zusätzlicher Absicherung von Windows-Junctions: **84 bestanden,
   16 übersprungen** im Datei-/Wiederaufnahme-/Windows-Sicherheitstestlauf.
   Dieser Lauf enthält einen neuen Test für einen manipulierten Zwischenordner.
@@ -17,7 +21,7 @@ aktivierten Windows-Symlink-Modus.
 - Paket-Smoke-Test: tatsächliche `OpenCommander.exe`, mitgelieferter Helfer,
   Unicode-Pfade, bytegenaue Downloads und rclone-EXE erfolgreich.
   Ergebnis: `build/package-smoke.json`; Protokoll des abschließenden Builds:
-  `build/login-recovery-build.log`.
+  `build/parity-installed-build.log`.
 - Die Windows-Tests umfassen Explorer-Zwischenablageformat, überschreibungsfreie
   Umbenennung, gefährliche Archivnamen/NTFS-Datenströme, Binärdateien,
   Dateieigenschaften, verborgene Dateien, private NTFS-ACLs,
@@ -27,8 +31,8 @@ aktivierten Windows-Symlink-Modus.
   das native Windows-Backend zeigt die Schrift korrekt.
 
 Übersprungen werden ausdrücklich Linux-Dienste/FIFO-/POSIX-Rechte-Prüfungen,
-Symlink-Erstellung ohne erforderliches Windows-Recht und optionale ffmpeg-
-Videofix­turen. Linux-Tests mit exakten Betriebssystem-Fehlertexten werden nicht
+GVFS, `/proc`, Secret Service und Symlink-Erstellung ohne erforderliches Windows-Recht.
+Linux-Tests mit exakten Betriebssystem-Fehlertexten werden nicht
 als Windows-Integrationstest ausgegeben. Gemeinsame Qt-Tests verwenden dieselben
 Testfunktionen wie unter Linux; Warteschritte wurden auf tatsächlich geladene
 Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
@@ -41,12 +45,16 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   geprüften Build abgeglichen. Abgelaufene Anmeldungen und Fehler ohne weitere
   Provider-Frage beenden den Dialog sauber; eine neue Anmeldung entfernt alte
   Antworten und Fehlermeldungen. Zwei zusätzliche Qt-Regressionstests bestanden.
+- Abschließende Paritäts-/WebDAV-Korrektur installiert. Die installierte EXE
+  entspricht bytegenau dem frisch geprüften Paket:
+  SHA-256 `71b58b81e70515f981f85d5200fbe7fd1bddf5ac220d9ff79691befe9044a6b8`.
+  Die vorherige Installation bleibt als Sicherung erhalten.
 - Explorer-Zwischenablage praktisch in beiden Richtungen geprüft: eine Datei
   mit Umlauten und japanischen Zeichen kopiert und alle drei Exemplare per
   SHA-256 bytegenau verglichen (47 Byte).
 - Tatsächliches Explorer-Kontextmenü unter „Weitere Optionen anzeigen“ aufgerufen:
   der gewählte Prüfungsordner öffnet sich im aktiven Bereich des bestehenden
-  OpenCommander-Fensters; die drei gespeicherten Cloud-Einträge bleiben erhalten.
+  OpenCommander-Fensters; gespeicherte Cloud-Einträge bleiben erhalten.
 - Im nativen Dialog OpenCommander vorübergehend als Standard-Dateimanager gewählt
   und einen Ordner über die Windows-Shell geöffnet. Der anschließende Registry-
   Rundlauf außerhalb der Entwicklungsumgebung bestätigt: vorherige Zuordnung
@@ -80,8 +88,22 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   mitgelieferter Helfer und Rückgängig mit neu geöffnetem FileEngine bestanden.
 - FTP, SFTP und WebDAV gegen eigene laufende Loopback-Testserver: 256-KiB-Upload,
   Lesen, Helfer, persistente Rücknahme, Verbindungsabbruch und ordentliches Trennen
-  bestanden. SFTP weist einen geänderten Hostschlüssel ab. WebDAV wurde über
-  rclone/WinFsp geprüft, nicht über den nativen Windows-WebClient.
+  bestanden. SFTP weist einen geänderten Hostschlüssel ab. Dieser WebDAV-Lauf
+  prüft rclone/WinFsp; der native Windows-Test ist nachfolgend separat aufgeführt.
+- Nativer Windows-WebClient nach ausdrücklicher UAC-Bestätigung gestartet,
+  Starttyp bleibt „Manuell“. Anonymer, ausschließlich an `127.0.0.1` gebundener
+  WebDAV-Server: UNC-Verzeichnisabfrage, Ordner, 256-KiB-Upload, bytegenaues Lesen,
+  mitgelieferter Helfer, Eigenschaften, persistente Rücknahme und Trennen bestanden.
+  Ein echter Kopierfehler bei der Zeitstempelübernahme wurde durch die native
+  Windows-Datei-API korrigiert. Der abschließende Lauf benutzt die korrigierte
+  installierte Ausgabe: `build/native-webdav-installed-final.log`.
+- Private SSH-Schlüssel werden unter Windows anhand ihrer tatsächlichen NTFS-
+  Leserechte geprüft. Ein eigener Test mit einer ausschließlich synthetischen
+  Schlüsseldatei bestätigt die Ablehnung öffentlich lesbarer Schlüssel und
+  eines Schlüssels, auf den eine fremde Anmeldesitzung Leserechte erhält.
+- Lokale Verknüpfungen auf Cloud-Verzeichnisse werden vor der Provider-Erkennung
+  normalisiert. Windows-Regressionstests prüfen beide nativen Pfadpräfixe ohne
+  vorausgesetztes Symlink-Recht und verbieten das Abfragen von Provider-Links.
 - FTPS erneut mit der aktualisierten Installation gegen Apache FtpServer 1.2.1
   bestanden: 256-KiB-Upload, bytegenaues Lesen, Helfer, Rückgängig nach Neustart,
   Ablehnung eines nicht vertrauten Zertifikats, Verbindungsabbruch in 0,16 Sekunden
@@ -97,20 +119,43 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   Ablauf liest die Ausgaben fortlaufend. Ein eigener Windows-Regressionstest
   prüft den Link vor Prozessende. Weitere sieben gezielte gemeinsame Tests
   für Passwortübergabe, Browseradressen und OAuth sind erfolgreich.
-- Die tatsächliche Google-Anmeldung wurde gespeichert; das anschließende
-  Auflisten scheitert mit HTTP 403 und Meldungen zum gemeinsamen OAuth-Client,
-  dessen Einstellung und Quota. Google-Dateizugriff bleibt offen; dafür wird
-  eine eigene zugelassene OAuth-Anwendung benötigt. Keine Google-Schreibtests.
+- Die tatsächliche Google-Browseranmeldung ist gespeichert. Mount und Auflisten
+  bestanden einmal mit 718 Einträgen; Upload und Freigabelink-Erstellung gelangen
+  ebenfalls zeitweise. Der reine 2624-Byte-Testinhalt war im anonymen Browser
+  ohne Anmeldung sichtbar. Andere Aufrufe und der vollständige 256-KiB-Roundtrip
+  scheitern weiterhin mit HTTP 403 und Meldungen zu gemeinsamem OAuth-Client,
+  Einstellung und Quota. Stabiler Google-Dateizugriff bleibt offen.
+  Auch das Entfernen der aktuellen synthetischen Freigabetestdatei ist durch die
+  Provider-Quota blockiert: Ordner `OpenCommander-Freigabepruefung-cf8b7246d8fd425081ae41219b749e45`,
+  Datei `Freigabe Grüße 日本語.txt`. Sie enthält ausschließlich den öffentlichen
+  Testmarker, keine Benutzerdateien. Offene Bereinigung ist protokolliert.
+  Eine eigene zugelassene OAuth-Anwendung des **Herausgebers** kann im vorhandenen
+  Build eingebettet werden; Benutzer melden sich dann weiter nur im Browser an.
 - Dropbox-Browserübergang und frischer lokaler OAuth-Endpunkt bestätigt.
   Nach dem ursprünglichen `ERR_CONNECTION_REFUSED` wurde eine neue Anmeldung
   mit laufendem lokalem Server durchgeführt und der vollständige Dateizugriff
   erfolgreich geprüft.
+- iCloud: Benutzer hat Apple-ID und Zwei-Faktor-Anmeldung selbst abgeschlossen.
+  Gespeichertes Profil, Auflisten, WinFsp-Mount, 256-KiB-Upload, bytegenaues Lesen,
+  mitgelieferter Helfer und Rückgängig mit neuer FileEngine bestanden; nach der
+  abschließenden Installation erneut vollständig bestanden.
+- Dropbox-Freigabe: eigene 2624-Byte-Datei, Linkerstellung und bytegenauer anonymer
+  HTTP-Download bestanden; Datei und Ordner entfernt.
+- OneDrive-Freigabe: eigener Testinhalt im nicht angemeldeten Browser sichtbar;
+  Link-Entfernen meldet Erfolg, Testdatei und Ordner entfernt. Der ältere anonyme
+  API-Download-Endpunkt verweigerte Zugriff und ist kein Gegenbeweis zur sichtbaren
+  erfolgreichen Webfreigabe. iCloud-Linkerstellung ist wie unter Linux nicht
+  implementiert; Freigaben können im Provider-Browser verwaltet werden.
 
 Ergebnisse: `build/live-results.json`, `build/cloud-live-results.json`,
 `build/protocol-live-results.json`, `build/ftps-installed-final.log`,
 `build/browser-probe.json`, `build/browser-probe-dropbox.json`,
 `build/explorer-clipboard-results.json`, `build/explorer-context-results.json`
 und `build/explorer-shell-results.json`.
+Zusätzliche Ergebnisse: `build/native-webdav-results.json`,
+`build/icloud-installed-final.log`, `build/google-installed-final.log`,
+`build/share-live-results.json` (erster Dropbox-Erfolg),
+`build/share-live-onedrive.json` und `build/share-live-drive.json`.
 Der Live-Bericht enthält auch frühere fehlgeschlagene Versuche; maßgeblich ist
 das jüngste Ergebnis je Testfall. Kontoanmeldungen gelten erst nach gespeichertem
 Profil und erfolgreichem Dateizugriff als vollständig geprüft.
@@ -119,12 +164,14 @@ Profil und erfolgreichem Dateizugriff als vollständig geprüft.
 
 | Bereich | Offener Nachweis |
 | --- | --- |
-| Cloud | Google-Dateizugriff mit eigener OAuth-Anwendung; iCloud, anbieterspezifische Kontenrichtlinien und Freigabelinks |
-| Server | Externe Server mit abweichenden Richtlinien; nativer Windows-WebClient für WebDAV. Eigene laufende FTP/FTPS/SFTP/WebDAV-Testserver sind geprüft |
+| Cloud | Stabiler Google-Dateizugriff mit zugelassener Herausgeber-OAuth-Anwendung und Bereinigung der synthetischen Google-Testfreigabe; weitere anbieterspezifische Kontenrichtlinien |
+| Server | Externe Server mit abweichenden Richtlinien; persönlicher Windows-SSH-Agent. Eigene laufende FTP/FTPS/SFTP/WebDAV-Testserver und nativer WebClient sind geprüft |
 | USB | Sicheres Auswerfen wurde auf Benutzerwunsch nicht getestet |
 | Medien | Weitere Codec-/Hardwarekombinationen; PNG, WAV und H.264 sind praktisch geprüft |
 | Betriebssysteme | Windows 10, ARM64 und weitere Windows-11-Versionen |
-| Linux | Der vollständige Linux-Lauf muss in der vorhandenen Ubuntu-CI erfolgen |
+| Geräte | Kein Windows-WPD/MTP-Adapter für reine Kamera-/Telefon-Geräte; Linux kann solche Geräte über GVFS bereitstellen |
 
-Die gemeinsame Implementierung übernimmt die Linux-Funktionen. Vollständige
-Live-Parität mit allen Providern und Geräten ist damit noch nicht nachgewiesen.
+Der vollständige Funktionsvergleich steht in [PARITY.md](PARITY.md).
+Die gemeinsame Implementierung übernimmt den Linux-Funktionskern. Vollständige
+Live-Parität mit allen Providern, Geräten und Betriebssystemdiensten ist damit
+noch nicht nachgewiesen.

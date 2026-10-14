@@ -51,7 +51,7 @@ rclone-OAuth-Client aktuell nicht bestätigt.
 | iCloud per Apple-ID und Zwei-Faktor-Code | Gleicher Assistent | Benutzeranmeldung, Mount, 256-KiB-Upload, bytegenaues Lesen, Helfer und Rücknahme bestanden. Apple verwendet hier keinen reinen Browser-OAuth-Ablauf |
 | Freigabelink Dropbox | Gleiche Provider-Aktion | Anonymer HTTP-Download bytegenau bestanden; synthetische Datei und Ordner entfernt |
 | Freigabelink OneDrive | Gleiche Provider-Aktion | Dateiinhalt im nicht angemeldeten Browser sichtbar; synthetische Datei und Ordner entfernt |
-| Freigabelink Google | Gleiche Provider-Aktion | Linkerstellung zeitweise erfolgreich; anonymer Inhalt und zuverlässige Rücknahme wegen Provider-Quota nicht abschließend bestätigt |
+| Freigabelink Google | Gleiche Provider-Aktion | Linkerstellung und anonymer Dateiinhalt im Browser bestätigt; Entfernen der synthetischen Testdatei durch Provider-Quota blockiert |
 | Freigaben im Provider-Browser verwalten; Online-Pfad kopieren | Gleiche Aktionen | Gemeinsame Tests; iCloud-Linkerstellung ist auf beiden Plattformen nicht implementiert, Browser-Verwaltung bleibt verfügbar |
 | Online-Suche, Vergleich, Umbenennen, ZIP, Vorschau und Transfers | Gemeinsame Werkzeuge auf dem Mount | Gemeinsame Tests und echte Mounts; einzelne Provider können Attribute/Funktionen einschränken |
 | FTP | Gleicher Assistent; WinFsp statt FUSE | Eigener Loopback-Server: 256-KiB-Datei, Helfer, Rücknahme, Abbruch und Trennen bestanden |
@@ -73,6 +73,7 @@ rclone-OAuth-Client aktuell nicht bestätigt.
 | --- | --- | --- |
 | Atomare `renameat2(RENAME_NOREPLACE)` | Windows-Umbenennung ohne Überschreiben | Lokaler Zielschutz auf beiden Plattformen; Provider-Rennen mit anderen Clients bleiben möglich |
 | POSIX `O_NOFOLLOW`, Dateimodi und Links | Geprüfte Windows-Handles, NTFS-ACLs, Reparse-Tags | Junctions werden beim rekursiven Kopieren/Archivieren abgewiesen; Symlink-Erstellung benötigt Windows-Rechte |
+| Lokale Verknüpfung auf entfernten Provider | Lokale Aliase vor der Provider-Erkennung normalisieren | Eigene Windows-Tests für beide nativen Pfadpräfixe; Provider-Verzeichnisse werden dabei nicht abgefragt |
 | Konfigurationsdateien 0600, private Ordner 0700 | Private NTFS-DACLs | Gleiche Absicht, verschiedene Rechte. Tests prüfen unter Windows tatsächliche Leser statt numerischer POSIX-Modi |
 | Private SSH-Schlüssel gegen andere Unix-Leser schützen | Öffentliche NTFS-Leserechte abweisen | Neuer Windows-Regressionsnachweis; bestehende Benutzerschlüssel werden nicht umgeschrieben |
 | Secret Service | Windows-Anmeldeinformationsverwaltung | Optional gespeicherte Server-Passwörter im jeweiligen Systemdienst |
@@ -89,8 +90,8 @@ Diese Ausnahmen sind kein bestandener Windows-Nachweis. Die Windows-Adapter
 haben eigene Tests und die oben beschriebenen Live-Prüfungen.
 
 Der vollständige Ubuntu-24.04-Lauf hat **397 Tests bestanden** und das Linux-Paket
-gebaut (CI-Lauf 38517169172). Der vollständige lokale Windows-Lauf besteht
-**391 Tests mit 47 begründeten Ausnahmen**. Der abschließende Prüfstand und
+gebaut (CI-Lauf 38521261807, Commit `15b3c56`). Der vollständige lokale Windows-Lauf besteht
+**394 Tests mit 47 begründeten Ausnahmen**. Der abschließende Prüfstand und
 die installierte Version stehen in [TESTING.md](TESTING.md).
 
 Für zuverlässigen Google-Zugriff benötigt der Herausgeber eine zugelassene eigene

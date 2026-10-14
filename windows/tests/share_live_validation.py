@@ -1,4 +1,4 @@
-"""Create and revoke public links for synthetic fixtures only; never log link secrets."""
+"""Check public links for synthetic fixtures only; never log account credentials."""
 from pathlib import Path
 from types import SimpleNamespace
 import argparse
