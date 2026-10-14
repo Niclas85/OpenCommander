@@ -55,6 +55,18 @@ def is_link(path):
     return path.is_symlink() or (WINDOWS and path.is_junction())
 
 
+def native_path(path):
+    """Use Windows extended paths without requiring a machine-wide policy."""
+    if not WINDOWS:
+        return Path(path)
+    value = os.path.abspath(path)
+    if value.startswith('\\\\?\\'):
+        return Path(value)
+    if value.startswith('\\\\'):
+        return Path('\\\\?\\UNC\\' + value[2:])
+    return Path('\\\\?\\' + value)
+
+
 def validate_component(name):
     if WINDOWS:
         from pathlib import PureWindowsPath

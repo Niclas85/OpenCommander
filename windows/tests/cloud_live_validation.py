@@ -62,9 +62,18 @@ def main():
                     operation=engine.transfer([source],directory)
                     assert (directory/source.name).read_bytes()==data
                     assert any(row['name']==source.name for row in windows_native.invoke('scan',str(directory)))
-                    restarted=FileEngine(engine.state_dir);restarted.undo(operation['id'])
+                    assert windows_native.properties(directory/source.name)['size']==len(data)
+                    engine.rename(directory/source.name, 'Umbenannt Grüße 日本語.bin')
+                    assert (directory/'Umbenannt Grüße 日本語.bin').read_bytes()==data
+                    restarted=FileEngine(engine.state_dir);restarted.undo()
+                    assert (directory/source.name).read_bytes()==data
+                    restarted.undo(operation['id'])
                     assert not (directory/source.name).exists()
-                    result.update(upload_bytes=len(data), byte_comparison=True, frozen_helper_listing=True, persistent_undo=True, test_directory=test_name)
+                    cleanup=subprocess.run([rclone_runtime.binary(),'--config',str(config),'purge',profile['id']+':'+test_name],
+                                           env=host_environment(),capture_output=True,text=True,timeout=40)
+                    assert cleanup.returncode==0, 'Own synthetic directory cleanup failed'
+                    result.update(upload_bytes=len(data), byte_comparison=True, frozen_helper_listing=True,
+                                  properties=True, rename_undo=True, persistent_undo=True, synthetic_cleanup=True, test_directory=test_name)
                 result['status']='pass'
         except Exception as error:
             result.update(status='failed',error=str(error))

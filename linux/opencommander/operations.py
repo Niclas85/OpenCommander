@@ -14,7 +14,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
-from .platform_support import is_link, canonical_path
+from .platform_support import is_link, canonical_path, native_path
 import shutil
 import stat
 import tempfile
@@ -44,7 +44,7 @@ def rename_new(source: Path, target: Path):
     """Linux atomic no-replace rename, including dangling symlink conflicts."""
     if os.name == 'nt':
         # MoveFileEx without REPLACE_EXISTING: Windows os.rename never replaces.
-        os.rename(source, target)
+        os.rename(native_path(source), native_path(target))
         return
     libc = ctypes.CDLL(None, use_errno=True)
     rename = libc.renameat2
@@ -377,7 +377,7 @@ class FileEngine:
         return backup
 
     def copy_to(self, source: Path, target: Path, replace=False):
-        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=target.parent))
+        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=native_path(target.parent)))
         try:
             payload = staging / 'payload'
             self.copy_file(source, payload)
@@ -511,7 +511,7 @@ class FileEngine:
                 self.check_cancel()
                 if source == Path(source.anchor):
                     raise SafetyError('The filesystem root cannot be removed')
-                root = Path(tempfile.mkdtemp(prefix='.OpenCommanderTrash-', dir=source.parent))
+                root = Path(tempfile.mkdtemp(prefix='.OpenCommanderTrash-', dir=native_path(source.parent)))
                 target = root / source.name
                 rename_new(source, target)
                 self.record(operation, source, target, 'move')
@@ -542,7 +542,7 @@ class FileEngine:
                         self.save()
                         raise
                 else:
-                    recovery = Path(tempfile.mkdtemp(prefix='.OpenCommanderUndo-', dir=target.parent)) / target.name
+                    recovery = Path(tempfile.mkdtemp(prefix='.OpenCommanderUndo-', dir=native_path(target.parent))) / target.name
                     rename_new(target, recovery)
                     record['recovery'] = str(recovery)
                 record['reverted'] = True
@@ -561,7 +561,7 @@ class FileEngine:
             validate_target(source, target.parent)
         operation = self.begin('zip')
         operation['inputs'] = [str(source) for source in sources]
-        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=target.parent))
+        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=native_path(target.parent)))
         try:
             payload = staging / 'payload'
             with zipfile.ZipFile(payload, 'x', zipfile.ZIP_DEFLATED) as archive:
@@ -595,7 +595,7 @@ class FileEngine:
         directory = Path(directory)
         operation = self.begin('extract')
         operation['inputs'] = [str(archive_path)]
-        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=directory))
+        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=native_path(directory)))
         try:
             payload = staging / 'contents'
             payload.mkdir()

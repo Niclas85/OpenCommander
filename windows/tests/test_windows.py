@@ -31,6 +31,30 @@ def test_atomic_rename_does_not_replace_case_insensitive_destination(tmp_path):
     assert source.read_bytes() == b'new' and target.read_bytes() == b'old'
 
 
+def test_undo_retains_copy_when_recovery_path_exceeds_max_path(tmp_path):
+    from opencommander.platform_support import native_path
+    destination = tmp_path / ('deep-' + 'x' * 70)
+    destination.mkdir()
+    name = 'x' * (250 - len(str(destination)) - 1) + '.bin'
+    assert len(name) > 4
+    source = tmp_path / name
+    source.write_bytes(b'long path recovery')
+    engine = FileEngine(tmp_path / 'state')
+    copied = engine.transfer([source], destination)
+    restarted = FileEngine(engine.state_dir)
+    restarted.undo(copied['id'])
+    assert not (destination / name).exists()
+    recovered = list(native_path(destination).glob('.OpenCommanderUndo-*/*'))
+    assert len(recovered) == 1 and len(str(recovered[0])) > 260
+    assert recovered[0].read_bytes() == source.read_bytes()
+    occupied = recovered[0].with_name('occupied.bin')
+    occupied.write_bytes(b'keep')
+    with pytest.raises(FileExistsError):
+        rename_new(recovered[0], occupied)
+    assert recovered[0].read_bytes() == b'long path recovery'
+    assert occupied.read_bytes() == b'keep'
+
+
 @pytest.mark.parametrize('name', ['C:/escape', 'file:stream', 'NUL', 'con.txt', 'COM1', 'dir./a', 'dir /a', r'a\b', '../escape'])
 def test_archive_rejects_windows_aliases_and_escape_names(name):
     member = zipfile.ZipInfo('safe')

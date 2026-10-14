@@ -29,8 +29,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--provider', choices=('drive', 'onedrive', 'dropbox'), required=True)
     parser.add_argument('--browser', action='store_true')
+    parser.add_argument('--state-dir', type=Path)
     args = parser.parse_args()
-    state = Path(os.environ['LOCALAPPDATA']) / 'OpenCommander'
+    state = args.state_dir or Path(os.environ['LOCALAPPDATA']) / 'OpenCommander'
     settings = QSettings(str(state / 'settings.ini'), QSettings.IniFormat)
     profiles = json.loads(settings.value('online_profiles', '[]'))
     profile = next(row for row in profiles if row['kind'] == args.provider)

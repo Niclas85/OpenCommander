@@ -1505,6 +1505,8 @@ def test_onedrive_context_menu_opens_for_remote_file_and_folder(window, app, mon
 
 def test_sidebar_shows_unmounted_drive_mounts_and_opens_without_dialog(window, app, monkeypatch):
     from opencommander import integrations
+    wait(app, lambda: not window.integration_scanning)
+    window.integration_timer.stop()  # Keep the fake device independent of real host scans.
     mount = window.state_dir.parent / 'USB-test'
     mount.mkdir()
     device = dict(id='fixture-volume', name='Reise USB', path=None, mounted=False, kind='Drive', eject=False, unmount=False)
@@ -1619,7 +1621,13 @@ def test_cloud_list_retains_files_on_transient_error_and_stops_retry_after_navig
         return reply
     monkeypatch.setattr(online_ui, 'list_cloud', cloud_list)
     scheduled = []
-    monkeypatch.setattr(QTimer, 'singleShot', lambda delay, *args: scheduled.append((delay, args[-1])))
+    real_single_shot = QTimer.singleShot
+    def schedule_retry(delay, *args):
+        if delay in (10000, 20000):
+            scheduled.append((delay, args[-1]))
+        else:
+            real_single_shot(delay, *args)
+    monkeypatch.setattr(QTimer, 'singleShot', schedule_retry)
     pane.navigate(root)
     wait(app, lambda: pane.proxy.rowCount() == 1 and not pane.loading_bar.isVisible())
     pane.refresh()
