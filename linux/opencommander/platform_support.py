@@ -73,7 +73,7 @@ def canonical_path(path):
     """
     if not WINDOWS:
         return Path(path).resolve()
-    from .filesystem import remote_location
+    from .windows_native import lexical_remote_location as remote_location
     path = Path(os.path.abspath(path))
     for _ in range(32):
         prefix = Path(path.anchor)

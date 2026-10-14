@@ -74,8 +74,9 @@ def main():
             result.update(status='pass', anonymous_browser_content=True, bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
             return 0
         parsed = urlsplit(link)
-        if args.provider == 'drive' and '/file/d/' in parsed.path:
-            identifier = parsed.path.split('/file/d/', 1)[1].split('/', 1)[0]
+        if args.provider == 'drive':
+            identifier = (parsed.path.split('/file/d/', 1)[1].split('/', 1)[0]
+                          if '/file/d/' in parsed.path else dict(parse_qsl(parsed.query))['id'])
             download = 'https://drive.google.com/uc?' + urlencode(dict(export='download', id=identifier))
         elif args.provider == 'onedrive':
             encoded = base64.urlsafe_b64encode(link.encode()).decode().rstrip('=')

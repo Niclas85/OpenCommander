@@ -321,6 +321,9 @@ def test_remote_alias_detected_without_probing_provider(tmp_path, monkeypatch):
     mount = tmp_path / 'cloud'
     alias = tmp_path / 'OneDrive'
     alias.symlink_to(mount)
+    if os.name == 'nt':
+        from opencommander import provider_mounts
+        monkeypatch.setattr(provider_mounts, '_roots', {mount})
     data = f'1 0 0:1 / {mount} rw - fuse.rclone oc_fixture: rw\n'
     real_read, real_link = Path.read_text, os.readlink
     monkeypatch.setattr(Path, 'read_text', lambda path, *a, **kw: data if str(path) == '/proc/self/mountinfo' else real_read(path, *a, **kw))

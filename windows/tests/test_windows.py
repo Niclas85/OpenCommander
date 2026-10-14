@@ -336,6 +336,24 @@ def test_restart_cloud_login_removes_stale_question_and_error(window):
 
 
 @pytest.mark.parametrize('prefix', ['\\\\?\\', '\\??\\'])
+def test_remote_alias_never_reads_provider_links(tmp_path, monkeypatch, prefix):
+    from opencommander import provider_mounts
+    provider, alias = tmp_path / 'provider', tmp_path / 'alias'
+    monkeypatch.setattr(provider_mounts, '_roots', {provider})
+    original_link, original_read = Path.is_symlink, os.readlink
+    def is_link(path):
+        assert path != provider and provider not in path.parents
+        return path == alias or original_link(path)
+    def read_link(path):
+        assert Path(path) != provider and provider not in Path(path).parents
+        return prefix + str(provider) if Path(path) == alias else original_read(path)
+    monkeypatch.setattr(Path, 'is_symlink', is_link)
+    monkeypatch.setattr(os, 'readlink', read_link)
+    assert windows_native.remote_location(alias / 'folder/photo.jpg')
+    assert not windows_native.remote_location(tmp_path / 'local')
+
+
+@pytest.mark.parametrize('prefix', ['\\\\?\\', '\\??\\'])
 def test_transfer_reservations_normalize_native_alias_targets(tmp_path, monkeypatch, prefix):
     from opencommander import filesystem
     from opencommander.transfers_ui import resources, conflicts
@@ -343,6 +361,7 @@ def test_transfer_reservations_normalize_native_alias_targets(tmp_path, monkeypa
     remote.mkdir()
     alias.mkdir()
     monkeypatch.setattr(filesystem, 'remote_location', lambda path: Path(path) == remote or remote in Path(path).parents)
+    monkeypatch.setattr(windows_native, 'lexical_remote_location', filesystem.remote_location)
     original_link = Path.is_symlink
     def local_link(path):
         assert not filesystem.remote_location(path), 'Scheduler must not stat provider paths'
@@ -354,7 +373,8 @@ def test_transfer_reservations_normalize_native_alias_targets(tmp_path, monkeypa
     assert conflicts(resources(copy), resources(move))
 
 
-def test_private_ssh_key_rejects_world_readable_ntfs_acl(tmp_path):
+@pytest.mark.parametrize('reader', ['S-1-1-0', 'S-1-5-5-100-101'])
+def test_private_ssh_key_rejects_world_readable_ntfs_acl(tmp_path, reader):
     import win32security
     import ntsecuritycon
     from cryptography.hazmat.primitives.asymmetric import ed25519
@@ -369,7 +389,7 @@ def test_private_ssh_key_rejects_world_readable_ntfs_acl(tmp_path):
                                                   win32security.DACL_SECURITY_INFORMATION)
     acl = descriptor.GetSecurityDescriptorDacl()
     acl.AddAccessAllowedAce(win32security.ACL_REVISION, ntsecuritycon.FILE_GENERIC_READ,
-                           win32security.CreateWellKnownSid(win32security.WinWorldSid, None))
+                           win32security.ConvertStringSidToSid(reader))
     win32security.SetNamedSecurityInfo(str(path), win32security.SE_FILE_OBJECT,
         win32security.DACL_SECURITY_INFORMATION | win32security.PROTECTED_DACL_SECURITY_INFORMATION,
         None, None, acl, None)

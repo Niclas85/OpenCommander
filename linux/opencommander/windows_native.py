@@ -26,11 +26,16 @@ def drive_roots():
     return [Path(root) for root in win32api.GetLogicalDriveStrings().split('\0') if root]
 
 
-def remote_location(path):
+def lexical_remote_location(path):
     import win32file
     from .provider_mounts import managed
     path = Path(os.path.abspath(path))
     return managed(path) or str(path).startswith('\\\\') or win32file.GetDriveType(path.anchor) == 4
+
+
+def remote_location(path):
+    from .platform_support import canonical_path
+    return lexical_remote_location(canonical_path(path))
 
 
 def mount_identity(path):
@@ -376,10 +381,14 @@ def private_key_readers(path):
     token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
     try:
         user = win32security.GetTokenInformation(token, win32security.TokenUser)[0]
+        session_readers = {str(sid) for sid, flags in
+                           win32security.GetTokenInformation(token, win32security.TokenGroups)
+                           if flags & 0xC0000000 == 0xC0000000}  # SE_GROUP_LOGON_ID
     finally:
         token.Close()
     allowed = {str(user), str(win32security.CreateWellKnownSid(win32security.WinLocalSystemSid, None)),
                str(win32security.CreateWellKnownSid(win32security.WinBuiltinAdministratorsSid, None))}
+    allowed.update(session_readers)
     acl = win32security.GetNamedSecurityInfo(str(path), win32security.SE_FILE_OBJECT,
                                             win32security.DACL_SECURITY_INFORMATION).GetSecurityDescriptorDacl()
     if acl is None:
@@ -388,6 +397,6 @@ def private_key_readers(path):
         header, mask, sid = acl.GetAce(index)
         if header[0] == win32security.ACCESS_ALLOWED_ACE_TYPE and mask & ntsecuritycon.FILE_READ_DATA:
             identity = str(sid)
-            if identity not in allowed and not identity.startswith('S-1-5-5-'):
+            if identity not in allowed:
                 return False
     return True
