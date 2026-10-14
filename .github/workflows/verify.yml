@@ -68,6 +68,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libxcb-cursor0 libarchive13t64 ffmpeg
       - run: python -m venv linux/.venv
       - run: linux/.venv/bin/python -m pip install -r linux/requirements-dev.txt
+      - name: Install checksum-verified rclone test runtime
+        run: linux/.venv/bin/python linux/tests/install_runtime.py >> "$GITHUB_PATH"
       - run: QT_QPA_PLATFORM=offscreen linux/.venv/bin/python -m pytest linux/tests -q --junitxml=linux/build/pytest.xml
       - run: ./linux/build.sh
       - uses: actions/upload-artifact@v4

@@ -1,5 +1,6 @@
 param([string]$Python = 'python', [switch]$SkipTests)
 $ErrorActionPreference = 'Stop'
+$env:PYTHONUTF8 = '1'
 $taskRoot = $PSScriptRoot
 $repo = Split-Path $taskRoot
 $venv = Join-Path $taskRoot '.venv\Scripts\python.exe'

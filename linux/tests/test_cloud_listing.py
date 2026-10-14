@@ -169,6 +169,18 @@ def test_mutation_invalidates_old_list_and_cooldown(monkeypatch):
     assert not responses
 
 
+def test_sequential_refreshes_are_not_coalesced_when_clock_ticks_match(monkeypatch):
+    listing = CloudListings()
+    monkeypatch.setattr(cloud_listing.time, 'monotonic', lambda: 123.0)
+    calls = []
+    def query(*args):
+        calls.append(1)
+        return [{'Name': str(len(calls))}]
+    monkeypatch.setattr(cloud_listing, 'query', query)
+    assert listing.read('drive', [], threading.Event())[0]['Name'] == '1'
+    assert listing.read('drive', [], threading.Event())[0]['Name'] == '2'
+
+
 def test_inflight_listing_before_deletion_cannot_restore_removed_file(monkeypatch):
     listing = CloudListings()
     entered, release = threading.Event(), threading.Event()
