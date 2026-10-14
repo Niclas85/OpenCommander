@@ -27,6 +27,9 @@ def resources(job):
     from .filesystem import remote_location
     def normalized(value):
         path = Path(os.path.abspath(value))
+        if os.name == 'nt':
+            from .platform_support import canonical_path
+            return canonical_path(path)
         prefix = Path(path.anchor)
         parts = path.parts[1:]
         for index, part in enumerate(parts):

@@ -333,3 +333,22 @@ def test_restart_cloud_login_removes_stale_question_and_error(window):
     assert not dialog.answer.isVisible() and not dialog.status.text()
     assert 'Dropbox' in dialog.next_button.text()
     dialog.close()
+
+
+@pytest.mark.parametrize('prefix', ['\\\\?\\', '\\??\\'])
+def test_transfer_reservations_normalize_native_alias_targets(tmp_path, monkeypatch, prefix):
+    from opencommander import filesystem
+    from opencommander.transfers_ui import resources, conflicts
+    remote, alias = tmp_path / 'provider', tmp_path / 'alias'
+    remote.mkdir()
+    alias.mkdir()
+    monkeypatch.setattr(filesystem, 'remote_location', lambda path: Path(path) == remote or remote in Path(path).parents)
+    original_link = Path.is_symlink
+    def local_link(path):
+        assert not filesystem.remote_location(path), 'Scheduler must not stat provider paths'
+        return path == alias or original_link(path)
+    monkeypatch.setattr(Path, 'is_symlink', local_link)
+    monkeypatch.setattr(os, 'readlink', lambda path: prefix + str(remote) if Path(path) == alias else pytest.fail('Unexpected alias read'))
+    copy = dict(sources=[str(remote / 'source')], directory=str(tmp_path / 'destination'))
+    move = dict(sources=[str(alias / 'source')], directory=str(tmp_path / 'other'), move=True)
+    assert conflicts(resources(copy), resources(move))
