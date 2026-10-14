@@ -13,19 +13,22 @@ aktivierten Windows-Symlink-Modus.
   Import-Inventar: `build/parity-test-inventory.json`, keine fehlenden Module.
 - Vollständiger Linux-Lauf unter Ubuntu 24.04: **400 bestanden**, keine Ausnahmen;
   Linux-Paket erfolgreich gebaut.
-  Aktueller Lauf für Commit `2e801e1`:
+  Früherer Lauf für Commit `2e801e1`:
   [CI-Lauf 38592350691](https://github.com/Niclas85/OpenCommander/actions/runs/38592350691).
 - Nach der Cloud-Snapshot-Korrektur: **405 Linux-Tests bestanden**, Paket-Smoke
   erfolgreich, Commit `5b48d01` in
   [CI-Lauf 38632485879](https://github.com/Niclas85/OpenCommander/actions/runs/38632485879).
-  Der Windows-CI-Job dieses Laufs war beim Dokumentationsabschluss noch aktiv;
-  der vollständige lokale Windows-Build mit 403 Tests ist bereits geprüft.
-- Abschließender Windows-CI-Lauf: **406 bestanden, 39 übersprungen**;
+  Im Windows-Job gab es zwei Zeitüberschreitungen beim Abschluss wiederaufgenommener
+  GUI-Transfers (409 bestanden, 39 übersprungen). Der folgende Lauf derselben
+  Anwendungskorrektur mit ausschließlich Dokumentationsänderungen besteht diese
+  Tests unverändert; es wurde kein Timeout erhöht oder Test deaktiviert.
+- Abschließender Windows-CI-Lauf: **411 bestanden, 39 übersprungen**;
   GUI, Helfer, Quellcode-/Paket-Smoke-Test und ZIP-Bau erfolgreich.
   Der CI-Host kann zusätzliche Linktests ausführen, für die dem lokalen Konto
   Windows-Rechte fehlen. Beide Desktop-Jobs sind grün:
-  [CI-Lauf 38592350691](https://github.com/Niclas85/OpenCommander/actions/runs/38592350691),
-  Commit `2e801e1`. Der unabhängige Android-Job ist fehlgeschlagen;
+  [CI-Lauf 38633342659](https://github.com/Niclas85/OpenCommander/actions/runs/38633342659),
+  Commit `31167f2`, Linux **405 bestanden**. Der unabhängige Android-Job ist
+  beim Einrichten des Android-SDK fehlgeschlagen;
   das betrifft weder den Windows- noch den Linux-Desktop-Build.
 - Nach zusätzlicher Absicherung von Windows-Junctions: **84 bestanden,
   16 übersprungen** im Datei-/Wiederaufnahme-/Windows-Sicherheitstestlauf.
@@ -78,7 +81,9 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   vor der Anmeldung angelegten Drive-Testdatei. Ein Download ins eigene
   Wiederherstellungsprofil wurde korrekt abgewiesen; das endgültige Testziel
   liegt getrennt davon. Eigene synthetische Dateien, kein Zugriffstest mit
-  persönlichen Dateiinhalten. Google-Demovideo lokal fertig, Upload noch offen.
+  persönlichen Dateiinhalten. Google-Demovideo (1:58) mit ausdrücklicher Freigabe
+  einschließlich YouTube-Zustimmung als „Nicht gelistet“ veröffentlicht:
+  https://youtu.be/LQkSLbaxRpg . Der vollständige Prüfantrag ist eingereicht.
 - Explorer-Zwischenablage praktisch in beiden Richtungen geprüft: eine Datei
   mit Umlauten und japanischen Zeichen kopiert und alle drei Exemplare per
   SHA-256 bytegenau verglichen (47 Byte).
@@ -180,8 +185,9 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   Produktion. Homepage und Datenschutzerklärung unter `opencommander.top` anonym
   per HTTPS mit HTTP 200 geprüft. Dynadot-DNS gespeichert, Google-Domaininhaberschaft
   bestätigt; Branding automatisch geprüft und veröffentlicht. Der vollständige
-  Drive-Scope bleibt ungeprüft: Begründung und lokales Demovideo fertig;
-  YouTube-Upload/Link noch offen, Antrag noch nicht abgesendet. Details: [PUBLISHER.md](PUBLISHER.md).
+  Drive-Scope ist noch nicht genehmigt: Begründung und Videolink gespeichert,
+  vollständiger Antrag abgesendet. Die Konsole bestätigt den Eingang beim
+  Trust-and-Safety-Team und zeigt „wird überprüft“. Details: [PUBLISHER.md](PUBLISHER.md).
 - Dropbox-Browserübergang und frischer lokaler OAuth-Endpunkt bestätigt.
   Nach dem ursprünglichen `ERR_CONNECTION_REFUSED` wurde eine neue Anmeldung
   mit laufendem lokalem Server durchgeführt und der vollständige Dateizugriff
@@ -218,7 +224,7 @@ Profil und erfolgreichem Dateizugriff als vollständig geprüft.
 
 | Bereich | Offener Nachweis |
 | --- | --- |
-| Cloud | Öffentliche Google-Marken-/Scope-Verifizierung, Hosting und HTTPS unter opencommander.top; weitere anbieterspezifische Kontenrichtlinien |
+| Cloud | Google-Drive-Scope-Genehmigung und gegebenenfalls CASA-Schritte nach Google-Rückmeldung; Antrag eingereicht. Branding, Hosting und HTTPS unter opencommander.top sind bestätigt; weitere anbieterspezifische Kontenrichtlinien |
 | Server | Externe Server mit abweichenden Richtlinien; persönlicher Windows-SSH-Agent. Eigene laufende FTP/FTPS/SFTP/WebDAV-Testserver und nativer WebClient sind geprüft |
 | USB | Sicheres Auswerfen wurde auf Benutzerwunsch nicht getestet |
 | Medien | Weitere Codec-/Hardwarekombinationen; PNG, WAV und H.264 sind praktisch geprüft |

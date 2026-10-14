@@ -14,7 +14,7 @@ Die Browseranmeldung mit dieser Identität, 256-KiB-Dateizugriff, Helfer,
 persistentes Rückgängig und anonyme Freigabelinks wurden praktisch bestätigt.
 Das vorhandene Google-Profil wurde umgestellt; die übrigen Provider bleiben erhalten.
 
-**Produktionsmodus und Branding veröffentlicht; Drive-Prüfung noch offen.**
+**Produktionsmodus und Branding veröffentlicht; Drive-Prüfantrag eingereicht.**
 Die Zielgruppe ist External, der Veröffentlichungsstatus „In Produktion“.
 Google hat das Branding geprüft; die Konsole bestätigt, dass es Nutzern angezeigt
 wird. Das ist noch keine Genehmigung des eingeschränkten Drive-Scopes.
@@ -40,16 +40,20 @@ gespeichert: zwei Apex-A-Einträge, Google-Inhaberschafts-TXT sowie Sites- und
 Zertifikats-TXT. Google Search Console bestätigt die Domaininhaberschaft.
 Homepage-/Datenschutz-URLs und autorisierte Domain sind in Google gespeichert.
 
-**Nächster Pflichtnachweis:** Die Konsole verlangt für `auth/drive` die
-Datennutzung, Scope-Begründung und ein YouTube-Demovideo. Die Begründung für
-„Drive-Produktivität“ ist vorbereitet; Speichern und Absenden bleiben ohne
-Videolink gesperrt. Eine 106 Sekunden lange, kommentierte Schrittfolge aus echten
-Browser-/App-Aufnahmen ist lokal fertig und überprüft. Sie zeigt Anmeldung,
-Drive-Scope, Lesen, Upload, Download, Umbenennen und Rückgängig mit synthetischen
-Dateien. Kontoangaben und lokale Profilpfade sind verdeckt. Der vorhandene
-YouTube-Kanal „Nikki Haenggi“ ist angemeldet. Der Upload als nicht gelistetes Video
-wartet auf konkrete Freigabe; es wurde noch kein Videolink eingetragen und kein
-unvollständiger Antrag abgesendet.
+**Drive-Prüfung läuft:** Kategorie „Drive-Produktivität“, Scope-Begründung und
+YouTube-Demovideo sind gespeichert. Das 118 Sekunden lange Video ist nach
+ausdrücklicher Freigabe einschließlich YouTube-Zustimmung auf „Nikki Haenggi“
+als **Nicht gelistet** veröffentlicht: https://youtu.be/LQkSLbaxRpg . Es zeigt
+eine kommentierte Schrittfolge aus echten Browser-/App-Aufnahmen mit Anmeldung,
+Drive-Scope, Lesen, Upload, Download, Umbenennen und Rückgängig an synthetischen
+Dateien. Kontoangaben und lokale Profilpfade sind verdeckt.
+Der vollständige Antrag wurde am 14. Oktober 2026 eingereicht. Google bestätigt
+den Eingang beim Trust-and-Safety-Team und zeigt den Datenzugriff als „wird
+überprüft“. Das bereits autorisierte Testkonto und die Art der Aufnahme sind
+im Antrag ausdrücklich erläutert. Die Anerkennung des Videos und die Freigabe
+des eingeschränkten Scopes bleiben Googles Entscheidung.
+Die Kenntnisnahme der jährlichen CASA-Sicherheitsbewertung im Fragebogen ist
+protokolliert; eine Bewertung oder Zahlung wurde nicht beauftragt.
 
 ## Registrierung prüfen und abschließen
 

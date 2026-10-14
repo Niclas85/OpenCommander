@@ -46,7 +46,7 @@ die öffentliche Google-Verifizierung steht weiterhin aus.
 | --- | --- | --- |
 | OneDrive per Browser-OAuth ohne Sync-Client | Gleicher Assistent; WinFsp statt FUSE | Anmeldung, gespeichertes Profil, 256-KiB-Upload, Lesen, Helfer und persistente Rücknahme bestanden |
 | Dropbox per Browser-OAuth | Gleicher Assistent; WinFsp statt FUSE | Vollständiger Datei-Roundtrip bestanden; Browserübergang und lokaler OAuth-Server korrigiert |
-| Google per rclone-Browser-OAuth | Gleicher Assistent; WinFsp statt FUSE | Eigener Herausgeber-Client eingebettet, Browseranmeldung und 256-KiB-Roundtrip bestanden. Projekt in Produktion, Branding geprüft und veröffentlicht; Drive-Scope-Prüfung offen |
+| Google per rclone-Browser-OAuth | Gleicher Assistent; WinFsp statt FUSE | Eigener Herausgeber-Client eingebettet, Browseranmeldung und 256-KiB-Roundtrip bestanden. Projekt in Produktion, Branding geprüft und veröffentlicht; Drive-Scope-Antrag mit YouTube-Demo eingereicht, Google-Prüfung läuft |
 | Google über GNOME Online Accounts / GVFS | Kein entsprechender Windows-Systemdienst | Linux kann zusätzlich ein vom Desktop eingerichtetes GVFS-Laufwerk benutzen. Diese separate GNOME-OAuth-Anwendung ist nicht die rclone-Anmeldung |
 | iCloud per Apple-ID und Zwei-Faktor-Code | Gleicher Assistent | Benutzeranmeldung, Mount, 256-KiB-Upload, bytegenaues Lesen, Helfer und Rücknahme bestanden. Apple verwendet hier keinen reinen Browser-OAuth-Ablauf |
 | Freigabelink Dropbox | Gleiche Provider-Aktion | Anonymer HTTP-Download bytegenau bestanden; synthetische Datei und Ordner entfernt |
@@ -90,11 +90,13 @@ Secret Service, FIFO, POSIX-Rechte und Symlink-Erstellung ohne Windows-Recht.
 Diese Ausnahmen sind kein bestandener Windows-Nachweis. Die Windows-Adapter
 haben eigene Tests und die oben beschriebenen Live-Prüfungen.
 
-Der vollständige Ubuntu-24.04-Lauf hat **400 Tests bestanden** und das Linux-Paket
-gebaut. Der abschließende Windows-CI-Lauf besteht **406 Tests mit 39 Ausnahmen**
+Der vollständige Ubuntu-24.04-Lauf hat **405 Tests bestanden** und das Linux-Paket
+gebaut. Der abschließende Windows-CI-Lauf besteht **411 Tests mit 39 Ausnahmen**
 und baut GUI, Helfer und ZIP erfolgreich:
-[CI-Lauf 38592350691](https://github.com/Niclas85/OpenCommander/actions/runs/38592350691),
-Commit `2e801e1`. Der vollständige lokale Windows-Lauf besteht
+[CI-Lauf 38633342659](https://github.com/Niclas85/OpenCommander/actions/runs/38633342659),
+Commit `31167f2`. Zwei GUI-Wiederaufnahme-Zeitüberschreitungen im vorherigen
+Windows-CI-Lauf traten in diesem Lauf ohne Teständerung nicht mehr auf.
+Der vollständige lokale Windows-Lauf besteht
 **403 Tests mit 47 begründeten Ausnahmen**. Der abschließende Prüfstand und
 die installierte Version stehen in [TESTING.md](TESTING.md).
 
@@ -103,7 +105,9 @@ Paket enthalten. Endbenutzer melden sich weiterhin im Browser an; sie benötigen
 keine eigene Google-Cloud-Anwendung. Das Projekt ist External/In Produktion.
 Homepage und Datenschutzerklärung sind unter `opencommander.top` per HTTPS
 öffentlich, die Domaininhaberschaft und das Branding sind bestätigt. Offen bleibt
-die Prüfung des vollständigen Drive-Scopes, einschließlich des erforderlichen
-YouTube-Demovideos. Bis dahin gelten Warnhinweise und die Nutzerobergrenze.
+die Genehmigung des vollständigen Drive-Scopes. Das freigegebene YouTube-Demovideo
+ist nicht gelistet veröffentlicht und der vollständige Antrag eingereicht;
+Google bestätigt die laufende Prüfung. Bis zur Genehmigung gelten Warnhinweise
+und die Nutzerobergrenze.
 Details: [PUBLISHER.md](PUBLISHER.md). Hintergrund:
 [rclone Google Drive](https://rclone.org/drive/#making-your-own-client-id).
