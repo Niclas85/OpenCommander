@@ -15,6 +15,11 @@ aktivierten Windows-Symlink-Modus.
   Linux-Paket erfolgreich gebaut.
   Aktueller Lauf für Commit `2e801e1`:
   [CI-Lauf 38592350691](https://github.com/Niclas85/OpenCommander/actions/runs/38592350691).
+- Nach der Cloud-Snapshot-Korrektur: **405 Linux-Tests bestanden**, Paket-Smoke
+  erfolgreich, Commit `5b48d01` in
+  [CI-Lauf 38632485879](https://github.com/Niclas85/OpenCommander/actions/runs/38632485879).
+  Der Windows-CI-Job dieses Laufs war beim Dokumentationsabschluss noch aktiv;
+  der vollständige lokale Windows-Build mit 403 Tests ist bereits geprüft.
 - Abschließender Windows-CI-Lauf: **406 bestanden, 39 übersprungen**;
   GUI, Helfer, Quellcode-/Paket-Smoke-Test und ZIP-Bau erfolgreich.
   Der CI-Host kann zusätzliche Linktests ausführen, für die dem lokalen Konto
