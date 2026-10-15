@@ -26,6 +26,7 @@ class TestDevice:
         self.data = {}
         self.fail_move = False
         self.fail_rename = False
+        self.fail_create = False
         self.disconnect = False
 
     def children(self, identifier):
@@ -48,6 +49,8 @@ class TestDevice:
         return identifier
 
     def create(self, parent, name, stream, size):
+        if self.fail_create:
+            raise PermissionError('Device is read-only')
         data = stream.read()
         assert len(data) == size
         return self.add(parent, name, data)
@@ -312,6 +315,17 @@ def test_winfsp_device_mount_uses_shared_file_engine_and_persistent_undo(device_
             reconnected.undo()
         assert (storage / 'external-change.bin').read_bytes() != payload
         assert source.read_bytes() == payload
+        # Some cameras allow browsing but reject file creation. A failed device
+        # write must not be reported as a successful upload or remove its source.
+        device.fail_create = True
+        rejected_source = tmp_path / 'read-only-device.bin'
+        rejected_source.write_bytes(payload)
+        with pytest.raises((OSError, SafetyError)):
+            FileEngine(engine.state_dir).transfer([rejected_source], storage)
+        assert rejected_source.read_bytes() == payload
+        with pytest.raises((OSError, SafetyError)):
+            FileEngine(engine.state_dir).transfer([rejected_source], storage, move=True)
+        assert rejected_source.read_bytes() == payload
         windows_mounts.unmount(root)
         ready = False
         process.wait(timeout=10)
