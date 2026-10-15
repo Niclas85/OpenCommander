@@ -65,7 +65,7 @@ die öffentliche Google-Verifizierung steht weiterhin aus.
 | Externe rclone-Mounts / lokale Sync-Ordner | Windows-Laufwerke/Verzeichnisse statt Linux-Mountinfo | Gemeinsame Werkzeuge; Linux `/proc`-Erkennung wird nicht nachgebildet |
 | Lokale Laufwerke, USB-Speicher und Netzlaufwerke | Laufwerksbuchstaben und UNC statt `/media` und GVFS | NTFS, exFAT und SMB live geprüft |
 | Sicheres Trennen / Auswerfen | Windows-Shell-/Geräte-API statt GIO | Umsetzung vorhanden; physischer SanDisk-Auswurf auf ausdrücklichen Benutzerwunsch nicht getestet |
-| MTP-Kamera/Telefon über GVFS | Nativer Windows-WPD-Adapter mit authentifizierter lokaler Dateibrücke und WinFsp-Mount | Geräteerkennung, COM-Werte und sichere Aliase geprüft. Reale rclone-/WinFsp-Dateiaktionen, Wiederanbindung und persistentes Rückgängig gegen einen synthetischen Geräteadapter geprüft. Ein echtes Handy/Kamera war nicht verfügbar; Hardwareabnahme und gerätespezifische Fähigkeiten bleiben offen |
+| MTP-Kamera/Telefon über GVFS | Nativer Windows-WPD-Adapter mit authentifizierter lokaler Dateibrücke und WinFsp-Mount | Geräteerkennung, COM-Werte und sichere Aliase geprüft. Reale rclone-/WinFsp-Dateiaktionen, Pause/Fortsetzen, Verschieben mit Quellbereinigung, Wiederanbindung und persistentes Rückgängig gegen einen synthetischen Geräteadapter geprüft. Ein echtes Handy/Kamera war nicht verfügbar; Hardwareabnahme und gerätespezifische Fähigkeiten bleiben offen |
 
 ## Systemunterschiede und Sicherheit
 
@@ -90,15 +90,18 @@ Secret Service, FIFO, POSIX-Rechte und Symlink-Erstellung ohne Windows-Recht.
 Diese Ausnahmen sind kein bestandener Windows-Nachweis. Die Windows-Adapter
 haben eigene Tests und die oben beschriebenen Live-Prüfungen.
 
-Der vollständige Ubuntu-24.04-Lauf hat **405 Tests bestanden** und das Linux-Paket
-gebaut. Der abschließende Windows-CI-Lauf besteht **411 Tests mit 39 Ausnahmen**
+Der frühere Ubuntu-24.04-Lauf hat **405 Tests bestanden** und das Linux-Paket
+gebaut. Der zugehörige Windows-CI-Lauf besteht **411 Tests mit 39 Ausnahmen**
 und baut GUI, Helfer und ZIP erfolgreich:
 [CI-Lauf 38633342659](https://github.com/Niclas85/OpenCommander/actions/runs/38633342659),
 Commit `31167f2`. Zwei GUI-Wiederaufnahme-Zeitüberschreitungen im vorherigen
 Windows-CI-Lauf traten in diesem Lauf ohne Teständerung nicht mehr auf.
 Der vollständige lokale Windows-Lauf einschließlich der neuen Geräteanbindung besteht
-**433 Tests mit 47 begründeten Ausnahmen**. Dieser neue Stand ist damit lokal
-geprüft; der oben verlinkte CI-Lauf dokumentiert den vorherigen Commit.
+**435 Tests mit 47 begründeten Ausnahmen**. Der neue Quellstand `3168d00` besteht
+zusätzlich **407 Linux-Tests**, Linux-Paket und Desktop-Smoke in
+[CI-Lauf 38661156491](https://github.com/Niclas85/OpenCommander/actions/runs/38661156491).
+Der Windows-CI-Job ist beim Dokumentationsabschluss noch aktiv; der lokale
+Publisher-Build, die eingefrorenen Helfer und die neue Installation sind geprüft.
 Der abschließende Prüfstand und
 die installierte Version stehen in [TESTING.md](TESTING.md).
 

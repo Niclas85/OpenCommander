@@ -18,8 +18,11 @@ aktivierten Windows-Symlink-Modus.
   Ergebnisse: `build/portable-devices-tests.xml`, `build/portable-native-tests.xml`.
   Dies ist kein praktischer Nachweis an echter MTP-Hardware.
 
-- Aktueller vollständiger Windows-Lauf: **433 bestanden, 47 übersprungen**, keine Fehler.
-  Ergebnis: `build/pytest.xml`; Protokoll: `build/portable-devices-build.log`.
+- Aktueller vollständiger Windows-Lauf: **435 bestanden, 47 übersprungen**, keine Fehler.
+  Ergebnis: `build/pytest-portable-final.xml`; Protokoll: `build/portable-final-suite.log`.
+  Nach der Trennung der GUI-/Helfer-Abhängigkeiten zusätzlich **77 native Tests**
+  bestanden; nach der Geräte-Wiederaufnahme und vereinheitlichten Provider-
+  Nachweisprüfung **89 bestanden, 16 übersprungen** im gezielten Lauf.
   Alle 23 Linux-Testmodule sind jetzt in der Windows-Suite vertreten; ihre
   plattformgebundenen Fälle werden begründet übersprungen, nicht als bestanden gezählt.
   Import-Inventar: `build/parity-test-inventory.json`, keine fehlenden Module.
@@ -42,6 +45,12 @@ aktivierten Windows-Symlink-Modus.
   Commit `31167f2`, Linux **405 bestanden**. Der unabhängige Android-Job ist
   beim Einrichten des Android-SDK fehlgeschlagen;
   das betrifft weder den Windows- noch den Linux-Desktop-Build.
+- WPD-/Medien-Stand `3168d00`: Ubuntu-CI **407 bestanden**, Linux-Paket und
+  Desktop-Smoke erfolgreich, Apple-Job ebenfalls erfolgreich:
+  [CI-Lauf 38661156491](https://github.com/Niclas85/OpenCommander/actions/runs/38661156491).
+  Der Windows-Job ist beim aktuellen Dokumentationsabschluss noch aktiv;
+  lokaler vollständiger Lauf, Publisher-Paket und Installation sind bestätigt.
+  Android scheitert weiterhin unabhängig beim Einrichten des SDK.
 - Nach zusätzlicher Absicherung von Windows-Junctions: **84 bestanden,
   16 übersprungen** im Datei-/Wiederaufnahme-/Windows-Sicherheitstestlauf.
   Dieser Lauf enthält einen neuen Test für einen manipulierten Zwischenordner.
@@ -79,6 +88,21 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   SHA-256 der damaligen EXE
   SHA-256 `f2348e5b3ad226ad90f6515b12d9bc279ed671eceb28dd62a89a0becd9694ae5`.
   Die vorherige Installation bleibt als Sicherung erhalten.
+- WPD-/Medien-Update installiert, ursprüngliche Programmversion gesichert.
+  Die installierte EXE und das geprüfte Paket sind bytegleich:
+  SHA-256 `7d7488332715ea35d0ad95dd97e5768b7ee7f078f58211e57f5c992b35ef8a49`.
+  Die bestehende Verbindungsdatei ist vor/nach dem Dateiaustausch bytegleich;
+  ursprüngliche Startparameter wiederverwendet, alle vier Cloud-Orte sichtbar,
+  App erreicht „Bereit“. Ergebnis: `build/portable-installed-results.json`.
+  Gefrorener Gerätehelfer und tatsächliche WPD-Fehlermeldung bei einem nicht
+  existierenden Gerät im Paket geprüft, ohne GUI-Abhängigkeit oder neuen
+  Laufzeitdownload. Der kompilierte Code enthält die aktuellen Geräte-
+  Wiederaufnahme- und Provider-Verschiebekorrekturen.
+- Zusätzlicher Schutz für fortsetzbare Provider-Verschiebungen: Die
+  Quellbereinigung verwendet dasselbe gespeicherte Nachweisformat wie Rückgängig.
+  Unveränderte Version-2-Ziele erlauben den Abschluss; bei nachträglicher
+  Inhaltsänderung bleibt die vollständige Quellsicherung erhalten. Zwei neue
+  gemeinsame Regressionen und der echte WinFsp-Geräteadapterlauf bestätigen dies.
 - Bei der OAuth-Demo erkannter Fehler: WinFsp/rclone vergibt nach Verzeichnis-
   aktualisierung neue virtuelle Inode-Werte für unveränderte Drive-Dateien.
   Neue Provider-Snapshots verwenden deshalb ein versioniertes Format ohne diese
@@ -168,6 +192,9 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   Windows standardmäßig mit Software-Dekodierung aktiviert. Keine zusätzlichen
   System-Codecs installiert. Ergebnis: `build/media-live-results.json`,
   Protokoll: `build/media-live-validation-ffmpeg.log`.
+  Die installierte EXE zusätzlich per Computersteuerung geöffnet: VP9-WebM
+  wird intern sichtbar dekodiert, erreicht 3000 ms und startet erneut mit
+  sichtbarem Testbild. Nachweis: `build/installed-vp9-playback.png`.
 - Pageant 0.85 aus der offiziellen PuTTY-Quelle, SHA-256 und gültige
   Herausgebersignatur geprüft. Anmeldung an eigenem Loopback-SFTP-Server allein
   über den Agenten: kein Passwort und kein privater Client-Schlüssel in rclone.
