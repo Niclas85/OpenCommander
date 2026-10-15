@@ -59,7 +59,7 @@ die öffentliche Google-Verifizierung steht weiterhin aus.
 | SFTP mit Passwort, privatem Schlüssel oder verschlüsseltem Schlüssel | Gleicher Assistent | Echter SFTP-Test für diese drei Anmeldearten; geänderter Hostschlüssel abgewiesen |
 | SSH-Agent | Linux ssh-agent; Windows Pageant laut rclone-Backend | Pageant 0.85 mit ausschließlich synthetischem Testschlüssel: Agent-Anmeldung ohne Passwort/Client-Schlüsseldatei in rclone, WinFsp, 256-KiB-Roundtrip, persistentes Rückgängig, geänderter Hostschlüssel und Trennen praktisch geprüft. Persönliche Schlüssel und der separate Windows-OpenSSH-Dienst nicht verändert |
 | SFTP-Hostschlüsselprüfung und bekannte Hosts | Windows-OpenSSH statt Linux-OpenSSH | Schutztests; vorhandener geänderter Schlüssel wird nicht automatisch akzeptiert |
-| SMB/NAS | Windows-Netzwerkanmeldung/UNC statt GVFS | Reales NAS: Unicode, 256-KiB-Datei, Helfer, Eigenschaften und persistente Rücknahme bestanden |
+| SMB/NAS | Windows-Netzwerkanmeldung/UNC statt GVFS | Reales NAS: Unicode, 1-MiB-Roundtrip, Helfer/Eigenschaften, Konflikte, persistente Rücknahme, Schutz bei Inhaltsänderung und exklusiver Dateisperre, 4-MiB-Pause/Fortsetzen, Verschieben, Suche/Vergleich und ZIP praktisch bestanden |
 | WebDAV über rclone | WinFsp statt FUSE | Eigener WebDAV-Server: vollständiger Datei-Roundtrip bestanden |
 | WebDAV über Systemdienst | Windows WebClient statt GVFS | Nativer UNC-Redirector gegen anonymen Loopback-Server geprüft; Zeitstempel-Kopierfehler korrigiert. Externe Authentifizierungsrichtlinien nicht mitgeprüft |
 | Externe rclone-Mounts / lokale Sync-Ordner | Windows-Laufwerke/Verzeichnisse statt Linux-Mountinfo | Gemeinsame Werkzeuge; Linux `/proc`-Erkennung wird nicht nachgebildet |

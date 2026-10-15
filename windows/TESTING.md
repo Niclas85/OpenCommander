@@ -185,6 +185,24 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   Kopieren/Verschieben/Entfernen mit Wiederherstellung und Rückgängig,
   Verzeichnisabfrage durch den mitgelieferten Helfer und Dateieigenschaften.
   Schreibtests verwenden ausschließlich den eigenen Prüfungsordner.
+- Erweiterte Abnahme desselben realen SMB-NAS mit der aktuellen Installation:
+  **acht Prüfpunkte bestanden**. 1-MiB-Unicode-Datei hoch-/heruntergeladen und
+  vollständig per SHA-256 verglichen; installierter Helfer prüft Auflistung und
+  Eigenschaften. Beibehalten beider Konfliktdateien und Ersetzen mit exakter
+  Rücknahme bestanden. Eine gleich große externe Inhaltsänderung blockiert
+  Rückgängig; ein exklusiver SMB-Lesehandle verhindert das Entfernen, der
+  Dateiinhalt bleibt erhalten. 4-MiB-Auftrag nach 1 MiB pausiert und mit neuem
+  FileEngine fortgesetzt; auftragsbasiertes Verschieben zwischen C: und NAS mit
+  Quellbereinigung und Rückgängig bestanden. Verschachtelte Ordner, Suche,
+  Inhaltsvergleich und direkt auf dem NAS erstelltes/entpacktes ZIP bestanden.
+  Der einmalig erzeugte, markierte Testordner wurde vollständig entfernt.
+  Opt-in-Skript: `tests/nas_live_validation.py --share "\\192.168.0.22\Test" --allow-share-writes`.
+  Ergebnisse: `build/nas-expanded-results.json`, `build/nas-expanded-validation.log`.
+  Reine Verbindungsdiagnose: SSH/22 antwortet, HTTPS/443 bietet ein
+  selbstsigniertes Zertifikat; kein authentifizierter SFTP-/WebDAV-Nachweis.
+  Dafür fehlen Anmelde-/Endpunktangaben. Bei der erneuten Inventur waren kein
+  WPD-Handy, keine externe Dateikamera und kein USB-Datenträger angeschlossen;
+  die interne Webcam ist kein MTP-Dateispeicher. Kein Auswurf ausgelöst.
 - ZIP erstellen/lesen sowie TAR, GZIP, BZIP2, XZ, Zstandard, 7z und RAR5 lesen
   und entpacken; Suche, Inhaltsvergleich und Mehrfachumbenennung mit Rückgängig.
 - Tatsächlicher rclone-/WinFsp-Verzeichnismount mit Auflisten, Upload,
