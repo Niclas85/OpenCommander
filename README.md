@@ -1,147 +1,86 @@
-# OpenCommander
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Niclas85/OpenCommander/codex/linux-desktop/website/assets/github-banner.svg" alt="OpenCommander – Zwei Seiten. Alles im Blick. Android, iOS, Windows, Linux und macOS" width="100%">
+</p>
 
-Kostenloser Open-Source-Dateimanager fuer Android, iPhone, iPad und macOS: zwei Seiten, lokale Dateien, ZIP, Drag & Drop und Rueckgaengig. Keine Werbung, kein Tracking, kein Konto.
+<p align="center">
+  Ein kostenloser, quelloffener Dateimanager für unterwegs und am Schreibtisch.<br>
+  Zwei Dateiansichten. Direkte Wege. Deine Dateien unter deiner Kontrolle.
+</p>
 
-OpenCommander ist ein lokaler Android-Dateimanager im Stil eines zweigeteilten Commanders. Die App ist fuer Nutzer gedacht, die Dateien schnell zwischen zwei Seiten organisieren wollen und dabei eine transparente, kostenlose und quelloffene App bevorzugen.
+<p align="center">
+  <a href="https://opencommander.top"><strong>Webseite</strong></a> ·
+  <a href="https://opencommander.top/#plattformen">Deine Version</a> ·
+  <a href="https://opencommander.top/docs/">Dokumentation</a> ·
+  <a href="https://github.com/Niclas85/OpenCommander/issues">Fehler & Ideen</a>
+</p>
 
-## Funktionen
+## Ein Projekt. Drei Bereiche. Fünf Plattformen.
 
-- Zwei Commander-Seiten wie beim Total Commander
-- Querformat: Baum 1, Dateien 1, Baum 2, Dateien 2 nebeneinander
-- Hochformat: beide Commander-Seiten untereinander
-- Jede Seite hat einen eigenen aufklappbaren Ordnerbaum und eine eigene Dateiliste
-- Mehrfachauswahl per Antippen
-- Einzelne Dateien und Ordner koennen direkt umbenannt werden
-- Sichtbarer Hinweis mit direktem Einstellungslink, wenn Android den Dateizugriff noch nicht erlaubt hat
-- Hilfe-Dialog beim ersten erfolgreichen Start und dauerhaft ueber die Schaltflaeche `Hilfe` erreichbar
-- Doppeltipp zum Öffnen von Dateien oder Ordnern
-- Langes Drücken auf eine ausgewählte Datei startet Drag-and-drop
-- Drop auf die andere Dateiliste kopiert oder verschiebt in deren aktuellen Ordner
-- Drop auf einen Ordnerbaum kopiert oder verschiebt direkt in diesen Ordner
-- Oben waehlt `Aktion: Kopieren` oder `Aktion: Verschieben` eindeutig die Drag-and-drop-Aktion
-- Fortschrittsanzeige beim Kopieren und Verschieben
-- Bei groesseren Kopier-/Verschiebeaktionen zeigt der Fortschritt Prozent, kopierte Bytes und Gesamtgroesse
-- ZIP-Dateien koennen wie Ordner geoeffnet und durchsucht werden
-- Markierte Dateien und Ordner koennen als ZIP-Archiv verpackt werden
-- Vorhandene APK-Dateien koennen per Doppeltipp im Android-Paketinstaller geoeffnet werden; Android verlangt weiterhin eine ausdrueckliche Installationsbestaetigung
-- Android-TV-Unterstuetzung mit Leanback-Launcher, TV-Banner und Fernbedienungsnavigation
-- `Rueckgaengig` macht die neueste Kopier- oder Verschiebeaktion zurueck
-- `Historie +` klappt mehrere Rueckgaengig-Aktionen auf, damit auch aeltere Aktionen zurueckgenommen werden koennen
-- `Dunkel` schaltet zwischen hellem und dunklem Design und wird gespeichert
-- Ueberarbeitete helle und dunkle Oberflaeche mit klareren Panels, Buttons und Dateizeilen
-- Kleiner `AGB`-Button zeigt AGB-/Impressum-Informationen
-- Cloud-Anbieter sind vorerst wieder entfernt, bis die Bedienung dafuer klarer ist
-- Mehrsprachige Oberflaeche: Deutsch, Englisch, Franzoesisch, Spanisch, Italienisch, Portugiesisch und Niederlaendisch
+OpenCommander verbindet die Idee eines klassischen Commanders mit Oberflächen für **Android**, **iPhone/iPad** und **Desktop**. Die Plattformen haben eigene Integrationen und unterschiedliche Entwicklungsstände. Hier findest du den passenden Einstieg:
 
-## Warum OpenCommander?
+| Bereich | Plattform | Verfügbarkeit | Einstieg |
+| :-- | :-- | :-- | :-- |
+| Android | Android 8 und neuer | Auf Google Play | [Android-App](https://play.google.com/store/apps/details?id=com.opencommander) |
+| iPhone & iPad | iOS / iPadOS 16 und neuer | Im App Store | [iPhone- und iPad-App](https://apps.apple.com/de/app/opencommander/id6804432999) |
+| Desktop | Windows | Entwicklungsstand, unter Windows 11 x64 praktisch geprüft | [Windows-Anleitung](https://opencommander.top/docs/#windows) |
+| Desktop | Linux | Entwicklungsstand, Build für Ubuntu 24.04 x86_64 dokumentiert | [Linux-Anleitung](https://opencommander.top/docs/#linux) |
+| Desktop | macOS | Apple-Silicon-Vorschau | [macOS-Preview](https://github.com/Niclas85/OpenCommander/releases/tag/macos-v1.2-preview.20260912) |
 
-- Kostenlos und Open Source
-- Keine Werbung
-- Kein Tracking
-- Kein Benutzerkonto
-- Lokale Dateiverwaltung statt Cloud-Zwang
-- Zwei-Seiten-Workflow fuer schnelleres Kopieren und Verschieben
+> **Stand: 15. Oktober 2026.** Windows und Linux werden derzeit im Branch [`codex/linux-desktop`](https://github.com/Niclas85/OpenCommander/tree/codex/linux-desktop) entwickelt. Für diese beiden Plattformen ist noch kein öffentliches Release-Paket auf GitHub veröffentlicht. Die macOS-Version ist ausdrücklich eine Vorschau.
 
-## Repository
+## Dateien bewegen, ohne den Überblick zu verlieren
 
-Quellcode: https://github.com/Niclas85/OpenCommander
+- **Zwei Ansichten:** Quelle und Ziel direkt nebeneinander – auf dem Handy passend zum verfügbaren Platz.
+- **Dateien organisieren:** kopieren, verschieben, umbenennen, Ordner anlegen und Mehrfachauswahl.
+- **Archive bearbeiten:** ZIP-Funktionen; weitere Formate und Möglichkeiten je nach Plattform.
+- **Direkt arbeiten:** Drag & Drop, Kontextaktionen und Rückgängig für unterstützte Dateiaktionen.
+- **Eigene Daten:** lokale Dateien und die von dir freigegebenen Speicherorte.
+- **Offener Quellcode:** kostenlos unter der MIT-Lizenz, ohne Werbung oder Tracking in der App.
 
-## Rechtliches
+## 01 · Android
 
-Vorlagen und Prueflisten liegen unter `legal/`:
+Für Smartphone, Tablet und Android TV. Im Hochformat stehen die beiden Dateiseiten untereinander, im Querformat nebeneinander. Ordnerbäume, Mehrfachauswahl, ZIP, Drag & Drop und Rückgängig unterstützen die tägliche Dateiarbeit.
 
-- `privacy-policy-de.md`
-- `terms-de.md`
-- `impressum-template-de.md`
-- `play-console-checklist-de.md`
+**[Bei Google Play öffnen](https://play.google.com/store/apps/details?id=com.opencommander)** · [Android-Quellcode](https://github.com/Niclas85/OpenCommander/tree/main/app)
 
-Die Angaben muessen vor einer Veroeffentlichung mit echten Anbieter- und Kontaktdaten finalisiert werden.
+## 02 · iPhone & iPad
 
-## Marketing und Store
+Die native Apple-App arbeitet mit den Ordnern, die du ihr über die iOS-Dateiauswahl freigibst. Dazu kommen Zugänge für Fotos, Videos und Musik, Vorschauen sowie Exportfunktionen für unterstützte Medien.
 
-Store-Texte, Screenshot-Copy und Launch-Checklisten liegen unter `playstore/`:
+Die iOS-Sandbox bleibt wirksam: OpenCommander erhält keinen allgemeinen Zugriff auf andere Apps oder das gesamte Dateisystem. Musikexport ist auf lokal verfügbare, nicht geschützte Inhalte begrenzt.
 
-- `listing-de.md`
-- `listing-en.md`
-- `screenshot-copy.md`
-- `launch-checklist.md`
+**[Im App Store öffnen](https://apps.apple.com/de/app/opencommander/id6804432999)** · [Apple-Quellcode](https://github.com/Niclas85/OpenCommander/tree/main/ios)
 
-Der Marketing-Plan liegt in `MARKETING.md`.
+## 03 · Desktop: Windows, Linux & macOS
 
-## Lizenz
+**Windows und Linux** teilen sich die Qt-Oberfläche. Zu ihren Funktionen gehören Registerkarten, Dateiübertragungen mit Warteschlange, Suche, Vorschauen, Verzeichnisvergleich, Archivwerkzeuge sowie Verbindungen zu Servern und Cloud-Speichern. Die Betriebssystem-Anbindung unterscheidet sich: etwa WinFsp und Windows-Anmeldeinformationen unter Windows beziehungsweise GVFS/FUSE unter Linux.
 
-OpenCommander steht unter der MIT-Lizenz. Details siehe `LICENSE`.
+**macOS** basiert auf der Apple-App mit Mac-Catalyst-Anpassungen, Mac-Tastenkürzeln, Quick Look und „Öffnen mit“. Die veröffentlichte Vorschau ist für Apple Silicon. Ihr Funktionsumfang entspricht nicht in allen Punkten dem Qt-Desktop.
 
-## Sicherheit
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Niclas85/OpenCommander/codex/linux-desktop/website/assets/desktop-dark.png" alt="OpenCommander Qt unter Linux: zwei Dateiansichten, Ordnerbäume und dunkles Design" width="100%">
+  <br><sub>Originalabbildung aus dem Linux-Handbuch. Die Windows-Version nutzt dieselbe Qt-Oberfläche mit eigenen Systemintegrationen.</sub>
+</p>
 
-Security-Hinweise und Release-Pruefpunkte stehen in `SECURITY.md` und `legal/legal-security-review-2026-06-13.md`.
+[Windows: Installation & Build](https://github.com/Niclas85/OpenCommander/blob/codex/linux-desktop/windows/README.md) · [Linux: Installation & Build](https://github.com/Niclas85/OpenCommander/blob/codex/linux-desktop/linux/README.md) · [macOS-Release](https://github.com/Niclas85/OpenCommander/releases/tag/macos-v1.2-preview.20260912)
 
-## Bedienung und Speicherzugriff
+## Dokumentation, die dich weiterbringt
 
-Beim ersten erfolgreichen Start erklaert ein Hilfe-Dialog Auswahl, Doppeltipp und Drag-and-drop. Die Hilfe bleibt ueber `Hilfe` erreichbar. `Aktion: Kopieren` beziehungsweise `Aktion: Verschieben` bestimmt, was beim Ziehen markierter Elemente in die andere Seite passiert.
+- **[Dokumentationsportal](https://opencommander.top/docs/)** – Einstieg, Systemvoraussetzungen und Unterschiede zwischen den Plattformen.
+- **[Desktop-Handbuch](https://opencommander.top/docs/handbuch/)** – 18 Kapitel mit 20 Abbildungen, lokaler Suche, Themenwechsel und Druckansicht.
+- **[Windows-Teststand](https://github.com/Niclas85/OpenCommander/blob/codex/linux-desktop/windows/TESTING.md)** – praktische Prüfungen, Voraussetzungen und offene Punkte.
+- **[Entwicklung & technische Hinweise](DEVELOPMENT.md)** – Build-Anleitungen und Projektstruktur.
 
-Auf Android 11 und neuer muss fuer den vollen Dateimanagerbetrieb der spezielle Zugriff auf alle Dateien in den Systemeinstellungen aktiviert werden. OpenCommander zeigt dafuer dauerhaft einen Hinweis mit direkter Schaltflaeche an, solange die Freigabe fehlt. Android 10 verwendet stattdessen den System-Ordnerdialog (Storage Access Framework): Der dort ausgewaehlte Ordner und seine Unterordner bleiben nach der Freigabe sichtbar und koennen mit den Commander-Funktionen verwaltet werden. Ueber `Details` kann jederzeit ein anderer Ordner ausgewaehlt werden.
+Das eingebundene Handbuch dokumentiert Linux 0.3.21. Neuere Windows-Änderungen bis zum Entwicklungsstand 0.3.25-rc10 sind in der Windows-Dokumentation beschrieben. Externe Dienste können eigene Anmeldungen, Freigaben oder Prüfungen verlangen; insbesondere ist die öffentliche Google-OAuth-Verifizierung ein separater Vorgang.
 
-## Build
+## Mitmachen
 
-```powershell
-.\gradlew.bat :app:assembleDebug --no-daemon
-```
+Fehler gefunden oder eine Idee? [Öffne ein Issue](https://github.com/Niclas85/OpenCommander/issues) und nenne Plattform, App-Version und nachvollziehbare Schritte. Bitte veröffentliche keine Passwörter, Tokens oder privaten Dateien.
 
-Die Debug-APK liegt danach hier:
+Beiträge sind willkommen. Lies die [Hinweise für Beiträge](CONTRIBUTING.md) und die [Sicherheitshinweise](SECURITY.md). Für Desktop-Änderungen ist aktuell `codex/linux-desktop` der relevante Branch.
 
-```text
-app/build/outputs/apk/debug/app-debug.apk
-```
+---
 
-Beim ersten Start muss Android den benoetigten Dateizugriff erlauben. Unter Android 10 wird dafuer ein Ordner im Systemdialog ausgewaehlt; unter Android 11 und neuer wird der spezielle Zugriff auf alle Dateien verwendet.
+[Webseite](https://opencommander.top) · [Datenschutz](https://opencommander.top/privacy) · [Impressum](https://opencommander.top/impressum) · [Kontakt](mailto:info@opengames.vip)
 
-### macOS
-
-Die Swift-App unter `ios/` wird zugleich als native Mac-Catalyst-App gebaut. Sie enthaelt die bestehenden Commander-Funktionen und zusaetzlich Mac-Tastaturbefehle:
-
-- `Command-C`, `Command-X`, `Command-V`: Dateien kopieren, ausschneiden und einfuegen
-- `Command-A`: alles in der aktiven Seite auswaehlen
-- `Command-Z`: letzte Dateioperation rueckgaengig machen
-- `Command-O`: Ordner oder angeschlossenes Laufwerk oeffnen
-- `Command-R`: aktive Seite aktualisieren
-- `Command-Shift-N`: neuen Ordner erstellen
-- `Command-Shift-.`: versteckte Dateien ein- oder ausblenden
-- `Return` oder `Leertaste`: markierte Datei beziehungsweise Ordner oeffnen
-- `Rueckschritt`: markierte Elemente loeschen
-
-```bash
-xcodegen generate --spec ios/project.yml --project ios
-xcodebuild -project ios/OpenCommander.xcodeproj -scheme OpenCommander \
-  -destination 'platform=macOS,variant=Mac Catalyst' \
-  -configuration Debug CODE_SIGNING_ALLOWED=NO build
-```
-
-Die direkte macOS-Version ist als Finder-Ersatz ohne App-Sandbox ausgelegt. Die linke Commander-Seite startet beim Macintosh-Stammordner `/`, die rechte bei `~/Downloads`. `Computer / Laufwerke` bietet Schnellzugriffe auf Root, Benutzerordner, Downloads, Schreibtisch und alle unter `/Volumes` eingebundenen externen Datentraeger.
-
-Beim ersten Mac-Start erklaert OpenCommander den Festplattenvollzugriff und oeffnet auf Wunsch direkt die passende Seite der Systemeinstellungen. Diese Freigabe muss aus Sicherheitsgruenden einmal vom Nutzer erteilt werden; eine App darf sie sich unter macOS nicht selbst geben. OpenCommander prueft den Status nach der Rueckkehr asynchron, zeigt unter `Computer / Laufwerke` dauerhaft `Festplattenvollzugriff aktiv ✓` und aktualisiert beide Dateiseiten automatisch. Bereits ueber den Ordnerdialog erteilte Rechte werden zusaetzlich als Security-Scoped-Bookmarks gespeichert und nach einem Neustart wiederverwendet.
-
-Fuer den Betrieb als primaerer Finder-Ersatz ist die direkt vertriebene, signierte macOS-Version ohne App-Sandbox vorgesehen. Eine Mac-App-Store-Version bleibt an Apples Sandbox und Ordnerauswahl gebunden. Auch die direkte Version kann die einmalige Bestaetigung unter `Datenschutz & Sicherheit > Festplattenvollzugriff` nicht automatisieren und Finder nicht als geschuetzte Systemkomponente deinstallieren; danach kann sie aber als alltaeglicher Dateimanager fuer Root, Benutzerordner und externe Laufwerke verwendet werden.
-
-### Unabhaengiger NTFS-Kern
-
-Unter `ntfs/OpenCommanderNTFS/` entsteht eine eigenstaendige MIT-lizenzierte NTFS-Implementierung. Sie uebernimmt keinen Code aus NTFS-3G, macFUSE, Tuxera oder einem anderen NTFS-Treiber. Bereits implementiert und durch Unit-Tests abgedeckt sind:
-
-- Bootsektor- und Geometriepruefung
-- MFT-`FILE`-Datensaetze mit Update-Sequence-Fixups
-- residente und nichtresidente Attributkoepfe
-- Runlist-Dekodierung einschliesslich negativer LCN-Deltas und Sparse Runs
-- begrenzter Blockzugriff sowie sektorausgerichtete Schreibtransaktionen mit Rollback
-- verifizierte Read-Modify-Write-Transaktionen und groessengleiche residente Dateiaktualisierungen auf Test-Images
-- residente und allocation-basierte `$I30`-Verzeichnisindizes
-- automatische Pruefung von NTFS-Version, Volume-Flags, Backup-Bootsektor, `$MFTMirr` und `hiberfil.sys`
-- standardmaessig geschlossene Schreibfreigabe fuer ungepruefte, verschmutzte, hibernierte oder nicht unterstuetzte Volumes
-
-`OpenCommanderNTFSModule` bindet den Kern als native FSKit-Dateisystemerweiterung in die Mac-App ein. Sie kann in `Systemeinstellungen > Allgemein > Anmeldeobjekte & Erweiterungen > Dateisystemerweiterungen` aktiviert werden. Der aktuelle Entwicklungsstand erkennt NTFS-Medien, meldet sie aber absichtlich noch nicht als benutzbar: Reale allgemeine NTFS-Schreibzugriffe bleiben gesperrt, bis Verzeichnisindex-Mutationen, `$Bitmap`-Aktualisierungen, `$LogFile`-Wiederherstellung und absturzsichere Metadatenaktualisierungen implementiert und mit Datentraeger-Abbildern validiert sind. Bis dahin verwendet OpenCommander den von macOS bereitgestellten Mountmodus, normalerweise nur lesend.
-
-Tests des portablen Kerns:
-
-```bash
-cd ntfs/OpenCommanderNTFS
-swift test
-```
+OpenCommander wird von Niklaus Haenggi entwickelt und unter der [MIT-Lizenz](LICENSE) veröffentlicht.
