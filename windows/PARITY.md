@@ -64,7 +64,7 @@ die öffentliche Google-Verifizierung steht weiterhin aus.
 | WebDAV über Systemdienst | Windows WebClient statt GVFS | Nativer UNC-Redirector gegen anonymen Loopback-Server geprüft; Zeitstempel-Kopierfehler korrigiert. Externe Authentifizierungsrichtlinien nicht mitgeprüft |
 | Externe rclone-Mounts / lokale Sync-Ordner | Windows-Laufwerke/Verzeichnisse statt Linux-Mountinfo | Gemeinsame Werkzeuge; Linux `/proc`-Erkennung wird nicht nachgebildet |
 | Lokale Laufwerke, USB-Speicher und Netzlaufwerke | Laufwerksbuchstaben und UNC statt `/media` und GVFS | NTFS, exFAT und SMB live geprüft |
-| Sicheres Trennen / Auswerfen | Windows-Shell-/Geräte-API statt GIO | Umsetzung vorhanden; physischer SanDisk-Auswurf auf ausdrücklichen Benutzerwunsch nicht getestet |
+| Sicheres Trennen / Auswerfen | Windows-Shell-/Geräte-API statt GIO | SanDisk/exFAT nach 1-MiB-Datei-Roundtrip und persistentem Rückgängig direkt in der installierten Oberfläche sicher ausgeworfen; nativer Kein-Medium-Status bestätigt. Übergangsfehler, doppelte WPD-Massenspeicher-Einträge und verbleibender leerer Ortsknopf korrigiert. Weitere USB-Controller offen |
 | MTP-Kamera/Telefon über GVFS | Nativer Windows-WPD-Adapter mit authentifizierter lokaler Dateibrücke und WinFsp-Mount | Pixel 8 Pro praktisch geprüft: Unicode-Datei-Roundtrip, Ordnerkopie, Suche/Inhaltsvergleich, ZIP erstellen/entpacken, Pause/Fortsetzen, Verschieben mit Quellbereinigung und persistentes Rückgängig nach erneuter Einbindung. Read-only-Ordneranzeigename, vorläufige VFS-Zeitstempel und ZIP-Rückwärtssprünge korrigiert. Weitere Handys, Kameras und gerätespezifische Fähigkeiten bleiben offen |
 
 ## Systemunterschiede und Sicherheit
@@ -97,7 +97,7 @@ und baut GUI, Helfer und ZIP erfolgreich:
 Commit `31167f2`. Zwei GUI-Wiederaufnahme-Zeitüberschreitungen im vorherigen
 Windows-CI-Lauf traten in diesem Lauf ohne Teständerung nicht mehr auf.
 Der vollständige lokale Windows-Lauf einschließlich der neuen Geräteanbindung besteht
-**440 Tests mit 47 begründeten Ausnahmen** nach der echten Pixel-Hardwareabnahme.
+**448 Tests mit 47 begründeten Ausnahmen** nach der echten Pixel- und SanDisk-Hardwareabnahme.
 Der vorherige Quellstand `3168d00` besteht
 zusätzlich **407 Linux-Tests**, Linux-Paket und Desktop-Smoke in
 [CI-Lauf 38661156491](https://github.com/Niclas85/OpenCommander/actions/runs/38661156491).

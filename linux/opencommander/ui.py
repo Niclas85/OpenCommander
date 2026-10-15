@@ -1812,7 +1812,11 @@ class MainWindow(QMainWindow):
         if downloads.is_absolute():
             locations.append((self.tr_key('downloads'), downloads))
         locations += [(item['name'], Path(item['path'])) for item in self.integration_locations if item['path']]
-        locations += [(path.name, path) for path in mounted_locations() + getattr(self, 'local_cloud_places', [])]
+        # Windows' helper already supplies labeled, available drives. Raw logical
+        # drive letters can remain after safe USB removal and must not reappear
+        # here as an empty folder button. Keep all volume probes off the GUI thread.
+        mounts = [] if os.name == 'nt' else mounted_locations()
+        locations += [(path.name, path) for path in mounts + getattr(self, 'local_cloud_places', [])]
         from .online_ui import mount_path
         from .provider_mounts import register
         if os.name == 'nt':

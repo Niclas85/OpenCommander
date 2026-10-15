@@ -178,6 +178,50 @@ class Values(Com):
             ole().PropVariantClear(C.byref(value))
 
 
+def device_service(identifier):
+    """Read the PnP driver service without opening the device or its storage.
+
+    Windows also publishes ordinary USB disks through WPD's filesystem driver.
+    They already have drive letters and must not become duplicate MTP mounts.
+    Unknown/temporarily unavailable metadata never hides a real portable device.
+    """
+    class Interface(C.Structure):
+        _fields_ = [('size', U32), ('guid', GUID), ('flags', U32), ('reserved', C.c_size_t)]
+    class DeviceInfo(C.Structure):
+        _fields_ = [('size', U32), ('guid', GUID), ('instance', U32), ('reserved', C.c_size_t)]
+    api = C.WinDLL('setupapi', use_last_error=True, winmode=0x800)  # System32 only.
+    create = api.SetupDiCreateDeviceInfoList
+    create.argtypes, create.restype = [PTR, PTR], PTR
+    open_interface = api.SetupDiOpenDeviceInterfaceW
+    open_interface.argtypes, open_interface.restype = [PTR, C.c_wchar_p, U32, C.POINTER(Interface)], I32
+    detail = api.SetupDiGetDeviceInterfaceDetailW
+    detail.argtypes, detail.restype = [PTR, C.POINTER(Interface), PTR, U32, C.POINTER(U32), C.POINTER(DeviceInfo)], I32
+    property_value = api.SetupDiGetDeviceRegistryPropertyW
+    property_value.argtypes, property_value.restype = [PTR, C.POINTER(DeviceInfo), U32, C.POINTER(U32), PTR, U32, C.POINTER(U32)], I32
+    destroy = api.SetupDiDestroyDeviceInfoList
+    destroy.argtypes, destroy.restype = [PTR], I32
+    handle = create(None, None)
+    if not handle or handle == PTR(-1).value:
+        return ''
+    try:
+        interface = Interface()
+        interface.size = C.sizeof(interface)
+        if not open_interface(handle, identifier, 0, C.byref(interface)):
+            return ''
+        info = DeviceInfo()
+        info.size = C.sizeof(info)
+        buffer, required = C.create_string_buffer(65536), U32()
+        C.cast(buffer, C.POINTER(U32))[0] = 8 if C.sizeof(PTR) == 8 else 6
+        if not detail(handle, C.byref(interface), buffer, len(buffer), C.byref(required), C.byref(info)):
+            return ''
+        service, kind = C.create_unicode_buffer(256), U32()
+        if not property_value(handle, C.byref(info), 4, C.byref(kind), service, C.sizeof(service), C.byref(required)):
+            return ''
+        return service.value if kind.value == 1 else ''  # REG_SZ, SPDRP_SERVICE
+    finally:
+        destroy(handle)
+
+
 def devices():
     """Enumerate WPD devices, including locked ones, without opening their data."""
     with apartment(), Com.create('0af10cec-2ecd-4b92-9581-34f6ae0637f3',
@@ -193,6 +237,8 @@ def devices():
             result = []
             for pointer in pointers[:count.value]:
                 identifier = C.wstring_at(pointer)
+                if device_service(identifier).casefold() == 'wudfwpdfs':
+                    continue
                 length = U32()
                 manager.call(5, (C.c_wchar_p, PTR, C.POINTER(U32)),
                              (identifier, None, C.byref(length)))

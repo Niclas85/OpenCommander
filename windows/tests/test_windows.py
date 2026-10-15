@@ -23,6 +23,72 @@ def test_native_paths_and_drive_identity(tmp_path):
     assert not windows_native.remote_location(tmp_path)
 
 
+@pytest.mark.parametrize('sequence', [(5, 21), (32, 1167), (None, 15)])
+def test_safe_eject_waits_for_native_removal_status(monkeypatch, sequence):
+    import pywintypes
+    import win32api
+    import win32com.client
+    calls, states = [], iter(sequence)
+    item = SimpleNamespace(InvokeVerb=lambda verb: calls.append(verb))
+    shell = SimpleNamespace(Namespace=lambda namespace: SimpleNamespace(ParseName=lambda drive: item))
+    monkeypatch.setattr(win32com.client, 'Dispatch', lambda name: shell)
+    def volume(path):
+        error = next(states)
+        if error is not None:
+            raise pywintypes.error(error, 'GetVolumeInformation', 'synthetic device transition')
+        return ('test', 1, 255, 0, 'exFAT')
+    monkeypatch.setattr(win32api, 'GetVolumeInformation', volume)
+    monkeypatch.setattr(windows_native, 'locations', lambda: [])
+    monkeypatch.setattr(windows_native.time, 'sleep', lambda _: None)
+    assert windows_native.dispatch('eject', 'D:\\') == []
+    assert calls == ['Eject']
+
+
+def test_safe_eject_does_not_treat_access_denied_as_success_or_force_removal(monkeypatch):
+    import pywintypes
+    import win32api
+    import win32com.client
+    calls = []
+    item = SimpleNamespace(InvokeVerb=lambda verb: calls.append(verb))
+    shell = SimpleNamespace(Namespace=lambda namespace: SimpleNamespace(ParseName=lambda drive: item))
+    monkeypatch.setattr(win32com.client, 'Dispatch', lambda name: shell)
+    def denied(path):
+        raise pywintypes.error(5, 'GetVolumeInformation', 'synthetic access denied')
+    monkeypatch.setattr(win32api, 'GetVolumeInformation', denied)
+    monkeypatch.setattr(windows_native.time, 'sleep', lambda _: None)
+    with pytest.raises(OSError, match='Drive still connected'):
+        windows_native.dispatch('eject', 'D:\\')
+    assert calls == ['Eject']
+
+
+def test_drive_list_omits_empty_safely_ejected_usb_media(monkeypatch):
+    import pywintypes
+    import win32api
+    import win32file
+    from opencommander import windows_devices
+    root = Path('D:\\')
+    monkeypatch.setattr(windows_native, 'drive_roots', lambda: [root])
+    monkeypatch.setattr(win32file, 'GetDriveType', lambda value: 2)
+    def no_media(value):
+        raise pywintypes.error(21, 'GetVolumeInformation', 'no media')
+    monkeypatch.setattr(win32api, 'GetVolumeInformation', no_media)
+    monkeypatch.setattr(windows_devices, 'locations', lambda: [])
+    assert not any(row.get('path') == str(root) for row in windows_native.locations())
+
+
+def test_places_do_not_restore_safely_ejected_drive_from_logical_letters(window, monkeypatch):
+    from opencommander import ui
+    root = Path('D:\\')
+    window.integration_locations = []
+    window.local_cloud_places = []
+    monkeypatch.setattr(ui, 'mounted_locations', lambda: pytest.fail('GUI must not enumerate raw drive letters'))
+    window.update_places()
+    assert root not in [path for _, path in window.known_locations]
+    window.integration_locations = [dict(id=str(root), name='SanDisk (D:)', path=str(root), kind='USB', mounted=True)]
+    window.update_places()
+    assert [button.text() for button in window.place_buttons].count('SanDisk (D:)') == 1
+
+
 def test_media_defaults_use_bundled_codecs_and_preserve_explicit_overrides(monkeypatch):
     from opencommander.platform_support import initialize
     # The autouse fixture wraps Popen in a function to launch POSIX test scripts.

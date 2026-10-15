@@ -19,10 +19,13 @@ aktivierten Windows-Symlink-Modus.
   Ergebnisse: `build/portable-devices-tests.xml`, `build/portable-native-tests.xml`.
   Der synthetische Adapter ergänzt die unten beschriebene echte Pixel-Hardwareabnahme.
 
-- Aktueller vollständiger Windows-Lauf nach den Pixel-Korrekturen:
-  **440 bestanden, 47 übersprungen**, keine Fehler (159,18 s).
-  Ergebnis: `build/pytest-mtp-hardware-final.xml`;
-  Protokoll: `build/mtp-hardware-corrected-build.log`.
+- Aktueller vollständiger Windows-Lauf nach den Pixel-/USB-Korrekturen:
+  **448 bestanden, 47 übersprungen**, keine Fehler (157,35 s).
+  Ergebnis: `build/pytest-usb-final.xml`;
+  Protokoll: `build/usb-ui-final-build.log`.
+  Neue Regressionen prüfen Windows-Zustandswechsel beim sicheren Auswerfen,
+  den Schutz bei dauerhaft verweigertem Zugriff, das Ausblenden leerer USB-
+  Laufwerksbuchstaben und die Unterscheidung von WPD-MTP und USB-Massenspeicher.
   Gezielte Geräte-/Datei-/Wiederaufnahmeprüfung: **94 bestanden, 16 übersprungen**;
   fünf zusätzliche Pause/Fortsetzen-Wiederholungen am echten Pixel bestanden.
   Nach der Trennung der GUI-/Helfer-Abhängigkeiten zusätzlich **77 native Tests**
@@ -69,7 +72,7 @@ aktivierten Windows-Symlink-Modus.
 - Paket-Smoke-Test: tatsächliche `OpenCommander.exe`, mitgelieferter Helfer,
   Unicode-Pfade, bytegenaue Downloads und rclone-EXE erfolgreich.
   Ergebnis: `build/package-smoke.json`; Protokoll des abschließenden Builds:
-  `build/mtp-hardware-corrected-build.log`.
+  `build/usb-ui-final-build.log`.
 - Die Windows-Tests umfassen Explorer-Zwischenablageformat, überschreibungsfreie
   Umbenennung, gefährliche Archivnamen/NTFS-Datenströme, Binärdateien,
   Dateieigenschaften, verborgene Dateien, private NTFS-ACLs,
@@ -179,8 +182,33 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
 - 16-MiB-Kopie mit Pause/Wiederaufnahme; Rückgängig verweigert das Entfernen
   einer zwischenzeitlich geänderten Zieldatei.
 - Tatsächliches Verschieben zwischen NTFS auf C: und exFAT auf SanDisk D:,
-  danach Rückgängig und bytegenauer Vergleich. D: bleibt verbunden;
-  es wurde kein USB-Auswurf ausgelöst.
+  danach Rückgängig und bytegenauer Vergleich bestanden.
+- Erneute SanDisk-Abnahme mit ausdrücklicher Auswurf-Freigabe: 1-MiB-Unicode-
+  Roundtrip samt SHA-256, Auflistung durch den installierten EXE-Helfer sowie
+  Verschieben mit Quellbereinigung und persistentem Rückgängig bestanden.
+  Ausschließlich der eigene markierte Testordner wurde anschließend entfernt.
+  Danach in der installierten App „Verbindungen → SanDisk (D:) → Trennen /
+  Auswerfen“ bestätigt. Windows meldet `ERROR_NOT_READY` (21) und „No Media“;
+  die Verbindung verschwindet ohne Fehlermeldung. Der USB-Controller und sein
+  leerer Laufwerksbuchstabe dürfen dabei vorhanden bleiben.
+  Die frühere falsche Fehlermeldung bei vorübergehendem „Zugriff verweigert“
+  wurde korrigiert: Erfolg erfordert einen nativen Entfernt-/Kein-Medium-Status;
+  dauerhafte Zugriffs-/Freigabefehler gelten weiterhin als Fehler. Kein erzwungenes
+  Aushängen, Offline-Schalten oder Entfernen eines Laufwerksbuchstabens.
+  WPDs Dateisystemtreiber erzeugt keinen zusätzlichen MTP-Eintrag mehr. Die
+  Ortsleiste nutzt verfügbare Laufwerke aus dem Hintergrundhelfer und zeigt
+  nach dem Auswurf auch keinen leeren Ordnerknopf für D:.
+  Opt-in-Skript: `tests/usb_live_validation.py --drive 'D:\' --expected-label SanDisk --allow-device-writes`;
+  `--eject` führt nach erfolgreicher Prüfung und Bereinigung zusätzlich den
+  Auswurf über den installierten Helfer aus. Der dokumentierte Live-Auswurf
+  wurde separat über die tatsächliche Oberfläche ausgelöst.
+  Ergebnisse: `build/usb-hardware-results.json`, `build/usb-installed-eject-results.json`,
+  `build/usb-installed-ui-results.json` und `build/usb-installed-eject.png`.
+  Die abschließend installierte EXE und das geprüfte Paket sind bytegleich:
+  SHA-256 `e895f5a5496f792b42ec439083122c85a5b9510c777a6cbcb2417d8a279cb1f5`.
+  Alle fünf gespeicherten Verbindungen sind erhalten; die Verbindungsdatei
+  blieb bytegleich, alle vier Cloud-Orte sind sichtbar und die App erreicht „Bereit“.
+  Weitere USB-Controller bleiben separat zu prüfen.
 - SMB-NAS `\\192.168.0.22\Test`: Unicode-Dateinamen, 256-KiB-Binärdatei,
   Kopieren/Verschieben/Entfernen mit Wiederherstellung und Rückgängig,
   Verzeichnisabfrage durch den mitgelieferten Helfer und Dateieigenschaften.
@@ -335,11 +363,11 @@ Profil und erfolgreichem Dateizugriff als vollständig geprüft.
 | Bereich | Offener Nachweis |
 | --- | --- |
 | Cloud | Google-Drive-Scope-Genehmigung und gegebenenfalls CASA-Schritte nach Google-Rückmeldung; Antrag eingereicht. Branding, Hosting und HTTPS unter opencommander.top sind bestätigt; weitere anbieterspezifische Kontenrichtlinien |
-| Server | Externe Server mit abweichenden Richtlinien und persönliche Agenten-/Hardware-Schlüsselkonfigurationen. Pageant mit synthetischem Schlüssel, eigene FTP/FTPS/SFTP/WebDAV-Server und nativer WebClient sind praktisch geprüft |
-| USB | Sicheres Auswerfen wurde auf Benutzerwunsch nicht getestet |
+| Server | Externe Server mit abweichenden Richtlinien und persönliche Agenten-/Hardware-Schlüsselkonfigurationen. Der bereitgestellte VPS war vor Anmeldung nicht erreichbar (SSH-Timeout, VNC-Verbindung verweigert). Nach ausdrücklich freigegebenem einmaligem Contabo-Neustart antworten SSH/22 und VNC; PowerShell-TCP-Test und SSH-Schlüsselaushandlung bestanden, Server bietet Passwort und Public Key an. Der strenge OpenSSH-Aufruf stoppt am nicht bestätigten Hostschlüssel. Keine Firewall-/Kennwort-/Known-Hosts-Änderung. Ursprüngliche Ausfallursache und authentifizierter SFTP-Dateitest bleiben offen. Pageant mit synthetischem Schlüssel, eigene FTP/FTPS/SFTP/WebDAV-Server und nativer WebClient sind praktisch geprüft |
+| USB | SanDisk/exFAT einschließlich sicherem Auswurf in der installierten App bestanden; weitere USB-Controller und Verhalten bei abruptem Abziehen bleiben offen |
 | Medien | Weitere Hardware-/Codec-Kombinationen. WAV, MP3, AAC, FLAC, Vorbis, Opus, WMA, H.264, MPEG-4, VP9 und HEVC bestehen Wiedergabe, Pause/Fortsetzen, Zeitsuche und Neustart mit dem mitgelieferten FFmpeg-Backend |
 | Betriebssysteme | Windows 10, ARM64 und weitere Windows-11-Versionen |
-| Geräte | Pixel 8 Pro per MTP praktisch geprüft; weitere Handy-/Kameramodelle, gerätespezifische Rechte und Verhalten bei physischer USB-Unterbrechung bleiben offen. USB-Debugging blieb eingeschaltet; Appium-Sitzungen wurden nicht geprüft. D: wurde nicht ausgeworfen |
+| Geräte | Pixel 8 Pro per MTP praktisch geprüft; weitere Handy-/Kameramodelle, gerätespezifische Rechte und Verhalten bei physischer USB-Unterbrechung bleiben offen. USB-Debugging blieb eingeschaltet; Appium-Sitzungen wurden nicht geprüft |
 
 Der vollständige Funktionsvergleich steht in [PARITY.md](PARITY.md).
 Die gemeinsame Implementierung übernimmt den Linux-Funktionskern. Vollständige

@@ -114,6 +114,45 @@ def test_real_wpd_com_values_and_64_bit_abi():
             assert count.value == 1
 
 
+def test_wpd_discovery_excludes_filesystem_driver_but_keeps_mtp_and_unknown(monkeypatch):
+    rows = [('disk-interface', 'USB disk', 'WUDFWpdFs'),
+            ('phone-interface', 'Locked phone', 'WUDFWpdMtp'),
+            ('unknown-interface', 'Unknown driver', '')]
+    library = ctypes.WinDLL('ole32', winmode=0x800)
+    library.CoTaskMemAlloc.argtypes = [ctypes.c_size_t]
+    library.CoTaskMemAlloc.restype = wpd.PTR
+    class Manager:
+        def __enter__(self):
+            return self
+        def __exit__(self, *_):
+            pass
+        def call(self, index, types=(), args=()):
+            if index == 3:
+                args[1]._obj.value = len(rows)
+                if args[0] is not None:
+                    for i, (identifier, _, _) in enumerate(rows):
+                        value = ctypes.create_unicode_buffer(identifier)
+                        pointer = library.CoTaskMemAlloc(ctypes.sizeof(value))
+                        assert pointer
+                        ctypes.memmove(pointer, value, ctypes.sizeof(value))
+                        args[0][i] = pointer
+            elif index == 5:
+                name = next(name for identifier, name, _ in rows if identifier == args[0])
+                if args[1] is None:
+                    args[2]._obj.value = len(name) + 1
+                else:
+                    args[1].value = name
+            else:
+                assert index == 4
+    monkeypatch.setattr(wpd.Com, 'create', lambda *_: Manager())
+    monkeypatch.setattr(wpd, 'device_service', lambda identifier: next(service for key, _, service in rows if key == identifier))
+    assert wpd.devices() == [dict(id=key, name=name) for key, name, service in rows if service != 'WUDFWpdFs']
+
+
+def test_device_driver_lookup_rejects_invalid_interface_without_opening_storage():
+    assert wpd.device_service('OpenCommander-invalid-test-interface') == ''
+
+
 def test_frozen_device_helper_uses_the_shipped_rclone_without_download(tmp_path, monkeypatch):
     import sys
     from opencommander import rclone_runtime
@@ -197,9 +236,13 @@ def test_protocol_real_bytes_range_unicode_and_no_overwrite(device_server):
         assert response.read() == data
     with request(server, path, headers={'Range': 'bytes=250-520'}) as response:
         assert response.status == 206 and response.read() == data[250:521]
-    with pytest.raises(HTTPError) as error:
+    with pytest.raises((HTTPError, ConnectionError)) as error:
         request(server, path, 'PUT', b'overwritten')
-    assert error.value.code == 412
+    # Windows may reset the connection when the rejected request body is still
+    # in flight. Either transport refusal must retain the complete original;
+    # the following authenticated GET verifies the live server and exact bytes.
+    if isinstance(error.value, HTTPError):
+        assert error.value.code == 412
     with request(server, path) as response:
         assert response.read() == data
     assert list(server.cache.iterdir()) == []
