@@ -1,4 +1,10 @@
-# Öffentliche Desktop-Projektwebsite
+# Historische Sicherung der Desktop-Projektwebsite
+
+Seit dem 15. Oktober 2026 liegt die gepflegte Website für Android, iPhone/iPad,
+Windows, Linux und macOS unter [`website/`](../../../website/README.md).
+Dieser Ordner bewahrt die vorherige öffentliche Version 2 als Referenz für
+die ursprüngliche OAuth-Einrichtung. Für neue Veröffentlichungen den Build
+im Ordner `website/` verwenden.
 
 Diese vier statischen Dateien sind eine Sicherung der öffentlichen Website
 https://opencommander.top/ mit Datenschutz unter https://opencommander.top/privacy.
