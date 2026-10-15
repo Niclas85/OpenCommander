@@ -51,6 +51,7 @@ Der gemeinsame Code in `linux/opencommander/` stellt auf beiden Plattformen bere
 | POSIX-Zugriffsrechte | NTFS-Zugriffssteuerung für private Cloud-Konfiguration |
 | `xdg-mime` | Optionale Ordnerzuordnung für das aktuelle Windows-Konto |
 | System-Python-Helfer | Mitgelieferter, unsichtbar gestarteter Windows-Helfer |
+| GVFS-MTP für Handys/Kameras | Windows Portable Devices (WPD) mit lokaler WinFsp-Dateianbindung |
 
 ## Cloud und Netzwerk
 
@@ -78,9 +79,35 @@ damit die App keine fremden Verzeichnisbäume unbeabsichtigt durchläuft.
 Windows-reservierte Namen, alternative Datenströme und kollidierende Archivnamen
 werden bei der Extraktion abgewiesen. Video-Thumbnails benötigen wie unter Linux
 optional `ffmpeg`; die Wiedergabe benutzt Qt Multimedia.
-Die Windows-Ausgabe verwendet dabei den nativen Windows-Medienbackend. Unterstützte
-Audio-/Video-Codecs hängen daher von der Windows-Installation ab; der Qt-Backend
-kann bei Bedarf über `QT_MEDIA_BACKEND` umgestellt werden.
+Die Windows-Ausgabe verwendet wie Linux den mitgelieferten FFmpeg-Medienbackend.
+Software-Dekodierung vermeidet Probleme der nativen Windows-Zeitsuche und von
+Hardware-Codecs. `QT_MEDIA_BACKEND` und die Qt-FFmpeg-Hardwarevariablen bleiben
+für ausdrücklich konfigurierte Umgebungen verfügbar. Eine separate ffmpeg-EXE
+ist nur für optionale Video-Thumbnails erforderlich, nicht für die Wiedergabe.
+
+## Handys und Kameras (MTP/WPD)
+
+Ein entsperrtes Gerät per USB anschließen und am Gerät Dateiübertragung/MTP
+freigeben. Es erscheint als eigener Ort mit dem Zusatz „MTP“. Auswählen bindet
+seinen Speicher über den vorhandenen WinFsp-Treiber ein; kein Laufwerksbuchstabe
+und keine Explorer-Automatisierung sind erforderlich. Die üblichen Dateiwerkzeuge
+verwenden diese Einbindung. Unter „Verbindungen“ wird sie wieder getrennt.
+
+Die App spricht über die Windows-Portable-Devices-API direkt mit dem Gerät.
+Die interne Dateibrücke lauscht ausschließlich auf `127.0.0.1`, benötigt ein
+zufälliges Kennwort und nimmt keine Browser-Anfragen entgegen. Die Zugangsdaten
+liegen im privaten Benutzerprofil bzw. in Windows-Anmeldeinformationen.
+Uploads werden vor dem Schreiben vollständig in einem privaten lokalen
+Zwischenspeicher bereitgestellt; dafür muss ausreichend freier Platz vorhanden sein.
+Geräte- und Dateinamen, die Windows nicht darstellen kann, erhalten sichere Aliase.
+
+Geräte bestimmen die verfügbaren Aktionen: Manche Kameras erlauben ausschließlich
+Lesen; Umbenennen oder Verschieben kann nicht unterstützt sein. Gerätespeicher
+selbst werden nicht gelöscht. Zeitstempel und Rechte bleiben geräteabhängig.
+Fehlende Fähigkeiten, Sperren und Verbindungsfehler werden nicht als erfolgreicher
+Vorgang ausgegeben. Die Inhalte werden für Rückgängig weiterhin vollständig geprüft.
+Die native COM-API und die Dateibrücke sind automatisiert geprüft; die Abnahme
+an einem echten Handy oder einer Kamera steht mangels angeschlossenem Gerät aus.
 
 ## Daten und Wiederherstellung
 

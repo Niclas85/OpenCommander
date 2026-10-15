@@ -1,4 +1,4 @@
-# Windows-Prüfstand – 14. Oktober 2026
+# Windows-Prüfstand – 15. Oktober 2026
 
 Geprüft auf Windows 11 Pro 25H2 x64, Python 3.12.14, Qt/PySide6 6.11.2,
 OpenCommander 0.3.25rc10 und rclone 1.75.2. Ohne Administratorrechte und ohne
@@ -6,8 +6,20 @@ aktivierten Windows-Symlink-Modus.
 
 ## Automatisiert geprüft
 
-- Aktueller vollständiger Windows-Lauf: **403 bestanden, 47 übersprungen**, keine Fehler.
-  Ergebnis: `build/pytest.xml`; Protokoll: `build/google-demo-fixed-build.log`.
+- Neue WPD/MTP-Anbindung: native 64-Bit-COM-Aufrufe einschließlich Unicode und
+  großen Dateigrößen; sichere Namen, eindeutige Objektzuordnung, Pfad-/Root-Schutz,
+  Kennwort-/Origin-Prüfung, überschreibungsfreie Uploads und Gerätefehler.
+  Echtes rclone/WebDAV und WinFsp mit synthetischem Geräteadapter: Datei-Roundtrip,
+  Umbenennen, wiederherstellbares Entfernen, Pause und Fortsetzen einer 2-MiB-Datei,
+  Rückgängig nach erneutem Laden sowie nach Mount-Neustart. Der vollständig
+  gegen die Quelle geprüfte eigene Teil-Upload wird exklusiv neu angelegt;
+  fremde/volle Objekte werden nicht per PUT überschrieben. Geänderte Inhalte
+  stoppen Rückgängig weiterhin.
+  Ergebnisse: `build/portable-devices-tests.xml`, `build/portable-native-tests.xml`.
+  Dies ist kein praktischer Nachweis an echter MTP-Hardware.
+
+- Aktueller vollständiger Windows-Lauf: **433 bestanden, 47 übersprungen**, keine Fehler.
+  Ergebnis: `build/pytest.xml`; Protokoll: `build/portable-devices-build.log`.
   Alle 23 Linux-Testmodule sind jetzt in der Windows-Suite vertreten; ihre
   plattformgebundenen Fälle werden begründet übersprungen, nicht als bestanden gezählt.
   Import-Inventar: `build/parity-test-inventory.json`, keine fehlenden Module.
@@ -39,7 +51,7 @@ aktivierten Windows-Symlink-Modus.
 - Paket-Smoke-Test: tatsächliche `OpenCommander.exe`, mitgelieferter Helfer,
   Unicode-Pfade, bytegenaue Downloads und rclone-EXE erfolgreich.
   Ergebnis: `build/package-smoke.json`; Protokoll des abschließenden Builds:
-  `build/google-demo-fixed-build.log`.
+  `build/portable-devices-final-build.log`.
 - Die Windows-Tests umfassen Explorer-Zwischenablageformat, überschreibungsfreie
   Umbenennung, gefährliche Archivnamen/NTFS-Datenströme, Binärdateien,
   Dateieigenschaften, verborgene Dateien, private NTFS-ACLs,
@@ -63,8 +75,8 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   geprüften Build abgeglichen. Abgelaufene Anmeldungen und Fehler ohne weitere
   Provider-Frage beenden den Dialog sauber; eine neue Anmeldung entfernt alte
   Antworten und Fehlermeldungen. Zwei zusätzliche Qt-Regressionstests bestanden.
-- Herausgeber-/Langpfad-Build und anschließend Cloud-Rückgängig-Korrektur installiert. Die installierte EXE
-  entspricht bytegenau dem frisch geprüften Paket:
+- Vorheriger Herausgeber-/Langpfad-Build mit Cloud-Rückgängig-Korrektur:
+  SHA-256 der damaligen EXE
   SHA-256 `f2348e5b3ad226ad90f6515b12d9bc279ed671eceb28dd62a89a0becd9694ae5`.
   Die vorherige Installation bleibt als Sicherung erhalten.
 - Bei der OAuth-Demo erkannter Fehler: WinFsp/rclone vergibt nach Verzeichnis-
@@ -147,6 +159,23 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   Python-Testserver; der unabhängige Apache-Server bestätigt den FTPS-Datenpfad.
 - Native Bild-/WAV-/H.264-Vorschau sowie Vor/Zurück, Videowiedergabe, Zeitsuche
   und Neustart der Wiedergabe geprüft. F5 kopiert die Unicode-Prüfdatei vollständig.
+- Zusätzliche isolierte Medienmatrix mit tatsächlichen Qt-Decodern: WAV, MP3,
+  AAC/M4A, FLAC, Vorbis/OGG, Opus, WMA, H.264, MPEG-4/AVI, VP9/WebM und HEVC.
+  Alle elf bestehen Wiedergabe, Pause/Fortsetzen, Zeitsuche und Neustart;
+  bei Videos ist ein tatsächlich dekodierter Frame nachgewiesen.
+  Der native Windows-Backend scheiterte beim Fortsetzen nach der Zeitsuche.
+  Der mitgelieferte FFmpeg-Backend besteht dieselben Abläufe und ist nun unter
+  Windows standardmäßig mit Software-Dekodierung aktiviert. Keine zusätzlichen
+  System-Codecs installiert. Ergebnis: `build/media-live-results.json`,
+  Protokoll: `build/media-live-validation-ffmpeg.log`.
+- Pageant 0.85 aus der offiziellen PuTTY-Quelle, SHA-256 und gültige
+  Herausgebersignatur geprüft. Anmeldung an eigenem Loopback-SFTP-Server allein
+  über den Agenten: kein Passwort und kein privater Client-Schlüssel in rclone.
+  WinFsp, 256-KiB-Upload, bytegenaues Lesen, persistentes Rückgängig,
+  Hostschlüssel-Ablehnung und ordentliches Trennen bestanden. Agent und Server
+  anschließend beendet, erzeugte private Testschlüssel entfernt. Persönliche
+  Schlüssel und ein vorhandener Agent wurden nicht verwendet oder verändert.
+  Ergebnis: `build/agent-live-results.json`; `build/agent-live-validation.log`.
 - Google-OAuth mit echtem rclone bis zum Browserübergang geprüft, ohne
   Benutzeranmeldung: Browseradresse während der laufenden Anmeldung empfangen,
   lokaler HTTP-Endpunkt und Weiterleitung zu Google bestätigt. Windows liefert
@@ -225,11 +254,11 @@ Profil und erfolgreichem Dateizugriff als vollständig geprüft.
 | Bereich | Offener Nachweis |
 | --- | --- |
 | Cloud | Google-Drive-Scope-Genehmigung und gegebenenfalls CASA-Schritte nach Google-Rückmeldung; Antrag eingereicht. Branding, Hosting und HTTPS unter opencommander.top sind bestätigt; weitere anbieterspezifische Kontenrichtlinien |
-| Server | Externe Server mit abweichenden Richtlinien; persönlicher Windows-SSH-Agent. Eigene laufende FTP/FTPS/SFTP/WebDAV-Testserver und nativer WebClient sind geprüft |
+| Server | Externe Server mit abweichenden Richtlinien und persönliche Agenten-/Hardware-Schlüsselkonfigurationen. Pageant mit synthetischem Schlüssel, eigene FTP/FTPS/SFTP/WebDAV-Server und nativer WebClient sind praktisch geprüft |
 | USB | Sicheres Auswerfen wurde auf Benutzerwunsch nicht getestet |
-| Medien | Weitere Codec-/Hardwarekombinationen; PNG, WAV und H.264 sind praktisch geprüft |
+| Medien | Weitere Hardware-/Codec-Kombinationen. WAV, MP3, AAC, FLAC, Vorbis, Opus, WMA, H.264, MPEG-4, VP9 und HEVC bestehen Wiedergabe, Pause/Fortsetzen, Zeitsuche und Neustart mit dem mitgelieferten FFmpeg-Backend |
 | Betriebssysteme | Windows 10, ARM64 und weitere Windows-11-Versionen |
-| Geräte | Kein Windows-WPD/MTP-Adapter für reine Kamera-/Telefon-Geräte; Linux kann solche Geräte über GVFS bereitstellen |
+| Geräte | Native WPD/MTP-Anbindung implementiert und mit isoliertem Geräteadapter geprüft; echte Handy-/Kamera-Hardwareabnahme offen, da kein Gerät verfügbar war. D: ist derzeit ebenfalls nicht verbunden |
 
 Der vollständige Funktionsvergleich steht in [PARITY.md](PARITY.md).
 Die gemeinsame Implementierung übernimmt den Linux-Funktionskern. Vollständige

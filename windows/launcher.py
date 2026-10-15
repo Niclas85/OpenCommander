@@ -8,7 +8,7 @@ if not getattr(sys, 'frozen', False):
 
 if __name__ == '__main__':
     if len(sys.argv) == 3 and sys.argv[1] == '--internal-helper':
-        if sys.argv[2] not in ('windows_bridge', 'media_fetch'):
+        if sys.argv[2] not in ('windows_bridge', 'media_fetch', 'device_bridge'):
             raise SystemExit('Unknown helper')
         runpy.run_module('opencommander.' + sys.argv[2], run_name='__main__')
     else:

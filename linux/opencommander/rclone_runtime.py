@@ -10,7 +10,7 @@ import urllib.request
 import zipfile
 import sys
 from pathlib import Path
-from .desktop import host_environment
+from .platform_support import host_environment
 
 
 def runtime_root():
@@ -23,7 +23,10 @@ def runtime_root():
 
 def binary():
     if os.name == 'nt' and getattr(sys, 'frozen', False):
-        bundled = Path(sys.executable).parent / 'tools/rclone.exe'
+        application = Path(sys.executable).parent
+        if Path(sys.executable).name.casefold() == 'opencommanderhelper.exe' and application.name == 'helpers':
+            application = application.parent
+        bundled = application / 'tools/rclone.exe'
         if bundled.is_file():
             return str(bundled)
     local = runtime_root() / ('rclone.exe' if os.name == 'nt' else 'rclone')

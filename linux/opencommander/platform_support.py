@@ -7,6 +7,18 @@ WINDOWS = sys.platform == 'win32'
 PLATFORM_NAME = 'Windows' if WINDOWS else 'Linux'
 
 
+def host_environment():
+    """Environment for native tools, also usable by helpers without Qt."""
+    env = os.environ.copy()
+    if 'LD_LIBRARY_PATH_ORIG' in env:
+        env['LD_LIBRARY_PATH'] = env.pop('LD_LIBRARY_PATH_ORIG')
+    else:
+        env.pop('LD_LIBRARY_PATH', None)
+    env.pop('QT_PLUGIN_PATH', None)
+    env.pop('QT_QPA_PLATFORM_PLUGIN_PATH', None)
+    return env
+
+
 def data_directory():
     if WINDOWS:
         return Path(os.environ.get('LOCALAPPDATA', Path.home() / 'AppData/Local')) / 'OpenCommander'
@@ -28,9 +40,12 @@ def helper_command(name):
 def initialize():
     if not WINDOWS:
         return
-    # Qt's FFmpeg encoder probing can hang on Windows HEVC extensions even
-    # during playback. Use the native playback backend; allow explicit override.
-    os.environ.setdefault('QT_MEDIA_BACKEND', 'windows')
+    # Match Linux's bundled FFmpeg codecs. Software decoding avoids driver/HEVC
+    # hardware probing problems and the native backend's seek/resume failures.
+    # Explicit environment overrides remain available for tested hardware.
+    os.environ.setdefault('QT_MEDIA_BACKEND', 'ffmpeg')
+    os.environ.setdefault('QT_FFMPEG_DECODING_HW_DEVICE_TYPES', ',')
+    os.environ.setdefault('QT_FFMPEG_ENCODING_HW_DEVICE_TYPES', ',')
     # Never resolve this DLL against the current directory or an untrusted PATH.
     bundled = Path(getattr(sys, '_MEIPASS', Path(__file__).parent)) / 'archive.dll'
     system = Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32/archiveint.dll'

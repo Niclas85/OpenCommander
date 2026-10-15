@@ -127,6 +127,19 @@ def safe_snapshot(path, check=None, *, ignore_inode=False):
         return None  # A failed verification never invalidates a completed transfer.
 
 
+def recorded_snapshot(record, path, check=None):
+    """Apply the saved proof format consistently to undo and move cleanup."""
+    version = record.get('snapshot_version', 1)
+    if version == 2:
+        from .provider_mounts import managed, provider_mount
+        if not managed(path) and provider_mount(path) is None:
+            raise SafetyError(f'Verification stopped: provider mount is unavailable.\n{path}')
+        return safe_snapshot(path, check, ignore_inode=True)
+    if version == 1:
+        return safe_snapshot(path, check)
+    raise SafetyError('Verification stopped: unsupported snapshot format.')
+
+
 def unique_path(directory: Path, name: str) -> Path:
     candidate = directory / name
     number = 2
@@ -222,6 +235,20 @@ class FileEngine:
         check = self.check_cancel if cancellable else None
         from .provider_mounts import managed, provider_mount
         provider = managed(destination) or provider_mount(destination) is not None
+        if os.name == 'nt':
+            from .provider_mounts import portable
+            if portable(destination):
+                from .windows_devices import settle
+                try:
+                    settle(destination)
+                except (OSError, ValueError, KeyError, TypeError):
+                    # Preserve the completed data but never invent an undo proof.
+                    with self.history_lock:
+                        operation['records'].append({'source': str(source), 'destination': str(destination),
+                            'kind': kind, 'backup': str(backup) if backup else None,
+                            'snapshot': None, 'snapshot_version': 2, 'reverted': False})
+                        self.save()
+                    return
         def capture():
             if provider:
                 # Provider mounts expose ephemeral inode numbers. Directory cache
@@ -311,6 +338,10 @@ class FileEngine:
 
     def copy_metadata(self, source, target):
         if os.name == 'nt':
+            from .provider_mounts import portable
+            if portable(target):
+                self.compatibility_warnings.add('MTP: Gerätezeitstempel und Dateirechte bleiben geräteabhängig / Device timestamps and permissions are device-specific')
+                return
             from .windows_native import set_times
             info = source.stat(follow_symlinks=False)
             for callback in (lambda: set_times(target, info),
@@ -545,16 +576,7 @@ class FileEngine:
             self.check_cancel()
             source, target = Path(record['source']), Path(record['destination'])
             if not record['reverted']:
-                version = record.get('snapshot_version', 1)
-                if version == 2:
-                    from .provider_mounts import managed, provider_mount
-                    if not managed(target) and provider_mount(target) is None:
-                        raise SafetyError(f'Undo stopped: provider mount is unavailable.\n{target}')
-                    snapshot = safe_snapshot(target, self.check_cancel, ignore_inode=True)
-                elif version == 1:
-                    snapshot = safe_snapshot(target, self.check_cancel)
-                else:
-                    raise SafetyError('Undo stopped: unsupported snapshot format.')
+                snapshot = recorded_snapshot(record, target, self.check_cancel)
                 if record['snapshot'] is None or snapshot != record['snapshot']:
                     raise SafetyError(f'Undo stopped: file changed or cannot be verified.\n{target}')
                 if record['kind'] == 'move':

@@ -1,6 +1,7 @@
 """Verify frozen helper I/O and dependencies using a disposable local fixture."""
 import json
 import argparse
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -34,4 +35,13 @@ with tempfile.TemporaryDirectory() as directory:
     assert source.read_bytes() == target.read_bytes()
     backend = subprocess.run([str(bundle / 'tools/rclone.exe'), 'version'], capture_output=True, check=True, timeout=10)
     assert b'rclone v' in backend.stdout
-print('PASS: packaged Windows helper, Unicode listing, binary media download and rclone runtime')
+    devices = subprocess.run([str(helper), 'windows_bridge'], input=json.dumps(dict(action='list', id='')),
+                             text=True, capture_output=True, timeout=20, check=True)
+    assert isinstance(json.loads(devices.stdout)['locations'], list)
+    environment = dict(os.environ, LOCALAPPDATA=str(root))
+    absent = subprocess.run([str(helper), 'device_bridge'],
+        input=json.dumps(dict(id='wpd:OpenCommander-Nonexistent-Test-Device', password='x' * 40)) + '\n',
+        text=True, capture_output=True, timeout=20, env=environment)
+    error = json.loads(absent.stdout)['error']
+    assert absent.returncode != 0 and 'HRESULT' in error, error
+print('PASS: frozen Windows/WPD helpers, missing-device failure, Unicode listing, binary media download and rclone runtime')

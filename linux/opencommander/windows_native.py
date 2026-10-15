@@ -163,6 +163,13 @@ def locations():
             enumeration.Close()
     except pywintypes.error:
         pass
+    from .windows_devices import locations as portable_locations
+    try:
+        result.extend(portable_locations())
+    except OSError:
+        # An unavailable WPD service must not hide ordinary disks and shares.
+        # Explicit connection attempts still report their device error.
+        pass
     return result
 
 
@@ -207,6 +214,14 @@ def network_path(uri):
 
 
 def dispatch(action, identifier):
+    if action == 'mount' and identifier.startswith('wpd:'):
+        from .windows_devices import mount
+        mount(identifier)
+        return locations()
+    if action == 'unmount' and identifier.startswith('wpd:'):
+        from .windows_devices import unmount
+        unmount(identifier)
+        return locations()
     if action == 'scan':
         result = []
         with os.scandir(identifier) as entries:

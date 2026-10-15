@@ -418,6 +418,40 @@ def test_move_source_changed_after_copy_is_retained(fixture, monkeypatch):
     assert engine.transfers.get(job['id'])['status'] == 'blocked'
 
 
+@pytest.mark.parametrize('changed', [False, True])
+def test_provider_move_cleanup_honors_versioned_content_proof(fixture, monkeypatch, changed):
+    from opencommander import provider_mounts
+    engine, source, target = fixture
+    file = source / 'provider-move.bin'
+    file.write_bytes(b'original')
+    monkeypatch.setattr(provider_mounts, '_roots', {target})
+    force_cross_device(monkeypatch, file)
+    record = engine.record
+    def capture_then_change(*args, **kwargs):
+        record(*args, **kwargs)
+        if changed:
+            destination = target / file.name
+            original = destination.stat()
+            destination.write_bytes(b'modified')
+            os.utime(destination, ns=(original.st_atime_ns, original.st_mtime_ns))
+    monkeypatch.setattr(engine, 'record', capture_then_change)
+    job = engine.transfers.create([file], target, 'keep', move=True)
+    if changed:
+        with pytest.raises(SafetyError, match='Changed target'):
+            run(engine, job)
+        saved = engine.transfers.get(job['id'])
+        assert Path(saved['roots'][0]['source_backup']).read_bytes() == b'original'
+        assert (target / file.name).read_bytes() == b'modified'
+        assert saved['status'] == 'blocked'
+    else:
+        operation = run(engine, job)
+        assert operation['records'][0]['snapshot_version'] == 2
+        assert not file.exists() and (target / file.name).read_bytes() == b'original'
+        assert not engine.transfers.jobs()
+        FileEngine(engine.state_dir).undo(operation['id'])
+        assert file.read_bytes() == b'original'
+
+
 def test_move_pause_during_source_cleanup_resumes_remaining_files(fixture, monkeypatch):
     import opencommander.resumable_copy as copies
     engine, source, target = fixture

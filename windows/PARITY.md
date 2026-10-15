@@ -1,6 +1,6 @@
 # Windows und Linux: vollständiger Desktop-Funktionsvergleich
 
-Stand: 14. Oktober 2026, gemeinsamer Anwendungskern 0.3.25rc10.
+Stand: 15. Oktober 2026, gemeinsamer Anwendungskern 0.3.25rc10.
 Referenz ist die Linux-Version dieses Repositorys, nicht die macOS- oder
 Mobil-App. Windows startet dieselben Qt-Dialoge, Werkzeuge und Dateioperationen
 aus `linux/opencommander`; Betriebssystemdienste haben eigene Adapter.
@@ -33,7 +33,7 @@ die öffentliche Google-Verifizierung steht weiterhin aus.
 | ZIP, TAR/TGZ, BZ2, XZ, ZST, 7z, RAR lesen/entpacken | Gleicher libarchive-Kern | Alle Formate einschließlich echtem RAR5 praktisch geprüft |
 | Archiv-Schutz vor Traversal, Links und Spezialdateien | Gemeinsame Prüfungen plus Windows-Namensregeln | Windows reservierte Namen, NTFS-Datenströme und Namenskollisionen zusätzlich getestet |
 | Bildvorschau, nächstes/vorheriges Bild, Thumbnail-Downloads | Gleicher Qt-Code | PNG/JPEG und Online-Download-Smoke-Test |
-| Audio-/Videovorschau, Wiedergabe, Zeitsuche, Neustart | Gleicher Qt-Code, Windows-Medienbackend | WAV und H.264 praktisch; weitere Codecs abhängig vom System |
+| Audio-/Videovorschau, Wiedergabe, Zeitsuche, Neustart | Gleicher Qt-Code und mitgelieferter FFmpeg-Backend; Windows standardmäßig Software-Dekodierung | WAV, MP3, AAC/M4A, FLAC, Vorbis/OGG, Opus, WMA sowie H.264, MPEG-4/AVI, VP9/WebM und HEVC praktisch dekodiert; Pause, Zeitsuche und Neustart bestanden. Weitere Hardwarekombinationen offen |
 | Öffnen und Öffnen mit | Windows-Shell statt GIO/xdg-open | Native Integration; verfügbare Programme bestimmt Windows |
 | Eigenschaften und Ordnergröße | Windows-Adapter statt GIO | Live-Prüfung; NTFS-Erstellzeit vorhanden, POSIX-Modus nicht gleichwertig |
 | Gespeicherte Orte: hinzufügen, bearbeiten, umsortieren, ausblenden | Gleicher Qt-Code | Gemeinsame Präferenz- und Persistenztests |
@@ -57,7 +57,7 @@ die öffentliche Google-Verifizierung steht weiterhin aus.
 | FTP | Gleicher Assistent; WinFsp statt FUSE | Eigener Loopback-Server: 256-KiB-Datei, Helfer, Rücknahme, Abbruch und Trennen bestanden |
 | Explizites FTPS mit aktiver Zertifikatsprüfung | Gleicher Assistent | Apache FtpServer 1.2.1: kompletter Datei-Roundtrip und Zertifikatsablehnung bestanden |
 | SFTP mit Passwort, privatem Schlüssel oder verschlüsseltem Schlüssel | Gleicher Assistent | Echter SFTP-Test für diese drei Anmeldearten; geänderter Hostschlüssel abgewiesen |
-| SSH-Agent | Linux ssh-agent; Windows Pageant laut rclone-Backend | Windows-Agent-Anmeldung nicht mit einem persönlichen Agenten live geprüft |
+| SSH-Agent | Linux ssh-agent; Windows Pageant laut rclone-Backend | Pageant 0.85 mit ausschließlich synthetischem Testschlüssel: Agent-Anmeldung ohne Passwort/Client-Schlüsseldatei in rclone, WinFsp, 256-KiB-Roundtrip, persistentes Rückgängig, geänderter Hostschlüssel und Trennen praktisch geprüft. Persönliche Schlüssel und der separate Windows-OpenSSH-Dienst nicht verändert |
 | SFTP-Hostschlüsselprüfung und bekannte Hosts | Windows-OpenSSH statt Linux-OpenSSH | Schutztests; vorhandener geänderter Schlüssel wird nicht automatisch akzeptiert |
 | SMB/NAS | Windows-Netzwerkanmeldung/UNC statt GVFS | Reales NAS: Unicode, 256-KiB-Datei, Helfer, Eigenschaften und persistente Rücknahme bestanden |
 | WebDAV über rclone | WinFsp statt FUSE | Eigener WebDAV-Server: vollständiger Datei-Roundtrip bestanden |
@@ -65,7 +65,7 @@ die öffentliche Google-Verifizierung steht weiterhin aus.
 | Externe rclone-Mounts / lokale Sync-Ordner | Windows-Laufwerke/Verzeichnisse statt Linux-Mountinfo | Gemeinsame Werkzeuge; Linux `/proc`-Erkennung wird nicht nachgebildet |
 | Lokale Laufwerke, USB-Speicher und Netzlaufwerke | Laufwerksbuchstaben und UNC statt `/media` und GVFS | NTFS, exFAT und SMB live geprüft |
 | Sicheres Trennen / Auswerfen | Windows-Shell-/Geräte-API statt GIO | Umsetzung vorhanden; physischer SanDisk-Auswurf auf ausdrücklichen Benutzerwunsch nicht getestet |
-| Andere von GVFS bereitgestellte Geräte, z. B. MTP-Kamera/Telefon | Kein Windows-WPD/MTP-Adapter | Windows verarbeitet dateisystemfähige Laufwerke. Eine reine Explorer-MTP-Ansicht ist kein nutzbarer Pfad; hier besteht keine 1:1-Geräteparität |
+| MTP-Kamera/Telefon über GVFS | Nativer Windows-WPD-Adapter mit authentifizierter lokaler Dateibrücke und WinFsp-Mount | Geräteerkennung, COM-Werte und sichere Aliase geprüft. Reale rclone-/WinFsp-Dateiaktionen, Wiederanbindung und persistentes Rückgängig gegen einen synthetischen Geräteadapter geprüft. Ein echtes Handy/Kamera war nicht verfügbar; Hardwareabnahme und gerätespezifische Fähigkeiten bleiben offen |
 
 ## Systemunterschiede und Sicherheit
 
@@ -96,8 +96,10 @@ und baut GUI, Helfer und ZIP erfolgreich:
 [CI-Lauf 38633342659](https://github.com/Niclas85/OpenCommander/actions/runs/38633342659),
 Commit `31167f2`. Zwei GUI-Wiederaufnahme-Zeitüberschreitungen im vorherigen
 Windows-CI-Lauf traten in diesem Lauf ohne Teständerung nicht mehr auf.
-Der vollständige lokale Windows-Lauf besteht
-**403 Tests mit 47 begründeten Ausnahmen**. Der abschließende Prüfstand und
+Der vollständige lokale Windows-Lauf einschließlich der neuen Geräteanbindung besteht
+**433 Tests mit 47 begründeten Ausnahmen**. Dieser neue Stand ist damit lokal
+geprüft; der oben verlinkte CI-Lauf dokumentiert den vorherigen Commit.
+Der abschließende Prüfstand und
 die installierte Version stehen in [TESTING.md](TESTING.md).
 
 Die eigene Desktop-OAuth-Registrierung ist jetzt eingerichtet und im Windows-

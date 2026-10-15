@@ -4,10 +4,19 @@ import re
 from pathlib import Path
 
 _roots = set()
+_portable_roots = set()
 
 
-def register(path):
-    _roots.add(Path(os.path.abspath(path)))
+def register(path, *, portable=False):
+    root = Path(os.path.abspath(path))
+    _roots.add(root)
+    if portable:
+        _portable_roots.add(root)
+
+
+def portable(path):
+    path = Path(os.path.abspath(path))
+    return next((root for root in _portable_roots & _roots if root == path or root in path.parents), None)
 
 
 def managed(path):

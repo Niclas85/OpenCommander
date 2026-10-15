@@ -23,6 +23,22 @@ def test_native_paths_and_drive_identity(tmp_path):
     assert not windows_native.remote_location(tmp_path)
 
 
+def test_media_defaults_use_bundled_codecs_and_preserve_explicit_overrides(monkeypatch):
+    from opencommander.platform_support import initialize
+    # The autouse fixture wraps Popen in a function to launch POSIX test scripts.
+    # Test media initialization without trying to subclass that fixture function.
+    monkeypatch.setattr(subprocess.Popen, '_opencommander', True, raising=False)
+    names = ('QT_MEDIA_BACKEND', 'QT_FFMPEG_DECODING_HW_DEVICE_TYPES', 'QT_FFMPEG_ENCODING_HW_DEVICE_TYPES')
+    for name in names:
+        monkeypatch.delenv(name, raising=False)
+    initialize()
+    assert [os.environ[name] for name in names] == ['ffmpeg', ',', ',']
+    for name, value in zip(names, ('windows', 'd3d11va', 'd3d11va')):
+        monkeypatch.setenv(name, value)
+    initialize()
+    assert [os.environ[name] for name in names] == ['windows', 'd3d11va', 'd3d11va']
+
+
 def test_atomic_rename_does_not_replace_case_insensitive_destination(tmp_path):
     source, target = tmp_path / 'source', tmp_path / 'Target'
     source.write_bytes(b'new'); target.write_bytes(b'old')

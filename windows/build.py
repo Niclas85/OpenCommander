@@ -68,10 +68,12 @@ def main():
         '--copy-metadata', 'pywin32', '--copy-metadata', 'psutil', '--copy-metadata', 'cryptography',
         '--copy-metadata', 'bcrypt', '--copy-metadata', 'cffi', '--copy-metadata', 'pycparser',
         '--hidden-import', 'opencommander.windows_bridge', '--hidden-import', 'opencommander.media_fetch',
+        '--hidden-import', 'opencommander.device_bridge',
         *oauth, ROOT / 'launcher.py', env=env)
     run(*common, '--name', 'OpenCommanderHelper', '--console', '--manifest', ROOT / 'app.manifest',
         '--exclude-module', 'PySide6', '--exclude-module', 'libarchive',
         '--hidden-import', 'opencommander.windows_bridge', '--hidden-import', 'opencommander.media_fetch',
+        '--hidden-import', 'opencommander.device_bridge',
         ROOT / 'helper.py', env=env)
     bundle = dist / 'OpenCommander'
     # Qt's Windows wheel links the unversioned OS ICU API. A foreign ICU from

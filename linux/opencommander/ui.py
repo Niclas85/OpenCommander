@@ -1815,6 +1815,13 @@ class MainWindow(QMainWindow):
         locations += [(path.name, path) for path in mounted_locations() + getattr(self, 'local_cloud_places', [])]
         from .online_ui import mount_path
         from .provider_mounts import register
+        if os.name == 'nt':
+            from .windows_devices import paths as device_paths
+            for device in self.integration_locations:
+                if device.get('kind') == 'MTP' and device.get('mounted') and device.get('path'):
+                    root = Path(device['path'])
+                    if root == device_paths(device['id'])[0] and (root.is_mount() or root.is_junction()):
+                        register(root, portable=True)
         online_mounts = [(row['name'], mount_path(self.state_dir, row['id'])) for row in self.online_profiles]
         for _, path in online_mounts:
             if remote_location(path):
