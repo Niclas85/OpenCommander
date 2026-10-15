@@ -105,7 +105,7 @@ wie die Linux-Version. Start aus dem Quellcode: `./windows/run.ps1`.
 `./windows/build.ps1` erstellt ein portables Windows-x64-Paket mit EXE,
 Offline-Handbuch und rclone unter `windows/artifacts/`.
 Voraussetzungen, Windows-Anbindungen und Testgrenzen stehen in
-[windows/README.md](windows/README.md).
+[windows/README.md](https://github.com/Niclas85/OpenCommander/blob/codex/linux-desktop/windows/README.md).
 
 ### Linux
 
@@ -124,9 +124,9 @@ Der Dialog **Verbindungen** integriert USB-Einbinden/Auswerfen, SMB/SFTP/WebDAV
 sowie Google Drive und OneDrive über GNOME/GVFS. Bereits vorhandene rclone-Mounts
 werden automatisch erkannt. Voraussetzungen und Provider-Grenzen stehen in der Linux-Anleitung.
 Installationshinweise, Tests und Unterschiede zur Mac-Version stehen in
-[linux/README.md](linux/README.md). Der dokumentierte Linux-Stand ist **0.3.21**;
-Details zu Änderungen und Prüfungen stehen im [Linux-Änderungsprotokoll](linux/CHANGELOG.md).
-Das [ausführliche HTML-Anwenderhandbuch](linux/docs/handbuch/index.html) erklärt
+[linux/README.md](https://github.com/Niclas85/OpenCommander/blob/codex/linux-desktop/linux/README.md). Der dokumentierte Linux-Stand ist **0.3.21**;
+Details zu Änderungen und Prüfungen stehen im [Linux-Änderungsprotokoll](https://github.com/Niclas85/OpenCommander/blob/codex/linux-desktop/linux/CHANGELOG.md).
+Das [ausführliche HTML-Anwenderhandbuch](https://opencommander.top/docs/handbuch/) erklärt
 die Bedienung in 18 Kapiteln mit 20 Screenshots und funktioniert offline.
 
 ### macOS
@@ -234,4 +234,4 @@ Dateisicherheitsregressionen sowie auf macOS die Swift-Dateioperationen,
 den portablen NTFS-Kern und den iOS-Simulator-Build. Geraetetests fuer Androids
 Storage Access Framework, Cloud-Anbieter und Mac Catalyst bleiben erforderlich.
 
-Der [ausfüllbare Linux-Testplan](linux/docs/testplan/index.html) umfasst 158 Testfälle mit Voraussetzungen, Prüfschritten, Soll-Ergebnissen und einer Cloud-/NAS-Variantenmatrix.
+Der [ausfüllbare Linux-Testplan](https://github.com/Niclas85/OpenCommander/blob/codex/linux-desktop/linux/docs/testplan/index.html) umfasst 158 Testfälle mit Voraussetzungen, Prüfschritten, Soll-Ergebnissen und einer Cloud-/NAS-Variantenmatrix.
