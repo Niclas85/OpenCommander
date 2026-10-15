@@ -1756,6 +1756,19 @@ class MainWindow(QMainWindow):
         self.online_dialog.show()
         self.online_dialog.raise_()
 
+    def connection_opened(self, path, pane=None):
+        (pane or self.active).navigate(path)
+        self.update_places()
+        # Both setup dialogs can be modeless siblings. Hide them only after
+        # a successful connection, including when a saved place opens directly.
+        for name in ('online_dialog', 'connections_dialog'):
+            dialog = getattr(self, name, None)
+            if dialog is not None:
+                timer = getattr(dialog, 'timer', None)
+                if timer is not None:
+                    timer.stop()
+                dialog.hide()
+
     def show_tools(self, mode):
         if self.closing:
             return
@@ -1831,7 +1844,9 @@ class MainWindow(QMainWindow):
             if remote_location(path):
                 register(path)
         locations += online_mounts
-        locations += [(row['name'], Path(row['mount_root'])) for row in self.external_cloud_profiles]
+        from .places_ui import external_place_name, local_provider_kind
+        locations += [(external_place_name(row, self.language), Path(row['mount_root']))
+                      for row in self.external_cloud_profiles]
         trash = PlaceButton(self, 'Papierkorb' if self.language == 'de' else 'Trash', 'trash')
         trash.setIcon(self.style().standardIcon(QStyle.SP_TrashIcon))
         trash.clicked.connect(self.show_trash)
@@ -1851,6 +1866,8 @@ class MainWindow(QMainWindow):
             icon_profile = profile or next((row for row in self.external_cloud_profiles if root_for(self, row) == path), None)
             if icon_profile:
                 button.setIcon(provider_icon(icon_profile.get('kind')))
+            elif path in getattr(self, 'local_cloud_places', []) and local_provider_kind(path):
+                button.setIcon(provider_icon(local_provider_kind(path)))
             else:
                 device = next((row for row in self.integration_locations if row.get('path') == str(path)), None)
                 standard = QStyle.SP_DriveHDIcon if device else QStyle.SP_DirHomeIcon if path == Path.home() else QStyle.SP_DirIcon
@@ -1984,7 +2001,7 @@ class MainWindow(QMainWindow):
             self.server_secrets = {}
         path = mount_path(self.state_dir, profile['id'])
         if remote_location(path):
-            self.active.navigate(path)
+            self.connection_opened(path)
             return
         pending = getattr(self, 'opening_online', {})
         self.opening_online = pending
@@ -2025,7 +2042,7 @@ class MainWindow(QMainWindow):
                             dialog.reconnect_saved()
             else:
                 if pane.generation == generation:
-                    pane.navigate(path)
+                    self.connection_opened(path, pane)
                 self.status.setText(('Verbunden: ' if self.language == 'de' else 'Connected: ') + profile['name'])
                 self.update_places()
         task.signals.result.connect(done, Qt.QueuedConnection)

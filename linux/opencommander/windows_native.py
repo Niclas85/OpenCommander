@@ -220,6 +220,9 @@ def network_path(uri):
 
 
 def dispatch(action, identifier):
+    if action == 'ssh-fingerprints':
+        from .windows_ssh import scan
+        return scan(identifier['host'], identifier['port'])
     if action == 'mount' and identifier.startswith('wpd:'):
         from .windows_devices import mount
         mount(identifier)
@@ -305,7 +308,7 @@ def invoke(action='list', identifier='', cancel=None):
     from .platform_support import helper_command
     command = helper_command('windows_bridge')
     request = json.dumps(dict(action=action, id=identifier))
-    timeout = 15 if action in ('list', 'scan', 'properties', 'directory-size') else None
+    timeout = 15 if action in ('list', 'scan', 'properties', 'directory-size', 'ssh-fingerprints') else None
     with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                           text=True, encoding='utf-8') as process:
         start, first = time.monotonic(), True

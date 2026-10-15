@@ -56,9 +56,9 @@ die öffentliche Google-Verifizierung steht weiterhin aus.
 | Online-Suche, Vergleich, Umbenennen, ZIP, Vorschau und Transfers | Gemeinsame Werkzeuge auf dem Mount | Gemeinsame Tests und echte Mounts; einzelne Provider können Attribute/Funktionen einschränken |
 | FTP | Gleicher Assistent; WinFsp statt FUSE | Eigener Loopback-Server: 256-KiB-Datei, Helfer, Rücknahme, Abbruch und Trennen bestanden |
 | Explizites FTPS mit aktiver Zertifikatsprüfung | Gleicher Assistent | Apache FtpServer 1.2.1: kompletter Datei-Roundtrip und Zertifikatsablehnung bestanden |
-| SFTP mit Passwort, privatem Schlüssel oder verschlüsseltem Schlüssel | Gleicher Assistent | Echter SFTP-Test für diese drei Anmeldearten; geänderter Hostschlüssel abgewiesen |
+| SFTP mit Passwort, privatem Schlüssel oder verschlüsseltem Schlüssel | Gleicher Assistent | Echter SFTP-Test für diese drei Anmeldearten; geänderter Hostschlüssel abgewiesen. Zusätzlich externer VPS: acht Dateitests mit gespeichertem Windows-Kennwort einschließlich Wiederverbindung, ZIP und persistentem Rückgängig bestanden |
 | SSH-Agent | Linux ssh-agent; Windows Pageant laut rclone-Backend | Pageant 0.85 mit ausschließlich synthetischem Testschlüssel: Agent-Anmeldung ohne Passwort/Client-Schlüsseldatei in rclone, WinFsp, 256-KiB-Roundtrip, persistentes Rückgängig, geänderter Hostschlüssel und Trennen praktisch geprüft. Persönliche Schlüssel und der separate Windows-OpenSSH-Dienst nicht verändert |
-| SFTP-Hostschlüsselprüfung und bekannte Hosts | Windows-OpenSSH statt Linux-OpenSSH | Schutztests; vorhandener geänderter Schlüssel wird nicht automatisch akzeptiert |
+| SFTP-Hostschlüsselprüfung und bekannte Hosts | Mitgelieferter SSH-Transport zur Windows-Schlüsselerkennung; OpenSSH-known_hosts auf beiden Plattformen | Windows-keyscan-KEX-Fehler korrigiert; installierter Helfer liest reale Hostschlüssel, Ed25519 mit WinSCP-Cache verglichen. Separate Vertrauensabfrage; vorhandener geänderter Schlüssel wird nicht automatisch akzeptiert |
 | SMB/NAS | Windows-Netzwerkanmeldung/UNC statt GVFS | Reales NAS: Unicode, 1-MiB-Roundtrip, Helfer/Eigenschaften, Konflikte, persistente Rücknahme, Schutz bei Inhaltsänderung und exklusiver Dateisperre, 4-MiB-Pause/Fortsetzen, Verschieben, Suche/Vergleich und ZIP praktisch bestanden |
 | WebDAV über rclone | WinFsp statt FUSE | Eigener WebDAV-Server: vollständiger Datei-Roundtrip bestanden |
 | WebDAV über Systemdienst | Windows WebClient statt GVFS | Nativer UNC-Redirector gegen anonymen Loopback-Server geprüft; Zeitstempel-Kopierfehler korrigiert. Externe Authentifizierungsrichtlinien nicht mitgeprüft |
@@ -97,7 +97,7 @@ und baut GUI, Helfer und ZIP erfolgreich:
 Commit `31167f2`. Zwei GUI-Wiederaufnahme-Zeitüberschreitungen im vorherigen
 Windows-CI-Lauf traten in diesem Lauf ohne Teständerung nicht mehr auf.
 Der vollständige lokale Windows-Lauf einschließlich der neuen Geräteanbindung besteht
-**448 Tests mit 47 begründeten Ausnahmen** nach der echten Pixel- und SanDisk-Hardwareabnahme.
+**457 Tests mit 47 begründeten Ausnahmen** nach der echten Pixel-/SanDisk-Hardwareabnahme und SSH-/Dialog-Korrektur.
 Der vorherige Quellstand `3168d00` besteht
 zusätzlich **407 Linux-Tests**, Linux-Paket und Desktop-Smoke in
 [CI-Lauf 38661156491](https://github.com/Niclas85/OpenCommander/actions/runs/38661156491).

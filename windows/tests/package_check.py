@@ -6,6 +6,8 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import socket
+import time
 
 parser = argparse.ArgumentParser()
 parser.add_argument('bundle', type=Path)
@@ -35,6 +37,47 @@ with tempfile.TemporaryDirectory() as directory:
     assert source.read_bytes() == target.read_bytes()
     backend = subprocess.run([str(bundle / 'tools/rclone.exe'), 'version'], capture_output=True, check=True, timeout=10)
     assert b'rclone v' in backend.stdout
+    # Exercise the frozen SSH scanner and its crypto dependencies against a real
+    # server. Compare its public key; discovery must never authenticate or trust it.
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+    from cryptography.hazmat.primitives import serialization
+    host_key = ed25519.Ed25519PrivateKey.generate()
+    key_file = root / 'fixture-host-key'
+    key_file.write_bytes(host_key.private_bytes(serialization.Encoding.PEM,
+        serialization.PrivateFormat.OpenSSH, serialization.NoEncryption()))
+    with socket.socket() as listener:
+        listener.bind(('127.0.0.1', 0))
+        port = listener.getsockname()[1]
+    server = subprocess.Popen([str(bundle / 'tools/rclone.exe'), '--config', str(root / 'empty.conf'),
+        'serve', 'sftp', str(root), '--addr', f'127.0.0.1:{port}', '--user', 'fixture',
+        '--pass', 'fixture-only-password', '--key', str(key_file)],
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        deadline = time.monotonic() + 10
+        while True:
+            try:
+                with socket.create_connection(('127.0.0.1', port), timeout=.2):
+                    break
+            except OSError:
+                assert server.poll() is None and time.monotonic() < deadline
+                time.sleep(.1)
+        identity = subprocess.run([str(helper), 'windows_bridge'],
+            input=json.dumps(dict(action='ssh-fingerprints', id=dict(host='127.0.0.1', port=port))),
+            text=True, capture_output=True, timeout=20, check=True)
+        identity = json.loads(identity.stdout)['locations']
+        public = host_key.public_key().public_bytes(serialization.Encoding.OpenSSH, serialization.PublicFormat.OpenSSH).decode()
+        assert identity['keys'] == f'[127.0.0.1]:{port} {public}\n'
+        assert 'SHA256:' in identity['fingerprints']
+    finally:
+        server.terminate()
+        server.wait(timeout=5)
+    refused = subprocess.run([str(helper), 'windows_bridge'],
+        input=json.dumps(dict(action='ssh-fingerprints', id=dict(host='127.0.0.1', port=port))),
+        text=True, capture_output=True, timeout=20)
+    assert refused.returncode != 0
+    error = json.loads(refused.stdout)['error']
+    assert f'127.0.0.1:{port}' in error and 'Connection refused' in error
+    assert 'Password authentication has not started' in error
     devices = subprocess.run([str(helper), 'windows_bridge'], input=json.dumps(dict(action='list', id='')),
                              text=True, capture_output=True, timeout=20, check=True)
     assert isinstance(json.loads(devices.stdout)['locations'], list)

@@ -254,8 +254,12 @@ class FileEngine:
         provider = managed(destination) or provider_mount(destination) is not None
         if os.name == 'nt':
             from .provider_mounts import portable
+            settle = None
             if portable(destination):
                 from .windows_devices import settle
+            elif provider:
+                from .windows_mounts import settle
+            if settle is not None:
                 try:
                     settle(destination)
                 except (OSError, ValueError, KeyError, TypeError):
@@ -610,6 +614,12 @@ class FileEngine:
                     recovery = Path(tempfile.mkdtemp(prefix='.OpenCommanderUndo-', dir=native_path(target.parent))) / target.name
                     rename_new(target, recovery)
                     record['recovery'] = str(recovery)
+                    if os.name == 'nt':
+                        from .windows_mounts import settle
+                        try:
+                            settle(target)
+                        except (OSError, ValueError, KeyError, TypeError):
+                            pass  # Undo retains its recovery data even if refresh is unavailable.
                 record['reverted'] = True
                 self.save()
             if record['backup']:
@@ -662,6 +672,8 @@ class FileEngine:
         operation = self.begin('extract')
         operation['inputs'] = [str(archive_path)]
         staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=native_path(directory)))
+        published = []
+        complete = False
         try:
             payload = staging / 'contents'
             payload.mkdir()
@@ -693,10 +705,40 @@ class FileEngine:
                 for child in sorted(payload.iterdir()):
                     target = unique_path(directory, child.name)
                     rename_new(child, target)
-                    self.record(operation, target, target, 'copy')
+                    published.append(target)
+                complete = True
         finally:
-            shutil.rmtree(staging, ignore_errors=True)
-            self.finish(operation)
+            if complete:
+                # All children were moved out. Never recursively traverse their
+                # stale WinFsp staging aliases after publishing the real output.
+                for empty in (payload, staging):
+                    try:
+                        empty.rmdir()
+                    except OSError:
+                        pass
+            else:
+                shutil.rmtree(staging, ignore_errors=True)
+            if os.name == 'nt' and published:
+                from .windows_mounts import settle
+                for target in published:
+                    try:
+                        settle(target)
+                    except (OSError, ValueError, KeyError, TypeError):
+                        pass  # Keep completed files; a later undo still verifies its proof.
+                if complete:
+                    for empty in (payload, staging):
+                        try:
+                            empty.rmdir()
+                        except OSError:
+                            pass
+            try:
+                # Staging cleanup can invalidate rclone's moved directory nodes.
+                # Capture recovery proofs from the final, refreshed namespace,
+                # just as copy_to() cleans staging before transfer() records it.
+                for target in published:
+                    self.record(operation, target, target, 'copy')
+            finally:
+                self.finish(operation)
 
 
 def checked_members(archive):

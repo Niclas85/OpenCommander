@@ -19,13 +19,24 @@ aktivierten Windows-Symlink-Modus.
   Ergebnisse: `build/portable-devices-tests.xml`, `build/portable-native-tests.xml`.
   Der synthetische Adapter ergänzt die unten beschriebene echte Pixel-Hardwareabnahme.
 
-- Aktueller vollständiger Windows-Lauf nach den Pixel-/USB-Korrekturen:
-  **448 bestanden, 47 übersprungen**, keine Fehler (157,35 s).
-  Ergebnis: `build/pytest-usb-final.xml`;
-  Protokoll: `build/usb-ui-final-build.log`.
+- Aktueller vollständiger Windows-Lauf nach den Pixel-/USB-/SSH-/Dialog-Korrekturen:
+  **457 bestanden, 47 übersprungen**, keine Fehler (167,48 s).
+  Ergebnis: `build/pytest-sftp-ui-final.xml`;
+  Protokoll: `build/sftp-ui-final-build.log`.
   Neue Regressionen prüfen Windows-Zustandswechsel beim sicheren Auswerfen,
   den Schutz bei dauerhaft verweigertem Zugriff, das Ausblenden leerer USB-
   Laufwerksbuchstaben und die Unterscheidung von WPD-MTP und USB-Massenspeicher.
+  Zusätzlich verständliche SSH-Fehler mit Server/Port und Fehlerphase, ohne rohe
+  Transportantworten; eine fehlgeschlagene Hostschlüssel-Vorprüfung behält das
+  maskierte Passwort, ohne es bereits im Schlüsselbund zu speichern.
+  Erfolgreiche gespeicherte Verbindungen schließen beide Einrichtungsdialoge;
+  bei Verbindungsfehlern bleiben sie sichtbar. Der authentifizierte Loopback-
+  Cache-Refresh wird mit echtem HTTP und absichtlich ungültigem Proxy geprüft;
+  fehlgeschlagener Refresh erhält die Dateien ohne erfundenen Undo-Nachweis.
+  Gezielte SSH-/Server-Tests: **11 bestanden, 1 übersprungen**.
+  Der Pakettest vergleicht den tatsächlich eingefrorenen SSH-Helfer mit dem
+  öffentlichen Schlüssel eines echten Loopback-SFTP-Servers und prüft danach
+  die konkrete Verbindungsablehnung ohne begonnene Passwortanmeldung.
   Gezielte Geräte-/Datei-/Wiederaufnahmeprüfung: **94 bestanden, 16 übersprungen**;
   fünf zusätzliche Pause/Fortsetzen-Wiederholungen am echten Pixel bestanden.
   Nach der Trennung der GUI-/Helfer-Abhängigkeiten zusätzlich **77 native Tests**
@@ -72,7 +83,7 @@ aktivierten Windows-Symlink-Modus.
 - Paket-Smoke-Test: tatsächliche `OpenCommander.exe`, mitgelieferter Helfer,
   Unicode-Pfade, bytegenaue Downloads und rclone-EXE erfolgreich.
   Ergebnis: `build/package-smoke.json`; Protokoll des abschließenden Builds:
-  `build/usb-ui-final-build.log`.
+  `build/ssh-identity-corrected-build.log`.
 - Die Windows-Tests umfassen Explorer-Zwischenablageformat, überschreibungsfreie
   Umbenennung, gefährliche Archivnamen/NTFS-Datenströme, Binärdateien,
   Dateieigenschaften, verborgene Dateien, private NTFS-ACLs,
@@ -204,7 +215,7 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   wurde separat über die tatsächliche Oberfläche ausgelöst.
   Ergebnisse: `build/usb-hardware-results.json`, `build/usb-installed-eject-results.json`,
   `build/usb-installed-ui-results.json` und `build/usb-installed-eject.png`.
-  Die abschließend installierte EXE und das geprüfte Paket sind bytegleich:
+  Die zur USB-Abnahme installierte EXE und das damalige Paket waren bytegleich:
   SHA-256 `e895f5a5496f792b42ec439083122c85a5b9510c777a6cbcb2417d8a279cb1f5`.
   Alle fünf gespeicherten Verbindungen sind erhalten; die Verbindungsdatei
   blieb bytegleich, alle vier Cloud-Orte sind sichtbar und die App erreicht „Bereit“.
@@ -254,6 +265,46 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   Leserechte geprüft. Ein eigener Test mit einer ausschließlich synthetischen
   Schlüsseldatei bestätigt die Ablehnung öffentlich lesbarer Schlüssel und
   eines Schlüssels, auf den eine fremde Anmeldesitzung Leserechte erhält.
+- Externer SSH-Server: Der bisherige Fehler „Keine SSH-Schlüssel empfangen“
+  entstand vor jeder Passwortanmeldung in Windows' `ssh-keyscan`: angebotener,
+  aber nicht ausführbarer KEX-Algorithmus `sntrup761x25519-sha512@openssh.com`.
+  Bekannter Upstream-Fehler:
+  [Win32-OpenSSH #2140](https://github.com/PowerShell/Win32-OpenSSH/issues/2140).
+  Windows verwendet nun den mitgelieferten Paramiko-Transport im getrennten
+  Helfer ausschließlich zum Lesen öffentlicher Hostschlüssel. Keine Anmeldung,
+  Fernbefehle oder automatische Vertrauensfreigabe bei diesem Schritt;
+  bekannte/geänderte Schlüssel werden unverändert geprüft. Der installierte
+  Helfer empfängt Ed25519, ECDSA und RSA vom realen Server. Ed25519 stimmt mit
+  dem bereits von WinSCP gespeicherten öffentlichen Hostschlüssel überein;
+  WinSCP-Passwörter wurden nicht ausgelesen. Ergebnis:
+  `build/winscp-hostkey-comparison.json`. Fehlermeldungen unterscheiden Timeout,
+  abgelehnte Verbindung, DNS-/Netzwerkfehler und fehlgeschlagene SSH-Aushandlung;
+  sie weisen ausdrücklich darauf hin, dass die Passwortanmeldung noch nicht begann.
+  Der Benutzer hat den übereinstimmenden Hostschlüssel selbst bestätigt und die
+  Passwortanmeldung im Windows-Anmeldeinformationsspeicher gespeichert.
+  Der opt-in-Test `tests/sftp_live_validation.py` verwendet ausschließlich dieses
+  gespeicherte Profil und eigene markierte Testdaten. Er prüft eine unabhängige
+  Anmeldung ohne GUI-Passwortcache, Unicode-Upload/Download mit SHA-256,
+  eingefrorenen Helfer, Umbenennen/Entfernen und persistentes Rückgängig,
+  Konflikte samt Wiederherstellung, Pause/Fortsetzen, Verschieben und Rücknahme,
+  verschachtelte Verzeichnisse, Suche, Vergleich, ZIP-Erstellung/Entpacken und
+  Rücknahme sowie die vollständige Bereinigung einschließlich langer Undo-Pfade.
+  Nach dem Veröffentlichen verschobener Ordner wird der Verzeichniscache des
+  eigenen WinFsp/rclone-Mounts authentifiziert über Loopback aktualisiert;
+  Entpacken erfasst den Rückgängig-Nachweis erst nach der Staging-Bereinigung.
+  Externe Mounts ohne eigenen Kontrollzugang bleiben unberührt. Die strenge
+  Inhaltsprüfung vor Rückgängig bleibt bestehen.
+  Alle acht Prüfpunkte anschließend gegen die endgültig installierte Version
+  bestanden; eigene Server-Testdaten vollständig entfernt. Ergebnisse:
+  `build/sftp-external-results.json`, `build/sftp-external-final.log`.
+  Die Korrektur ist installiert, sechs gespeicherte Verbindungen unverändert:
+  SHA-256 `e7cb4d5fd8bb2048aefd43257eafecf7901e65ba93e717df74251413eeea672d`.
+- Ortsleiste nach Installation praktisch geprüft: Der lokale OneDrive-Ordner
+  zeigt das Anbietersymbol; zusätzliche Cloud-Mounts tragen lesbare Namen mit
+  eindeutiger Kurzkennung statt technischer `oc_…`-Bezeichnungen. Vorhandene
+  Verbindungen bleiben erhalten. Bei geöffnetem Verbindungsdialog öffnet der
+  gespeicherte SFTP-Ort die Server-Dateiansicht ohne erneute Kennworteingabe;
+  der Verbindungsdialog verschwindet und die Anwendung erreicht „Bereit“.
 - Lokale Verknüpfungen auf Cloud-Verzeichnisse werden vor der Provider-Erkennung
   normalisiert. Windows-Regressionstests prüfen beide nativen Pfadpräfixe ohne
   vorausgesetztes Symlink-Recht und verbieten das Abfragen von Provider-Links.
@@ -363,7 +414,7 @@ Profil und erfolgreichem Dateizugriff als vollständig geprüft.
 | Bereich | Offener Nachweis |
 | --- | --- |
 | Cloud | Google-Drive-Scope-Genehmigung und gegebenenfalls CASA-Schritte nach Google-Rückmeldung; Antrag eingereicht. Branding, Hosting und HTTPS unter opencommander.top sind bestätigt; weitere anbieterspezifische Kontenrichtlinien |
-| Server | Externe Server mit abweichenden Richtlinien und persönliche Agenten-/Hardware-Schlüsselkonfigurationen. Der bereitgestellte VPS war vor Anmeldung nicht erreichbar (SSH-Timeout, VNC-Verbindung verweigert). Nach ausdrücklich freigegebenem einmaligem Contabo-Neustart antworten SSH/22 und VNC; PowerShell-TCP-Test und SSH-Schlüsselaushandlung bestanden, Server bietet Passwort und Public Key an. Der strenge OpenSSH-Aufruf stoppt am nicht bestätigten Hostschlüssel. Keine Firewall-/Kennwort-/Known-Hosts-Änderung. Ursprüngliche Ausfallursache und authentifizierter SFTP-Dateitest bleiben offen. Pageant mit synthetischem Schlüssel, eigene FTP/FTPS/SFTP/WebDAV-Server und nativer WebClient sind praktisch geprüft |
+| Server | Externe Server mit abweichenden Richtlinien und persönliche Agenten-/Hardware-Schlüsselkonfigurationen. Der bereitgestellte VPS antwortet nach dem ausdrücklich freigegebenen einmaligen Contabo-Neustart wieder auf SSH/22 und VNC; die ursprüngliche Ausfallursache bleibt unbewiesen. Nach Benutzerbestätigung des mit WinSCP übereinstimmenden Hostschlüssels bestehen alle acht SFTP-Dateitests mit gespeicherter Windows-Anmeldung in der installierten App. Keine Firewall-/Kennwortänderung. Pageant mit synthetischem Schlüssel, eigene FTP/FTPS/SFTP/WebDAV-Server und nativer WebClient sind praktisch geprüft |
 | USB | SanDisk/exFAT einschließlich sicherem Auswurf in der installierten App bestanden; weitere USB-Controller und Verhalten bei abruptem Abziehen bleiben offen |
 | Medien | Weitere Hardware-/Codec-Kombinationen. WAV, MP3, AAC, FLAC, Vorbis, Opus, WMA, H.264, MPEG-4, VP9 und HEVC bestehen Wiedergabe, Pause/Fortsetzen, Zeitsuche und Neustart mit dem mitgelieferten FFmpeg-Backend |
 | Betriebssysteme | Windows 10, ARM64 und weitere Windows-11-Versionen |

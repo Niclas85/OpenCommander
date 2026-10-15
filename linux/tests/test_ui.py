@@ -1412,6 +1412,36 @@ def test_cloud_share_dialog_async_progress_result_and_cancel(window, app, monkey
     assert cancelled.url.text() == ''
 
 
+@pytest.mark.parametrize('succeeds', [True, False])
+def test_connect_dialogs_close_only_after_successful_saved_connection(window, app, monkeypatch, tmp_path, succeeds):
+    from opencommander import online_ui
+    import opencommander.ui as ui
+    root = tmp_path / 'connected'; root.mkdir()
+    profile = dict(id='oc_dialog_fixture', kind='sftp', name='Fixture server')
+    window.online_profiles = [profile]
+    window.connections()
+    wait(app, lambda: not window.connections_dialog.pending)
+    window.online_locations()
+    dialog = window.online_dialog
+    dialog.reload()
+    dialog.saved.setCurrentIndex(dialog.saved.findData(profile))
+    monkeypatch.setattr(ui, 'remote_location', lambda _: False)
+    def connect(*_):
+        if not succeeds:
+            raise RuntimeError('Synthetic connection failure')
+        return root
+    monkeypatch.setattr(online_ui, 'mount_profile', connect)
+    dialog.open_saved()
+    wait(app, lambda: not window.opening_online)
+    if succeeds:
+        assert window.active.directory == root
+        assert not dialog.isVisible() and not window.connections_dialog.isVisible()
+        assert not window.connections_dialog.timer.isActive()
+    else:
+        assert dialog.isVisible() and window.connections_dialog.isVisible()
+        assert 'Synthetic connection failure' in window.status.text()
+
+
 def test_saved_online_place_opens_directly_without_settings(window, app, monkeypatch):
     from opencommander import online_ui
     import opencommander.ui as ui

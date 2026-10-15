@@ -148,6 +148,11 @@ Ein erfolgreicher lokaler Build bestätigt daher noch keine vollständige Live-P
 OpenCommander: MIT. PySide6/Qt: LGPLv3/GPL bzw. die mitgelieferten Modulhinweise;
 Bibliotheken liegen austauschbar in `_internal`, Anwendungsquellen in `source`.
 pywin32: PSF-Lizenz, psutil: BSD-3-Clause, cryptography: Apache-2.0/BSD-3-Clause,
+Paramiko: LGPL-2.1, Invoke: BSD-2-Clause, PyNaCl: Apache-2.0 (Metadaten und
+Lizenzhinweise der eingebundenen Pakete unter `_internal`).
+Die verwendeten Paramiko-Quellen liegen unter `source/vendor/paramiko`;
+Upstream: https://github.com/paramiko/paramiko/tree/5.0.0 . Ein Neubau mit anderen
+Bibliotheksversionen ist über den mitgelieferten Quellcode und `requirements.txt` möglich.
 rclone: MIT (Hinweise unter `tools`). Windows stellt libarchive über die eigene
 Systembibliothek `System32\archiveint.dll` bereit; diese DLL wird nicht kopiert.
 Das Paket benötigt eine Windows-Version mit dieser Bibliothek. Weitere gemeinsame

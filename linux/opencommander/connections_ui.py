@@ -122,7 +122,7 @@ class ConnectionsDialog(QDialog):
             return
         if selected['mounted']:
             if selected['path']:
-                self.main.active.navigate(Path(selected['path']))
+                self.main.connection_opened(Path(selected['path']))
             else:
                 self.status.setText(self.t('Lokaler GVFS-Pfad fehlt. Bitte gvfs-fuse installieren und erneut anmelden.',
                                           'No local GVFS path. Install gvfs-fuse and sign in again.'))

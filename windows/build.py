@@ -67,6 +67,7 @@ def main():
         '--copy-metadata', 'shiboken6', '--copy-metadata', 'libarchive-c',
         '--copy-metadata', 'pywin32', '--copy-metadata', 'psutil', '--copy-metadata', 'cryptography',
         '--copy-metadata', 'bcrypt', '--copy-metadata', 'cffi', '--copy-metadata', 'pycparser',
+        '--copy-metadata', 'paramiko', '--copy-metadata', 'invoke', '--copy-metadata', 'PyNaCl',
         '--hidden-import', 'opencommander.windows_bridge', '--hidden-import', 'opencommander.media_fetch',
         '--hidden-import', 'opencommander.device_bridge',
         *oauth, ROOT / 'launcher.py', env=env)
@@ -94,6 +95,9 @@ def main():
     shutil.copytree(REPO / 'release/linux', bundle / 'docs/public-release', dirs_exist_ok=True)
     shutil.copytree(SOURCE / 'opencommander', bundle / 'source/linux/opencommander', dirs_exist_ok=True,
                     ignore=shutil.ignore_patterns('__pycache__', '*-oauth.json'))
+    import paramiko
+    shutil.copytree(Path(paramiko.__file__).parent, bundle / 'source/vendor/paramiko', dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns('__pycache__'))
     (bundle / 'source/windows').mkdir(parents=True, exist_ok=True)
     shutil.copy2(SOURCE / 'requirements.txt', bundle / 'source/linux/requirements.txt')
     for name in ('launcher.py', 'helper.py', 'requirements.txt', 'requirements-dev.txt', 'build.py', 'build.ps1', 'app.manifest'):
