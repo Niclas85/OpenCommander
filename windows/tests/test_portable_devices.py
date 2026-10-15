@@ -126,6 +126,38 @@ def test_frozen_device_helper_uses_the_shipped_rclone_without_download(tmp_path,
     assert rclone_runtime.binary() == str(backend)
 
 
+@pytest.mark.parametrize('filename, writable', [('folder', True), ('', True), ('folder', False)])
+def test_native_folder_rename_uses_filename_and_respects_device_denial(filename, writable):
+    # Pixel's NAME is read-only; ORIGINAL_FILE_NAME renames folders as well as
+    # files. Exercise the real COM Values ABI and per-property HRESULT result.
+    name = 'folder'
+    expected = wpd.KEYS['filename'] if filename else wpd.KEYS['name']
+    class Properties:
+        @contextmanager
+        def output(self, index, types, args, cls):
+            nonlocal name
+            assert index == 6 and args[0] == 'folder-id'
+            request = wpd.Values(args[1])  # Borrowed: do not release the caller's pointer.
+            assert request.string(expected) == 'renamed'
+            with wpd.Values.new() as result:
+                result.call(19, (ctypes.POINTER(wpd.Key), wpd.I32),
+                            (ctypes.byref(expected), 0 if writable else -2147024891))
+                if writable:
+                    name = 'renamed'
+                yield result
+    device = wpd.Device('synthetic')
+    device.properties = Properties()
+    device.info = lambda identifier: dict(name=name, directory=True, filename=filename)
+    with wpd.apartment():
+        if writable:
+            device.rename('folder-id', 'renamed')
+            assert name == 'renamed'
+        else:
+            with pytest.raises(PermissionError):
+                device.rename('folder-id', 'renamed')
+            assert name == 'folder'
+
+
 @pytest.mark.parametrize('name', ['CON', 'NUL.txt', 'a:b', 'a/b', 'a\\b', 'a.', 'a ', 'x%2Fy', 'Grüße 日本語'])
 def test_device_names_are_visible_and_legal_on_windows(name):
     from opencommander.platform_support import validate_component
@@ -260,6 +292,18 @@ def test_winfsp_device_mount_uses_shared_file_engine_and_persistent_undo(device_
         assert not uploaded.exists()
         restored.undo()
         assert uploaded.read_bytes() == payload
+        # Cache-off WinFsp accepts an initial seek(0) but cannot rewrite ZIP
+        # headers. Generate data descriptors and verify real archive extraction.
+        import zipfile
+        archive = storage / 'device.zip'
+        restored.make_zip([uploaded], archive)
+        with zipfile.ZipFile(archive) as zipped:
+            assert zipped.testzip() is None
+            assert zipped.read(uploaded.name) == payload
+        extracted = storage / 'extracted'
+        extracted.mkdir()
+        restored.extract_zip(archive, extracted)
+        assert (extracted / uploaded.name).read_bytes() == payload
         from opencommander.operations import Cancelled
         paused_source = tmp_path / 'paused.bin'
         paused_source.write_bytes(payload * 2)

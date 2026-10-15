@@ -17,10 +17,14 @@ aktivierten Windows-Symlink-Modus.
   stoppen Rückgängig weiterhin. Ein schreibgeschützter Geräteadapter verweigert
   Kopieren und Verschieben mit Fehler; die lokale Quelle bleibt bytegleich.
   Ergebnisse: `build/portable-devices-tests.xml`, `build/portable-native-tests.xml`.
-  Dies ist kein praktischer Nachweis an echter MTP-Hardware.
+  Der synthetische Adapter ergänzt die unten beschriebene echte Pixel-Hardwareabnahme.
 
-- Aktueller vollständiger Windows-Lauf: **435 bestanden, 47 übersprungen**, keine Fehler.
-  Ergebnis: `build/pytest-portable-final.xml`; Protokoll: `build/portable-final-suite.log`.
+- Aktueller vollständiger Windows-Lauf nach den Pixel-Korrekturen:
+  **440 bestanden, 47 übersprungen**, keine Fehler (159,18 s).
+  Ergebnis: `build/pytest-mtp-hardware-final.xml`;
+  Protokoll: `build/mtp-hardware-corrected-build.log`.
+  Gezielte Geräte-/Datei-/Wiederaufnahmeprüfung: **94 bestanden, 16 übersprungen**;
+  fünf zusätzliche Pause/Fortsetzen-Wiederholungen am echten Pixel bestanden.
   Nach der Trennung der GUI-/Helfer-Abhängigkeiten zusätzlich **77 native Tests**
   bestanden; nach der Geräte-Wiederaufnahme und vereinheitlichten Provider-
   Nachweisprüfung **89 bestanden, 16 übersprungen** im gezielten Lauf.
@@ -65,7 +69,7 @@ aktivierten Windows-Symlink-Modus.
 - Paket-Smoke-Test: tatsächliche `OpenCommander.exe`, mitgelieferter Helfer,
   Unicode-Pfade, bytegenaue Downloads und rclone-EXE erfolgreich.
   Ergebnis: `build/package-smoke.json`; Protokoll des abschließenden Builds:
-  `build/portable-devices-final-build.log`.
+  `build/mtp-hardware-corrected-build.log`.
 - Die Windows-Tests umfassen Explorer-Zwischenablageformat, überschreibungsfreie
   Umbenennung, gefährliche Archivnamen/NTFS-Datenströme, Binärdateien,
   Dateieigenschaften, verborgene Dateien, private NTFS-ACLs,
@@ -83,6 +87,33 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
 
 ## Praktisch auf diesem Computer geprüft
 
+- **Pixel 8 Pro, echter WPD/MTP-Speicher:** eigener, eindeutig markierter
+  Testordner; keine persönlichen Dateien geöffnet oder verändert. Unicode-Datei
+  mit 256 KiB hochgeladen, vollständig zurückgelesen und SHA-256 verglichen;
+  Download, Umbenennen, wiederherstellbares Entfernen und persistentes Rückgängig
+  geprüft. 2-MiB-Auftrag nach 1 MiB pausiert und mit neuem FileEngine fortgesetzt;
+  Verschieben bereinigt die lokale Quelle erst nach geprüftem Upload und lässt
+  sich rückgängig machen. Logisches Trennen/erneutes Einbinden erhält den
+  Rückgängig-Nachweis. Verschachtelte Ordnerkopie, Suche, Inhaltsvergleich sowie
+  direkt auf dem Handy erstelltes und entpacktes ZIP bestanden.
+  Dabei drei reale Fehler korrigiert: Androids schreibgeschützter Ordneranzeigename
+  wird über die vorhandene Dateinamen-Eigenschaft umbenannt; Zwischenstände werden
+  vor der Prüfung des Lesehandles auf tatsächliche Gerätemetadaten aktualisiert;
+  ZIP-Dateien verwenden eine fortlaufende Ausgabe ohne Rückwärtssprünge.
+  Gerätezugriffsfehler und nachträglich geänderte Zwischenstände bleiben gesperrt.
+  Alle elf Prüfpunkte mit dem installierten, eingefrorenen Gerätehelfer bestanden;
+  dessen tatsächlicher Prozesspfad wurde vor dem Schreibtest geprüft.
+  Geräteknopf, Speicheransicht, Testordner und UTF-8-Textvorschau zusätzlich per
+  Computersteuerung in der installierten EXE geprüft. Die erzeugten Dateien und
+  Testordner wurden nach Eigentumsprüfung vollständig entfernt. USB-Debugging
+  blieb eingeschaltet, ein physischer USB-Auswurf wurde nicht ausgelöst.
+  Wiederholbarer, ausdrücklich freizugebender Hardwaretest:
+  `tests/mtp_live_validation.py --allow-device-writes` (Windows-venv-Python).
+  Ergebnisse: `build/mtp-hardware-results.json`,
+  `build/mtp-hardware-installed-final.log`, `build/mtp-installed-ui-results.json`,
+  `build/mtp-installed-text-preview.png` und `build/mtp-partial-corrected.log`.
+  Erste fehlgeschlagene Versuche bleiben in den getrennten Diagnoseprotokollen erhalten.
+
 - Installation für den aktuellen Benutzer mit Startmenü-Verknüpfung und
   Explorer-Kontextmenü; WinFsp 2.1.25156 installiert.
 - Letzte Anmeldekorrektur installiert und SHA-256 der installierten EXE mit dem
@@ -93,9 +124,9 @@ Einträge ausgerichtet, statt lediglich auf eine unveränderte Zeilenzahl.
   SHA-256 der damaligen EXE
   SHA-256 `f2348e5b3ad226ad90f6515b12d9bc279ed671eceb28dd62a89a0becd9694ae5`.
   Die vorherige Installation bleibt als Sicherung erhalten.
-- WPD-/Medien-Update installiert, ursprüngliche Programmversion gesichert.
+- Pixel-/WPD-Korrekturen installiert, vorherige Programmversion gesichert.
   Die installierte EXE und das geprüfte Paket sind bytegleich:
-  SHA-256 `7d7488332715ea35d0ad95dd97e5768b7ee7f078f58211e57f5c992b35ef8a49`.
+  SHA-256 `9ca9e4376c973d87add4c51b595e960cfef3307eb91f14bb052defecb3d95aae`.
   Die bestehende Verbindungsdatei ist vor/nach dem Dateiaustausch bytegleich;
   ursprüngliche Startparameter wiederverwendet, alle vier Cloud-Orte sichtbar,
   App erreicht „Bereit“. Ergebnis: `build/portable-installed-results.json`.
@@ -290,7 +321,7 @@ Profil und erfolgreichem Dateizugriff als vollständig geprüft.
 | USB | Sicheres Auswerfen wurde auf Benutzerwunsch nicht getestet |
 | Medien | Weitere Hardware-/Codec-Kombinationen. WAV, MP3, AAC, FLAC, Vorbis, Opus, WMA, H.264, MPEG-4, VP9 und HEVC bestehen Wiedergabe, Pause/Fortsetzen, Zeitsuche und Neustart mit dem mitgelieferten FFmpeg-Backend |
 | Betriebssysteme | Windows 10, ARM64 und weitere Windows-11-Versionen |
-| Geräte | Native WPD/MTP-Anbindung implementiert und mit isoliertem Geräteadapter geprüft; echte Handy-/Kamera-Hardwareabnahme offen, da kein Gerät verfügbar war. D: ist derzeit ebenfalls nicht verbunden |
+| Geräte | Pixel 8 Pro per MTP praktisch geprüft; weitere Handy-/Kameramodelle, gerätespezifische Rechte und Verhalten bei physischer USB-Unterbrechung bleiben offen. USB-Debugging blieb eingeschaltet; Appium-Sitzungen wurden nicht geprüft. D: wurde nicht ausgeworfen |
 
 Der vollständige Funktionsvergleich steht in [PARITY.md](PARITY.md).
 Die gemeinsame Implementierung übernimmt den Linux-Funktionskern. Vollständige

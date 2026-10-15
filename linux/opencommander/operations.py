@@ -36,6 +36,23 @@ class CleanupError(SafetyError):
     """The destination is complete and must not be rolled back."""
 
 
+class SequentialZipOutput:
+    """Write ZIP data descriptors without probing a provider's seek support.
+
+    Cache-off device mounts accept seek(0) on a new file, then reject backward
+    seeks after a write. ZipFile's initial probe would wrongly mark them seekable.
+    Omitting tell/seek explicitly selects its supported streaming ZIP format.
+    """
+    def __init__(self, stream):
+        self.stream = stream
+
+    def write(self, data):
+        return self.stream.write(data)
+
+    def flush(self):
+        self.stream.flush()
+
+
 def exists(path: Path) -> bool:
     return os.path.lexists(path)
 
@@ -612,7 +629,8 @@ class FileEngine:
         staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=native_path(target.parent)))
         try:
             payload = staging / 'payload'
-            with zipfile.ZipFile(payload, 'x', zipfile.ZIP_DEFLATED) as archive:
+            with payload.open('xb') as output, zipfile.ZipFile(
+                    SequentialZipOutput(output), 'w', zipfile.ZIP_DEFLATED) as archive:
                 def add(path, name):
                     self.check_cancel()
                     if is_link(path):

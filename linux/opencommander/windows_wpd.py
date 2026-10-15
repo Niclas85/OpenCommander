@@ -267,9 +267,10 @@ class Device:
         with self.properties.output(5, (C.c_wchar_p, PTR), (identifier, None), Values) as values:
             kind = values.guid(KEYS['type'])
             storage = kind == FUNCTIONAL and values.optional('guid', FUNCTION, '') == STORAGE
-            name = values.optional('string', KEYS['filename'], '') or values.string(KEYS['name'])
+            filename = values.optional('string', KEYS['filename'], '')
+            name = filename or values.string(KEYS['name'])
             return dict(id=identifier, name=name, parent=values.string(KEYS['parent']), directory=kind == FOLDER or storage,
-                        storage=storage, size=0 if kind in (FOLDER, FUNCTIONAL) else values.number(KEYS['size']),
+                        filename=filename, storage=storage, size=0 if kind in (FOLDER, FUNCTIONAL) else values.number(KEYS['size']),
                         modified=values.modified())
 
     def children(self, parent):
@@ -366,7 +367,10 @@ class Device:
     def rename(self, identifier, name):
         info = self.info(identifier)
         with Values.new() as values:
-            key = KEYS['name'] if info['directory'] else KEYS['filename']
+            # Android exposes a read-only display NAME even for filesystem
+            # folders. Rename the actual filename whenever the device supplies
+            # one; name-only logical folders keep using their display property.
+            key = KEYS['filename'] if info['filename'] or not info['directory'] else KEYS['name']
             values.set_string(key, name)
             with self.properties.output(6, (C.c_wchar_p, PTR), (identifier, values.pointer), Values) as results:
                 error = I32()

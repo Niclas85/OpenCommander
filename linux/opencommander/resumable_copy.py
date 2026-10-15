@@ -124,6 +124,14 @@ def copy_file(engine, source, target):
             offset = 0
             with os.fdopen(open_regular(source, os.O_RDONLY), 'rb') as inp:
                 if exists(target):
+                    from .provider_mounts import portable
+                    if portable(target):
+                        # A paused upload can still have rclone's synthetic
+                        # timestamp cached. Refresh before opening the read-only
+                        # verification handle so both metadata checks describe
+                        # the device object, not two different cache generations.
+                        from .windows_devices import settle
+                        settle(target)
                     with os.fdopen(open_regular(target, os.O_RDONLY), 'rb') as previous:
                         partial_info = os.fstat(previous.fileno())
                         while True:

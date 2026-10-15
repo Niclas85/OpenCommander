@@ -65,7 +65,7 @@ die öffentliche Google-Verifizierung steht weiterhin aus.
 | Externe rclone-Mounts / lokale Sync-Ordner | Windows-Laufwerke/Verzeichnisse statt Linux-Mountinfo | Gemeinsame Werkzeuge; Linux `/proc`-Erkennung wird nicht nachgebildet |
 | Lokale Laufwerke, USB-Speicher und Netzlaufwerke | Laufwerksbuchstaben und UNC statt `/media` und GVFS | NTFS, exFAT und SMB live geprüft |
 | Sicheres Trennen / Auswerfen | Windows-Shell-/Geräte-API statt GIO | Umsetzung vorhanden; physischer SanDisk-Auswurf auf ausdrücklichen Benutzerwunsch nicht getestet |
-| MTP-Kamera/Telefon über GVFS | Nativer Windows-WPD-Adapter mit authentifizierter lokaler Dateibrücke und WinFsp-Mount | Geräteerkennung, COM-Werte und sichere Aliase geprüft. Reale rclone-/WinFsp-Dateiaktionen, Pause/Fortsetzen, Verschieben mit Quellbereinigung, Wiederanbindung und persistentes Rückgängig gegen einen synthetischen Geräteadapter geprüft. Ein echtes Handy/Kamera war nicht verfügbar; Hardwareabnahme und gerätespezifische Fähigkeiten bleiben offen |
+| MTP-Kamera/Telefon über GVFS | Nativer Windows-WPD-Adapter mit authentifizierter lokaler Dateibrücke und WinFsp-Mount | Pixel 8 Pro praktisch geprüft: Unicode-Datei-Roundtrip, Ordnerkopie, Suche/Inhaltsvergleich, ZIP erstellen/entpacken, Pause/Fortsetzen, Verschieben mit Quellbereinigung und persistentes Rückgängig nach erneuter Einbindung. Read-only-Ordneranzeigename, vorläufige VFS-Zeitstempel und ZIP-Rückwärtssprünge korrigiert. Weitere Handys, Kameras und gerätespezifische Fähigkeiten bleiben offen |
 
 ## Systemunterschiede und Sicherheit
 
@@ -97,7 +97,8 @@ und baut GUI, Helfer und ZIP erfolgreich:
 Commit `31167f2`. Zwei GUI-Wiederaufnahme-Zeitüberschreitungen im vorherigen
 Windows-CI-Lauf traten in diesem Lauf ohne Teständerung nicht mehr auf.
 Der vollständige lokale Windows-Lauf einschließlich der neuen Geräteanbindung besteht
-**435 Tests mit 47 begründeten Ausnahmen**. Der neue Quellstand `3168d00` besteht
+**440 Tests mit 47 begründeten Ausnahmen** nach der echten Pixel-Hardwareabnahme.
+Der vorherige Quellstand `3168d00` besteht
 zusätzlich **407 Linux-Tests**, Linux-Paket und Desktop-Smoke in
 [CI-Lauf 38661156491](https://github.com/Niclas85/OpenCommander/actions/runs/38661156491).
 Im selben Lauf besteht Windows **442 Tests mit 40 begründeten Ausnahmen** sowie

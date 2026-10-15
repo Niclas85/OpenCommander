@@ -542,6 +542,55 @@ def test_rclone_resume_restarts_only_verified_partial_file(fixture, monkeypatch)
     assert any('Partial file restarted' in value for value in operation['warnings'])
 
 
+@pytest.mark.parametrize('external_change', [False, True])
+def test_portable_resume_refreshes_metadata_before_verifying_partial(fixture, monkeypatch, external_change):
+    from opencommander import provider_mounts, windows_devices, resumable_copy
+    engine, source, target = fixture
+    item = source / 'paused.bin'
+    item.write_bytes(b'p' * 2 * 1024**2)
+    job = engine.transfers.create([item], target, 'keep')
+    pause_after_block(engine, item.name)
+    with pytest.raises(Cancelled):
+        run(engine, job)
+    saved = engine.transfers.get(job['id'])
+    partial = Path(saved['roots'][0]['staging']) / 'payload'
+    prefix = partial.read_bytes()
+    refreshed, descriptors = [], set()
+    def refresh(path):
+        if Path(path) != partial:
+            return  # The completed publication also refreshes its recovery proof.
+        info = partial.stat()
+        os.utime(partial, ns=(info.st_atime_ns, info.st_mtime_ns + 5_000_000_000))
+        refreshed.append(path)
+    monkeypatch.setattr(provider_mounts, 'portable', lambda path: target)
+    monkeypatch.setattr(provider_mounts, 'rclone_mount', lambda path: (target, 'device'))
+    monkeypatch.setattr(windows_devices, 'settle', refresh)
+    original_open, original_fstat = resumable_copy.open_regular, os.fstat
+    def opening(path, flags):
+        fd = original_open(path, flags)
+        if Path(path) == partial and flags == os.O_RDONLY:
+            assert refreshed, 'Refresh the device cache before opening the verification handle'
+            descriptors.add(fd)
+        return fd
+    def fstat(fd):
+        info = original_fstat(fd)
+        if fd in descriptors:
+            descriptors.remove(fd)
+            if external_change:
+                os.utime(partial, ns=(info.st_atime_ns, info.st_mtime_ns + 1_000_000_000))
+        return info
+    monkeypatch.setattr(resumable_copy, 'open_regular', opening)
+    monkeypatch.setattr(os, 'fstat', fstat)
+    if external_change:
+        with pytest.raises(SafetyError, match='Partial copy changed'):
+            run(FileEngine(engine.state_dir), saved)
+        assert partial.read_bytes() == prefix
+        assert not (target / item.name).exists()
+    else:
+        run(FileEngine(engine.state_dir), saved)
+        assert (target / item.name).read_bytes() == item.read_bytes()
+
+
 def test_error_resume_preserves_completed_progress_and_never_rewrites_finished_files(fixture, monkeypatch):
     import errno
     engine, source, target = fixture
