@@ -16,7 +16,7 @@ def main():
         raise SystemExit('Use a separate output directory.')
     output.mkdir(parents=True, exist_ok=True)
     for name in ('index.html', 'style.css', 'site.js', 'privacy.html', 'impressum.html',
-                 '404.html', 'robots.txt', 'sitemap.xml', 'handbook-bridge.js'):
+                 '404.html', 'robots.txt', 'sitemap.xml', 'handbook-bridge.js', 'platform.mjs'):
         shutil.copy2(SOURCE / name, output / name)
     for name in ('assets', 'docs'):
         shutil.copytree(SOURCE / name, output / name, dirs_exist_ok=True)

@@ -1,4 +1,5 @@
 'use strict';
+import { detectPlatform } from './platform.mjs';
 (() => {
   const menu = document.querySelector('.menu-toggle');
   const nav = document.querySelector('#navigation');
@@ -7,14 +8,19 @@
   nav?.addEventListener('click', event => { if (event.target.closest('a')) closeMenu(); });
   addEventListener('keydown', event => { if (event.key === 'Escape' && nav?.classList.contains('open')) { closeMenu(); menu.focus(); } });
   const tabs = [...document.querySelectorAll('[data-platform]')];
-  function selectPlatform(id, focus = false) {
+  function selectPlatform(id, reason = 'manual') {
     if (!tabs.some(tab => tab.dataset.platform === id)) return;
     for (const tab of tabs) {
       const selected = tab.dataset.platform === id;
       tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1;
       document.getElementById(tab.dataset.platform).hidden = !selected;
-      if (focus && selected) tab.focus();
     }
+    const notice = document.querySelector('#platform-choice');
+    const label = tabs.find(tab => tab.dataset.platform === id).textContent.trim();
+    if (notice) notice.textContent = reason === 'detected'
+      ? `Für dich vorausgewählt: ${label}. Du kannst jederzeit wechseln.`
+      : reason === 'fallback' ? 'Wähle dein System. Du kannst jederzeit zwischen den Plattformen wechseln.'
+      : `Ausgewählt: ${label}. Du kannst jederzeit wechseln.`;
   }
   for (const tab of tabs) tab.addEventListener('click', () => selectPlatform(tab.dataset.platform));
   function tabKeys(event, group, select) {
@@ -29,7 +35,13 @@
   for (const tab of tabs) tab.addEventListener('keydown', event => tabKeys(event, tabs, item => selectPlatform(item.dataset.platform)));
   for (const link of document.querySelectorAll('[data-platform-link]')) link.addEventListener('click', () => selectPlatform(link.dataset.platformLink));
   const fromHash = () => selectPlatform(location.hash.slice(1));
-  if (tabs.length) { selectPlatform('windows'); fromHash(); addEventListener('hashchange', fromHash); }
+  if (tabs.length) {
+    const detected = detectPlatform(navigator);
+    selectPlatform(detected || 'windows', detected ? 'detected' : 'fallback');
+    // An explicit platform link takes precedence over automatic detection.
+    fromHash();
+    addEventListener('hashchange', fromHash);
+  }
   const previews = {
     overview: {src:'/assets/desktop-light.png', alt:'OpenCommander im hellen Design mit zwei Dateibereichen.', caption:'Hell oder dunkel: dein Arbeitsplatz, deine Darstellung. Abbildung: Linux.'},
     transfer: {src:'/assets/transfers.png', alt:'Die Übertragungsansicht mit Fortschritt und Steuerelementen für Datei-Aufträge.', caption:'Fortschritt, Pause und Fortsetzen bleiben sichtbar. Abbildung: Linux.'},

@@ -1,5 +1,15 @@
 # Website verification — 15 October 2026
 
+## Cloud presentation and automatic platform selection
+
+- Added a prominent four-provider section and hero copy for OneDrive, Google Drive, Dropbox and iCloud, with accurate Windows/Linux scope and the existing Google verification notice.
+- Checked 18 browser-input cases: Windows (including touch PCs), macOS, Linux, Android phones/tablets, iPhone, iPad mobile/desktop, reduced hints and unknown/unsupported systems.
+- In the Windows browser, Windows is preselected. Manual Linux selection survives ordinary section navigation; an explicit `#ios` link overrides detection.
+- Checked the provider section at desktop and 390-pixel mobile viewport sizes; all four icons load and mobile layout has no horizontal overflow.
+- Detection uses browser-local hints without persistence or network requests; module loading also checked on the documentation and policy pages.
+
+## Initial website publication
+
 Published as version 3 of the existing public Sites project, with the existing domain and audience preserved.
 
 - Public domain: https://opencommander.top

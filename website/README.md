@@ -22,6 +22,7 @@ The build copies the original `linux/docs/handbuch` and adds a link to the platf
 - `privacy.html` and `impressum.html`: existing public policy and publisher details.
 - `assets/`: actual desktop screenshots, project icon and GitHub banner.
 - `site.js`: accessible platform/screenshot tabs and mobile navigation.
+- `platform.mjs`: browser-local platform detection. Client Hints have a user-agent fallback; touch-enabled iPad desktop browsers are handled before macOS. Explicit platform links and manual selection take precedence. No detection data is stored or sent to a server.
 
 Keep platform availability accurate: Android and iOS have store listings; macOS has an Apple Silicon preview; Windows and Linux currently link to documentation and source. Do not add download buttons until corresponding public release artifacts exist.
 
