@@ -14,7 +14,8 @@ aktivierten Windows-Symlink-Modus.
   Rückgängig nach erneutem Laden sowie nach Mount-Neustart. Der vollständig
   gegen die Quelle geprüfte eigene Teil-Upload wird exklusiv neu angelegt;
   fremde/volle Objekte werden nicht per PUT überschrieben. Geänderte Inhalte
-  stoppen Rückgängig weiterhin.
+  stoppen Rückgängig weiterhin. Ein schreibgeschützter Geräteadapter verweigert
+  Kopieren und Verschieben mit Fehler; die lokale Quelle bleibt bytegleich.
   Ergebnisse: `build/portable-devices-tests.xml`, `build/portable-native-tests.xml`.
   Dies ist kein praktischer Nachweis an echter MTP-Hardware.
 
@@ -46,10 +47,14 @@ aktivierten Windows-Symlink-Modus.
   beim Einrichten des Android-SDK fehlgeschlagen;
   das betrifft weder den Windows- noch den Linux-Desktop-Build.
 - WPD-/Medien-Stand `3168d00`: Ubuntu-CI **407 bestanden**, Linux-Paket und
-  Desktop-Smoke erfolgreich, Apple-Job ebenfalls erfolgreich:
+  Desktop-Smoke erfolgreich. Windows-CI **442 bestanden, 40 übersprungen**;
+  Quell-/Paket-Smoke, gefrorener WPD-Helfer und ZIP erfolgreich. Apple-Job
+  ebenfalls erfolgreich:
   [CI-Lauf 38661156491](https://github.com/Niclas85/OpenCommander/actions/runs/38661156491).
-  Der Windows-Job ist beim aktuellen Dokumentationsabschluss noch aktiv;
-  lokaler vollständiger Lauf, Publisher-Paket und Installation sind bestätigt.
+  Der CI-Host führt zusätzliche privilegierte Linktests aus; der reale
+  WinFsp-Geräteadapterlauf wird dort mangels installiertem WinFsp übersprungen
+  und ist lokal bestanden. Der lokale Publisher-Build und die Installation
+  sind zusätzlich bestätigt.
   Android scheitert weiterhin unabhängig beim Einrichten des SDK.
 - Nach zusätzlicher Absicherung von Windows-Junctions: **84 bestanden,
   16 übersprungen** im Datei-/Wiederaufnahme-/Windows-Sicherheitstestlauf.

@@ -100,8 +100,11 @@ Der vollständige lokale Windows-Lauf einschließlich der neuen Geräteanbindung
 **435 Tests mit 47 begründeten Ausnahmen**. Der neue Quellstand `3168d00` besteht
 zusätzlich **407 Linux-Tests**, Linux-Paket und Desktop-Smoke in
 [CI-Lauf 38661156491](https://github.com/Niclas85/OpenCommander/actions/runs/38661156491).
-Der Windows-CI-Job ist beim Dokumentationsabschluss noch aktiv; der lokale
-Publisher-Build, die eingefrorenen Helfer und die neue Installation sind geprüft.
+Im selben Lauf besteht Windows **442 Tests mit 40 begründeten Ausnahmen** sowie
+Quell-/Paket-Smoke, eingefrorene Gerätehelfer und ZIP-Bau. Der CI-Host kann mehr
+Linktests ausführen; die tatsächliche WinFsp-Geräteintegration ist dort mangels
+WinFsp übersprungen und stattdessen lokal bestanden. Der lokale Publisher-Build
+und die neue Installation sind zusätzlich geprüft.
 Der abschließende Prüfstand und
 die installierte Version stehen in [TESTING.md](TESTING.md).
 
