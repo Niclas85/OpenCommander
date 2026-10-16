@@ -35,3 +35,11 @@ The website does not certify application feature parity or replace the platform-
 ## Windows publishing environment
 
 The official Sites helper requires Git Bash and Node on `PATH` for its packaging subprocess. With GNU tar on Windows, set `TAR_OPTIONS=--force-local` for the helper invocation so the drive letter in an absolute archive path is not treated as a remote host. These are process-local environment adjustments; credentials remain in memory and are supplied only through the helper's hidden stdin.
+# Platform and cloud pages — 16 October 2026
+
+- Added five static platform pages and one practical cloud guide, preserving the existing visual style and documented release limitations.
+- Homepage title/H1 now identify OpenCommander as a file manager. Added crawlable links from the homepage and documentation; automatic OS selection remains active.
+- Added SoftwareApplication/BreadcrumbList JSON-LD on platform pages, WebSite/CollectionPage data on the homepage, and WebPage data for the cloud guide. No fabricated ratings or desktop download offers.
+- Build succeeded. Parsed all HTML: 362 local asset/link/fragment references valid, 11 sitemap URLs, one H1 and canonical per new page; JSON-LD parses successfully.
+- Browser: desktop Windows page, mobile cloud and all five platform pages, navigation menu, homepage OS selection and Android tab link checked. At a 390px viewport, all six new pages and the homepage have no horizontal overflow. No browser JavaScript errors reported.
+- Cloud screenshots are explicitly identified as Linux handbook images. Direct cloud access is scoped to Windows/Linux; provider authentication limitations and transfer behavior are explained.
