@@ -11,6 +11,18 @@ private final class OneDriveCell: UITableViewCell {
     }
 }
 @MainActor final class OneDriveSelection {
+    private static var native: [String: OneDriveSelection] = [:]
+    static func resolve(_ item: UIDragItem) -> OneDriveSelection? {
+        if let selection = item.localObject as? OneDriveSelection { return selection }
+        return item.itemProvider.registeredTypeIdentifiers.compactMap { native[$0] }.first
+    }
+    func registerNative() -> String {
+        let token = "org.opencommander.online-drag." + UUID().uuidString.lowercased()
+        Self.native[token] = self
+        DispatchQueue.main.asyncAfter(deadline: .now() + 300) { Self.native.removeValue(forKey: token) }
+        return token
+    }
+    static func nativeSelection(_ token: String) -> OneDriveSelection? { native[token] }
     let browser: OneDriveBrowser
     let items: [OneDriveItem]
     let generation: UUID
@@ -23,6 +35,72 @@ private final class OneDriveCell: UITableViewCell {
 
 /// Embedded in a commander pane; remote items never become local FileEntry paths.
 @MainActor final class OneDriveBrowser: UIViewController, UITableViewDataSource, UITableViewDelegate, UIDocumentPickerDelegate {
+    private let nativeDragSourceID = UUID().uuidString
+    private var nativeExportCount = 0
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        configureNativeDrag()
+    }
+    private func configureNativeDrag() {
+        CommanderDragDiagnostics.event("native drag bridge available \(DesktopBridge.shared != nil)")
+        DesktopBridge.shared?.registerOnlineDragSource(nativeDragSourceID, items: { [weak self] point in
+            CommanderDragDiagnostics.event("native online hit test \(point)")
+            guard let self, self.view.window?.isKeyWindow == true, !self.busy, self.authenticated,
+                  self.presentedViewController == nil, self.commander?.operationInProgress != true else { return [] }
+            let point = CGPoint(x: point.x * self.view.window!.bounds.width, y: point.y * self.view.window!.bounds.height)
+            for list in [self.tableView, self.treeView] {
+                let local = list.convert(point, from: self.view.window)
+                guard list.bounds.contains(local), let index = list.indexPathForRow(at: local) else { continue }
+                let items: [OneDriveItem]
+                if list === self.treeView {
+                    guard self.treeRows.indices.contains(index.row), let item = self.treeRows[index.row].last else { return [] }
+                    items = [item]
+                } else {
+                    guard self.visibleItems.indices.contains(index.row) else { return [] }
+                    let item = self.visibleItems[index.row]
+                    items = self.selectedIDs.contains(item.id) ? self.selectedItems : [item]
+                }
+                CommanderDragDiagnostics.event("native online drag snapshot \(items.count)")
+                return items.map { item in
+                    let selection = OneDriveSelection(browser: self, items: [item], generation: self.generation)
+                    if list === self.treeView { selection.parentID = self.treeRows[index.row].dropLast().last?.id }
+                    return ["token": selection.registerNative(), "name": item.name,
+                            "type": (item.isFolder ? UTType.folder : (UTType(filenameExtension: (item.name as NSString).pathExtension) ?? .data)).identifier]
+                }
+            }
+            return []
+        }, write: { token, destination, completion in
+            guard let selection = OneDriveSelection.nativeSelection(token), let item = selection.items.first else {
+                completion(FileDropTransfer.error("The online drag expired. Please drag the file again.")); return
+            }
+            Task { @MainActor in
+                do {
+                    let browser = selection.browser
+                    guard selection.generation == browser.generation, let client = browser.client else { throw CloudConnection.failure("cloud_config_changed") }
+                    browser.nativeExportCount += 1
+                    browser.loadingIndicator.startAnimating()
+                    defer {
+                        browser.nativeExportCount -= 1
+                        if browser.nativeExportCount == 0 { browser.loadingIndicator.stopAnimating() }
+                    }
+                    let downloaded = try await client.downloadTree(item)
+                    defer { try? FileManager.default.removeItem(at: downloaded.deletingLastPathComponent()) }
+                    guard selection.generation == browser.generation else { throw CloudConnection.failure("cloud_config_changed") }
+                    try await Task.detached {
+                        // Finder supplies a destination for this promise; never
+                        // overwrite an unrelated existing file on our own.
+                        try FileManager.default.copyItem(at: downloaded, to: destination)
+                    }.value
+                    CommanderDragDiagnostics.event("native online promise completed")
+                    completion(nil)
+                } catch { completion(error as NSError) }
+            }
+        })
+    }
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        DesktopBridge.shared?.removeOnlineDragSource(nativeDragSourceID)
+    }
     let tableView = CommanderSelectionTableView(frame: .zero, style: .plain)
     private let treeView = UITableView(frame: .zero, style: .plain)
     private var refreshControl: UIRefreshControl?
@@ -59,7 +137,7 @@ private final class OneDriveCell: UITableViewCell {
         return locationTitle + ":/" + components.joined(separator: "/")
     }
     private func record(_ action: String, source: String, destination: String, undo: CloudUndoPayload? = nil, error: Error? = nil) {
-        let keys = ["undo", "rename", "rename_button", "move_to_trash", "delete", "zip", "extract_archive", "duplicate", "remote_recovery", "folder", "copy", "move"]
+        let keys = ["undo", "rename", "rename_button", "move_to_trash", "cloud_recovery_delete", "delete", "zip", "extract_archive", "duplicate", "remote_recovery", "folder", "copy", "move"]
         let actionKey = keys.first { L10n.get($0) == action }
         var record = CloudOperationRecord(action: action, source: source, destination: destination, actionKey: actionKey)
         record.identifier = UUID().uuidString; record.undo = undo
@@ -67,6 +145,13 @@ private final class OneDriveCell: UITableViewCell {
             record.status = error is CancellationError ? "cancelled" : "failed"; record.failure = HistoryFailure(error)
             let key = (error as NSError).localizedDescription
             if L10n.strings.values.contains(where: { $0[key] != nil }) { record.failureKey = key }
+            if case OneDriveFailure.temporarilyUnavailable(let status, _) = error {
+                record.failureKey = status == 429 ? "cloud_rate_limited" : "cloud_temporarily_unavailable"
+            } else if case OneDriveFailure.nameConflict = error {
+                record.failureKey = "history_error_exists"
+            } else if (error as NSError).domain == NSURLErrorDomain, (error as NSError).code == NSURLErrorTimedOut {
+                record.failureKey = "cloud_timeout"
+            }
         }
         commander?.operationHistory.append(.cloud(record: record))
     }
@@ -85,6 +170,169 @@ private final class OneDriveCell: UITableViewCell {
     static var clipboard: (selection: OneDriveSelection, move: Bool)?
     weak var commander: ViewController?
     private var previewURLs: [URL] = []
+    private var retainedDragBytes: Int64 = 0
+    private var openAfterExport = false
+    private var activeOperationPaths: (source: String, destination: String)?
+    private func batch(_ selected: [OneDriveItem], action: String,
+                       operation: (OneDriveItem) async throws -> Void) async throws {
+        let failures = try await OnlineBatch.run(selected, operation: { item in
+            self.activeOperationPaths = (self.onlineLocation(item.name), self.onlineLocation())
+            try await operation(item)
+        }, failed: { item, error in
+            self.record(L10n.get(action), source: self.onlineLocation(item.name),
+                destination: self.activeOperationPaths?.destination ?? self.onlineLocation(), error: error)
+        })
+        if failures > 0 {
+            let notice = text("\(failures) Eintrag/Einträge fehlgeschlagen. Die übrigen Einträge wurden bearbeitet. Details stehen in der Historie.",
+                              "\(failures) item(s) failed. The remaining items were processed. See History for details.")
+            completionNotice = [completionNotice, notice].compactMap { $0 }.joined(separator: "\n")
+        }
+        // A listing refresh failure is not a failure of the last completed item.
+        activeOperationPaths = (onlineLocation(), onlineLocation())
+    }
+    private var recoveryOffered = false
+    private func offerUploadRecovery() {
+        guard !recoveryOffered, authenticated, let client, presentedViewController == nil, view.window != nil else { return }
+        do {
+            let jobs = try PendingCloudUpload.pending().filter { $0.endpoint == client.clientID }
+            let downloads = try PendingCloudDownload.pending().filter { $0.endpoint == client.clientID }
+            let replacements = try PendingCloudReplacement.pending().filter { $0.upload.endpoint == client.clientID }
+            let moves = try PendingOnlineMove.pending().filter { $0.endpoint == client.clientID }
+            let localMoves = try PendingLocalCloudMove.pending().filter { $0.uploaded.endpoint == client.clientID }
+            let crossMoves = try PendingCrossCloudMove.pending().filter { $0.endpoint == client.clientID }
+            guard !jobs.isEmpty || !downloads.isEmpty || !replacements.isEmpty || !moves.isEmpty || !localMoves.isEmpty || !crossMoves.isEmpty else { return }
+            recoveryOffered = true
+            let count = jobs.count + downloads.count + replacements.count + moves.count + localMoves.count + crossMoves.count
+            let alert = UIAlertController(title: text("Cloud-Übertragung fortsetzen", "Resume cloud transfer"),
+                message: text("\(count) Übertragungen sind noch offen. Bestätigte Ersetzungen und Verschiebungen werden nach erneuter Prüfung fortgesetzt; Vorgängerversionen und verschobene Quellen bleiben wiederherstellbar. Andere Ziele werden nicht überschrieben.", "\(count) transfers remain. Confirmed replacements and moves resume after verification; previous versions and moved sources remain recoverable. Other destinations are not overwritten."), preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: text("Später", "Later"), style: .cancel))
+            alert.addAction(UIAlertAction(title: text("Fortsetzen", "Resume"), style: .default) { [weak self] _ in
+                guard let self else { return }
+                self.run(transfer: true, historyAction: "copy") {
+                    var failed = 0
+                    for job in crossMoves {
+                        try Task.checkCancellation()
+                        self.activeOperationPaths = (job.sourceLocation, job.destinationLocation)
+                        do {
+                            let sourceClient = try PersistentOnlineUndo.client(job.sourceEndpoint)
+                            self.observeTransfer(sourceClient)
+                            defer { self.stopObservingTransfer(sourceClient) }
+                            let undo = try await PendingCrossCloudMove.resume(job, source: sourceClient, target: client)
+                            self.record(L10n.get("move"), source: job.sourceLocation, destination: job.destinationLocation, undo: undo)
+                            try PendingCrossCloudMove.finish(job)
+                        } catch is CancellationError { throw CancellationError() }
+                        catch {
+                            failed += 1
+                            self.record(L10n.get("move"), source: job.sourceLocation, destination: job.destinationLocation, error: error)
+                        }
+                    }
+                    for job in jobs {
+                        try Task.checkCancellation()
+                        let action = L10n.get(job.moveIntent == nil ? (job.actionKey ?? "copy") : "move")
+                        self.activeOperationPaths = (job.source, job.name)
+                        do {
+                            var parent = job.parent
+                            if let id = parent { parent = try await client.restoreReference(id, path: job.parentPath).id }
+                            let destination = try await self.destinationLocation(parent, name: job.name)
+                            self.activeOperationPaths = (job.source, destination)
+                            if let intent = job.moveIntent,
+                               self.commander?.allowTransferPaths(writing: [URL(fileURLWithPath: intent.original)]) == false { throw CancellationError() }
+                            let undo: CloudUndoPayload?
+                            if job.moveIntent == nil { undo = try await PendingCloudUpload.resume(job, client: client) }
+                            else { undo = try await PendingCloudUpload.resumeMove(job, client: client) }
+                            self.record(action, source: job.source, destination: destination, undo: undo)
+                            try PendingCloudUpload.finish(job)
+                        } catch is CancellationError { throw CancellationError() }
+                        catch {
+                            failed += 1
+#if DEBUG && targetEnvironment(macCatalyst)
+                            if Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander.MacUITests", let root = AppDelegate.macUITestRoot {
+                                // Only our own message enum, never URLSession userInfo
+                                // (which may contain a preauthenticated capability URL).
+                                let diagnostic: String
+                                if case OneDriveFailure.message(let message) = error { diagnostic = message }
+                                else if case OneDriveFailure.temporarilyUnavailable(let status, let delay) = error { diagnostic = "HTTP \(status); retry-after \(delay)" }
+                                else { diagnostic = "\((error as NSError).domain):\((error as NSError).code)" }
+                                try? Data(diagnostic.utf8).write(to: root.appendingPathComponent("CloudRecoveryFailure.txt"), options: .atomic)
+                            }
+#endif
+                            self.record(action, source: job.source,
+                                destination: self.activeOperationPaths?.destination ?? job.name, error: error)
+                        }
+                    }
+                    for job in replacements {
+                        try Task.checkCancellation()
+                        self.activeOperationPaths = (job.upload.source, job.upload.name)
+                        do {
+                            let result = try await PendingCloudReplacement.resume(job, client: client)
+                            let destination = try await self.destinationLocation(result.parent, name: result.name)
+                            self.record(L10n.get("copy"), source: job.upload.source, destination: destination,
+                                undo: try PersistentOnlineUndo.replacement(client, record: result, account: job.upload.account))
+                            try PendingCloudReplacement.finish(job)
+                        } catch is CancellationError { throw CancellationError() }
+                        catch {
+                            failed += 1
+                            self.record(L10n.get("copy"), source: job.upload.source, destination: job.upload.name, error: error)
+                        }
+                    }
+                    for job in localMoves {
+                        try Task.checkCancellation()
+                        self.activeOperationPaths = (job.original, job.destinationLocation)
+                        do {
+                            let undo = try await PendingLocalCloudMove.resume(job, client: client)
+                            self.record(L10n.get("move"), source: job.original, destination: job.destinationLocation, undo: undo)
+                            try PendingLocalCloudMove.finish(job)
+                        } catch is CancellationError { throw CancellationError() }
+                        catch {
+                            failed += 1
+                            self.record(L10n.get("move"), source: job.original, destination: job.destinationLocation, error: error)
+                        }
+                    }
+                    for job in moves {
+                        try Task.checkCancellation()
+                        self.activeOperationPaths = (job.sourceLocation, job.destinationLocation)
+                        do {
+                            let undo = try await PendingOnlineMove.resume(job, client: client)
+                            self.record(L10n.get("move"), source: job.sourceLocation, destination: job.destinationLocation, undo: undo)
+                            try PendingOnlineMove.finish(job)
+                        } catch is CancellationError { throw CancellationError() }
+                        catch {
+                            failed += 1
+                            self.record(L10n.get("move"), source: job.sourceLocation, destination: job.destinationLocation, error: error)
+                        }
+                    }
+                    for job in downloads {
+                        try Task.checkCancellation()
+                        self.activeOperationPaths = (job.name, job.directory)
+                        do {
+                            guard try await client.accountIdentity() == job.account else { throw CloudConnection.failure("cloud_undo_account") }
+                            if job.move == true, PendingCloudDownload.hasMovePublication(job) {
+                                guard self.commander?.allowTransferPaths(writing: [try PendingCloudDownload.destination(job)]) != false else { throw CancellationError() }
+                                let undo = try await PendingCloudDownload.completeMove(job, client: client, sourceLocation: self.onlineLocation(job.name))
+                                self.record(L10n.get("move"), source: self.onlineLocation(job.name), destination: job.directory, undo: undo)
+                                try PendingCloudDownload.finish(job)
+                                continue
+                            }
+                            let item = try await client.restoreReference(job.itemID, path: job.itemPath)
+                            let selection = OneDriveSelection(browser: self, items: [item], generation: self.generation)
+                            selection.parentID = item.parentReference?.id
+                            try await self.exportOnlineItems(selection, to: PendingCloudDownload.destination(job), move: job.move == true)
+                        } catch is CancellationError { throw CancellationError() }
+                        catch {
+                            failed += 1
+                            self.record(L10n.get(job.move == true ? "move" : "copy"), source: job.name, destination: job.directory, error: error)
+                        }
+                    }
+                    if failed > 0 {
+                        self.completionNotice = self.text("\(failed) Übertragung(en) konnten nicht fortgesetzt werden. Details stehen in der Historie; die Zwischenstände bleiben erhalten. Aktualisieren bietet einen erneuten Versuch an.",
+                            "\(failed) transfer(s) could not resume. See History for details; checkpoints are retained. Refresh to retry.")
+                    }
+                    try await self.load()
+                }
+            })
+            present(alert, animated: true)
+        } catch { self.error(error.localizedDescription) }
+    }
     private enum ConflictChoice { case keepBoth, replace, skip, cancel }
     private struct DestinationPlan { let name: String; var replacing: OneDriveItem? = nil }
     private var conflictPrompt: (UIAlertController, CheckedContinuation<ConflictChoice, Never>)?
@@ -245,9 +493,10 @@ private final class OneDriveCell: UITableViewCell {
         alert.addAction(UIAlertAction(title: deleteTitle, style: .destructive) { [weak self] _ in
             self?.run(transfer: true, historyAction: "delete") { [weak self] in
                 guard let self, let client = self.client else { return }
-                for item in selected {
-                    try Task.checkCancellation(); try await client.recycle(item)
-                    self.record(deleteTitle, source: self.onlineLocation(item.name), destination: client.moveBackupLocation ?? (self.isOneDrive ? "OneDrive Papierkorb / Recycle bin" : L10n.get("remote_deleted")))
+                try await self.batch(selected, action: "delete") { item in
+                    try Task.checkCancellation()
+                    let undo = try await self.recycleWithUndo(client, item: item)
+                    self.record(deleteTitle, source: self.onlineLocation(item.name), destination: client.moveBackupLocation ?? (self.isOneDrive ? "OneDrive Papierkorb / Recycle bin" : L10n.get("remote_deleted")), undo: undo)
                     self.rememberRecovery(client, source: self.onlineLocation(item.name))
                 }
                 try await self.load()
@@ -268,6 +517,7 @@ private final class OneDriveCell: UITableViewCell {
             defer { try? FileManager.default.removeItem(at: staging) }
             var sources: [URL] = []
             for item in selected {
+                self.activeOperationPaths = (self.onlineLocation(item.name), self.onlineLocation())
                 let downloaded = try await client.downloadTree(item)
                 defer { try? FileManager.default.removeItem(at: downloaded.deletingLastPathComponent()) }
                 let source = staging.appendingPathComponent(item.name)
@@ -281,15 +531,17 @@ private final class OneDriveCell: UITableViewCell {
                 name = stem + " \(index).zip"; index += 1
             }
             let destination = staging.appendingPathComponent(name)
+            self.activeOperationPaths = (selected.map { self.onlineLocation($0.name) }.joined(separator: ", "), self.onlineLocation(name))
             let worker = Task.detached(priority: .userInitiated) {
                 try Self.createOnlineArchive(sources: sources, destination: destination)
             }
             try await withTaskCancellationHandler(operation: { try await worker.value }, onCancel: { worker.cancel() })
             try Task.checkCancellation()
-            let proof = try await RemoteContent.snapshotAsync(destination)
-            try await client.upload(destination, parent: parent)
-            let undo = try await PersistentOnlineUndo.uploaded(client, parent: parent, name: name, content: proof, account: account)
+            let job = try await PendingCloudUpload.prepare(destination, source: selected.map { self.onlineLocation($0.name) }.joined(separator: ", "),
+                client: client, parent: parent, account: account, actionKey: "zip")
+            let undo = try await PendingCloudUpload.resume(job, client: client)
             self.record(L10n.get("zip"), source: selected.map { self.onlineLocation($0.name) }.joined(separator: ", "), destination: self.onlineLocation(name), undo: undo)
+            try PendingCloudUpload.finish(job)
             try await self.load()
         }
     }
@@ -300,21 +552,23 @@ private final class OneDriveCell: UITableViewCell {
             guard let self, let client = self.client else { return }
             let account = try await client.accountIdentity()
             var names = Set(try await client.children(of: parent).map { $0.name.lowercased() })
-            for item in selected {
+            try await self.batch(selected, action: "extract_archive") { item in
                 let downloaded = try await client.download(item)
                 defer { try? FileManager.default.removeItem(at: downloaded.deletingLastPathComponent()) }
                 let stem = (item.name as NSString).deletingPathExtension
                 var name = stem, index = 2
                 while names.contains(name.lowercased()) { name = stem + " \(index)"; index += 1 }
                 names.insert(name.lowercased())
+                self.activeOperationPaths = (self.onlineLocation(item.name), self.onlineLocation(name))
                 let destination = downloaded.deletingLastPathComponent().appendingPathComponent(name, isDirectory: true)
                 let worker = Task.detached(priority: .userInitiated) { try Self.extractOnlineArchive(downloaded, to: destination) }
                 try await withTaskCancellationHandler(operation: { try await worker.value }, onCancel: { worker.cancel() })
                 try Task.checkCancellation()
-                let proof = try await RemoteContent.snapshotAsync(destination)
-                try await client.uploadTree(destination, parent: parent)
-                let undo = try await PersistentOnlineUndo.uploaded(client, parent: parent, name: name, content: proof, account: account)
+                let job = try await PendingCloudUpload.prepare(destination, source: self.onlineLocation(item.name),
+                    client: client, parent: parent, account: account, actionKey: "extract_archive")
+                let undo = try await PendingCloudUpload.resume(job, client: client)
                 self.record(L10n.get("extract_archive"), source: self.onlineLocation(item.name), destination: self.onlineLocation(name), undo: undo)
+                try PendingCloudUpload.finish(job)
             }
             try await self.load()
         }
@@ -390,7 +644,7 @@ private final class OneDriveCell: UITableViewCell {
             guard let self, let client = self.client else { return }
             let account = try await client.accountIdentity()
             var names = Set(try await client.children(of: parent).map { $0.name.lowercased() })
-            for item in selected {
+            try await self.batch(selected, action: "duplicate") { item in
                 let url = try await client.downloadTree(item)
                 defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
                 let suffix = item.isFolder ? "" : (item.name as NSString).pathExtension
@@ -401,12 +655,14 @@ private final class OneDriveCell: UITableViewCell {
                     index += 1
                 } while names.contains(name.lowercased())
                 names.insert(name.lowercased())
+                self.activeOperationPaths = (self.onlineLocation(item.name), self.onlineLocation(name))
                 let renamed = url.deletingLastPathComponent().appendingPathComponent(name)
                 try FileManager.default.moveItem(at: url, to: renamed)
-                let proof = try await RemoteContent.snapshotAsync(renamed)
-                try await client.uploadTree(renamed, parent: parent)
-                let undo = try await PersistentOnlineUndo.uploaded(client, parent: parent, name: name, content: proof, account: account)
+                let job = try await PendingCloudUpload.prepare(renamed, source: self.onlineLocation(item.name),
+                    client: client, parent: parent, account: account, actionKey: "duplicate")
+                let undo = try await PendingCloudUpload.resume(job, client: client)
                 self.record(L10n.get("duplicate"), source: self.onlineLocation(item.name), destination: self.onlineLocation(name), undo: undo)
+                try PendingCloudUpload.finish(job)
             }
             try await self.load()
         }
@@ -419,9 +675,33 @@ private final class OneDriveCell: UITableViewCell {
         run { [weak self] in
             guard let self, let client = self.client else { return }
             let url = try await client.download(item)
-            self.previewURLs.append(url)
             let entry = FileEntry(url: url, parent: nil)
-            if externally { self.commander?.openDesktopEntry(entry) } else { self.commander?.previewFile(entry) }
+            let media = ["image/", "video/", "audio/"].contains { entry.mimeType().hasPrefix($0) }
+            if externally && !media {
+                // External edits must target a user-saved copy, never an
+                // untracked temporary download that may vanish on restart.
+                self.cleanExport(); self.exportedURL = url; self.openAfterExport = true
+                let picker = UIDocumentPickerViewController(forExporting: [url], asCopy: true)
+                picker.delegate = self; self.present(picker, animated: true)
+            } else if let commander = self.commander {
+                let epoch = self.generation
+                commander.previewFile(entry, releaseDownload: { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) },
+                    deletionTitle: self.deleteTitle,
+                    deleteEntry: { [weak self] _, completed in
+                        guard let self, self.generation == epoch, self.client === client, !self.busy,
+                              self.commander?.operationInProgress != true else { completed(false); return }
+                        self.run(transfer: true, historyAction: "delete") { [weak self] in
+                            guard let self else { completed(false); return }
+                            do {
+                                let undo = try await self.recycleWithUndo(client, item: item)
+                                self.record(self.deleteTitle, source: self.onlineLocation(item.name), destination: client.moveBackupLocation ?? L10n.get("remote_deleted"), undo: undo)
+                                self.rememberRecovery(client, source: self.onlineLocation(item.name))
+                            } catch { completed(false); throw error }
+                            completed(true)
+                            try await self.load()
+                        }
+                    })
+            } else { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         }
     }
     func copyOnlineSelection(move: Bool) {
@@ -433,16 +713,20 @@ private final class OneDriveCell: UITableViewCell {
         commander?.updateGlobalStatus(String(format: L10n.get(move ? "clipboard_cut" : "clipboard_copied"), selectedItems.count))
     }
     private func confirmShareLink(_ item: OneDriveItem) {
-        guard let api = client as? OneDriveClient, !busy else { return }
-        let confirmation = UIAlertController(title: text("Leselink freigeben?", "Create a read-only sharing link?"),
-            message: text("Jeder mit diesem Link kann „\(item.name)“ lesen – ohne Anmeldung. Die Freigabe bleibt in OneDrive bestehen, auch wenn du den Vorgang danach abbrichst. Du kannst sie auf der OneDrive-Webseite entfernen.",
-                          "Anyone with this link can read ‘\(item.name)’ without signing in. Sharing remains enabled even if you cancel afterward. You can revoke it on the OneDrive website."), preferredStyle: .alert)
+        guard let client, !busy,
+              client is OneDriveClient || (client as? CloudFileClient)?.supportsSharingLink == true else { return }
+        let confirmation = UIAlertController(title: text("Öffentlichen Freigabelink erstellen?", "Create a public sharing link?"),
+            message: text("Der Link macht „\(item.name)“ für Personen mit dem Link zugänglich, möglicherweise ohne Anmeldung. Die Freigabe kann dauerhaft bestehen und wird durch Abbrechen nach dem Erstellen nicht zurückgenommen. Prüfe bestehende Rechte und entferne die Freigabe bei Bedarf auf der Anbieter-Webseite. Erst Erstellen ändert die Freigabe.",
+                          "The link makes ‘\(item.name)’ accessible to people with the link, potentially without signing in. Sharing can persist and cancelling after creation does not revoke it. Check existing permissions and revoke sharing on the provider website when needed. Only Create changes sharing."), preferredStyle: .alert)
         confirmation.addAction(UIAlertAction(title: L10n.get("cancel"), style: .cancel))
-        confirmation.addAction(UIAlertAction(title: text("Leselink erstellen", "Create read-only link"), style: .default) { [weak self] _ in
+        confirmation.addAction(UIAlertAction(title: text("Erstellen", "Create"), style: .default) { [weak self] _ in
             self?.run { [weak self] in
-                let url = try await api.createReadOnlyShareLink(item)
+                let url: URL
+                if let api = client as? OneDriveClient { url = try await api.createReadOnlyShareLink(item) }
+                else if let cloud = client as? CloudFileClient { url = try await cloud.createPublicShareLink(item) }
+                else { throw CloudConnection.failure("cloud_invalid") }
                 guard let self else { return }
-                let result = UIAlertController(title: text("OneDrive-Freigabelink", "OneDrive sharing link"), message: url.absoluteString, preferredStyle: .alert)
+                let result = UIAlertController(title: text("Freigabelink", "Sharing link"), message: url.absoluteString, preferredStyle: .alert)
                 result.addAction(UIAlertAction(title: text("Link kopieren", "Copy link"), style: .default) { _ in UIPasteboard.general.string = url.absoluteString })
                 result.addAction(UIAlertAction(title: text("Link öffnen", "Open link"), style: .default) { _ in UIApplication.shared.open(url) })
                 result.addAction(UIAlertAction(title: text("Schließen", "Close"), style: .cancel))
@@ -496,7 +780,7 @@ private final class OneDriveCell: UITableViewCell {
         actionButton.setTitle(text("Aktionen", "Actions"), for: .normal)
         navigationItem.leftBarButtonItem?.title = text("Schließen", "Close")
         navigationItem.rightBarButtonItem?.title = text("Aktionen", "Actions")
-        filterField.placeholder = L10n.get("filter_names")
+        filterField.applyTheme(theme, placeholder: L10n.get("filter_names"))
         filterStatus.textColor = theme.secondaryText
         clearFilterButton.setTitle(L10n.get("filter_clear"), for: .normal)
         for (button, key) in zip(sortButtons, ["sort_name", "sort_size", "sort_type", "sort_date"]) {
@@ -529,6 +813,7 @@ private final class OneDriveCell: UITableViewCell {
     private var dropScrollTimer: Timer?
     private weak var dropTable: UITableView?
     private var dropSession: UIDropSession?
+    private var nativeDropPoint: CGPoint?
     private var desiredFolders: [OneDriveItem] = []
     private var signingIn = false
     private weak var resizingColumns: UIStackView?
@@ -540,7 +825,12 @@ private final class OneDriveCell: UITableViewCell {
     private func text(_ de: String, _ en: String) -> String { german ? de : en }
     init(remote: RemoteConnection? = nil, cloud: CloudConnection? = nil) { remoteProfile = remote; cloudProfile = cloud; super.init(nibName: nil, bundle: nil) }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-    deinit { if let listingObserver { NotificationCenter.default.removeObserver(listingObserver) }; listingRetry?.cancel(); dropHoverWork?.cancel(); dropTreeRead?.cancel(); dropScrollTimer?.invalidate() }
+    deinit {
+        if let listingObserver { NotificationCenter.default.removeObserver(listingObserver) }
+        listingRetry?.cancel(); dropHoverWork?.cancel(); dropTreeRead?.cancel(); dropScrollTimer?.invalidate()
+        for url in previewURLs { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        if let exportedURL { try? FileManager.default.removeItem(at: exportedURL.deletingLastPathComponent()) }
+    }
     override func viewDidLoad() {
         super.viewDidLoad()
         title = locationTitle
@@ -556,7 +846,8 @@ private final class OneDriveCell: UITableViewCell {
         refreshControl = UIRefreshControl()
         refreshControl?.addTarget(self, action: #selector(reload), for: .valueChanged)
         tableView.refreshControl = refreshControl
-        for list in [tableView, treeView] { list.dragDelegate = self; list.dropDelegate = self; list.dragInteractionEnabled = true }
+        for list in [tableView, treeView] { list.dragDelegate = self; list.dropDelegate = self; list.dragInteractionEnabled = DesktopBridge.shared == nil }
+        configureNativeDrag()
         directoryMenu = CommanderDirectoryMenu(table: tableView) { [weak self] in
             guard let self else { return nil }
             self.onActivate?(); self.view.endEditing(true)
@@ -687,7 +978,7 @@ private final class OneDriveCell: UITableViewCell {
         treeView.dataSource = self; treeView.delegate = self; treeView.rowHeight = 44
         treeView.backgroundColor = theme.treeBackground; treeView.separatorColor = theme.columnBorder
         treeView.accessibilityIdentifier = "OneDriveOnlineTree"; treeColumn.addArrangedSubview(treeView)
-        filterField.placeholder = L10n.get("filter_names"); filterField.borderStyle = .roundedRect
+        filterField.applyTheme(theme, placeholder: L10n.get("filter_names"))
         filterField.clearButtonMode = .always; filterField.font = .systemFont(ofSize: 12)
         filterField.accessibilityIdentifier = "OneDriveOnlineFilter"
         filterField.addAction(UIAction { [weak self] _ in self?.onActivate?(); self?.applyListingOrder() }, for: .editingChanged)
@@ -851,7 +1142,7 @@ private final class OneDriveCell: UITableViewCell {
     }
     private func run(transfer: Bool = false, historyAction: String? = nil, _ action: @escaping () async throws -> Void) {
         guard !busy, commander?.operationInProgress != true else { return }
-        busy = true; completionNotice = nil
+        busy = true; completionNotice = nil; activeOperationPaths = nil
         updateNavigation()
         if transfer {
             observeTransfer(client)
@@ -864,17 +1155,19 @@ private final class OneDriveCell: UITableViewCell {
                 self.busy = false; self.refreshControl?.endRefreshing(); self.updateNavigation(); self.onStateChanged?()
                 if transfer { self.commander?.finishProgress(status); self.commander?.refreshAllPanes(clearSelectionIn: []) }
                 if transfer { self.stopObservingTransfer(self.client) }
+                self.activeOperationPaths = nil
+                self.offerUploadRecovery()
             }
             do { try await action(); status = self.completionNotice ?? status }
             catch is CancellationError {
                 status = self.text("Abgebrochen; abgeschlossene Schritte bleiben erhalten.", "Cancelled; completed steps are retained.") + (self.completionNotice.map { "\n" + $0 } ?? "")
-                if let historyAction { self.record(L10n.get(historyAction), source: self.onlineLocation(), destination: self.onlineLocation(), error: CancellationError()) }
+                if let historyAction { self.record(L10n.get(historyAction), source: self.activeOperationPaths?.source ?? self.onlineLocation(), destination: self.activeOperationPaths?.destination ?? self.onlineLocation(), error: CancellationError()) }
             }
             catch {
                 let nsError = error as NSError
                 let description = ["OpenCommander.Remote", "OpenCommander.Cloud"].contains(nsError.domain) ? L10n.get(nsError.localizedDescription) : error.localizedDescription
                 status = description + (self.completionNotice.map { "\n" + $0 } ?? ""); self.error(status)
-                if let historyAction { self.record(L10n.get(historyAction), source: self.onlineLocation(), destination: self.onlineLocation(), error: error) }
+                if let historyAction { self.record(L10n.get(historyAction), source: self.activeOperationPaths?.source ?? self.onlineLocation(), destination: self.activeOperationPaths?.destination ?? self.onlineLocation(), error: error) }
             }
         }
     }
@@ -916,12 +1209,14 @@ private final class OneDriveCell: UITableViewCell {
             listingWarning.isHidden = false
             scheduleListingRefresh(after: response.retryAfter ?? 10)
         } else {
-            listingWarning.text = nil; listingWarning.isHidden = true
+            listingWarning.text = response.warningKey.map { L10n.get($0) } ?? response.warning
+            listingWarning.isHidden = listingWarning.text == nil
         }
         applyListingOrder(); rebuildTree()
     }
     @objc private func reload() {
         guard client != nil else { refreshControl?.endRefreshing(); return }
+        recoveryOffered = false
         run { [weak self] in try await self?.load() }
     }
     @objc private func actions() {
@@ -1086,7 +1381,14 @@ private final class OneDriveCell: UITableViewCell {
             let selection = DesktopInteractionPolicy.selection(clicked: item.id, visible: visibleItems.map(\.id), selected: selectedIDs,
                 anchor: selectionAnchor, extend: modifiers.contains(.shift), toggle: modifiers.contains(.command))
             selectedIDs = selection.keys; selectionAnchor = selection.anchor
-            tableView.reloadData(); updateNavigation(); onActivate?()
+            // Selection styling must not replace the potential drag-source cell.
+            for cell in tableView.visibleCells {
+                guard let index = tableView.indexPath(for: cell), visibleItems.indices.contains(index.row) else { continue }
+                let selected = selectedIDs.contains(visibleItems[index.row].id)
+                cell.backgroundColor = selected ? commander?.theme.selectionBackground : commander?.theme.fileBackground
+                cell.accessibilityTraits = selected ? [.button, .selected] : [.button]
+            }
+            updateNavigation(); onActivate?()
         }
     }
     private func itemActions(_ item: OneDriveItem, row: IndexPath) {
@@ -1134,8 +1436,13 @@ private final class OneDriveCell: UITableViewCell {
                     self.record(L10n.get("rename_button"), source: self.onlineLocation(item.name), destination: self.onlineLocation(name), undo: undo)
                 }
                 else {
-                    try await client.createFolder(name, parent: self.folders.last?.id)
-                    self.record(L10n.get("folder"), source: self.onlineLocation(), destination: self.onlineLocation(name))
+                    let account = try await client.accountIdentity(), parent = self.folders.last?.id
+                    try await client.createFolder(name, parent: parent)
+                    // Only the verified empty folder is removable by Undo.
+                    // Later child additions invalidate its persisted proof.
+                    let undo = try await PersistentOnlineUndo.uploaded(client, parent: parent, name: name,
+                        content: ["": "directory"], account: account)
+                    self.record(L10n.get("folder"), source: self.onlineLocation(), destination: self.onlineLocation(name), undo: undo)
                 }
                 try await self.load()
             }
@@ -1143,13 +1450,18 @@ private final class OneDriveCell: UITableViewCell {
         alert.addAction(UIAlertAction(title: text("Abbrechen", "Cancel"), style: .cancel))
         present(alert, animated: true)
     }
+    private func recycleWithUndo(_ client: any CommanderOnlineClient, item: OneDriveItem) async throws -> CloudUndoPayload? {
+        if let cloud = client as? CloudFileClient { return try await PersistentOnlineUndo.cloudRecoveryDelete(cloud, item: item) }
+        try await client.recycle(item)
+        return nil // Provider trash or explicitly confirmed permanent server deletion.
+    }
     private func confirmRecycle(_ item: OneDriveItem) {
         let alert = UIAlertController(title: deleteTitle, message: item.name, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: text("Verschieben", "Move"), style: .destructive) { [weak self] _ in
             self?.run(historyAction: "delete") { [weak self] in
                 guard let self, let client = self.client else { return }
-                try await client.recycle(item)
-                self.record(self.deleteTitle, source: self.onlineLocation(item.name), destination: client.moveBackupLocation ?? (self.isOneDrive ? "OneDrive Papierkorb / Recycle bin" : L10n.get("remote_deleted")))
+                let undo = try await self.recycleWithUndo(client, item: item)
+                self.record(self.deleteTitle, source: self.onlineLocation(item.name), destination: client.moveBackupLocation ?? (self.isOneDrive ? "OneDrive Papierkorb / Recycle bin" : L10n.get("remote_deleted")), undo: undo)
                 self.rememberRecovery(client, source: self.onlineLocation(item.name))
                 try await self.load()
             }
@@ -1158,11 +1470,17 @@ private final class OneDriveCell: UITableViewCell {
         present(alert, animated: true)
     }
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-        if exportedURL != nil { cleanExport(); return }
+        if exportedURL != nil {
+            let shouldOpen = openAfterExport
+            cleanExport()
+            if shouldOpen, let saved = urls.first { commander?.openDesktopEntry(FileEntry(url: saved, parent: nil)) }
+            return
+        }
         receiveLocal(urls)
     }
     func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) { cleanExport() }
     private func cleanExport() {
+        openAfterExport = false
         if let exportedURL {
             // Only remove the unique temporary directory created by this download.
             try? FileManager.default.removeItem(at: exportedURL.deletingLastPathComponent())
@@ -1183,6 +1501,7 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
             guard let self, let client = self.client else { return }
             let account = try await client.accountIdentity()
             for (index, url) in urls.enumerated() {
+                self.activeOperationPaths = (url.path, try await self.destinationLocation(destination, name: url.lastPathComponent))
                 self.transferProgress(index, total: urls.count, name: url.lastPathComponent)
                 try Task.checkCancellation()
                 let accessed = url.startAccessingSecurityScopedResource()
@@ -1191,6 +1510,7 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
                 guard let plan = try await self.destinationPlan(url.lastPathComponent, folder: folder, parent: destination, allowReplacement: !move) else { continue }
                 let name = plan.name
                 let targetLocation = try await self.destinationLocation(destination, name: name)
+                self.activeOperationPaths = (url.path, targetLocation)
                 let before = try await RemoteContent.snapshotAsync(url)
                 let container = FileManager.default.temporaryDirectory.appendingPathComponent("OpenCommander-OneDrive-" + UUID().uuidString, isDirectory: true)
                 try FileManager.default.createDirectory(at: container, withIntermediateDirectories: false)
@@ -1200,23 +1520,39 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
                 let preparedSnapshot = try await RemoteContent.snapshotAsync(staged)
                 guard preparedSnapshot == before else { throw OneDriveFailure.message("Source changed while preparing transfer. Source retained.") }
                 var undo: CloudUndoPayload?
+                var replacementJob: PendingCloudReplacement.Job?
                 if let existing = plan.replacing {
-                    let replacement = try await CommanderOnlineTools.replace(client, existing: existing, with: staged, parent: destination)
+                    let job = try await PendingCloudReplacement.prepare(staged, sourceLocation: url.path, existing: existing, client: client, parent: destination)
+                    replacementJob = job
+                    let replacement = try await PendingCloudReplacement.resume(job, client: client)
                     undo = try PersistentOnlineUndo.replacement(client, record: replacement, account: account)
                     self.record(L10n.get("remote_recovery"), source: targetLocation, destination: try await self.destinationLocation(destination, name: replacement.previous.name))
                 } else {
-                    try await client.uploadTree(staged, parent: destination)
-                    undo = try await PersistentOnlineUndo.uploaded(client, parent: destination, name: name, content: preparedSnapshot, account: account)
+                    if !move {
+                        let job = try await PendingCloudUpload.prepare(staged, source: url.path, client: client, parent: destination, account: account)
+                        undo = try await PendingCloudUpload.resume(job, client: client)
+                        self.record(L10n.get("copy"), source: url.path, destination: targetLocation, undo: undo)
+                        try PendingCloudUpload.finish(job)
+                        continue
+                    }
+                    let job = try await PendingCloudUpload.prepare(staged, source: url.path, client: client,
+                        parent: destination, account: account, moveOriginal: url, moveDestination: targetLocation)
+                    let moveUndo = try await PendingCloudUpload.resumeMove(job, client: client)
+                    self.record(L10n.get("move"), source: url.path, destination: targetLocation, undo: moveUndo)
+                    try PendingCloudUpload.finish(job)
+                    continue
                 }
                 self.record(L10n.get("copy"), source: url.path, destination: targetLocation, undo: move ? nil : undo)
+                if let replacementJob { try PendingCloudReplacement.finish(replacementJob) }
                 if move {
                     try Task.checkCancellation()
                     let currentSnapshot = try await RemoteContent.snapshotAsync(url)
                     guard currentSnapshot == before else { throw OneDriveFailure.message("Source changed during transfer. Both copies retained.") }
-                    // Recoverable, unlike removing a user's original outright.
-                    var trashed: NSURL?
-                    try FileManager.default.trashItem(at: url, resultingItemURL: &trashed)
-                    self.record(L10n.get("move"), source: url.path, destination: targetLocation)
+                    guard let undo else { throw CloudConnection.failure("cloud_undo_changed") }
+                    let job = try await PendingLocalCloudMove.prepare(url, uploaded: undo, destinationLocation: targetLocation)
+                    let moveUndo = try await PendingLocalCloudMove.resume(job, client: client)
+                    self.record(L10n.get("move"), source: url.path, destination: targetLocation, undo: moveUndo)
+                    try PendingLocalCloudMove.finish(job)
                 }
             }
             try await self.load()
@@ -1232,6 +1568,7 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
             self.observeTransfer(sourceClient)
             defer { self.stopObservingTransfer(sourceClient) }
             for (index, item) in selection.items.enumerated() {
+                self.activeOperationPaths = (try await source.destinationLocation(selection.parentID, name: item.name), try await self.destinationLocation(destination, name: item.name))
                 self.transferProgress(index, total: selection.items.count, name: item.name)
                 try Task.checkCancellation()
                 let sourceLocation = try await source.destinationLocation(selection.parentID, name: item.name)
@@ -1246,6 +1583,7 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
                 guard let plan = try await self.destinationPlan(item.name, folder: item.isFolder, parent: destination, excluding: move ? item.id : nil, allowReplacement: !move) else { continue }
                 let name = plan.name
                 let targetLocation = try await self.destinationLocation(destination, name: name)
+                self.activeOperationPaths = (sourceLocation, targetLocation)
                 if move && sameConnection {
                     let content = try await CommanderOnlineTools.contentSnapshot(sourceClient, item: item)
                     let parentPath = try sourceClient.persistentPath(selection.parentID)
@@ -1257,6 +1595,15 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
                     self.record(L10n.get("move"), source: sourceLocation, destination: targetLocation, undo: undo)
                     self.rememberRecovery(sourceClient, source: sourceLocation)
                 } else {
+                    if move {
+                        let job = try await PendingCrossCloudMove.prepare(item, source: sourceClient, target: targetClient,
+                            parent: destination, name: name, sourceLocation: sourceLocation, destinationLocation: targetLocation)
+                        let undo = try await PendingCrossCloudMove.resume(job, source: sourceClient, target: targetClient)
+                        self.record(L10n.get("move"), source: sourceLocation, destination: targetLocation, undo: undo)
+                        try PendingCrossCloudMove.finish(job)
+                        self.rememberRecovery(sourceClient, source: sourceLocation)
+                        continue
+                    }
                     let snapshot = move ? try await sourceClient.remoteSnapshot(item) : [:]
                     let url = try await sourceClient.downloadTree(item)
                     defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
@@ -1265,24 +1612,40 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
                     let staged = url.deletingLastPathComponent().appendingPathComponent(name)
                     if staged != url { try FileManager.default.moveItem(at: url, to: staged) }
                     var undo: CloudUndoPayload?
+                    var replacementJob: PendingCloudReplacement.Job?
                     if let existing = plan.replacing {
-                        let replacement = try await CommanderOnlineTools.replace(targetClient, existing: existing, with: staged, parent: destination)
+                        let job = try await PendingCloudReplacement.prepare(staged, sourceLocation: sourceLocation, existing: existing, client: targetClient, parent: destination)
+                        replacementJob = job
+                        let replacement = try await PendingCloudReplacement.resume(job, client: targetClient)
                         undo = try PersistentOnlineUndo.replacement(targetClient, record: replacement, account: targetAccount)
                         self.record(L10n.get("remote_recovery"), source: targetLocation, destination: try await self.destinationLocation(destination, name: replacement.previous.name))
                     } else {
+                        if !move {
+                            let job = try await PendingCloudUpload.prepare(staged, source: sourceLocation, client: targetClient, parent: destination, account: targetAccount)
+                            undo = try await PendingCloudUpload.resume(job, client: targetClient)
+                            self.record(L10n.get("copy"), source: sourceLocation, destination: targetLocation, undo: undo)
+                            try PendingCloudUpload.finish(job)
+                            continue
+                        }
                         try await targetClient.uploadTree(staged, parent: destination)
                         undo = try await PersistentOnlineUndo.uploaded(targetClient, parent: destination, name: name, content: content, account: targetAccount)
                     }
                     self.record(L10n.get("copy"), source: sourceLocation, destination: targetLocation, undo: move ? nil : undo)
+                    if let replacementJob { try PendingCloudReplacement.finish(replacementJob) }
                     if move {
                         // Verify the complete destination before changing the source.
                         guard let uploaded = try await targetClient.children(of: destination).first(where: { $0.name == name }) else { throw RemoteConnection.failure("remote_changed") }
                         let verified = try await targetClient.downloadTree(uploaded)
                         defer { try? FileManager.default.removeItem(at: verified.deletingLastPathComponent()) }
                         guard try await Task.detached(operation: { try RemoteContent.snapshot(verified) }).value == content else { throw RemoteConnection.failure("remote_changed") }
-                        do { try await sourceClient.recycleUnchanged(item, snapshot: snapshot) }
-                        catch { self.rememberRecovery(sourceClient, source: sourceLocation); throw error }
-                        self.record(L10n.get("move"), source: sourceLocation, destination: targetLocation)
+                        guard let undo else { throw CloudConnection.failure("cloud_undo_changed") }
+                        guard try await sourceClient.accountIdentity() == sourceAccount else { throw CloudConnection.failure("cloud_undo_account") }
+                        let job = try await PendingOnlineMove.prepare(sourceClient, item: item, content: content, uploaded: undo,
+                            sourceLocation: sourceLocation, destinationLocation: targetLocation)
+                        let moveUndo = try await PendingOnlineMove.resume(job, client: sourceClient, targetClient: targetClient)
+                        self.record(L10n.get("move"), source: sourceLocation, destination: targetLocation,
+                            undo: moveUndo)
+                        try PendingOnlineMove.finish(job)
                         self.rememberRecovery(sourceClient, source: sourceLocation)
                     }
                 }
@@ -1297,16 +1660,25 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
         guard !busy, selection.generation == generation, !selection.items.isEmpty else { return }
         guard commander?.allowTransferPaths(writing: selection.items.map { directory.appendingPathComponent($0.name) }) != false else { return }
         run(transfer: true, historyAction: move ? "move" : "copy") { [weak self] in
-            guard let self, let client = self.client else { return }
+            try await self?.exportOnlineItems(selection, to: directory, move: move)
+        }
+    }
+    private func exportOnlineItems(_ selection: OneDriveSelection, to directory: URL, move: Bool) async throws {
+            guard let client = self.client else { return }
+            guard commander?.allowTransferPaths(writing: selection.items.map { directory.appendingPathComponent($0.name) }) != false else { throw CancellationError() }
             let scope = directory.startAccessingSecurityScopedResource()
             defer { if scope { directory.stopAccessingSecurityScopedResource() } }
             for (index, item) in selection.items.enumerated() {
+                self.activeOperationPaths = (try await self.destinationLocation(selection.parentID, name: item.name), directory.appendingPathComponent(item.name).path)
                 self.transferProgress(index, total: selection.items.count, name: item.name)
                 try Task.checkCancellation()
                 let sourceLocation = try await self.destinationLocation(selection.parentID, name: item.name)
                 let snapshot = move ? try await client.remoteSnapshot(item) : [:]
-                let url = try await client.downloadTree(item)
-                defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+                let checkpoint: PendingCloudDownload.Job? = try await PendingCloudDownload.prepare(item, client: client, destination: directory, move: move)
+                let url: URL
+                if let checkpoint { url = try await PendingCloudDownload.resume(checkpoint, client: client) }
+                else { url = try await client.downloadTree(item) }
+                defer { if checkpoint == nil { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) } }
                 let content = try await Task.detached { try RemoteContent.snapshot(url) }.value
                 if move, !(client is OneDriveClient), content != snapshot { throw RemoteConnection.failure("remote_changed") }
                 var name = item.name, replace = false
@@ -1316,11 +1688,15 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
                     switch try await self.conflictChoice(name: name, alternative: alternative, canReplace: !move) {
                     case .keepBoth: name = alternative
                     case .replace: replace = true
-                    case .skip: continue
+                    case .skip:
+                        if let checkpoint { try PendingCloudDownload.finish(checkpoint) }
+                        continue
                     case .cancel: throw CancellationError()
                     }
                 }
                 let destination = directory.appendingPathComponent(name)
+                if let checkpoint { _ = try PendingCloudDownload.destination(checkpoint) }
+                self.activeOperationPaths = (sourceLocation, destination.path)
                 let replacing = replace
                 let worker = Task.detached { () throws -> FileUndoRecord in
                     let original = replacing ? try SafeFileOperations.snapshot(destination) : nil
@@ -1344,22 +1720,26 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
                 }
                 let record = try await withTaskCancellationHandler(operation: { try await worker.value }, onCancel: { worker.cancel() })
                 if !move { self.commander?.operationHistory.append(.copy(files: [record])) }
-                self.record(L10n.get("copy"), source: sourceLocation, destination: destination.path)
+                // The local copy record already includes the online display
+                // source and working Undo. Do not add a duplicate disabled row.
+                if move { self.record(L10n.get("copy"), source: sourceLocation, destination: destination.path) }
+                if let checkpoint, !move { try PendingCloudDownload.finish(checkpoint) }
                 if move {
-                    do { try await client.recycleUnchanged(item, snapshot: snapshot) }
-                    catch { self.rememberRecovery(client, source: sourceLocation); throw error }
-                    self.record(L10n.get("move"), source: sourceLocation, destination: destination.path)
-                    self.rememberRecovery(client, source: sourceLocation)
+                    guard try await client.remoteSnapshot(item) == snapshot else { throw CloudConnection.failure("cloud_undo_changed") }
+                    guard let checkpoint else { throw CloudConnection.failure("cloud_undo_changed") }
+                    let moveUndo = try await PendingCloudDownload.completeMove(checkpoint, client: client, record: record, sourceLocation: sourceLocation)
+                    self.record(L10n.get("move"), source: sourceLocation, destination: destination.path,
+                        undo: moveUndo)
+                    try PendingCloudDownload.finish(checkpoint)
                 }
             }
             if Self.clipboard?.selection === selection, move { Self.clipboard = nil }
             self.treeChildren = [:]; try await self.load()
-        }
     }
-    func receiveProviders(_ providers: [NSItemProvider], parent: String? = nil, useCurrentFolder: Bool = true) {
+    func receiveProviders(_ providers: [NSItemProvider], parent: String? = nil, useCurrentFolder: Bool = true, forceCopy: Bool = false, moveOverride: Bool? = nil) {
         guard !busy, authenticated, commander?.operationInProgress != true else { return }
         let target = useCurrentFolder ? folders.last?.id : parent
-        let move = commander?.moveMode == true
+        let move = !forceCopy && (moveOverride ?? (commander?.moveMode == true))
         let expectedGeneration = generation
         // Prevent navigation changing the destination while provider loading.
         busy = true; updateNavigation()
@@ -1390,8 +1770,10 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
             actions.append(UIAction(title: self.text("Pfad kopieren", "Copy path")) { [weak self] _ in
                 guard let self else { return }; UIPasteboard.general.string = self.onlineLocation(item.name)
             })
-            if self.client is OneDriveClient {
+            if self.client is OneDriveClient || (self.client as? CloudFileClient)?.supportsSharingLink == true {
                 actions.append(UIAction(title: self.text("Freigabelink erstellen …", "Create sharing link…"), image: UIImage(systemName: "link")) { [weak self] _ in self?.confirmShareLink(item) })
+            }
+            if self.client is OneDriveClient {
                 actions.append(UIAction(title: self.text("OneDrive-Webseite öffnen", "Open OneDrive website")) { _ in UIApplication.shared.open(URL(string: "https://onedrive.live.com/")!) })
             } else if let website = self.cloudProfile?.website {
                 actions.append(UIAction(title: self.text("Anbieter-Webseite öffnen", "Open provider website")) { _ in UIApplication.shared.open(website) })
@@ -1406,11 +1788,12 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
                         UIAction(title: L10n.get("rename_button")) { [weak self] _ in self?.renameOnlineSelection() },
                         UIAction(title: L10n.get("duplicate")) { [weak self] _ in self?.duplicateOnlineSelection() },
                         UIAction(title: L10n.get("file_info")) { [weak self] _ in self?.infoOnlineSelection() },
-                        UIAction(title: L10n.get("move_to_trash"), attributes: .destructive) { [weak self] _ in self?.deleteOnlineSelection() }]
+                        UIAction(title: self.deleteTitle, attributes: .destructive) { [weak self] _ in self?.deleteOnlineSelection() }]
             return UIMenu(children: actions)
         }
     }
     func tableView(_ tableView: UITableView, itemsForBeginning session: UIDragSession, at indexPath: IndexPath) -> [UIDragItem] {
+        CommanderDragDiagnostics.event("online drag beginning")
         guard !busy, authenticated, commander?.operationInProgress != true else { return [] }
         let dragged: [OneDriveItem]
         if tableView === treeView {
@@ -1429,36 +1812,93 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
             if tableView === treeView { payload.parentID = treeRows[indexPath.row].dropLast().last?.id }
             let provider = NSItemProvider()
             provider.suggestedName = item.name
+            // Export the item as a file, including text files; inline text is
+            // not a file promise that Finder can save as a named document.
+            provider.preferredPresentationStyle = .attachment
             let type = item.isFolder ? UTType.folder : (UTType(filenameExtension: (item.name as NSString).pathExtension) ?? .data)
-            provider.registerFileRepresentation(forTypeIdentifier: type.identifier, fileOptions: [], visibility: .all) { [self] completion in
+            let loadFile: (@escaping (URL?, Error?) -> Void) -> Progress = { [self] completion in
                 let progress = Progress(totalUnitCount: 1)
                 let task = Task { @MainActor in
                     do {
                         guard payload.generation == self.generation, let client = self.client else { throw OneDriveFailure.message("The OneDrive connection changed.") }
+                        guard self.previewURLs.count < 128, self.retainedDragBytes < 1024 * 1024 * 1024 else { throw CloudConnection.failure("cloud_limit") }
                         let url = try await client.downloadTree(item)
+                        do {
+                            let size = try await Task.detached { try BoundedFolderSize.bytes(at: url) }.value
+                            guard self.previewURLs.count < 128,
+                                  size <= 1024 * 1024 * 1024 - self.retainedDragBytes else { throw CloudConnection.failure("cloud_limit") }
+                            guard payload.generation == self.generation else { throw CloudConnection.failure("cloud_config_changed") }
+                            try Task.checkCancellation()
+                            self.retainedDragBytes += size
+                        } catch { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()); throw error }
                         self.previewURLs.append(url)
-                        completion(url, false, nil); progress.completedUnitCount = 1
-                    } catch { completion(nil, false, error) }
+                        CommanderDragDiagnostics.event("online drag file prepared")
+                        completion(url, nil); progress.completedUnitCount = 1
+                    } catch { completion(nil, error) }
                 }
                 progress.cancellationHandler = { task.cancel() }
                 return progress
+            }
+            // Catalyst resolves public.file-url synchronously on its main thread.
+            // Never publish a lazy URL that needs MainActor to finish downloading:
+            // that blocks the drag loop and prevents the callback from running.
+            provider.registerFileRepresentation(forTypeIdentifier: type.identifier, fileOptions: [], visibility: .all) { completion in
+                loadFile { url, error in completion(url, false, error) }
             }
             let drag = UIDragItem(itemProvider: provider); drag.localObject = payload; return drag
         }
     }
     func tableView(_ tableView: UITableView, canHandle session: UIDropSession) -> Bool {
         guard !busy, authenticated, commander?.operationInProgress != true, !session.items.isEmpty else { return false }
-        return session.items.allSatisfy { $0.localObject is OneDriveSelection || $0.localObject is FileEntry || FileDropTransfer.canLoad($0.itemProvider) }
+        return session.items.allSatisfy { OneDriveSelection.resolve($0) != nil || FileEntry.resolveDrag($0) != nil || FileDropTransfer.canLoad($0.itemProvider) }
     }
     private func dropParent(_ table: UITableView, session: UIDropSession) -> String? {
-        if let row = table.indexPathForRow(at: session.location(in: table)) {
-            if table === treeView { return treeRows[row.row].last?.id }
+        let point = FileDropTransfer.location(session, in: table)
+        guard table.bounds.contains(point) else { return nil }
+        if let row = table.indexPathForRow(at: point) {
+            if table === treeView { return treeRows.indices.contains(row.row) ? treeRows[row.row].last?.id : nil }
             if visibleItems.indices.contains(row.row), visibleItems[row.row].isFolder { return visibleItems[row.row].id }
         }
         return folders.last?.id
     }
+    func nativeFileDrop(_ point: CGPoint, urls: [URL], modifiers: Int, commit: Bool) -> Bool {
+        guard !urls.isEmpty else { stopDropHover(); return false }
+        guard !busy, authenticated, let window = view.window else { return false }
+        let location = CGPoint(x: point.x * window.bounds.width, y: point.y * window.bounds.height)
+        for table in [tableView, treeView] {
+            let local = table.convert(location, from: window)
+            guard table.bounds.contains(local) else { continue }
+            var parent = folders.last?.id
+            if let row = table.indexPathForRow(at: local) {
+                if table === treeView {
+                    guard treeRows.indices.contains(row.row) else { return false }
+                    parent = treeRows[row.row].last?.id
+                } else if visibleItems.indices.contains(row.row), visibleItems[row.row].isFolder {
+                    parent = visibleItems[row.row].id
+                }
+            } else if table === treeView { return false }
+            if commit {
+                stopDropHover()
+                onActivate?()
+                receiveProviders(urls.map { FileDropTransfer.provider(for: $0) }, parent: parent, useCurrentFolder: false,
+                    moveOverride: FileDropAction.externalMove(modifiers: modifiers, moveMode: commander?.moveMode == true))
+            } else {
+                dropTable = table; dropSession = nil; nativeDropPoint = location
+                let row = table.indexPathForRow(at: local)
+                let path = table === treeView ? row.flatMap { treeRows.indices.contains($0.row) ? treeRows[$0.row] : nil } : nil
+                trackDropPath(path)
+            }
+            return true
+        }
+        stopDropHover(); return false
+    }
     private func dropPath(_ table: UITableView, session: UIDropSession) -> [OneDriveItem]? {
-        if let row = table.indexPathForRow(at: session.location(in: table)) {
+        // UIKit can deliver the last hovered table's callback while a native
+        // AppKit promise crosses the divider. A row's vertical hit alone must
+        // never redirect a drop into a tree folder outside the pointer bounds.
+        let point = FileDropTransfer.location(session, in: table)
+        guard table.bounds.contains(point) else { return nil }
+        if let row = table.indexPathForRow(at: point) {
             if table === treeView { return treeRows.indices.contains(row.row) ? treeRows[row.row] : nil }
             if visibleItems.indices.contains(row.row), visibleItems[row.row].isFolder { return folders + [visibleItems[row.row]] }
         }
@@ -1466,7 +1906,7 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
     }
     private func allowsDrop(_ table: UITableView, session: UIDropSession) -> Bool {
         guard let path = dropPath(table, session: session) else { return false }
-        let selected = session.items.compactMap { $0.localObject as? OneDriveSelection }
+        let selected = session.items.compactMap { OneDriveSelection.resolve($0) }
         let sameAccount = selected.filter { $0.browser.client === client }
         if sameAccount.contains(where: { $0.generation != $0.browser.generation }) { return false }
         let ancestors = Set(path.map(\.id))
@@ -1476,11 +1916,15 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
     }
     private func stopDropHover() {
         dropHoverWork?.cancel(); dropHoverWork = nil; dropTreeRead?.cancel(); dropTreeRead = nil; dropHoverKey = nil
-        dropScrollTimer?.invalidate(); dropScrollTimer = nil; dropTable = nil; dropSession = nil
+        dropScrollTimer?.invalidate(); dropScrollTimer = nil; dropTable = nil; dropSession = nil; nativeDropPoint = nil
     }
     private func trackDrop(_ table: UITableView, session: UIDropSession) {
         dropTable = table; dropSession = session
+        nativeDropPoint = nil
         let path = table === treeView ? dropPath(table, session: session) : nil
+        trackDropPath(path)
+    }
+    private func trackDropPath(_ path: [OneDriveItem]?) {
         let identifier = path.map(key)
         if identifier != dropHoverKey {
             dropHoverWork?.cancel(); dropTreeRead?.cancel(); dropHoverKey = identifier
@@ -1504,14 +1948,16 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
         }
         if dropScrollTimer == nil {
             dropScrollTimer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { [weak self] _ in
-                guard let self, let table = self.dropTable, let session = self.dropSession else { return }
-                let y = session.location(in: table).y - table.contentOffset.y
+                guard let self, let table = self.dropTable,
+                      let point = self.dropSession.map({ FileDropTransfer.location($0, in: table) }) ?? self.nativeDropPoint.map({ table.convert($0, from: table.window) }) else { return }
+                let y = point.y - table.contentOffset.y
                 let delta: CGFloat = y < 24 ? -12 : y > table.bounds.height - 24 ? 12 : 0
                 if delta != 0 {
                     let lower = -table.adjustedContentInset.top, upper = max(lower, table.contentSize.height - table.bounds.height + table.adjustedContentInset.bottom)
                     table.setContentOffset(CGPoint(x: table.contentOffset.x, y: max(lower, min(upper, table.contentOffset.y + delta))), animated: false)
                 }
             }
+            if let timer = dropScrollTimer { RunLoop.main.add(timer, forMode: .common) }
         }
     }
     func tableView(_ tableView: UITableView, dropSessionDidExit session: UIDropSession) { stopDropHover() }
@@ -1520,28 +1966,39 @@ extension OneDriveBrowser: UITableViewDragDelegate, UITableViewDropDelegate {
     func tableView(_ tableView: UITableView, dropSessionDidUpdate session: UIDropSession, withDestinationIndexPath destinationIndexPath: IndexPath?) -> UITableViewDropProposal {
         guard self.tableView(tableView, canHandle: session), allowsDrop(tableView, session: session) else { stopDropHover(); return UITableViewDropProposal(operation: .forbidden) }
         trackDrop(tableView, session: session)
-        let internalDrop = session.localDragSession != nil
-        return UITableViewDropProposal(operation: internalDrop && session.allowsMoveOperation && commander?.moveMode == true ? .move : .copy, intent: .insertIntoDestinationIndexPath)
+        let row = tableView.indexPathForRow(at: FileDropTransfer.location(session, in: tableView))
+        let intoFolder = row.map { index in
+            tableView === treeView || (visibleItems.indices.contains(index.row) && visibleItems[index.row].isFolder)
+        } ?? false
+        let archiveExport = session.items.contains { FileEntry.resolveDrag($0)?.zipPath != nil }
+        return UITableViewDropProposal(operation: FileDropAction.proposal(moveMode: commander?.moveMode == true, allowsMove: session.allowsMoveOperation, archive: archiveExport),
+                                      intent: intoFolder ? .insertIntoDestinationIndexPath : .unspecified)
     }
     func tableView(_ tableView: UITableView, performDropWith coordinator: UITableViewDropCoordinator) {
+        guard coordinator.proposal.operation == .copy || coordinator.proposal.operation == .move else { return }
         stopDropHover()
         guard self.tableView(tableView, canHandle: coordinator.session), allowsDrop(tableView, session: coordinator.session) else { return }
         onActivate?()
         let destination = dropParent(tableView, session: coordinator.session)
-        let selections = coordinator.items.compactMap { $0.dragItem.localObject as? OneDriveSelection }
+        let selections = coordinator.items.compactMap { OneDriveSelection.resolve($0.dragItem) }
         if let source = selections.first {
             guard selections.count == coordinator.items.count, selections.allSatisfy({ $0.browser === source.browser && $0.generation == source.generation }) else { return }
             let combined = OneDriveSelection(browser: source.browser, items: selections.flatMap(\.items), generation: source.generation)
             combined.parentID = source.parentID
             receiveOnline(combined, parent: destination, useCurrentFolder: false, move: coordinator.proposal.operation == .move)
         } else {
-            let local = coordinator.items.compactMap { $0.dragItem.localObject as? FileEntry }
-            if local.count == coordinator.items.count {
+            let local = coordinator.items.compactMap { FileEntry.resolveDrag($0.dragItem) }
+            if local.contains(where: { $0.zipPath != nil }) {
+                receiveProviders(coordinator.items.map {
+                    FileEntry.resolveDrag($0.dragItem)?.dragProvider ?? $0.dragItem.itemProvider
+                }, parent: destination, useCurrentFolder: false, forceCopy: true)
+            } else if local.count == coordinator.items.count {
                 // Our local pane already carries the real URL. Do not round-trip
                 // it through a generic provider UTI, which may be public.item.
                 receiveLocal(local.map(\.url), parent: destination, useCurrentFolder: false, move: coordinator.proposal.operation == .move)
             } else {
-                receiveProviders(coordinator.items.map { $0.dragItem.itemProvider }, parent: destination, useCurrentFolder: false)
+                receiveProviders(coordinator.items.map { $0.dragItem.itemProvider }, parent: destination, useCurrentFolder: false,
+                                 moveOverride: FileDropAction.externalMove(moveMode: commander?.moveMode == true))
             }
         }
     }

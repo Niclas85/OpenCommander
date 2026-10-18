@@ -6,6 +6,8 @@ final class TransferQueuePanel: UIViewController {
     private let stack = UIStackView()
     private let scroll = UIScrollView()
     private let selector = UISegmentedControl(items: ["1", "2", "3", "4"])
+    private let pauseAll = UIButton(type: .system)
+    private let resumeAll = UIButton(type: .system)
     private var rendered: [DurableTransferQueue.Job] = []
     private struct Controls {
         let name: UILabel; let compact: UIButton; let pause: UIButton; let resume: UIButton
@@ -41,7 +43,13 @@ final class TransferQueuePanel: UIViewController {
         }, for: .valueChanged)
         let done = UIButton(type: .system); done.setTitle(L10n.get("settings_done"), for: .normal)
         done.addAction(UIAction { [weak self] _ in self?.closeRequested?() }, for: .touchUpInside)
-        let header = UIStackView(arrangedSubviews: [title, concurrency, selector, done]); header.spacing = 12
+        pauseAll.setTitle(L10n.get("transfer_pause_all"), for: .normal)
+        resumeAll.setTitle(L10n.get("transfer_resume_all"), for: .normal)
+        pauseAll.accessibilityIdentifier = "TransferPauseAll"
+        resumeAll.accessibilityIdentifier = "TransferResumeAll"
+        pauseAll.addAction(UIAction { [weak self] _ in self?.queue.controlAll(.pause) }, for: .touchUpInside)
+        resumeAll.addAction(UIAction { [weak self] _ in self?.queue.controlAll(.proceed) }, for: .touchUpInside)
+        let header = UIStackView(arrangedSubviews: [title, concurrency, selector, pauseAll, resumeAll, done]); header.spacing = 12
         header.translatesAutoresizingMaskIntoConstraints = false
         scroll.translatesAutoresizingMaskIntoConstraints = false
         stack.axis = .vertical; stack.spacing = 8; stack.translatesAutoresizingMaskIntoConstraints = false
@@ -71,6 +79,8 @@ final class TransferQueuePanel: UIViewController {
         }
     }
     func render(_ jobs: [DurableTransferQueue.Job], limit: Int, error: String?) {
+        pauseAll.isEnabled = jobs.contains { [.queued, .running].contains($0.state) && $0.requestedControl != "pause" }
+        resumeAll.isEnabled = jobs.contains { $0.state == .paused }
         loadViewIfNeeded(); selector.selectedSegmentIndex = limit - 1
         if jobs.contains(where: { $0.state == .running }) {
             if durationTimer == nil {
@@ -160,13 +170,17 @@ final class TransferQueuePanel: UIViewController {
         refs.resume.isHidden = ![.paused, .failed].contains(job.state)
         refs.cancel.isEnabled = ![.completed, .cancelled].contains(job.state) && job.requestedControl != "cancel"
         refs.cancel.isHidden = [.completed, .cancelled].contains(job.state)
-        refs.forget.isHidden = ![.completed, .cancelled].contains(job.state)
+        refs.forget.isHidden = ![.completed, .cancelled].contains(job.state) || (job.engine == "nas-exclusive" && job.state != .completed)
         refs.progress.progress = job.progressFraction
         refs.progress.accessibilityLabel = L10n.get(job.isChecking ? "transfer_checked" : "transfer_copied")
         refs.route.isHidden = job.compact; refs.details.isHidden = job.compact
         refs.report.isHidden = job.compact
         refs.error.isHidden = job.compact || job.error == nil
         refs.error.text = job.error.map { L10n.get("transfer_previous_error") + " " + $0 }
+        if job.engine == "nas-exclusive", job.state != .completed {
+            refs.error.isHidden = false
+            refs.error.text = L10n.get("transfer_nas_partial") + (refs.error.text.map { "\n" + $0 } ?? "")
+        }
         refs.summary.isHidden = true
         refs.summary.text = description(job)
         refs.details.text = refs.timestamp + "\n" + description(job)

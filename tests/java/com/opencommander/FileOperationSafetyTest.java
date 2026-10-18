@@ -106,6 +106,30 @@ public final class FileOperationSafetyTest {
             } catch (IOException expected) {
                 check(!deleted[0], "No source deletion after copy failure");
             }
+            // A failed/cancelled write must publish nothing and retain the source.
+            for (String reason : List.of("cancelled", "ENOSPC")) {
+                Path input = Files.writeString(fixture.resolve("input-" + reason), "complete source");
+                Path target = fixture.resolve("target-" + reason);
+                try {
+                    FileOperationSafety.copyToNewPath(input.toFile(), target.toFile(), (from, staging) -> {
+                        Files.writeString(staging.toPath(), "partial");
+                        throw new IOException(reason);
+                    });
+                    throw new AssertionError("Expected " + reason);
+                } catch (IOException expected) {
+                    check(expected.getMessage().equals(reason), "Failure is preserved");
+                    check(!Files.exists(target), "No partial target after " + reason);
+                    check(Files.readString(input).equals("complete source"), "Source unchanged");
+                    try (var siblings = Files.list(fixture)) {
+                        check(siblings.noneMatch(path -> path.getFileName().toString().startsWith(".OpenCommanderTransfer-")),
+                                "No staging remains");
+                    }
+                }
+                FileOperationSafety.copyToNewPath(input.toFile(), target.toFile(),
+                        (from, to) -> Files.copy(from.toPath(), to.toPath()));
+                check(Files.readString(target).equals("complete source"), "Retry succeeds");
+            }
+            System.out.println("PASS: cancelled/ENOSPC writes publish no partial destination, preserve source, remove staging and allow retry");
             Path file = destination.resolve("a.txt");
             byte[] snapshot = FileOperationSafety.snapshot(node(destination));
             check(FileOperationSafety.unchanged(snapshot, node(destination)), "Unmodified tree accepted");

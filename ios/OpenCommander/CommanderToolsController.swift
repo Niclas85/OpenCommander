@@ -13,6 +13,8 @@ final class CommanderToolsController: UIViewController, UITableViewDataSource, U
     let german = L10n.currentLanguage.hasPrefix("de")
     var onOpen: ((URL) -> Void)?
     var onRename: (([FileUndoRecord]) -> Void)?
+    var onWillRename: (([URL]) -> Bool)?
+    var onDidFinishRename: (() -> Void)?
     var onlineRun: (@MainActor (String, Bool, String, [String]) async throws -> [Row])?
     var onlineApply: (@MainActor () async throws -> Int)?
     var displayRoot: String?
@@ -215,8 +217,13 @@ final class CommanderToolsController: UIViewController, UITableViewDataSource, U
             return
         }
         guard !busy, !plan.isEmpty else { return }
+        guard onWillRename?(plan.flatMap { [$0.source, $0.destination] }) != false else {
+            status.text = L10n.get("transfer_paths_busy"); return
+        }
+        let release = onDidFinishRename
         let plan = self.plan; self.plan = []; cancellation.reset(); setBusy(true)
         DispatchQueue.global(qos: .userInitiated).async {
+            defer { DispatchQueue.main.async { release?() } }
             do {
                 let records = try CommanderTools.rename(plan, cancel: self.cancellation)
                 DispatchQueue.main.async {

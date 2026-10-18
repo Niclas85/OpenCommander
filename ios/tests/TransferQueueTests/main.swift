@@ -50,6 +50,22 @@ require(DurableTransferQueue.overlaps(a, c), "keep-both filename family overlap 
 a.destination = "/x/independent"
 require(!DurableTransferQueue.overlaps(a, c), "unrelated jobs blocked")
 print("PASS persisted compact cards/parallelism and write/read/filename-family locks")
+for prefix in ["tmp", "var", "etc"] {
+    for source in ["/\(prefix)/source", "/private/\(prefix)/source/"] {
+        var paused = DurableTransferQueue.Job(source: source, destination: "/private/\(prefix)/target/")
+        paused.state = .paused
+        for request in ["/\(prefix)/source", "/private/\(prefix)/source/", "/\(prefix)/source/child"] {
+            require(DurableTransferQueue.pathConflicts(requested: request, writing: true, job: paused), "Paused source alias mutation escaped reservation")
+            require(!DurableTransferQueue.pathConflicts(requested: request, writing: false, job: paused), "Independent source read unnecessarily blocked")
+        }
+        require(DurableTransferQueue.pathConflicts(requested: "/\(prefix)/target", writing: false, job: paused), "Reserved target alias read escaped")
+        require(!DurableTransferQueue.pathConflicts(requested: "/\(prefix)/source-other", writing: true, job: paused), "Path-prefix neighbour incorrectly blocked")
+        require(DurableTransferQueue.pathConflicts(requested: "/", writing: true, job: paused), "Root ancestor reservation missed")
+        let mutation = DurableTransferQueue.Job(source: "/\(prefix)/source", destination: "/unrelated", move: true)
+        require(DurableTransferQueue.overlaps(paused, mutation), "Scheduler aliases bypass paused source lock")
+    }
+}
+print("PASS paused queue source/target locks across macOS private aliases, trailing slashes, descendants and scheduler comparisons")
 var checking = DurableTransferQueue.Job(source: "/source", destination: "/target")
 checking.state = .running; checking.bytes = 75; checking.total = 100
 checking.workPhase = .verifying; checking.checkedBytes = 2; checking.checkingTotal = 8
@@ -71,8 +87,8 @@ require(!DurableTransferQueue.pathConflicts(requested: "/c/other", writing: true
 guarded.move = true
 require(DurableTransferQueue.pathConflicts(requested: "/a/source", writing: false, job: guarded), "reader can race phased move")
 guarded.state = .paused
-require(!DurableTransferQueue.pathConflicts(requested: "/a", writing: true, job: guarded), "paused job retains active reservation")
-print("PASS mutation path guards, parent/child and pending-name families, compatible readers and paused release")
+require(DurableTransferQueue.pathConflicts(requested: "/a", writing: true, job: guarded), "paused source can be removed before resume")
+print("PASS mutation path guards, parent/child and pending-name families, compatible readers and paused reservations")
 queue.forget(id)
 waitFor({ jobs.count == 2 })
 require(FileManager.default.fileExists(atPath: recovered[0].destination), "forget removed copied data")
@@ -102,7 +118,68 @@ require(restartJobs.first(where: { $0.id == restartID })?.state == .paused, "rec
 let stopped = restartJobs.first { $0.id == restartID }!
 require(stopped.requestedControl == nil && stopped.workPhase == nil && stopped.checkingTotal == nil,
     "restart kept a dead worker's pending request/verification phase")
+restart.setForegroundOperationActive(true)
 restart.control(restartID, .proceed)
+waitFor({ restartJobs.first(where: { $0.id == restartID })?.state == .queued })
+RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+require(restartJobs.first(where: { $0.id == restartID })?.state == .queued, "resume started underneath a foreground action")
+restart.setForegroundOperationActive(false)
 waitFor({ restartJobs.first(where: { $0.id == restartID })?.state == .completed })
 require(restartJobs.first(where: { $0.id == restartID })?.error == "synthetic previous error", "successful resume silently discarded previous failure")
 print("PASS restart recovers a running index as paused, explicit resume validates completed publication")
+let gateQueue = DurableTransferQueue(directory: root.appendingPathComponent("foreground-gate"))
+var gateJobs: [DurableTransferQueue.Job] = []
+gateQueue.changed = { snapshot, _, error in require(error == nil, "foreground gate failed"); gateJobs = snapshot }
+gateQueue.setForegroundOperationActive(true)
+let gatedDestination = root.appendingPathComponent("foreground-result")
+gateQueue.enqueue(source: source, destination: gatedDestination)
+waitFor({ gateJobs.count == 1 })
+RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+require(gateJobs[0].state == .queued && !FileManager.default.fileExists(atPath: gatedDestination.path), "new job escaped foreground gate")
+gateQueue.setForegroundOperationActive(false)
+waitFor({ gateJobs[0].state == .completed })
+let gatedBytes = try Data(contentsOf: gatedDestination)
+require(gatedBytes == bytes, "released foreground gate copy differs")
+print("PASS foreground mutation gate defers new/resumed jobs until release without losing queued work")
+
+let bulkQueue = DurableTransferQueue(directory: root.appendingPathComponent("bulk-controls"))
+var bulkJobs: [DurableTransferQueue.Job] = []
+var bulkMaximumRunning = 0
+bulkQueue.changed = { snapshot, _, error in
+    require(error == nil, "bulk controls store failure")
+    bulkJobs = snapshot
+    bulkMaximumRunning = max(bulkMaximumRunning, snapshot.filter { $0.state == .running }.count)
+}
+bulkQueue.setForegroundOperationActive(true)
+bulkQueue.setLimit(2)
+for number in 1...3 { bulkQueue.enqueue(source: source, destination: root.appendingPathComponent("bulk-\(number)")) }
+waitFor({ bulkJobs.count == 3 })
+bulkQueue.controlAll(.pause)
+bulkQueue.setForegroundOperationActive(false)
+waitFor({ bulkJobs.allSatisfy { $0.state == .paused } })
+require(bulkJobs.allSatisfy { !FileManager.default.fileExists(atPath: $0.destination) }, "pause all started a queued job")
+bulkQueue.controlAll(.proceed)
+waitFor({ bulkJobs.allSatisfy { $0.state == .completed } })
+require(bulkMaximumRunning <= 2, "resume all exceeded concurrency")
+for job in bulkJobs {
+    let copied = try Data(contentsOf: URL(fileURLWithPath: job.destination))
+    require(copied == bytes, "bulk resume changed bytes")
+}
+print("PASS atomic pause-all/resume-all preserves queued work, byte integrity and concurrency")
+let reservedQueue = DurableTransferQueue(directory: root.appendingPathComponent("paused-reservation"))
+var reservedJobs: [DurableTransferQueue.Job] = []
+reservedQueue.changed = { snapshot, _, error in require(error == nil, "reservation store failed"); reservedJobs = snapshot }
+reservedQueue.setForegroundOperationActive(true)
+reservedQueue.enqueue(source: source, destination: root.appendingPathComponent("reserved-copy"))
+waitFor({ reservedJobs.count == 1 })
+let pausedID = reservedJobs[0].id
+reservedQueue.control(pausedID, .pause)
+reservedQueue.enqueue(source: source, destination: root.appendingPathComponent("reserved-move"), move: true)
+reservedQueue.setForegroundOperationActive(false)
+waitFor({ reservedJobs.count == 2 && reservedJobs[0].state == .paused && reservedJobs[1].state == .queued })
+RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+require(reservedJobs[1].state == .queued && FileManager.default.fileExists(atPath: source.path), "move invalidated paused copy source")
+reservedQueue.control(pausedID, .cancel)
+waitFor({ reservedJobs[1].state == .completed })
+require(reservedJobs[0].state == .cancelled, "cancel restarted paused work")
+print("PASS paused source blocks later conflicting move; cancel releases reservation without starting paused jobs")

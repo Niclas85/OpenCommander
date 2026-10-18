@@ -1,0 +1,1836 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-18",
+  "reference": "origin/codex/linux-desktop@e3b2981ad5a88551be81b86b6c6453e26e2e2ff5",
+  "reference_inventory": "linux/docs/testplan/testfaelle.json",
+  "complete": false,
+  "status_meaning": {
+    "native_verified": "This stated bounded native sequence was actually executed; platform prerequisites may differ.",
+    "partial": "Related regression/native evidence exists, but not every original manual step/prerequisite is claimed.",
+    "environment_required": "Specific absent account/server/device or platform capability remains; listed partial evidence is not a pass."
+  },
+  "cases": [
+    {
+      "id": "START-01",
+      "group": "Installation, Start und Integration",
+      "title": "Portables Paket starten",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-17.md",
+        "ios/tests/MacAcceptanceTests/fixture.swift"
+      ]
+    },
+    {
+      "id": "START-02",
+      "group": "Installation, Start und Integration",
+      "title": "Installation im Benutzerkonto",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-17.md",
+        "ios/tests/MacAcceptanceTests/fixture.swift"
+      ]
+    },
+    {
+      "id": "START-03",
+      "group": "Installation, Start und Integration",
+      "title": "Erster Start: Standardprogramm zustimmen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-17.md",
+        "ios/tests/MacAcceptanceTests/fixture.swift"
+      ]
+    },
+    {
+      "id": "START-04",
+      "group": "Installation, Start und Integration",
+      "title": "Standardprogramm ablehnen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-17.md",
+        "ios/tests/MacAcceptanceTests/fixture.swift"
+      ]
+    },
+    {
+      "id": "START-05",
+      "group": "Installation, Start und Integration",
+      "title": "Zweite Instanz und Ordnerübergabe",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-17.md",
+        "ios/tests/MacAcceptanceTests/fixture.swift"
+      ]
+    },
+    {
+      "id": "START-06",
+      "group": "Installation, Start und Integration",
+      "title": "Startargumente und Sonderzeichen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-17.md",
+        "ios/tests/MacAcceptanceTests/fixture.swift"
+      ]
+    },
+    {
+      "id": "START-07",
+      "group": "Installation, Start und Integration",
+      "title": "Einstellungen nach Neustart",
+      "status": "partial",
+      "actual": "Native Deutsch/Dark and two visited local folders survived orderly app restart; missing last folder fell back to saved root, other pane unchanged. Archive browsing now preserves last physical folder (new native restart proof). Access bookmark stays separate. Full geometry/tree-width/prerequisite matrix not claimed.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-17.md",
+        "ios/tests/MacAcceptanceTests/fixture.swift",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "START-08",
+      "group": "Installation, Start und Integration",
+      "title": "Versionswechsel mit bestehendem Profil",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-17.md",
+        "ios/tests/MacAcceptanceTests/fixture.swift"
+      ]
+    },
+    {
+      "id": "START-09",
+      "group": "Installation, Start und Integration",
+      "title": "Fehlende optionale Komponenten",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-17.md",
+        "ios/tests/MacAcceptanceTests/fixture.swift"
+      ]
+    },
+    {
+      "id": "NAV-01",
+      "group": "Navigation und Dateibereiche",
+      "title": "Unabhängige Bereiche und aktives Ziel",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "NAV-02",
+      "group": "Navigation und Dateibereiche",
+      "title": "Ordnerbaum und lange Namen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "NAV-03",
+      "group": "Navigation und Dateibereiche",
+      "title": "Eine Ebene hoch und Herkunft markieren",
+      "status": "native_verified",
+      "actual": "Native Up button and Command-Up reopen parent, select and scroll to Folder-079 among 80 children, including /tmp versus /private/tmp. Other pane preserved.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "NAV-04",
+      "group": "Navigation und Dateibereiche",
+      "title": "Zurück und Vorwärts",
+      "status": "native_verified",
+      "actual": "Native local sequence: three visited folders, Back twice, Forward once, new branch; displayed paths and independent opposite pane checked. Forward branch was discarded.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "NAV-05",
+      "group": "Navigation und Dateibereiche",
+      "title": "Pfad direkt eingeben",
+      "status": "native_verified",
+      "actual": "Mac Command-Shift-G (platform-native counterpart of Ctrl-L) opened a real Unicode/CJK folder. Missing path kept the actual old path; unreadable test folder showed localized failure and no stale actionable rows. Restored permissions + Retry showed actual empty contents.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "NAV-06",
+      "group": "Navigation und Dateibereiche",
+      "title": "Sortieren und Filtern",
+      "status": "native_verified",
+      "actual": "Native Name/Size/Date both directions, filtering/clearing and visible counts checked. Old Alpha selection vanished under Image filter; subsequent F5 copied only the selected visible Image1.jpg, no old hidden selection/conflict. Exact destination contents checked. New-folder loading clears both old arrays.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "NAV-07",
+      "group": "Navigation und Dateibereiche",
+      "title": "Mehrfachauswahl",
+      "status": "native_verified",
+      "actual": "Native single, Command-multiple (two), Shift-range (four) and Command-A (six filtered images) checked. File+folder F5 and filtered one-image F5 used precisely intended entries; independent bytes verified.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "NAV-08",
+      "group": "Navigation und Dateibereiche",
+      "title": "Versteckte Dateien und Aktualisierung",
+      "status": "native_verified",
+      "actual": "Native Mac Command-Shift-period showed .Hidden.txt and 17 rather than 16 entries, second shortcut hid it again; Command-R refreshed. Earlier externally created file appeared exactly once. Mac key equivalents are explicit, not Linux Ctrl-H/Ctrl-R literal keys.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "NAV-09",
+      "group": "Navigation und Dateibereiche",
+      "title": "Kontextmenü auf Datei und leerer Fläche",
+      "status": "native_verified",
+      "actual": "Native file menu Get Info targets the clicked PNG; blank-area menu with an existing selection offers New Folder/Paste/Refresh/Search/Copy Path without stale Delete. Created own folder through blank menu and successfully undid it.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "NAV-10",
+      "group": "Navigation und Dateibereiche",
+      "title": "Laden abbrechen und weiter navigieren",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "NAV-11",
+      "group": "Navigation und Dateibereiche",
+      "title": "Verbindung im Bereichstitel",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "PLACE-01",
+      "group": "Orte, Symbole und Reihenfolge",
+      "title": "Ort direkt öffnen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "PLACE-02",
+      "group": "Orte, Symbole und Reihenfolge",
+      "title": "Dienstsymbole zuordnen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "PLACE-03",
+      "group": "Orte, Symbole und Reihenfolge",
+      "title": "Mit Ziehbild umordnen",
+      "status": "native_verified",
+      "actual": "Native mouse reorders Mac and OneDrive online with visible insertion marker; corrected source drag-end delegate immediately renders persisted order.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "PLACE-04",
+      "group": "Orte, Symbole und Reihenfolge",
+      "title": "Reihenfolge per Kontextmenü",
+      "status": "native_verified",
+      "actual": "Native context Move left/right, first-position disabled boundary; same stored preference policy.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "PLACE-05",
+      "group": "Orte, Symbole und Reihenfolge",
+      "title": "Reihenfolge dauerhaft speichern",
+      "status": "native_verified",
+      "actual": "Separate test app relaunch retained reordered Mac/OneDrive locations.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "PLACE-06",
+      "group": "Orte, Symbole und Reihenfolge",
+      "title": "Geräteaktualisierung während Ziehen",
+      "status": "native_verified",
+      "actual": "Native held location drag plus HFS+ test-image attach, then successful drop updated order and added drive without changing pane paths. Escape variant also passed; image cleanly detached.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "PLACE-07",
+      "group": "Orte, Symbole und Reihenfolge",
+      "title": "Datei nicht als Ort verschieben",
+      "status": "native_verified",
+      "actual": "Native file-to-location drag left preferences and pane paths unchanged. Reverse location-to-file test exposed an accidental label text import; own-process private type now rejects it. Final native negative drop creates no file, sentinel exact, ordinary location reorder still succeeds. File-drop regression covers token exclusion.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log",
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-file-drop.log"
+      ]
+    },
+    {
+      "id": "PLACE-08",
+      "group": "Orte, Symbole und Reihenfolge",
+      "title": "Favorit bearbeiten, ausblenden, entfernen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "FILE-01",
+      "group": "Dateiaktionen und Konflikte",
+      "title": "Kopieren mit F5",
+      "status": "native_verified",
+      "actual": "Fresh native F5 copied Alpha.txt + Nested/Child.txt to an empty APFS target, original sources and exact bytes retained. Two individual queue-completion history entries show exact source/destination, 18.10.2026 10:32:11 and enabled Undo. This local case does not certify a NAS/device matrix.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "docs/mac-finder-command-2026-10-17.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "FILE-02",
+      "group": "Dateiaktionen und Konflikte",
+      "title": "Verschieben mit F6",
+      "status": "native_verified",
+      "actual": "Native same-APFS Image1.jpg F6 + Undo passed. Additionally file+folder F6 APFS→NTFS and NTFS→APFS on a fresh 64MiB image: exact bytes, visible sources retired only after completion, both individual Undo actions restored exact originals. Full detach/reattach preserved final NTFS data. No physical Elements test claimed.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "docs/mac-finder-command-2026-10-17.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "FILE-03",
+      "group": "Dateiaktionen und Konflikte",
+      "title": "Drag-and-drop folgt Toggle",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "docs/mac-finder-command-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "FILE-04",
+      "group": "Dateiaktionen und Konflikte",
+      "title": "F5/F6 unabhängig vom Toggle",
+      "status": "native_verified",
+      "actual": "Native Move toggle + F5 copied file and folder with originals retained; Copy toggle + F6 moved Image1.jpg, exact hash checked, Undo restored source and removed visible target. Function-key intent was independent of drag toggle.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "docs/mac-finder-command-2026-10-17.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "FILE-05",
+      "group": "Dateiaktionen und Konflikte",
+      "title": "Zwischenablage",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "docs/mac-finder-command-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "FILE-06",
+      "group": "Dateiaktionen und Konflikte",
+      "title": "Lokaler Namenskonflikt",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "docs/mac-finder-command-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "FILE-07",
+      "group": "Dateiaktionen und Konflikte",
+      "title": "Online-Namenskonflikt",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "docs/mac-finder-command-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "FILE-08",
+      "group": "Dateiaktionen und Konflikte",
+      "title": "Umbenennen und neuer Ordner",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "docs/mac-finder-command-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "FILE-09",
+      "group": "Dateiaktionen und Konflikte",
+      "title": "Gefährliche Pfadkombinationen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "docs/mac-finder-command-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "FILE-10",
+      "group": "Dateiaktionen und Konflikte",
+      "title": "Öffnen und Öffnen mit",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "docs/mac-finder-command-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "FILE-11",
+      "group": "Dateiaktionen und Konflikte",
+      "title": "Fehlende Rechte und voller Datenträger",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "docs/mac-finder-command-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "FILE-12",
+      "group": "Dateiaktionen und Konflikte",
+      "title": "NAS-Metadatenfehler als Regression",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "docs/mac-finder-command-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "JOB-01",
+      "group": "Warteschlange, Parallelität und Bedienbarkeit",
+      "title": "Fortschritt vollständig",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "JOB-02",
+      "group": "Warteschlange, Parallelität und Bedienbarkeit",
+      "title": "Zeitformate und Grenzwerte",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "JOB-03",
+      "group": "Warteschlange, Parallelität und Bedienbarkeit",
+      "title": "Mehrere Aufträge und Parallelität",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "JOB-04",
+      "group": "Warteschlange, Parallelität und Bedienbarkeit",
+      "title": "Überlappende Pfade schützen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "JOB-05",
+      "group": "Warteschlange, Parallelität und Bedienbarkeit",
+      "title": "Pausierte Aufträge reservieren Pfade",
+      "status": "partial",
+      "actual": "Native paused Lane2 at 9% survived rebuild/restart and source deletion was refused after fixing /private/tmp-vs-/tmp reservation aliases. Explicit old Lane1 Cancel retained partial data and did not restart other paused work. Earlier Trash Undo failed because its synthetic payload was missing; cause unproven, not counted as pass. Four reconstructed/valid completed trees verified across all 4000 files.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "docs/mac-acceptance-2026-10-18.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "JOB-06",
+      "group": "Warteschlange, Parallelität und Bedienbarkeit",
+      "title": "GUI während langsamer Kopie",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "JOB-07",
+      "group": "Warteschlange, Parallelität und Bedienbarkeit",
+      "title": "Einzelne Pause reagiert",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "JOB-08",
+      "group": "Warteschlange, Parallelität und Bedienbarkeit",
+      "title": "Abbrechen reagiert",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "JOB-09",
+      "group": "Warteschlange, Parallelität und Bedienbarkeit",
+      "title": "Alle pausieren und fortsetzen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "JOB-10",
+      "group": "Warteschlange, Parallelität und Bedienbarkeit",
+      "title": "Einzelnen Vorgang minimieren",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "JOB-11",
+      "group": "Warteschlange, Parallelität und Bedienbarkeit",
+      "title": "Viele Karten und globale Ansicht",
+      "status": "partial",
+      "actual": "20 restored paused cards displayed; Resume all completed all 20 files with exact 64KiB bytes. Every compact/detail/hide control not independently reexecuted.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "JOB-12",
+      "group": "Warteschlange, Parallelität und Bedienbarkeit",
+      "title": "Unabhängig löschen während Kopie",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "JOB-13",
+      "group": "Warteschlange, Parallelität und Bedienbarkeit",
+      "title": "Schnelle wiederholte Steuerung",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "REC-01",
+      "group": "Neustart, Unterbrechung und Datenintegrität",
+      "title": "Geordnet schließen und später fortsetzen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-tree.log"
+      ]
+    },
+    {
+      "id": "REC-02",
+      "group": "Neustart, Unterbrechung und Datenintegrität",
+      "title": "Explizit pausiert neu starten",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-tree.log"
+      ]
+    },
+    {
+      "id": "REC-03",
+      "group": "Neustart, Unterbrechung und Datenintegrität",
+      "title": "Unerwarteter Prozessabbruch",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-tree.log"
+      ]
+    },
+    {
+      "id": "REC-04",
+      "group": "Neustart, Unterbrechung und Datenintegrität",
+      "title": "Lokale Teildatei fortsetzen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-tree.log"
+      ]
+    },
+    {
+      "id": "REC-05",
+      "group": "Neustart, Unterbrechung und Datenintegrität",
+      "title": "rclone-Teildatei ohne Append",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-tree.log"
+      ]
+    },
+    {
+      "id": "REC-06",
+      "group": "Neustart, Unterbrechung und Datenintegrität",
+      "title": "Manipulierter Zwischenstand",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-tree.log"
+      ]
+    },
+    {
+      "id": "REC-07",
+      "group": "Neustart, Unterbrechung und Datenintegrität",
+      "title": "Quelle während Pause geändert",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-tree.log"
+      ]
+    },
+    {
+      "id": "REC-08",
+      "group": "Neustart, Unterbrechung und Datenintegrität",
+      "title": "Quelle oder Ziel nicht verfügbar",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-tree.log"
+      ]
+    },
+    {
+      "id": "REC-09",
+      "group": "Neustart, Unterbrechung und Datenintegrität",
+      "title": "Anderes Laufwerk am gleichen Pfad",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-tree.log"
+      ]
+    },
+    {
+      "id": "REC-10",
+      "group": "Neustart, Unterbrechung und Datenintegrität",
+      "title": "Verschieben: Cleanup unterbrechen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-tree.log"
+      ]
+    },
+    {
+      "id": "REC-11",
+      "group": "Neustart, Unterbrechung und Datenintegrität",
+      "title": "Abbruch bei offline befindlichem Ziel",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-tree.log"
+      ]
+    },
+    {
+      "id": "REC-12",
+      "group": "Neustart, Unterbrechung und Datenintegrität",
+      "title": "Beschädigtes Testjournal",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-tree.log"
+      ]
+    },
+    {
+      "id": "TRASH-01",
+      "group": "Papierkorb, Historie und Rückgängig",
+      "title": "Entfernen und Bestätigung",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log"
+      ]
+    },
+    {
+      "id": "TRASH-02",
+      "group": "Papierkorb, Historie und Rückgängig",
+      "title": "Dropbox-Datei bleibt nicht stehen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log"
+      ]
+    },
+    {
+      "id": "TRASH-03",
+      "group": "Papierkorb, Historie und Rückgängig",
+      "title": "Cache-Rennen nach Entfernen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log"
+      ]
+    },
+    {
+      "id": "TRASH-04",
+      "group": "Papierkorb, Historie und Rückgängig",
+      "title": "Aus Papierkorb wiederherstellen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log"
+      ]
+    },
+    {
+      "id": "TRASH-05",
+      "group": "Papierkorb, Historie und Rückgängig",
+      "title": "Undo für jede mutierende Operation",
+      "status": "partial",
+      "actual": "Local created-folder Undo implemented and native-tested; cloud empty-folder persistent Undo added and tested. Full every-operation/every-provider native matrix remains.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log"
+      ]
+    },
+    {
+      "id": "TRASH-06",
+      "group": "Papierkorb, Historie und Rückgängig",
+      "title": "Undo mit nachträglich geändertem Ziel",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log"
+      ]
+    },
+    {
+      "id": "TRASH-07",
+      "group": "Papierkorb, Historie und Rückgängig",
+      "title": "Undo abbrechen und erneut versuchen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log"
+      ]
+    },
+    {
+      "id": "TRASH-08",
+      "group": "Papierkorb, Historie und Rückgängig",
+      "title": "Historieninformationen und Bilder",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log"
+      ]
+    },
+    {
+      "id": "TRASH-09",
+      "group": "Papierkorb, Historie und Rückgängig",
+      "title": "Große Historie",
+      "status": "native_verified",
+      "actual": "1022-entry first/last pages limited to 50 rendered entries. Fresh 1000-entry seed with one real index-0 copy Undo: native oldest-page Undo removed only the visible destination, source and sentinel exact; 999 records remained, newest-page return passed.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log"
+      ]
+    },
+    {
+      "id": "TRASH-10",
+      "group": "Papierkorb, Historie und Rückgängig",
+      "title": "Papierkorb offline und Rechtefehler",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log"
+      ]
+    },
+    {
+      "id": "AUTH-01",
+      "group": "Cloud-Anmeldung und Profilverwaltung",
+      "title": "OAuth für drei Dienste",
+      "status": "environment_required",
+      "actual": "OAuth/runtime regressions and previous real Google/OneDrive evidence exist; a fresh three-provider account/consent matrix was not executed. No new permissions silently granted.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-oauth.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-lease.log"
+      ]
+    },
+    {
+      "id": "AUTH-02",
+      "group": "Cloud-Anmeldung und Profilverwaltung",
+      "title": "Anmeldebrowser wieder nach vorn",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-oauth.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-lease.log"
+      ]
+    },
+    {
+      "id": "AUTH-03",
+      "group": "Cloud-Anmeldung und Profilverwaltung",
+      "title": "Abgebrochene und abgelehnte Anmeldung",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-oauth.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-lease.log"
+      ]
+    },
+    {
+      "id": "AUTH-04",
+      "group": "Cloud-Anmeldung und Profilverwaltung",
+      "title": "OneDrive-Auswahl",
+      "status": "environment_required",
+      "actual": "A multi-drive Microsoft test account is needed for complete chooser sequence; not inferred from ordinary OneDrive login.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-oauth.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-lease.log"
+      ]
+    },
+    {
+      "id": "AUTH-05",
+      "group": "Cloud-Anmeldung und Profilverwaltung",
+      "title": "iCloud mit Zwei-Faktor-Anmeldung",
+      "status": "environment_required",
+      "actual": "Fresh iCloud 2FA consent sequence not executed; no account credential or security changes.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-oauth.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-lease.log"
+      ]
+    },
+    {
+      "id": "AUTH-06",
+      "group": "Cloud-Anmeldung und Profilverwaltung",
+      "title": "iCloud-Fehler und Webzugriff",
+      "status": "environment_required",
+      "actual": "iCloud account/browser failure matrix not reexecuted.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-oauth.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-lease.log"
+      ]
+    },
+    {
+      "id": "AUTH-07",
+      "group": "Cloud-Anmeldung und Profilverwaltung",
+      "title": "Verbindungen nach Neustart",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-oauth.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-lease.log"
+      ]
+    },
+    {
+      "id": "AUTH-08",
+      "group": "Cloud-Anmeldung und Profilverwaltung",
+      "title": "Name ändern und Verknüpfung entfernen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-oauth.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-lease.log"
+      ]
+    },
+    {
+      "id": "AUTH-09",
+      "group": "Cloud-Anmeldung und Profilverwaltung",
+      "title": "Google eigene OAuth-Konfiguration",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-oauth.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-lease.log"
+      ]
+    },
+    {
+      "id": "AUTH-10",
+      "group": "Cloud-Anmeldung und Profilverwaltung",
+      "title": "Trennen und erneutes Verbinden",
+      "status": "environment_required",
+      "actual": "No production account revoked solely for acceptance; fresh isolated consent/reconnect cases remain.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-oauth.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-lease.log"
+      ]
+    },
+    {
+      "id": "CLOUD-01",
+      "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+      "title": "Erste Liste und Warmstart",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log"
+      ]
+    },
+    {
+      "id": "CLOUD-02",
+      "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+      "title": "Google-Drive-Hänger als Regression",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log"
+      ]
+    },
+    {
+      "id": "CLOUD-03",
+      "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+      "title": "Online-Grundoperationen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log"
+      ]
+    },
+    {
+      "id": "CLOUD-04",
+      "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+      "title": "Netzausfall und Wiederkehr",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log"
+      ]
+    },
+    {
+      "id": "CLOUD-05",
+      "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+      "title": "Abgelaufene Autorisierung",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log"
+      ]
+    },
+    {
+      "id": "CLOUD-06",
+      "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+      "title": "Rate-Limit und temporäre Fehler",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log"
+      ]
+    },
+    {
+      "id": "CLOUD-07",
+      "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+      "title": "Parallele identische Listen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log"
+      ]
+    },
+    {
+      "id": "CLOUD-08",
+      "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+      "title": "Externe rclone-Einbindung",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log"
+      ]
+    },
+    {
+      "id": "CLOUD-09",
+      "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+      "title": "Teilen bei Drive, OneDrive, Dropbox",
+      "status": "environment_required",
+      "actual": "Sharing implementation tested through adapter; native confirmation/Cancel tested without publishing user data. Actual public-link grants not silently created.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log"
+      ]
+    },
+    {
+      "id": "CLOUD-10",
+      "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+      "title": "Keine Freigabe ohne Zustimmung",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log"
+      ]
+    },
+    {
+      "id": "CLOUD-11",
+      "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+      "title": "iCloud, Weböffnung und Online-Pfad",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log"
+      ]
+    },
+    {
+      "id": "CLOUD-12",
+      "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
+      "title": "Writeback-Mount korrekt beurteilen",
+      "status": "environment_required",
+      "actual": "External full-cache writeback mount and independent provider verification remain a distinct test; local copy completion is not cloud sync proof.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log"
+      ]
+    },
+    {
+      "id": "SERVER-01",
+      "group": "SFTP, FTP, FTPS und Netzwerkorte",
+      "title": "SFTP mit Passwort",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-remote.log",
+        "docs/mac-acceptance-2026-10-17.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-remote-live.log"
+      ]
+    },
+    {
+      "id": "SERVER-02",
+      "group": "SFTP, FTP, FTPS und Netzwerkorte",
+      "title": "SFTP mit privatem Schlüssel",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-remote.log",
+        "docs/mac-acceptance-2026-10-17.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-remote-live.log"
+      ]
+    },
+    {
+      "id": "SERVER-03",
+      "group": "SFTP, FTP, FTPS und Netzwerkorte",
+      "title": "Verschlüsselter Schlüssel und Agent",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-remote.log",
+        "docs/mac-acceptance-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "SERVER-04",
+      "group": "SFTP, FTP, FTPS und Netzwerkorte",
+      "title": "Unbekannter/geänderter Hostschlüssel",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-remote.log",
+        "docs/mac-acceptance-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "SERVER-05",
+      "group": "SFTP, FTP, FTPS und Netzwerkorte",
+      "title": "Ungültige Schlüssel und Eingaben",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-remote.log",
+        "docs/mac-acceptance-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "SERVER-06",
+      "group": "SFTP, FTP, FTPS und Netzwerkorte",
+      "title": "Passwort speichern optional",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-remote.log",
+        "docs/mac-acceptance-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "SERVER-07",
+      "group": "SFTP, FTP, FTPS und Netzwerkorte",
+      "title": "FTP und FTPS",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-remote.log",
+        "docs/mac-acceptance-2026-10-17.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-remote-live.log"
+      ]
+    },
+    {
+      "id": "SERVER-08",
+      "group": "SFTP, FTP, FTPS und Netzwerkorte",
+      "title": "SMB/NAS und WebDAV über GIO",
+      "status": "environment_required",
+      "actual": "Linux GIO-specific mechanism; Mac equivalent SMB/WebDAV mounted volumes needs a configured test server. Not inferred from FTP/SFTP tests.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-remote.log",
+        "docs/mac-acceptance-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "SERVER-09",
+      "group": "SFTP, FTP, FTPS und Netzwerkorte",
+      "title": "Serverprofil bearbeiten",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-remote.log",
+        "docs/mac-acceptance-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "DEVICE-01",
+      "group": "Datenträger und Dateisysteme",
+      "title": "Datenträger entdecken",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-image.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-access.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-registration.log"
+      ]
+    },
+    {
+      "id": "DEVICE-02",
+      "group": "Datenträger und Dateisysteme",
+      "title": "Mount und Auswerfen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-image.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-access.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-registration.log"
+      ]
+    },
+    {
+      "id": "DEVICE-03",
+      "group": "Datenträger und Dateisysteme",
+      "title": "Datenträger während Kopie verlieren",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-image.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-access.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-registration.log"
+      ]
+    },
+    {
+      "id": "DEVICE-04",
+      "group": "Datenträger und Dateisysteme",
+      "title": "NTFS lesen und schreiben",
+      "status": "environment_required",
+      "actual": "Fresh NTFS image passed engine/Foundation/durable file/tree transfers and full detach/reattach resume. No new physical Elements test; disk absent.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-image.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-access.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-registration.log"
+      ]
+    },
+    {
+      "id": "DEVICE-05",
+      "group": "Datenträger und Dateisysteme",
+      "title": "Mountfehler verständlich anzeigen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-image.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-access.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-registration.log"
+      ]
+    },
+    {
+      "id": "DEVICE-06",
+      "group": "Datenträger und Dateisysteme",
+      "title": "Dateisystemvarianten",
+      "status": "environment_required",
+      "actual": "HFS+ discovery and NTFS image verified; complete filesystem/hardware matrix not executed. Linux-only filesystems are not native macOS mounts.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-image.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-access.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-ntfs-registration.log"
+      ]
+    },
+    {
+      "id": "MEDIA-01",
+      "group": "Vorschau, Thumbnails und Medien",
+      "title": "JPG-Absturzregression",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "MEDIA-02",
+      "group": "Vorschau, Thumbnails und Medien",
+      "title": "Online-JPG und Thumbnails",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "MEDIA-03",
+      "group": "Vorschau, Thumbnails und Medien",
+      "title": "Bildformate und defekte Dateien",
+      "status": "native_verified",
+      "actual": "Native valid PNG, lossless WebP and validated two-frame GIF poster decoded/rendered correctly. Corrupt JPG and a binary merely renamed .jpg showed localized decode failure. First-frame GIF preview only, not animation parity.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "MEDIA-04",
+      "group": "Vorschau, Thumbnails und Medien",
+      "title": "Video online mit Ladeanzeige",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "MEDIA-05",
+      "group": "Vorschau, Thumbnails und Medien",
+      "title": "Bedienelemente nach Medientyp",
+      "status": "native_verified",
+      "actual": "Native image→video→audio→GIF/WebP/PNG sequence. Video Space pause held 0.791402s, real pointer seek to1.511371 then play1.836972; corrected end replay visually returned blue end to red start. WAV now exposes playback controls; Space pause held0.3605276s. Images had no old playback controls. AX-only slider value/press did not prove seek, and is not counted as one; no acoustic quality test.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "MEDIA-06",
+      "group": "Vorschau, Thumbnails und Medien",
+      "title": "Schneller Wechsel und Schließen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "MEDIA-07",
+      "group": "Vorschau, Thumbnails und Medien",
+      "title": "Löschen in der Vorschau",
+      "status": "partial",
+      "actual": "Native own-image Delete Cancel and confirm+last-item viewer close followed by exact Trash Undo passed. Additional simultaneous unrelated copy-completion/deletion timing matrix is not claimed.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "MEDIA-08",
+      "group": "Vorschau, Thumbnails und Medien",
+      "title": "Vorschau letzter/erster Eintrag",
+      "status": "native_verified",
+      "actual": "Own single-image folder showed1/1 at both arrow boundaries. Delete Cancel retained UI and exact source. Confirmed Trash closed last-item viewer and showed empty folder; toolbar Undo restored original602-byte PNG with identical SHA256. Multi-media1/6 and6/6 boundaries also checked.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "MEDIA-09",
+      "group": "Vorschau, Thumbnails und Medien",
+      "title": "Größen- und Zeitlimits",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "MEDIA-10",
+      "group": "Vorschau, Thumbnails und Medien",
+      "title": "Text und Binärvorschau",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "MEDIA-11",
+      "group": "Vorschau, Thumbnails und Medien",
+      "title": "Archiv-Medien",
+      "status": "native_verified",
+      "actual": "Fresh native-created ZIP member image showed1/1 with no Delete control, arrows and Close passed three cycles. Member info: correct PNG type602bytes !/member path, read-only. Full archive SHA256 unchanged. Temporary image outputs released after decode; ZIP video retained only owned UUID output during playback and removed it on Close, originals retained.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "MEDIA-12",
+      "group": "Vorschau, Thumbnails und Medien",
+      "title": "Thumbnail-Last und Cache",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-linux-parity-2026-10-16.md",
+        "docs/mac-acceptance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "ARCH-01",
+      "group": "Archive und sichere Extraktion",
+      "title": "Unterstützte Formate öffnen",
+      "status": "native_verified",
+      "actual": "ZIP, TAR, TGZ, TAR.BZ2, TAR.XZ, TAR.ZST, 7z and real RAR5 each opened in the native pane; names/shape checked and each fully extracted to a separate target. All output bytes/empty directories checked independently. Zstandard now bundled, no external zstd required.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-file-drop.log",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "ARCH-02",
+      "group": "Archive und sichere Extraktion",
+      "title": "Gezielt und vollständig entpacken",
+      "status": "native_verified",
+      "actual": "Native selected ZIP/Zstandard folder and complete no-selection extraction for all eight formats passed. Additional explicit single Unicode-member extraction preserved Ordner/Grüsse.txt, exact bytes and excluded unselected Empty/. Destinations were the opposite pane.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-file-drop.log",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "ARCH-03",
+      "group": "Archive und sichere Extraktion",
+      "title": "ZIP erstellen",
+      "status": "native_verified",
+      "actual": "Native ZIP Save panel wrote to the active synthetic folder with a distinct name. Single-image ZIP and image+empty-folder ZIP created; independent ZIP listing contained precisely Only.png + Empty/, member SHA256 matched original. Reopened in same pane, read-only image preview passed. No RAR/7z creation claim.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-file-drop.log",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "ARCH-04",
+      "group": "Archive und sichere Extraktion",
+      "title": "Konflikte und Undo beim Extrahieren",
+      "status": "native_verified",
+      "actual": "Native duplicate selected-folder extraction created Ordner (2) without changing Ordner. Toolbar Undo removed only the second output; first exact payload and source archive retained. Eight original archive hashes remained unchanged.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-file-drop.log",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "ARCH-05",
+      "group": "Archive und sichere Extraktion",
+      "title": "Traversal und absolute Pfade",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-file-drop.log"
+      ]
+    },
+    {
+      "id": "ARCH-06",
+      "group": "Archive und sichere Extraktion",
+      "title": "Archivbomben und Sonderdateien",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-file-drop.log"
+      ]
+    },
+    {
+      "id": "ARCH-07",
+      "group": "Archive und sichere Extraktion",
+      "title": "Kaputt, leer und verschlüsselt",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-file-drop.log"
+      ]
+    },
+    {
+      "id": "ARCH-08",
+      "group": "Archive und sichere Extraktion",
+      "title": "Read-only im Archiv",
+      "status": "partial",
+      "actual": "Native ZIP Rename/Delete refused; Zstandard Cut produced no selection/no mutation and Paste refused nonwritable target. Member properties showed exact member name/size/path and read-only. Internal image preview hides Delete; source hashes unchanged. Complete third-party editing/open-external matrix remains unexecuted.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-file-drop.log",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "TOOLS-01",
+      "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+      "title": "Rekursive Suche",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-commander-tools.log",
+        "docs/mac-acceptance-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "TOOLS-02",
+      "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+      "title": "Suche abbrechen und Fehler",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-commander-tools.log",
+        "docs/mac-acceptance-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "TOOLS-03",
+      "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+      "title": "Verzeichnisvergleich",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-commander-tools.log",
+        "docs/mac-acceptance-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "TOOLS-04",
+      "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+      "title": "Vergleich online und Abbruch",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-commander-tools.log",
+        "docs/mac-acceptance-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "TOOLS-05",
+      "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+      "title": "Mehrfach-Umbenennung mit Vorschau",
+      "status": "native_verified",
+      "actual": "Native [N]-[C][E], start 7, width 2, a→X: preview named AlphX-07.txt/BetX-08.txt, Apply matched exactly, both SHA256 preserved. History/toolbar Undo restored both original names and exact content.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-commander-tools.log",
+        "docs/mac-acceptance-2026-10-17.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "TOOLS-06",
+      "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+      "title": "Umbenennungs-Konflikte",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-commander-tools.log",
+        "docs/mac-acceptance-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "TOOLS-07",
+      "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+      "title": "Veraltete Vorschau",
+      "status": "native_verified",
+      "actual": "After native rename Preview, externally changed only synthetic Alpha.txt. Apply was rejected and disabled, original names and modified source bytes retained. Fresh Preview then Apply and Undo passed with independent hashes.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-commander-tools.log",
+        "docs/mac-acceptance-2026-10-17.md",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "TOOLS-08",
+      "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+      "title": "Teilfehler und Rücknahme",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-commander-tools.log",
+        "docs/mac-acceptance-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "TOOLS-09",
+      "group": "Suche, Vergleich und Mehrfach-Umbenennen",
+      "title": "Werkzeuggrenzen",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-commander-tools.log",
+        "docs/mac-acceptance-2026-10-17.md"
+      ]
+    },
+    {
+      "id": "PROP-01",
+      "group": "Eigenschaften, Einstellungen und Ergonomie",
+      "title": "Eigenschaften des angeklickten Eintrags",
+      "status": "partial",
+      "actual": "Native local test selected Alpha then context-clicked beta: information displayed beta.txt, correct 4-byte size and exact beta path. NAS/online/resolution/scaling prerequisite matrix remains unexecuted.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "PROP-02",
+      "group": "Eigenschaften, Einstellungen und Ergonomie",
+      "title": "NAS-Metadaten",
+      "status": "partial",
+      "actual": "Real SMB Test share: installed app Command-I displayed synthetic FoundationTree name/path/dates/permissions/owner/group without scanning; Calculate returned exact 6 bytes. Denied-access/disconnect and other NAS prerequisites remain open. Durable publication independently failed with ENOTSUP; see live report.",
+      "evidence": [
+        "docs/mac-live-elements-nas-2026-10-18.md",
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log"
+      ]
+    },
+    {
+      "id": "PROP-03",
+      "group": "Eigenschaften, Einstellungen und Ergonomie",
+      "title": "Ordnergröße freiwillig berechnen",
+      "status": "partial",
+      "actual": "Native local on-demand scan: denied child gives explicit 22-byte lower bound and one error; restored access gives complete 61 bytes. Real SMB synthetic folder gives exact 6 bytes on demand in installed app. Entry/time/symlink/recovery limits have regressions. Online and complete NAS failure matrix remain open.",
+      "evidence": [
+        "docs/mac-live-elements-nas-2026-10-18.md",
+        "docs/mac-continuation-2026-10-18.md",
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log"
+      ]
+    },
+    {
+      "id": "PROP-04",
+      "group": "Eigenschaften, Einstellungen und Ergonomie",
+      "title": "Dunkelmodus und Sprache",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log"
+      ]
+    },
+    {
+      "id": "PROP-05",
+      "group": "Eigenschaften, Einstellungen und Ergonomie",
+      "title": "Tastaturbefehle und Fokus",
+      "status": "partial",
+      "actual": "Command-L opens Go to Folder and a Unicode/punctuation/trailing-space local file URL works. Invalid remote host is rejected without navigation. Command-A/Backspace edits the filter without deleting the selected file. Complete shortcut/focus matrix remains open.",
+      "evidence": [
+        "docs/mac-continuation-2026-10-18.md",
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log"
+      ]
+    },
+    {
+      "id": "PROP-06",
+      "group": "Eigenschaften, Einstellungen und Ergonomie",
+      "title": "Skalierung und kleine Fenster",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log"
+      ]
+    },
+    {
+      "id": "PROP-07",
+      "group": "Eigenschaften, Einstellungen und Ergonomie",
+      "title": "Tastatur und sichtbarer Fokus",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log"
+      ]
+    },
+    {
+      "id": "PROP-08",
+      "group": "Eigenschaften, Einstellungen und Ergonomie",
+      "title": "Fehlertexte und Statusfarben",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log"
+      ]
+    },
+    {
+      "id": "SAFE-01",
+      "group": "Sicherheit, Leistung und Dauerbetrieb",
+      "title": "Zugangsdaten und Dateirechte",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-handbook.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-runtime.log"
+      ]
+    },
+    {
+      "id": "SAFE-02",
+      "group": "Sicherheit, Leistung und Dauerbetrieb",
+      "title": "Runtime-Download und Prüfsumme",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-handbook.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-runtime.log"
+      ]
+    },
+    {
+      "id": "SAFE-03",
+      "group": "Sicherheit, Leistung und Dauerbetrieb",
+      "title": "Unvertrauenswürdige Mount-Metadaten",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-handbook.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-runtime.log"
+      ]
+    },
+    {
+      "id": "SAFE-04",
+      "group": "Sicherheit, Leistung und Dauerbetrieb",
+      "title": "20.000 Dateien anzeigen",
+      "status": "partial",
+      "actual": "Native 20,000-entry list rendered, last-name filter found Row-19999; clearing restored 20,000 and sorting showed correct ascending/descending starts. Post-optimization warm observations: filtered result within 3.5s, filter clear 739ms. Not a controlled cold-cache or universal latency benchmark.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-handbook.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-runtime.log",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "SAFE-05",
+      "group": "Sicherheit, Leistung und Dauerbetrieb",
+      "title": "Große Historie und viele Aufträge messen",
+      "status": "partial",
+      "actual": "1000 and 1022 history entries tested with at most 50 rendered cards; oldest/newest navigation and actual index-0 Undo verified. 20 paused jobs displayed then resumed byte-exactly. Full specified UI latency/RAM benchmark remains separate.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-handbook.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-runtime.log"
+      ]
+    },
+    {
+      "id": "SAFE-06",
+      "group": "Sicherheit, Leistung und Dauerbetrieb",
+      "title": "Dauerlauf mit Netzwechseln",
+      "status": "partial",
+      "actual": "First two-hour attempt failed at 1658.6s with host ENOSPC; never counted as pass. Fresh four-lane production CloudFileClient process PASSED at 7204.059s with exit 0: 5860 outage/move/reopen/Undo byte-verified cycles, 1913 cancelled requests, 1955 pauses, max RSS 27525120 bytes, three open descriptors. Isolated adapters; not the complete original native GUI/live-provider host-network-switch matrix.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-handbook.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-runtime.log",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "SAFE-07",
+      "group": "Sicherheit, Leistung und Dauerbetrieb",
+      "title": "Wiederholtes Öffnen/Schließen",
+      "status": "partial",
+      "actual": "50 native image Preview, 50 Get Info and 50 Settings open/close cycles completed with fresh UI state and content verification. Threads sampled 6–9, warm lsof mapping rows 159 then 161, final five numbered descriptors. RSS under changing host pressure roughly 10–90MiB; no linear handle/worker pattern observed, not a heap-leak or long-duration proof.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-handbook.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-runtime.log"
+      ]
+    },
+    {
+      "id": "SAFE-08",
+      "group": "Sicherheit, Leistung und Dauerbetrieb",
+      "title": "Automatisierte Regression",
+      "status": "partial",
+      "actual": "Fresh stable-source batch of 15 native regression scripts, Swift safety with no external zstd in PATH and real loopback FTP/FTPS/SFTP-key/SFTP-password passed. Final Catalyst clone/normal signed builds additionally verified. Compiler source-change infrastructure failure retained separately. Not complete manual inventory.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-handbook.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-runtime.log",
+        "docs/mac-endurance-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "SAFE-09",
+      "group": "Sicherheit, Leistung und Dauerbetrieb",
+      "title": "Handbuch offline und Paketvollständigkeit",
+      "status": "partial",
+      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "evidence": [
+        "docs/mac-acceptance-2026-10-18.md",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-handbook.log",
+        "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-runtime.log"
+      ]
+    }
+  ]
+}

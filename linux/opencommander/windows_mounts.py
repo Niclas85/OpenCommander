@@ -162,6 +162,40 @@ def unmount(root):
     raise RuntimeError('Laufwerk noch verbunden / Mount is still connected')
 
 
+def settle(path):
+    """Forget a published parent before reading descendants or undo proofs.
+
+    WinFsp/rclone can retain a negative stat or a moved directory's empty staging
+    cache even though SFTP already has all data. Only use our authenticated loopback control;
+    external mounts without an OpenCommander control credential remain untouched.
+    """
+    import base64
+    from .provider_mounts import _roots
+    from .windows_native import keyring
+    path = Path(os.path.abspath(path))
+    root = next((root for root in sorted(_roots, key=lambda p: len(p.parts), reverse=True)
+                 if root == path or root in path.parents), None)
+    if root is None:
+        return False
+    control = keyring(root, 'mount-control', 'lookup')
+    if control is None:
+        return False
+    value = json.loads(control)
+    port = int(value['port'])
+    if not 1 <= port <= 65535:
+        raise ValueError('Invalid mount control port')
+    parent = path.parent if path != root else root
+    relative = parent.relative_to(root).as_posix()
+    data = json.dumps(dict(dir='' if relative == '.' else relative)).encode('utf-8')
+    request = urllib.request.Request(f'http://127.0.0.1:{port}/vfs/forget', data=data,
+        headers={'Content-Type': 'application/json', 'Authorization': 'Basic ' + base64.b64encode(
+            ('OpenCommander:' + value['password']).encode()).decode()})
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open(request, timeout=5) as response:
+        json.loads(response.read())
+    return True
+
+
 def evicted_target(path):
     path = Path(os.path.abspath(path))
     for profile in discover():

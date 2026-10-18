@@ -3,9 +3,17 @@ import CryptoKit
 
 /// Read-only, bounded traversal. Never follows directory links or hides access errors.
 enum CommanderTools {
-    /// A dialog path is absolute (or ~/...), never relative to the process CWD.
+    /// Shared local path input: never interpret shell syntax or remote URLs.
     static func searchDirectory(_ path: String) -> URL? {
         guard !path.isEmpty, !path.contains("\0") else { return nil }
+        if path.lowercased().hasPrefix("file:") {
+            guard let url = URL(string: path), url.isFileURL,
+                  url.host == nil || url.host == "" || url.host?.lowercased() == "localhost",
+                  url.user == nil, url.password == nil, url.port == nil,
+                  url.query == nil, url.fragment == nil,
+                  url.path.hasPrefix("/"), !url.path.contains("\0") else { return nil }
+            return URL(fileURLWithPath: url.path, isDirectory: true).standardizedFileURL
+        }
         let expanded = (path as NSString).expandingTildeInPath
         guard expanded.hasPrefix("/") else { return nil }
         return URL(fileURLWithPath: expanded, isDirectory: true).standardizedFileURL

@@ -29,6 +29,14 @@ check(CommanderTools.searchDirectory("") == nil, "Empty search path refused")
 check(CommanderTools.searchDirectory("https://example.com") == nil, "Web URL is not a filesystem search path")
 check(CommanderTools.searchDirectory("~/Downloads")?.path.hasSuffix("/Downloads") == true, "Home path expands")
 check(CommanderTools.searchDirectory(a.path)?.path == a.path, "Active pane absolute path preserved")
+let specialPath = a.appendingPathComponent("Grüsse 日本語 ;$() `quote` # % trailing ", isDirectory: true)
+check(CommanderTools.searchDirectory(specialPath.path)?.path == specialPath.path, "Literal shell punctuation and trailing spaces preserved")
+check(CommanderTools.searchDirectory(specialPath.absoluteString)?.path == specialPath.path, "File URL roundtrip preserves exact Unicode and punctuation")
+check(CommanderTools.searchDirectory("file://localhost/tmp/with%20space")?.path == "/tmp/with space", "Localhost file URL")
+check(CommanderTools.searchDirectory("/DocumentsExact")?.path == "/DocumentsExact", "No iOS Documents alias on desktop input")
+for invalid in ["file://remote.example/tmp/test", "file:///tmp/%00bad", "file:///tmp/test?query=1", "file:///tmp/test#fragment", "file://user@localhost/tmp/test", "sftp://localhost/tmp/test"] {
+    check(CommanderTools.searchDirectory(invalid) == nil, "Invalid local URL refused: \(invalid)")
+}
 let changedPath = CommanderTools.searchDirectory(b.path)!
 let changedResults = try CommanderTools.search(changedPath, query: "other.txt", hidden: false, cancel: cancel)
 check(changedResults.urls.map { $0.resolvingSymlinksInPath().path } == [b.appendingPathComponent("other.txt").resolvingSymlinksInPath().path], "Changed dialog path searches chosen folder")

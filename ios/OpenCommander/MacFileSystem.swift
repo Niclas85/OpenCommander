@@ -10,6 +10,19 @@ struct DesktopLocationPreference: Codable {
 }
 
 enum DesktopLocationPreferences {
+    static func reordered(_ entries: [DesktopLocationPreference], visible: [DesktopLocationPreference],
+                          source: String, target: String, before: Bool) -> [DesktopLocationPreference]? {
+        let paths = visible.map(\.path)
+        guard source != target, Set(paths).count == paths.count, paths.contains(source), paths.contains(target),
+              Set(entries.map(\.path)).count == entries.count else { return nil }
+        var result = entries
+        for entry in visible where !result.contains(where: { $0.path == entry.path }) { result.append(entry) }
+        guard let old = result.firstIndex(where: { $0.path == source }) else { return nil }
+        let moved = result.remove(at: old)
+        guard let index = result.firstIndex(where: { $0.path == target }) else { return nil }
+        result.insert(moved, at: index + (before ? 0 : 1))
+        return result
+    }
     static let oneDriveOnlinePath = "onedrive://online"
     static func load(from defaults: UserDefaults = .standard) -> [DesktopLocationPreference] {
         guard let data = defaults.data(forKey: "desktop_locations_v1") else { return [] }
@@ -20,6 +33,113 @@ enum DesktopLocationPreferences {
         if let data = try? JSONEncoder().encode(entries) { defaults.set(data, forKey: "desktop_locations_v1") }
     }
 }
+
+#if targetEnvironment(macCatalyst)
+import UIKit
+
+/// Only an app-local location token can reorder the bar. File URL/provider
+/// drags never become location preferences or move their underlying folders.
+@MainActor final class DesktopLocationBarInteraction: NSObject, UIDragInteractionDelegate, UIDropInteractionDelegate, UIContextMenuInteractionDelegate {
+    private final class Token {
+        weak var owner: DesktopLocationBarInteraction?
+        let path: String
+        init(_ owner: DesktopLocationBarInteraction, _ path: String) { self.owner = owner; self.path = path }
+    }
+    private weak var stack: UIStackView?
+    private weak var scroll: UIScrollView?
+    private var buttons: [(String, UIButton)] = []
+    private let indicator = UIView()
+    private var scrolling: Timer?
+    private var session: UIDropSession?
+    private var activationAfter = Date.distantPast
+    private(set) var isDragging = false
+    var allowsActivation: Bool { !isDragging && Date() >= activationAfter }
+    var moved: ((String, String, Bool) -> Void)?
+    var ended: (() -> Void)?
+    init(stack: UIStackView, scroll: UIScrollView) {
+        self.stack = stack; self.scroll = scroll; super.init()
+        indicator.backgroundColor = .systemBlue; indicator.isHidden = true; indicator.isUserInteractionEnabled = false
+        stack.addSubview(indicator); stack.addInteraction(UIDropInteraction(delegate: self))
+    }
+    func configure(_ values: [(String, UIButton)]) {
+        guard !isDragging else { return }
+        buttons = values
+        for (path, button) in values {
+            let drag = UIDragInteraction(delegate: self); drag.isEnabled = true; button.addInteraction(drag)
+            button.addInteraction(UIContextMenuInteraction(delegate: self))
+            button.accessibilityCustomActions = [
+                UIAccessibilityCustomAction(name: L10n.get("location_move_left")) { [weak self] _ in self?.step(path, -1) ?? false },
+                UIAccessibilityCustomAction(name: L10n.get("location_move_right")) { [weak self] _ in self?.step(path, 1) ?? false }]
+        }
+    }
+    private func step(_ path: String, _ delta: Int) -> Bool {
+        guard !isDragging, let index = buttons.firstIndex(where: { $0.0 == path }), buttons.indices.contains(index + delta) else { return false }
+        moved?(path, buttons[index + delta].0, delta < 0); return true
+    }
+    func contextMenuInteraction(_ interaction: UIContextMenuInteraction, configurationForMenuAtLocation location: CGPoint) -> UIContextMenuConfiguration? {
+        guard !isDragging, let index = buttons.firstIndex(where: { $0.1 === interaction.view }) else { return nil }
+        let path = buttons[index].0
+        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+            guard let self else { return nil }
+            return UIMenu(children: [
+                UIAction(title: L10n.get("location_move_left"), image: UIImage(systemName: "arrow.left"), attributes: index == 0 ? .disabled : []) { [weak self] _ in _ = self?.step(path, -1) },
+                UIAction(title: L10n.get("location_move_right"), image: UIImage(systemName: "arrow.right"), attributes: index == self.buttons.count - 1 ? .disabled : []) { [weak self] _ in _ = self?.step(path, 1) }])
+        }
+    }
+    func dragInteraction(_ interaction: UIDragInteraction, itemsForBeginning session: UIDragSession) -> [UIDragItem] {
+        guard let entry = buttons.first(where: { $0.1 === interaction.view }) else { return [] }
+        isDragging = true; session.localContext = self
+        let provider = NSItemProvider()
+        provider.registerDataRepresentation(forTypeIdentifier: FileDropTransfer.locationReorderType, visibility: .ownProcess) { completion in
+            completion(Data([1]), nil); return nil
+        }
+        let item = UIDragItem(itemProvider: provider)
+        item.localObject = Token(self, entry.0); return [item]
+    }
+    func dragInteraction(_ interaction: UIDragInteraction, sessionIsRestrictedToDraggingApplication session: UIDragSession) -> Bool { true }
+    func dragInteraction(_ interaction: UIDragInteraction, sessionAllowsMoveOperation session: UIDragSession) -> Bool { true }
+    func dragInteraction(_ interaction: UIDragInteraction, session: UIDragSession, didEndWith operation: UIDropOperation) {
+        stopTracking(); isDragging = false; activationAfter = Date().addingTimeInterval(0.3); ended?()
+    }
+    func dropInteraction(_ interaction: UIDropInteraction, canHandle session: UIDropSession) -> Bool {
+        session.items.count == 1 && (session.items.first?.localObject as? Token)?.owner === self
+    }
+    private func target(_ session: UIDropSession) -> (String, Bool, CGFloat)? {
+        guard let stack, !buttons.isEmpty else { return nil }
+        let x = session.location(in: stack).x
+        for (path, button) in buttons where x < button.frame.maxX {
+            let before = x < button.frame.midX
+            return (path, before, before ? button.frame.minX : button.frame.maxX)
+        }
+        return buttons.last.map { ($0.0, false, $0.1.frame.maxX) }
+    }
+    func dropInteraction(_ interaction: UIDropInteraction, sessionDidUpdate session: UIDropSession) -> UIDropProposal {
+        guard dropInteraction(interaction, canHandle: session), let stack, let target = target(session) else { return UIDropProposal(operation: .forbidden) }
+        self.session = session; indicator.isHidden = false
+        indicator.frame = CGRect(x: target.2 - 2, y: 0, width: 3, height: stack.bounds.height)
+        stack.bringSubviewToFront(indicator)
+        if scrolling == nil {
+            scrolling = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { [weak self] _ in
+                guard let self, let scroll = self.scroll, let session = self.session else { return }
+                let x = session.location(in: scroll).x - scroll.contentOffset.x
+                let delta: CGFloat = x < 24 ? -10 : x > scroll.bounds.width - 24 ? 10 : 0
+                let limit = max(0, scroll.contentSize.width - scroll.bounds.width)
+                if delta != 0 { scroll.setContentOffset(CGPoint(x: max(0, min(limit, scroll.contentOffset.x + delta)), y: 0), animated: false) }
+            }
+            if let scrolling { RunLoop.main.add(scrolling, forMode: .common) }
+        }
+        return UIDropProposal(operation: .move)
+    }
+    func dropInteraction(_ interaction: UIDropInteraction, performDrop session: UIDropSession) {
+        guard dropInteraction(interaction, canHandle: session), let source = session.items.first?.localObject as? Token,
+              let target = target(session) else { return }
+        moved?(source.path, target.0, target.1); stopTracking()
+    }
+    private func stopTracking() { indicator.isHidden = true; scrolling?.invalidate(); scrolling = nil; session = nil }
+    func dropInteraction(_ interaction: UIDropInteraction, sessionDidExit session: UIDropSession) { stopTracking() }
+    func dropInteraction(_ interaction: UIDropInteraction, sessionDidEnd session: UIDropSession) { stopTracking() }
+}
+#endif
 
 #if targetEnvironment(macCatalyst) || os(macOS)
 import Darwin
@@ -61,7 +181,6 @@ enum HostFileSystem {
         defaults.set(states, forKey: providerStatusKey)
     }
     static func coordinatedRead<T>(at url: URL, _ read: (URL) throws -> T) throws -> T {
-#if targetEnvironment(macCatalyst) || os(macOS)
         let scope = url.startAccessingSecurityScopedResource()
         defer { if scope { url.stopAccessingSecurityScopedResource() } }
         var coordinationError: NSError?
@@ -72,9 +191,6 @@ enum HostFileSystem {
         if let coordinationError { throw coordinationError }
         guard let result else { throw CocoaError(.fileReadUnknown) }
         return try result.get()
-#else
-        return try read(url)
-#endif
     }
     enum StorageKind {
         case externalDrive
@@ -311,8 +427,10 @@ enum HostFileSystem {
                 throw error
             }
         }
-#endif
         return try read(url)
+#else
+        return try coordinatedRead(at: url, read)
+#endif
     }
 
     static func cloudClientName(for url: URL) -> String? {

@@ -1,0 +1,24 @@
+{
+  "package": "com.opencommander",
+  "versionName": "1.3.2",
+  "versionCode": 9,
+  "track": "production",
+  "notes": {
+    "de-DE": "Kopieren und Verschieben per Drag-and-drop verbessert, auch in leere Ordner. Direkter Kopieren/Verschieben-Schalter. Kopieren und ZIP lassen sich abbrechen. Sicherere ZIP-Erstellung und Rückgängig-Funktion. Bildansicht und Wischgesten verbessert. Kompaktere Bedienelemente; die gewählte Sprache bleibt beim Drehen erhalten. Einheitliches App-Symbol.",
+    "en-US": "Improved drag-and-drop copying and moving, including empty folders. Direct Copy/Move toggle. Cancel copying and ZIP creation. Safer ZIP creation and undo. Improved image viewer and swipe gestures. More compact controls; the selected language is retained when rotating the device. Unified app icon."
+  },
+  "sha256": {
+    "OpenCommander-1.3.2-build9.apk": "af464cb6dd8259c6cea3a246359f978b476eab0daa087dc8c1b68dbe77a8f7da",
+    "OpenCommander-1.3.2-build9.aab": "3be8249eedef76e03e711af2df1c7d898670e01f906392ba554163e2744aba36"
+  },
+  "testReport": "/Users/niklaus/Documents/OpenCommander/parity-evidence/android-acceptance-2026-10-17/REPORT.md",
+  "status": "submitted-for-review-prechecks-running",
+  "uploadMethod": "Google Play Console via native file chooser",
+  "submittedAt": "2026-10-17T11:02:58.465111+02:00",
+  "rolloutPercent": 100,
+  "managedPublishing": false,
+  "automaticPublicationAfterApproval": true,
+  "consoleUrl": "https://play.google.com/console/u/0/developers/6689336718092481754/app/4972732169350757625/publishing",
+  "proof": "/Users/niklaus/Documents/OpenCommander/parity-evidence/android-release-2026-10-17/playstore-submitted.jpg",
+  "validationWarning": "Optional deobfuscation mapping absent; release does not enable R8/ProGuard minification."
+}

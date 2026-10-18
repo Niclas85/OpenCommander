@@ -237,6 +237,15 @@ def list_cloud(main, profile, directory, cancel, timeout=30):
 def ssh_fingerprints(host, port):
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9.:-]*', host) or not 1 <= int(port) <= 65535:
         raise ValueError('Ungültiger SSH-Server / Invalid SSH host')
+    if os.name == 'nt':
+        from .windows_native import invoke
+        try:
+            result = invoke('ssh-fingerprints', dict(host=host, port=int(port)))
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f'SSH {host}:{port}: Zeitüberschreitung bei der Serveridentität. '
+                               'Server, Port und Firewall prüfen. / SSH identity discovery timed out. '
+                               'Check server, port and firewall; password authentication has not started.') from None
+        return result['fingerprints'], result['keys'].encode('utf-8')
     result = subprocess.run(['ssh-keyscan', '-T', '5', '-p', str(port), host],
                              capture_output=True, timeout=20, env=host_environment())
     if not result.stdout:
@@ -674,7 +683,6 @@ class OnlineDialog(QDialog):
         if extra['secret_required'] and not secret and not use_existing:
             self.status.setText('Passwort/Passphrase eingeben / Enter password or passphrase')
             return
-        self.server_form.secret.clear()
         def save_and_open():
             def save():
                 if self.cancel.is_set():
@@ -692,6 +700,7 @@ class OnlineDialog(QDialog):
                 profile['remember_secret'] = remember
                 return password
             def saved(password):
+                self.server_form.secret.clear()
                 if not hasattr(self.main, 'server_secrets'):
                     self.main.server_secrets = {}
                 self.main.server_secrets[profile['id']] = password
@@ -705,7 +714,7 @@ class OnlineDialog(QDialog):
                 self.server_form.secret.setPlaceholderText('Leer = gespeicherte Anmeldung verwenden' if remember else '')
                 pane = self.main.active
                 self.work(lambda: mount_profile(self.main, profile, self.cancel),
-                          lambda path: (pane.navigate(path), self.main.update_places(),
+                          lambda path: (self.main.connection_opened(path, pane),
                                         self.status.setText('Verbunden: ' + profile['name'])))
             self.work(save, saved)
         if kind != 'sftp':
@@ -959,8 +968,7 @@ class OnlineDialog(QDialog):
             if self.cloud_auth:
                 profile, pane = dict(self.profile), self.main.active
                 def opened(path):
-                    pane.navigate(path)
-                    self.main.update_places()
+                    self.main.connection_opened(path, pane)
                     self.status.setText('Verbunden: ' + profile['name'] if self.de else 'Connected: ' + profile['name'])
                 self.work(lambda: mount_profile(self.main, profile, self.cancel), opened)
             return

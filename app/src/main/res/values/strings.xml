@@ -128,4 +128,5 @@
     <string name="undo_changed">Undo stopped: files have changed or cannot be verified. No further files will be removed.</string>
     <string name="move_cleanup_failed">Source cleanup failed. The complete copy has been retained at: %1$s</string>
     <string name="recovery_retained">Recovery files have been retained at: %1$s</string>
+    <string name="operation_cancelled">Operation cancelled. Completed items can be undone.</string>
 </resources>

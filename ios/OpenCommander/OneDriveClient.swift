@@ -14,6 +14,8 @@ struct OneDriveItem: Decodable {
     var parentReference: ParentReference? = nil
     var root: [String: String]? = nil
     var cTag: String? = nil
+    // Server object identity for path-backed cloud transports, never a UI alias.
+    var providerID: String? = nil
     var isFolder: Bool { folder != nil }
 }
 
@@ -168,6 +170,7 @@ struct OneDriveKeychain: OneDriveTokenStore {
     func validateDestination(_ parent: String?, excluding itemID: String) async throws
     func upload(_ url: URL, parent: String?) async throws
     func uploadTree(_ url: URL, parent: String?) async throws
+    func resumePendingUpload(_ url: URL, parent: String?) async throws -> Bool
     func download(_ item: OneDriveItem) async throws -> URL
     func downloadTree(_ item: OneDriveItem) async throws -> URL
     func remoteSnapshot(_ item: OneDriveItem) async throws -> [String: String]
@@ -178,6 +181,7 @@ struct OneDriveKeychain: OneDriveTokenStore {
     func disconnect() throws
 }
 extension CommanderOnlineClient {
+    func resumePendingUpload(_ url: URL, parent: String?) async throws -> Bool { false }
     func accountIdentity() async throws -> String { clientID + ":" + (try await metadata(nil)).id }
     func persistentPath(_ id: String?) throws -> String? { nil }
     func restoreReference(_ id: String?, path: String?) async throws -> OneDriveItem { try await metadata(id) }
@@ -306,11 +310,31 @@ struct OnlineBrowserListing {
         defer { if sessionGeneration == expected { loginInProgress = false } }
         let deadline = Date().addingTimeInterval(TimeInterval(code.expires_in))
         var interval = max(1, code.interval ?? 5)
+        var transportRetries = 0
         while Date() < deadline {
             try await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
             try Task.checkCancellation()
-            let (data, http) = try await post("token", values: ["client_id": clientID,
-                "grant_type": "urn:ietf:params:oauth:grant-type:device_code", "device_code": code.device_code])
+            guard sessionGeneration == expected else { throw CancellationError() }
+            guard Date() < deadline else { break }
+            let data: Data
+            let http: HTTPURLResponse
+            do {
+                (data, http) = try await post("token", values: ["client_id": clientID,
+                    "grant_type": "urn:ietf:params:oauth:grant-type:device_code", "device_code": code.device_code])
+            } catch {
+                try Task.checkCancellation()
+                guard sessionGeneration == expected else { throw CancellationError() }
+                // Retry only device-code polling, never file mutations or refresh-token
+                // rotation. Keep the server interval and a bounded total retry budget.
+                let failure = error as NSError
+                let transient = failure.domain == NSURLErrorDomain && [
+                    NSURLErrorNetworkConnectionLost, NSURLErrorTimedOut,
+                    NSURLErrorNotConnectedToInternet, NSURLErrorCannotConnectToHost
+                ].contains(failure.code)
+                guard transient, transportRetries < 3, Date() < deadline else { throw error }
+                transportRetries += 1
+                continue
+            }
             guard sessionGeneration == expected else { throw CancellationError() }
             if http.statusCode == 200 {
                 try Task.checkCancellation()
@@ -576,14 +600,58 @@ struct OnlineBrowserListing {
         guard uploaded.size == Int64(data.count) else { throw OneDriveFailure.message("Uploaded size mismatch. Source retained.") }
     }
     private func uploadChunks(_ file: URL, size: Int, parent: String?) async throws {
+        let generation = sessionGeneration
+        let fingerprint = try await Task.detached { try Self.localSnapshot(file) }.value
+        var checkpoint: URL?
+        var uploadURL: URL?
+        var offset = 0
+        if let account = uploadRecoveryAccount {
+            let root = uploadCheckpointRoot
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            checkpoint = uploadCheckpoint(file, parent: parent, account: account)
+            if let checkpoint, FileManager.default.fileExists(atPath: checkpoint.path) {
+                let bytes = try Data(contentsOf: checkpoint)
+                guard bytes.count <= 64 * 1024 else { throw OneDriveFailure.message("Invalid upload checkpoint.") }
+                let saved = try JSONDecoder().decode(UploadCheckpoint.self, from: bytes)
+                guard saved.fingerprint == fingerprint, saved.size == size, Self.secureUploadURL(saved.url) else {
+                    throw OneDriveFailure.message("Upload source or checkpoint changed. Source retained.")
+                }
+                // Ask the server, not a locally remembered offset: the previous
+                // process may have exited after the server accepted a fragment.
+                let (stateData, response) = try await session.data(for: URLRequest(url: saved.url))
+                guard let http = response as? HTTPURLResponse, http.url?.scheme == "https", generation == sessionGeneration else { throw CancellationError() }
+                if http.statusCode == 404 || http.statusCode == 410 {
+                    try FileManager.default.removeItem(at: checkpoint)
+                } else {
+                    let state = try JSONSerialization.jsonObject(with: stateData) as? [String: Any]
+                    guard http.statusCode == 200, let next = Self.nextUploadOffset(state?["nextExpectedRanges"] as? [String], size: size),
+                          next % 327_680 == 0 else { throw OneDriveFailure.message("Unable to verify upload checkpoint. Source retained.") }
+                    uploadURL = saved.url; offset = next
+#if DEBUG && targetEnvironment(macCatalyst)
+                    if Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander.MacUITests", let root = AppDelegate.macUITestRoot {
+                        try Data(String(next).utf8).write(to: root.appendingPathComponent("ResumedUploadOffset.txt"), options: .atomic)
+                    }
+#endif
+                }
+            }
+        }
+        if uploadURL == nil {
         let body = try JSONSerialization.data(withJSONObject: ["item": ["@microsoft.graph.conflictBehavior": "fail", "name": file.lastPathComponent]])
         let data = try await request(itemPath(parent) + ":/" + component(file.lastPathComponent) + ":/createUploadSession", method: "POST", body: body)
         let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        guard let address = object?["uploadUrl"] as? String, let url = URL(string: address), url.scheme == "https", url.user == nil, url.password == nil else { throw OneDriveFailure.message("Invalid upload address.") }
+        guard let address = object?["uploadUrl"] as? String, let url = URL(string: address), Self.secureUploadURL(url) else { throw OneDriveFailure.message("Invalid upload address.") }
+        uploadURL = url
+        if let checkpoint {
+            try JSONEncoder().encode(UploadCheckpoint(url: url, size: size, fingerprint: fingerprint)).write(to: checkpoint, options: .atomic)
+            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: checkpoint.path)
+        }
+        }
+        guard let url = uploadURL, generation == sessionGeneration else { throw CancellationError() }
         let handle = try FileHandle(forReadingFrom: file); defer { try? handle.close() }
-        var offset = 0
+        try handle.seek(toOffset: UInt64(offset))
         while offset < size {
             try Task.checkCancellation()
+            guard generation == sessionGeneration else { throw CancellationError() }
             let expected = min(10 * 327_680, size - offset)
             guard let chunk = try handle.read(upToCount: expected), chunk.count == expected else { throw OneDriveFailure.message("Source changed during upload.") }
             var request = URLRequest(url: url)
@@ -600,10 +668,59 @@ struct OnlineBrowserListing {
                 guard item.size == Int64(size) else { throw OneDriveFailure.message("Uploaded size mismatch. Source retained.") }
             } else {
                 let state = try JSONSerialization.jsonObject(with: reply) as? [String: Any]
-                guard http.statusCode == 202, (state?["nextExpectedRanges"] as? [String])?.first == "\(offset)-" else { throw OneDriveFailure.message("Unexpected upload offset. Source retained; refresh before retrying.") }
+                guard http.statusCode == 202, Self.nextUploadOffset(state?["nextExpectedRanges"] as? [String], size: size) == offset else { throw OneDriveFailure.message("Unexpected upload offset. Source retained; refresh before retrying.") }
+#if DEBUG && targetEnvironment(macCatalyst)
+                if Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander.MacUITests", let root = AppDelegate.macUITestRoot {
+                    let pause = root.appendingPathComponent("PauseCloudUploadAfterFragment")
+                    if FileManager.default.fileExists(atPath: pause.path) {
+                        try Data(String(offset).utf8).write(to: root.appendingPathComponent("CloudFragmentReady.txt"), options: .atomic)
+                        while FileManager.default.fileExists(atPath: pause.path) { try await Task.sleep(nanoseconds: 250_000_000) }
+                    }
+                }
+#endif
             }
         }
+        if let checkpoint { try FileManager.default.removeItem(at: checkpoint) }
     }
+    // Personal and business drives can describe the remaining suffix as either
+    // "start-" or "start-lastByte". Accept only one complete sequential suffix;
+    // fragmented, backwards or out-of-bounds responses need reconciliation.
+    static func nextUploadOffset(_ ranges: [String]?, size: Int) -> Int? {
+        guard size > 0, let ranges, ranges.count == 1 else { return nil }
+        let parts = ranges[0].split(separator: "-", omittingEmptySubsequences: false)
+        guard parts.count == 2, !parts[0].isEmpty,
+              parts[0].allSatisfy({ $0.isASCII && $0.isNumber }),
+              let start = Int(parts[0]), start >= 0, start < size else { return nil }
+        if !parts[1].isEmpty {
+            guard parts[1].allSatisfy({ $0.isASCII && $0.isNumber }),
+                  let end = Int(parts[1]), end == size - 1, end >= start else { return nil }
+        }
+        return start
+    }
+    private struct UploadCheckpoint: Codable { let url: URL; let size: Int; let fingerprint: [String: String] }
+    private var uploadCheckpointRoot: URL {
+        uploadSessionDirectory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("OpenCommander/OneDriveUploadSessions", isDirectory: true)
+    }
+    private func uploadCheckpoint(_ file: URL, parent: String?, account: String) -> URL {
+        let key = Data((clientID + "\n" + account + "\n" + (parent ?? "root") + "\n" + file.path).utf8)
+        return uploadCheckpointRoot.appendingPathComponent(SHA256.hash(data: key).map { String(format: "%02x", $0) }.joined() + ".json")
+    }
+    func resumePendingUpload(_ file: URL, parent: String?) async throws -> Bool {
+        guard let account = uploadRecoveryAccount,
+              FileManager.default.fileExists(atPath: uploadCheckpoint(file, parent: parent, account: account).path) else { return false }
+        // The session is bound to this staged file, account and destination.
+        // uploadChunks validates its fingerprint and server range before writing.
+        try await upload(file, parent: parent)
+        return true
+    }
+    private static func secureUploadURL(_ url: URL) -> Bool {
+        url.scheme == "https" && url.host != nil && url.user == nil && url.password == nil
+    }
+    // Set only while a validated durable job is being resumed. Ordinary uploads
+    // do not leave capability URLs behind; tests inject a private fixture root.
+    var uploadRecoveryAccount: String?
+    var uploadSessionDirectory: URL?
     /// Materialize folders in an isolated temporary container, then validate
     /// their version manifest before a caller may perform a move.
     func remoteSnapshot(_ item: OneDriveItem) async throws -> [String: String] {

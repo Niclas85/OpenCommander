@@ -86,6 +86,10 @@ public class MainActivity extends Activity {
     private Switch darkModeSwitch;
     private Button undoButton;
     private boolean operationInProgress;
+    private volatile boolean operationCancelled;
+    private boolean operationCancellable;
+    private Button cancelOperationButton;
+    private ImageViewerDialog imageViewerDialog;
     private Button renameButton;
     private Button zipButton;
     private Button deleteButton;
@@ -127,6 +131,7 @@ public class MainActivity extends Activity {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
+        applyLanguage(getPreferences(MODE_PRIVATE).getString(PREF_LANGUAGE, ""));
         buildLayout();
         refreshEverything(storageStatusMessage());
     }
@@ -232,6 +237,18 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        cancelOperationButton = new Button(this);
+        cancelOperationButton.setText(R.string.cancel);
+        cancelOperationButton.setContentDescription("CancelOperation");
+        cancelOperationButton.setVisibility(operationInProgress && operationCancellable ? View.VISIBLE : View.GONE);
+        cancelOperationButton.setEnabled(!operationCancelled);
+        cancelOperationButton.setOnClickListener(view -> {
+            operationCancelled = true;
+            cancelOperationButton.setEnabled(false);
+        });
+        root.addView(cancelOperationButton, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(1000);
         progressBar.setProgress(0);
@@ -306,6 +323,7 @@ public class MainActivity extends Activity {
         Button helpButton = miniButton(getString(R.string.help));
         makeLowPriorityButton(helpButton);
         helpButton.setOnClickListener(view -> showHelpDialog());
+        if (!landscape) addHeaderButton(titleRow, helpButton);
 
         languageButton = miniButton(getString(R.string.language));
         makeLowPriorityButton(languageButton);
@@ -360,7 +378,9 @@ public class MainActivity extends Activity {
             Button operationButton = miniButton(operationModeLabel());
             tintButton(operationButton, "#E9F8EF", "#91D5A7", "#1F6B3A", "#173F2A", "#2D8A50", "#DDFBE8");
             makeLandscapeButton(operationButton);
-            operationButton.setOnClickListener(view -> showOperationModeDialog(operationButton));
+            operationButton.setContentDescription("ToggleCopyMove");
+            operationButton.setSelected(moveMode);
+            operationButton.setOnClickListener(view -> toggleOperationMode(operationButton));
             addControlButton(controlsRow, operationButton, true);
 
             Button themeButton = miniButton(darkMode ? getString(R.string.light) : getString(R.string.dark));
@@ -403,9 +423,6 @@ public class MainActivity extends Activity {
         zipButton.setOnClickListener(view -> createZipFromCurrentSelection());
         addControlButton(controlsRow, zipButton, landscape);
         addControlButton(controlsRow, historyButton, landscape);
-        if (!landscape) {
-            addControlButton(controlsRow, helpButton, false);
-        }
 
         View spacer = new View(this);
         controlsRow.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1f));
@@ -417,7 +434,9 @@ public class MainActivity extends Activity {
         } else {
             Button operationButton = miniButton(operationModeLabel());
             tintButton(operationButton, "#DDF9E9", "#6ECB8B", "#145A2D", "#123B26", "#2B9360", "#D8F8E7");
-            operationButton.setOnClickListener(view -> showOperationModeDialog(operationButton));
+            operationButton.setContentDescription("ToggleCopyMove");
+            operationButton.setSelected(moveMode);
+            operationButton.setOnClickListener(view -> toggleOperationMode(operationButton));
             addControlButton(controlsRow, operationButton, false);
 
             darkModeSwitch = new Switch(this);
@@ -434,6 +453,22 @@ public class MainActivity extends Activity {
                 refreshEverything(darkMode ? getString(R.string.dark_mode_active) : getString(R.string.light_mode_active));
             });
             controlsRow.addView(darkModeSwitch);
+        }
+        if (!landscape) {
+            for (int index = 0; index < controlsRow.getChildCount(); index++) {
+                View control = controlsRow.getChildAt(index);
+                if (control instanceof Button) {
+                    Button button = (Button) control;
+                    button.setTextSize(10);
+                    button.setMinWidth(0);
+                    button.setMinimumWidth(0);
+                    button.setMinHeight(dp(36));
+                    button.setMinimumHeight(dp(36));
+                    button.setPadding(dp(3), 0, dp(3), 0);
+                    LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) button.getLayoutParams();
+                    params.setMargins(0, 0, dp(2), 0);
+                }
+            }
         }
         HorizontalScrollView controlsView = new HorizontalScrollView(this);
         controlsView.setHorizontalScrollBarEnabled(true);
@@ -498,23 +533,16 @@ public class MainActivity extends Activity {
     }
 
     private String operationModeLabel() {
-        return getString(moveMode ? R.string.operation_mode_move : R.string.operation_mode_copy);
+        return getString(moveMode ? R.string.move : R.string.copy);
     }
 
-    private void showOperationModeDialog(Button operationButton) {
-        String[] choices = {getString(R.string.copy), getString(R.string.move)};
-        new AlertDialog.Builder(this)
-                .setTitle(getString(R.string.operation_mode_title))
-                .setSingleChoiceItems(choices, moveMode ? 1 : 0, (dialog, which) -> {
-                    moveMode = which == 1;
-                    operationButton.setText(operationModeLabel());
-                    dialog.dismiss();
-                    updateGlobalStatus(getString(moveMode
-                            ? R.string.operation_mode_move_active
-                            : R.string.operation_mode_copy_active));
-                })
-                .setNegativeButton(getString(R.string.cancel), null)
-                .show();
+    private void toggleOperationMode(Button operationButton) {
+        moveMode = !moveMode;
+        operationButton.setText(operationModeLabel());
+        operationButton.setSelected(moveMode);
+        updateGlobalStatus(getString(moveMode
+                ? R.string.operation_mode_move_active
+                : R.string.operation_mode_copy_active));
     }
 
     private void showHelpDialog() {
@@ -846,29 +874,27 @@ public class MainActivity extends Activity {
         String requestedZipName = archiveNameForSources(sources, sourcePane.currentDirectory.name());
         File zipFile = uniqueFile(sourcePane.currentDirectory.file, requestedZipName);
         LastOperation operation = new LastOperation(false, prepareBackupRoot(), true);
-        showProgress(getString(R.string.zip_creating, sources.size()), 0);
+        showProgress(getString(R.string.zip_creating, sources.size()), 0, true);
 
         new Thread(() -> {
             String error = null;
             ProgressCounter counter = new ProgressCounter(sources);
             counter.publish(true);
-            try (ZipOutputStream output = new ZipOutputStream(new FileOutputStream(zipFile))) {
-                Set<String> usedNames = new HashSet<>();
-                for (FileEntry source : sources) {
-                    addFileToZip(source.file, source.file.getName(), output, usedNames, counter);
-                    counter.itemDone();
-                }
-                output.finish();
-                operation.records.add(new OperationRecord(zipFile, zipFile, null));
-            } catch (IOException exception) {
-                error = exception.getMessage();
-                if (zipFile.exists()) {
-                    try {
-                        deleteRecursive(zipFile);
-                    } catch (IOException ignored) {
-                        // Best effort cleanup of incomplete archive.
+            try {
+                FileOperationSafety.copyToNewPath(zipFile, zipFile, (unused, staging) -> {
+                    try (ZipOutputStream output = new ZipOutputStream(new FileOutputStream(staging))) {
+                        Set<String> usedNames = new HashSet<>();
+                        for (FileEntry source : sources) {
+                            addFileToZip(source.file, source.file.getName(), output, usedNames, counter);
+                            counter.itemDone();
+                        }
+                        output.finish();
                     }
-                }
+                    counter.checkCancelled();
+                });
+                operation.records.add(new OperationRecord(zipFile, zipFile, null));
+            } catch (IOException | SecurityException exception) {
+                error = exception.getMessage();
             }
 
             String finalError = error;
@@ -894,7 +920,7 @@ public class MainActivity extends Activity {
         FileEntry directory = sourcePane.currentDirectory;
         String zipName = uniqueStorageName(directory, archiveNameForSources(sources, directory.name()));
         LastOperation operation = new LastOperation(false, prepareBackupRoot(), true);
-        showProgress(getString(R.string.zip_creating, sources.size()), 0);
+        showProgress(getString(R.string.zip_creating, sources.size()), 0, true);
         new Thread(() -> {
             FileEntry zipEntry = null;
             String error = null;
@@ -917,6 +943,7 @@ public class MainActivity extends Activity {
                         counter.itemDone();
                     }
                 }
+                counter.checkCancelled();
                 operation.storageRecords.add(new StorageOperationRecord(
                         null, null, directory, zipName, zipEntry, null, null));
             } catch (IOException | SecurityException exception) {
@@ -953,6 +980,7 @@ public class MainActivity extends Activity {
 
     private void addEntryToZip(FileEntry source, String path, ZipOutputStream output,
                                Set<String> usedNames, ProgressCounter counter) throws IOException {
+        counter.checkCancelled();
         String safePath = path.replace(File.separatorChar, '/');
         if (source.isPhysicalDirectory()) {
             String directoryPath = safePath.endsWith("/") ? safePath : safePath + "/";
@@ -960,7 +988,7 @@ public class MainActivity extends Activity {
                 output.putNextEntry(new ZipEntry(directoryPath));
                 output.closeEntry();
             }
-            for (FileEntry child : source.children(false)) {
+            for (FileEntry child : operationChildren(source)) {
                 addEntryToZip(child, directoryPath + child.name(), output, usedNames, counter);
             }
             return;
@@ -978,6 +1006,7 @@ public class MainActivity extends Activity {
             byte[] buffer = new byte[1024 * 64];
             int read;
             while ((read = input.read(buffer)) != -1) {
+                if (counter != null) counter.checkCancelled();
                 output.write(buffer, 0, read);
                 if (counter != null) {
                     counter.addBytes(read);
@@ -1184,6 +1213,7 @@ public class MainActivity extends Activity {
             String error = null;
             for (FileEntry source : sources) {
                 try {
+                    counter.checkCancelled();
                     File sourceFile = source.file;
                     File destination;
                     if (trash) {
@@ -1314,6 +1344,7 @@ public class MainActivity extends Activity {
 
     private void addFileToZip(File source, String path, ZipOutputStream output,
                               Set<String> usedNames, ProgressCounter counter) throws IOException {
+        counter.checkCancelled();
         String safePath = path.replace(File.separatorChar, '/');
         if (source.isDirectory()) {
             String directoryPath = safePath.endsWith("/") ? safePath : safePath + "/";
@@ -1340,6 +1371,7 @@ public class MainActivity extends Activity {
         try (InputStream input = new FileInputStream(source)) {
             int read;
             while ((read = input.read(buffer)) != -1) {
+                counter.checkCancelled();
                 output.write(buffer, 0, read);
                 counter.addBytes(read);
             }
@@ -1406,7 +1438,7 @@ public class MainActivity extends Activity {
             return;
         }
         LastOperation operation = new LastOperation(move, prepareBackupRoot());
-        showProgress(move ? getString(R.string.moving_items, sources.size()) : getString(R.string.copying_items, sources.size()), 0);
+        showProgress(move ? getString(R.string.moving_items, sources.size()) : getString(R.string.copying_items, sources.size()), 0, true);
 
         new Thread(() -> {
             ProgressCounter counter = new ProgressCounter(sources);
@@ -1417,6 +1449,7 @@ public class MainActivity extends Activity {
                 File replacedBackup = null;
                 File destination = null;
                 try {
+                    counter.checkCancelled();
                     File sourceFile = source.file;
                     File targetFolder = targetDirectory.file;
                     if (sameFile(sourceFile.getParentFile(), targetFolder)) {
@@ -1502,7 +1535,7 @@ public class MainActivity extends Activity {
                                               List<FileEntry> sources, boolean move, ConflictMode conflictMode) {
         LastOperation operation = new LastOperation(move, prepareBackupRoot());
         showProgress(move ? getString(R.string.moving_items, sources.size())
-                : getString(R.string.copying_items, sources.size()), 0);
+                : getString(R.string.copying_items, sources.size()), 0, true);
         new Thread(() -> {
             ProgressCounter counter = new ProgressCounter(sources);
             counter.publish(true);
@@ -1514,6 +1547,7 @@ public class MainActivity extends Activity {
                 FileEntry destination = null;
                 String destinationName = source.name();
                 try {
+                    counter.checkCancelled();
                     if (source.isPhysicalDirectory() && isEntryInside(source, targetDirectory)) {
                         throw new IOException(getString(R.string.cannot_copy_into_self, source.name()));
                     }
@@ -1540,11 +1574,13 @@ public class MainActivity extends Activity {
                         String temporaryName = uniqueStorageName(targetDirectory,
                                 ".opencommander-" + SystemClock.elapsedRealtime() + "-" + destinationName);
                         destination = copyEntryToDirectory(source, targetDirectory, temporaryName, counter);
+                        counter.checkCancelled();
                         deleteStorageEntry(existing);
-                        destination = renameStorageEntry(destination, destinationName);
-                        if (destination == null) {
+                        FileEntry renamed = renameStorageEntry(destination, destinationName);
+                        if (renamed == null) {
                             throw new IOException(getString(R.string.rename_failed));
                         }
+                        destination = renamed;
                     } else {
                         destination = copyEntryToDirectory(source, targetDirectory, destinationName, counter);
                     }
@@ -1567,7 +1603,7 @@ public class MainActivity extends Activity {
                         if (destination != null && storageEntryExists(destination)) {
                             deleteStorageEntry(destination);
                         }
-                        if (replacedBackup != null) {
+                        if (replacedBackup != null && targetDirectory.findChild(destinationName) == null) {
                             restoreStorageBackup(replacedBackup, targetDirectory, destinationName, null);
                         }
                     } catch (IOException recoveryError) {
@@ -1627,26 +1663,29 @@ public class MainActivity extends Activity {
 
     private FileEntry copyEntryToDirectory(FileEntry source, FileEntry targetDirectory,
                                            String destinationName, ProgressCounter counter) throws IOException {
+        if (counter != null) counter.checkCancelled();
         if (source.file != null && java.nio.file.Files.isSymbolicLink(source.file.toPath())) {
             throw new IOException(getString(R.string.no_readable_selection));
         }
-        if (targetDirectory.isDocument()) {
-            String mime = source.isPhysicalDirectory()
-                    ? DocumentsContract.Document.MIME_TYPE_DIR
-                    : source.mimeType();
-            Uri created;
-            try {
-                created = DocumentsContract.createDocument(
+        FileEntry destination = null;
+        Uri createdDocument = null;
+        File createdFile = null;
+        try {
+            if (targetDirectory.isDocument()) {
+                String mime = source.isPhysicalDirectory()
+                        ? DocumentsContract.Document.MIME_TYPE_DIR : source.mimeType();
+                createdDocument = DocumentsContract.createDocument(
                         getContentResolver(), targetDirectory.documentUri, mime, destinationName);
-            } catch (Exception exception) {
-                throw new IOException(getString(R.string.cannot_create_folder, destinationName), exception);
-            }
-            if (created == null) {
-                throw new IOException(getString(R.string.cannot_create_folder, destinationName));
-            }
-            FileEntry destination = queryDocumentEntry(created, targetDirectory);
-            if (destination == null) {
-                throw new IOException(getString(R.string.cannot_create_folder, destinationName));
+                if (createdDocument == null) throw new IOException(getString(R.string.cannot_create_folder, destinationName));
+                destination = queryDocumentEntry(createdDocument, targetDirectory);
+                if (destination == null) throw new IOException(getString(R.string.cannot_create_folder, destinationName));
+            } else {
+                File file = new File(targetDirectory.file, destinationName);
+                // Reserve a new target. Never overwrite a file created by another writer.
+                boolean created = source.isPhysicalDirectory() ? file.mkdir() : file.createNewFile();
+                if (!created) throw new IOException(getString(R.string.target_exists_title));
+                createdFile = file;
+                destination = new FileEntry(file, targetDirectory);
             }
             if (source.isPhysicalDirectory()) {
                 for (FileEntry child : operationChildren(source)) {
@@ -1655,23 +1694,26 @@ public class MainActivity extends Activity {
             } else {
                 copyEntryBytes(source, destination, counter);
             }
+            if (counter != null) counter.checkCancelled();
             return destination;
-        }
-
-        File destinationFile = new File(targetDirectory.file, destinationName);
-        if (source.isPhysicalDirectory()) {
-            if (!destinationFile.exists() && !destinationFile.mkdirs()) {
-                throw new IOException(getString(R.string.cannot_create_folder, destinationName));
+        } catch (IOException | SecurityException failure) {
+            // The caller cannot receive the destination until this method returns.
+            // Therefore this method owns cleanup if a recursive copy fails midway.
+            try {
+                if (createdDocument != null) {
+                    if (!DocumentsContract.deleteDocument(getContentResolver(), createdDocument)) {
+                        throw new IOException(getString(R.string.cannot_delete, destinationName));
+                    }
+                } else if (createdFile != null) {
+                    deleteRecursive(createdFile);
+                }
+            } catch (IOException | SecurityException cleanupFailure) {
+                throw new IOException(failure.getMessage() + "\n"
+                        + getString(R.string.recovery_retained, destinationName), cleanupFailure);
             }
-            FileEntry destination = new FileEntry(destinationFile, targetDirectory);
-            for (FileEntry child : operationChildren(source)) {
-                copyEntryToDirectory(child, destination, child.name(), counter);
-            }
-            return destination;
+            if (failure instanceof IOException) throw (IOException) failure;
+            throw new IOException(failure.getMessage(), failure);
         }
-        FileEntry destination = new FileEntry(destinationFile, targetDirectory);
-        copyEntryBytes(source, destination, counter);
-        return destination;
     }
 
     private void copyEntryBytes(FileEntry source, FileEntry destination, ProgressCounter counter) throws IOException {
@@ -1687,6 +1729,7 @@ public class MainActivity extends Activity {
             byte[] buffer = new byte[1024 * 64];
             int read;
             while ((read = input.read(buffer)) != -1) {
+                if (counter != null) counter.checkCancelled();
                 output.write(buffer, 0, read);
                 if (counter != null) {
                     counter.addBytes(read);
@@ -2073,18 +2116,26 @@ public class MainActivity extends Activity {
     private void copyToNewPath(File source, File destination, ProgressCounter counter) throws IOException {
         FileOperationSafety.copyToNewPath(source, destination, (from, to) -> {
             if (counter == null) copyRecursivePlain(from, to);
-            else copyRecursive(from, to, counter);
+            else {
+                copyRecursive(from, to, counter);
+                counter.checkCancelled();
+            }
         });
     }
 
     private void moveToNewPath(File source, File destination, ProgressCounter counter) throws IOException {
+        if (counter != null) counter.checkCancelled();
         FileOperationSafety.moveToNewPath(source, destination, (from, to) -> {
             if (counter == null) copyRecursivePlain(from, to);
-            else copyRecursive(from, to, counter);
+            else {
+                copyRecursive(from, to, counter);
+                counter.checkCancelled();
+            }
         }, this::deleteRecursive);
     }
 
     private void copyRecursive(File source, File destination, ProgressCounter counter) throws IOException {
+        if (counter != null) counter.checkCancelled();
         if (java.nio.file.Files.isSymbolicLink(source.toPath())) {
             throw new IOException(getString(R.string.no_readable_selection));
         }
@@ -2107,6 +2158,7 @@ public class MainActivity extends Activity {
              OutputStream output = new FileOutputStream(destination)) {
             int read;
             while ((read = input.read(buffer)) != -1) {
+                counter.checkCancelled();
                 output.write(buffer, 0, read);
                 counter.addBytes(read);
             }
@@ -2203,6 +2255,9 @@ public class MainActivity extends Activity {
     }
 
     private void openImageViewer(FileEntry selected, List<FileEntry> folderEntries) {
+        // Touch and item-click callbacks can both arrive for a rapid tap sequence.
+        // Keep one viewer so a single close always returns to the file list.
+        if (imageViewerDialog != null && imageViewerDialog.isShowing()) return;
         List<FileEntry> images = new ArrayList<>();
         for (FileEntry entry : folderEntries) {
             if (isImageEntry(entry)) {
@@ -2220,7 +2275,8 @@ public class MainActivity extends Activity {
             images.add(selected);
             selectedIndex = images.size() - 1;
         }
-        new ImageViewerDialog(images, selectedIndex).show();
+        imageViewerDialog = new ImageViewerDialog(images, selectedIndex);
+        imageViewerDialog.show();
     }
 
     private final class ImageViewerDialog extends Dialog {
@@ -2322,7 +2378,10 @@ public class MainActivity extends Activity {
                 }
             });
             setContentView(root);
-            setOnDismissListener(dialog -> clearBitmap());
+            setOnDismissListener(dialog -> {
+                clearBitmap();
+                if (imageViewerDialog == this) imageViewerDialog = null;
+            });
         }
 
         @Override
@@ -2584,6 +2643,12 @@ public class MainActivity extends Activity {
     }
 
     private void showProgress(String message, int progress) {
+        showProgress(message, progress, false);
+    }
+
+    private void showProgress(String message, int progress, boolean cancellable) {
+        operationCancelled = false;
+        operationCancellable = cancellable;
         operationInProgress = true;
         runOnUiThread(() -> {
             if (progressText != null) {
@@ -2592,6 +2657,10 @@ public class MainActivity extends Activity {
             if (progressBar != null) {
                 progressBar.setVisibility(View.VISIBLE);
                 progressBar.setProgress(progress);
+            }
+            if (cancelOperationButton != null) {
+                cancelOperationButton.setEnabled(true);
+                cancelOperationButton.setVisibility(cancellable ? View.VISIBLE : View.GONE);
             }
             updateGlobalStatus(message);
         });
@@ -2611,6 +2680,8 @@ public class MainActivity extends Activity {
 
     private void finishProgress(String message) {
         operationInProgress = false;
+        operationCancellable = false;
+        if (cancelOperationButton != null) cancelOperationButton.setVisibility(View.GONE);
         if (progressText != null) {
             progressText.setText(message);
         }
@@ -2810,6 +2881,7 @@ public class MainActivity extends Activity {
             pathRow.setGravity(Gravity.CENTER_VERTICAL);
 
             pathText = new EditText(MainActivity.this);
+            pathText.setContentDescription("Path-" + title);
             pathText.setTextColor(color(theme.secondaryText));
             pathText.setTextSize(11);
             pathText.setSingleLine(true);
@@ -2874,6 +2946,7 @@ public class MainActivity extends Activity {
             LinearLayout treeColumn = createColumn(getString(R.string.tree), accent);
             treeList = listView(theme.treeBackground);
             treeAdapter = new TreeAdapter(this);
+            treeList.setContentDescription("TreeList-" + title);
             treeList.setAdapter(treeAdapter);
             treeList.setOnItemClickListener((parent, view, position, id) -> {
                 activePane = this;
@@ -2896,6 +2969,7 @@ public class MainActivity extends Activity {
             LinearLayout fileColumn = createColumn(getString(R.string.files), accent);
             fileList = listView(theme.fileBackground);
             fileAdapter = new FileAdapter(this);
+            fileList.setContentDescription("FileList-" + title);
             fileList.setAdapter(fileAdapter);
             fileList.setItemsCanFocus(false);
             fileTapGestures = new GestureDetector(MainActivity.this,
@@ -2931,6 +3005,8 @@ public class MainActivity extends Activity {
                     1f));
 
             TextView emptyFiles = new TextView(MainActivity.this);
+            emptyFiles.setContentDescription("EmptyFiles-" + title);
+            emptyFiles.setOnDragListener((view, event) -> handleFileListDrop(event));
             emptyFiles.setText(hasUsableStorageAccess()
                     ? getString(R.string.folder_empty)
                     : getString(R.string.storage_empty));
@@ -3811,6 +3887,10 @@ public class MainActivity extends Activity {
             }
             totalBytes = Math.max(1L, total);
             totalItems = Math.max(1, entries.size());
+        }
+
+        void checkCancelled() throws IOException {
+            if (operationCancelled) throw new IOException(getString(R.string.operation_cancelled));
         }
 
         void addBytes(long bytes) {

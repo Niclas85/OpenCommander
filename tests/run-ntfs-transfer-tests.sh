@@ -2,6 +2,10 @@
 # Isolated image only. No sudo, personal disk or security-setting changes.
 set -eu
 task_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+task_extension=/Applications/OpenCommander.app/Contents/Extensions/OpenCommanderNTFSModule.appex
+xcrun swift "$task_root/ntfs/NTFS3G/tests/signature_preflight.swift" "$task_extension"
+task_type=$(plutil -extract EXAppExtensionAttributes.FSShortName raw -o - "$task_extension/Contents/Info.plist")
+case "$task_type" in openntfs|openntfs2) ;; *) echo "Unexpected installed filesystem type" >&2; exit 1;; esac
 task_output=$(mktemp -d /private/tmp/OpenCommander-NTFS-Queue-XXXXXX)
 task_device=
 task_status=0
@@ -26,7 +30,7 @@ case "$task_device" in /dev/disk[0-9]*) ;; *) echo "Unexpected device" >&2; exit
 test "$(diskutil info -plist "$task_device" | plutil -extract VirtualOrPhysical raw -o - -)" = Virtual
 test "$(diskutil info -plist "$task_device" | plutil -extract BusProtocol raw -o - -)" = "Disk Image"
 test "$(diskutil info -plist "$task_device" | plutil -extract TotalSize raw -o - -)" = 67108864
-/sbin/mount -F -t openntfs -o nosuid,nodev,noowners "$task_device" "$task_output/mount"
+xcrun swift "$task_root/ntfs/NTFS3G/tests/run_bounded.swift" 45 /sbin/mount -F -t "$task_type" -o nosuid,nodev,noowners "$task_device" "$task_output/mount"
 "$task_output/transfer-tests" "$task_output/mount"
 hdiutil detach "$task_device"
 task_device=
@@ -35,5 +39,5 @@ case "$task_device" in /dev/disk[0-9]*) ;; *) echo "Unexpected reopened device" 
 test "$(diskutil info -plist "$task_device" | plutil -extract VirtualOrPhysical raw -o - -)" = Virtual
 test "$(diskutil info -plist "$task_device" | plutil -extract BusProtocol raw -o - -)" = "Disk Image"
 test "$(diskutil info -plist "$task_device" | plutil -extract TotalSize raw -o - -)" = 67108864
-/sbin/mount -F -t openntfs -o nosuid,nodev,noowners "$task_device" "$task_output/mount"
+xcrun swift "$task_root/ntfs/NTFS3G/tests/run_bounded.swift" 45 /sbin/mount -F -t "$task_type" -o nosuid,nodev,noowners "$task_device" "$task_output/mount"
 "$task_output/transfer-tests" "$task_output/mount" --resume

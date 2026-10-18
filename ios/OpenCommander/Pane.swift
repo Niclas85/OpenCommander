@@ -1,5 +1,38 @@
 import UIKit
 import QuickLookThumbnailing
+import UniformTypeIdentifiers
+
+extension FileEntry {
+    private static var nativeArchiveDrags: [String: FileEntry] = [:]
+    static func resolveDrag(_ item: UIDragItem) -> FileEntry? {
+        (item.localObject as? FileEntry) ?? item.itemProvider.registeredTypeIdentifiers.compactMap { nativeArchiveDrags[$0] }.first
+    }
+    func registerArchiveDrag() -> String {
+        let token = "org.opencommander.archive-drag." + UUID().uuidString.lowercased()
+        Self.nativeArchiveDrags[token] = self
+        DispatchQueue.main.asyncAfter(deadline: .now() + 300) { Self.nativeArchiveDrags.removeValue(forKey: token) }
+        return token
+    }
+    static func archiveDrag(_ token: String) -> FileEntry? { nativeArchiveDrags[token] }
+}
+
+enum CommanderDragDiagnostics {
+    static func event(_ value: String) {
+#if DEBUG && targetEnvironment(macCatalyst)
+        guard Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander.MacUITests",
+              let resource = Bundle.main.url(forResource: "MacUITestRoot", withExtension: "txt"),
+              let root = try? String(contentsOf: resource, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
+              root.hasPrefix("/private/tmp/OpenCommander-MacUITest-") else { return }
+        let url = URL(fileURLWithPath: root).appendingPathComponent("DragEvents.log")
+        if !FileManager.default.fileExists(atPath: url.path) { FileManager.default.createFile(atPath: url.path, contents: nil) }
+        if let file = try? FileHandle(forWritingTo: url) {
+            defer { try? file.close() }
+            _ = try? file.seekToEnd()
+            try? file.write(contentsOf: Data((value + "\n").utf8))
+        }
+#endif
+    }
+}
 
 #if targetEnvironment(macCatalyst)
 /// Capture the actual pointer event before UITableView sends its selection
@@ -8,8 +41,13 @@ import QuickLookThumbnailing
 final class CommanderSelectionTableView: UITableView {
     private var selectionModifiers: UIKeyModifierFlags = []
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        CommanderDragDiagnostics.event("pointer began")
         selectionModifiers = event?.modifierFlags ?? []
         super.touchesBegan(touches, with: event)
+    }
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        CommanderDragDiagnostics.event("pointer moved")
+        super.touchesMoved(touches, with: event)
     }
     func consumeSelectionModifiers() -> UIKeyModifierFlags {
         defer { selectionModifiers = [] }
@@ -46,6 +84,21 @@ final class CommanderFilterField: UITextField {
         smartDashesType = .no
     }
     required init?(coder: NSCoder) { super.init(coder: coder) }
+    override var intrinsicContentSize: CGSize {
+        let size = super.intrinsicContentSize
+        return CGSize(width: size.width, height: max(30, size.height))
+    }
+    func applyTheme(_ theme: ViewController.ThemeColors, placeholder text: String) {
+        borderStyle = .none
+        textColor = theme.primaryText
+        backgroundColor = theme.pathBackground
+        attributedPlaceholder = NSAttributedString(string: text, attributes: [.foregroundColor: theme.secondaryText])
+        layer.borderColor = theme.pathBorder.cgColor
+        layer.borderWidth = 1
+        layer.cornerRadius = 6
+        leftView = UIView(frame: CGRect(x: 0, y: 0, width: 8, height: 1))
+        leftViewMode = .always
+    }
     override var keyCommands: [UIKeyCommand]? {
         [UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(clearFilter))]
     }
@@ -66,6 +119,7 @@ class TreeNode {
 }
 
 class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITextFieldDelegate, UIGestureRecognizerDelegate {
+    private let archiveDragSourceID = UUID().uuidString
     let title: String
     let accent: String
     weak var viewController: ViewController?
@@ -83,8 +137,14 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     private weak var resizingTree: UIView?
     private var treeWidthConstraint: NSLayoutConstraint?
     private var treeFraction: CGFloat = 0.28
+#if !targetEnvironment(macCatalyst)
+    private weak var mobileTreeColumn: UIView?
+    private weak var breadcrumbButton: UIButton?
+    private lazy var treeVisible: Bool = UserDefaults.standard.object(forKey: "mobile_tree_" + title) as? Bool ?? true
+#endif
     var selectedKeys: Set<String> = []
     private var selectionAnchor: String?
+    private var reentrySelection: (directory: String, entry: String)?
     
     
     var rootNode: TreeNode!
@@ -101,6 +161,7 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     private var dropScrollTimer: Timer?
     private weak var dropHoverTable: UITableView?
     private var currentDropSession: UIDropSession?
+    private var nativeDropPoint: CGPoint?
 #if targetEnvironment(macCatalyst)
     var onlineNavigation: UINavigationController?
     private weak var paneShell: UIStackView?
@@ -278,7 +339,19 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         }
 #endif
         pathRow.addArrangedSubview(pathText)
+#if targetEnvironment(macCatalyst)
         pathRow.addArrangedSubview(selectionText)
+#else
+        let breadcrumbs = UIButton(type: .system)
+        breadcrumbs.setImage(UIImage(systemName: "chevron.down"), for: .normal)
+        breadcrumbs.accessibilityIdentifier = "Breadcrumbs-\(title)"
+        breadcrumbs.accessibilityLabel = L10n.get("mobile_path")
+        breadcrumbs.showsMenuAsPrimaryAction = true
+        breadcrumbs.widthAnchor.constraint(equalToConstant: 44).isActive = true
+        breadcrumbs.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        breadcrumbButton = breadcrumbs
+        pathRow.addArrangedSubview(breadcrumbs)
+#endif
         loadingIndicator.accessibilityIdentifier = "DirectoryLoading-\(title)"
         loadingIndicator.accessibilityLabel = L10n.get("directory_loading")
         pathRow.addArrangedSubview(loadingIndicator)
@@ -321,13 +394,45 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         treeColumn.addArrangedSubview(treeList)
         
         let fileColumn = createColumn(title: L10n.get("files"), accent: accent, theme: theme)
+#if !targetEnvironment(macCatalyst)
+        mobileTreeColumn = treeColumn
+        treeColumn.isHidden = !treeVisible
+        if let header = fileColumn.arrangedSubviews.first as? UIStackView {
+            let spacer = UIView(); header.addArrangedSubview(spacer)
+            let treeToggle = UIButton(type: .system)
+            treeToggle.setImage(UIImage(systemName: "sidebar.left"), for: .normal)
+            treeToggle.accessibilityIdentifier = "ToggleTree-\(title)"
+            treeToggle.accessibilityLabel = L10n.get("tree")
+            treeToggle.isSelected = treeVisible
+            treeToggle.addAction(UIAction { [weak self, weak treeToggle] _ in
+                guard let self else { return }
+                let visible = !self.treeVisible
+                self.treeVisible = visible
+                UserDefaults.standard.set(visible, forKey: "mobile_tree_" + self.title)
+                self.mobileTreeColumn?.isHidden = !visible
+                treeToggle?.isSelected = visible
+            }, for: .touchUpInside)
+            let focus = UIButton(type: .system)
+            focus.setImage(UIImage(systemName: "arrow.up.left.and.arrow.down.right"), for: .normal)
+            focus.accessibilityIdentifier = "FocusPane-\(title)"
+            focus.accessibilityLabel = L10n.get("mobile_focus")
+            focus.addAction(UIAction { [weak self] _ in
+                guard let self else { return }
+                self.viewController?.toggleMobilePane(self)
+            }, for: .touchUpInside)
+            for button in [treeToggle, focus] {
+                button.widthAnchor.constraint(equalToConstant: 44).isActive = true
+                button.heightAnchor.constraint(equalToConstant: 44).isActive = true
+                header.addArrangedSubview(button)
+            }
+        }
+#endif
 #if targetEnvironment(macCatalyst)
         let filter = CommanderFilterField()
         filterInput = filter
-        filter.placeholder = L10n.get("filter_names")
+        filter.applyTheme(theme, placeholder: L10n.get("filter_names"))
         filter.text = nameFilter
         filter.accessibilityIdentifier = "Filter-\(title)"
-        filter.borderStyle = .roundedRect
         filter.clearButtonMode = .always
         filter.font = .systemFont(ofSize: 12)
         filter.addAction(UIAction { [weak self, weak filter] _ in
@@ -336,6 +441,7 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         }, for: .editingChanged)
         fileColumn.addArrangedSubview(filter)
         let filterNote = UILabel(); filterNote.font = .systemFont(ofSize: 11); filterNote.numberOfLines = 0
+        filterNote.textColor = theme.secondaryText
         filterNote.accessibilityIdentifier = "FilterStatus-\(title)"; filterStatus = filterNote
         let clear = UIButton(type: .system); clear.setTitle(L10n.get("filter_clear"), for: .normal)
         clear.accessibilityIdentifier = "ClearFilter-\(title)"; clearFilterButton = clear
@@ -432,12 +538,16 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         fileColumn.translatesAutoresizingMaskIntoConstraints = false
         
         shell.addArrangedSubview(columns)
+#if !targetEnvironment(macCatalyst)
+        shell.addArrangedSubview(selectionText)
+#endif
         
         refreshFiles()
         rebuildTree()
         
 #if targetEnvironment(macCatalyst)
         mountOnlineView()
+        configureArchiveDrag()
 #endif
         return shell
     }
@@ -488,7 +598,15 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     }
     
     @objc func navigateUp() {
+#if !targetEnvironment(macCatalyst)
+        if currentDirectory.key() == rootNode.entry.key() {
+            viewController?.activePane = self
+            viewController?.showComputerLocations()
+            return
+        }
+#endif
         if let parent = currentDirectory.parent {
+            reentrySelection = (navigationKey(parent), navigationKey(currentDirectory))
             openDirectory(parent)
         }
     }
@@ -529,7 +647,13 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         showDirectory(directory)
     }
 
+    private func navigationKey(_ entry: FileEntry) -> String {
+        // Foundation may return /private/tmp children for a typed /tmp URL.
+        // Keep the actual selection key; normalize only this navigation match.
+        entry.url.standardizedFileURL.path + String(entry.key().dropFirst(entry.url.path.count))
+    }
     private func showDirectory(_ directory: FileEntry) {
+        if reentrySelection?.directory != navigationKey(directory) { reentrySelection = nil }
         currentDirectory = directory
         if !isEntryInside(rootNode.entry, directory) {
             treeGeneration += 1
@@ -550,6 +674,7 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         let generation = listingGeneration
         if listedDirectoryKey != directory.key() {
             visibleEntries.removeAll()
+            allEntries.removeAll()
             selectedKeys.removeAll()
         }
         listedDirectoryKey = directory.key()
@@ -562,6 +687,7 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
 
 #if targetEnvironment(macCatalyst)
         observeCloudDirectory(directory.url)
+#endif
         Self.listingQueue.addOperation { [weak self] in
             let result = Result { try directory.readChildren(directoriesOnly: false) }
             DispatchQueue.main.async {
@@ -574,9 +700,7 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
             guard let self, self.listingGeneration == generation, self.listingPending else { return }
             self.showDirectoryMessage(L10n.get("directory_waiting"), retry: true)
         }
-#else
-        finishListing(Result { try directory.readChildren(directoriesOnly: false) })
-#endif
+
     }
 
 #if targetEnvironment(macCatalyst)
@@ -609,20 +733,29 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         switch result {
         case .success(let entries):
             allEntries = entries
+#if targetEnvironment(macCatalyst)
+            if currentDirectory.isListedPhysicalDirectory {
+                viewController?.recordVisitedLocalDirectory(currentDirectory.url, forPane: title)
+            }
+#endif
             applyListingOrder()
-            showDirectoryMessage(visibleEntries.isEmpty ? L10n.get("directory_empty") : nil, retry: false)
         case .failure(let error):
             // Do not leave stale rows actionable after a failed refresh.
             visibleEntries.removeAll()
             allEntries.removeAll()
             currentDirectoryBytes = -2
 #if targetEnvironment(macCatalyst)
+            // Cocoa/FileProvider descriptions can stay English even when the
+            // application language is German. Keep the explanation in our UI
+            // language; retain the stable diagnostic code, not a frozen OS sentence.
+            let failure = HistoryFailure(error)
+            let diagnostic = "(\(failure.domain) \(failure.code))"
             let message = HostFileSystem.cloudClientName(for: currentDirectory.url).map {
                 String(format: L10n.get(HostFileSystem.isDisabledProvider(error as NSError)
-                    ? "cloud_domain_disabled" : "cloud_unavailable"), $0) + "\n" + error.localizedDescription
-            } ?? String(format: L10n.get("directory_error"), error.localizedDescription)
+                    ? "cloud_domain_disabled" : "cloud_unavailable"), $0) + "\n" + diagnostic
+            } ?? String(format: L10n.get("directory_error"), failure.message + "\n" + diagnostic)
 #else
-            let message = L10n.get("storage_tree_failed") + "\n" + error.localizedDescription + "\n\n" + L10n.get("help_access_ios")
+            let message = L10n.get(MobileStorageIssue.key(for: error))
 #endif
             showDirectoryMessage(message, retry: true)
         }
@@ -630,12 +763,24 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         selectedKeys = selectedKeys.intersection(newKeys)
         updateSelectionStatus()
         fileList?.reloadData()
+        if let reentry = reentrySelection, reentry.directory == navigationKey(currentDirectory) {
+            reentrySelection = nil
+            if case .success = result, let row = visibleEntries.firstIndex(where: { navigationKey($0) == reentry.entry }) {
+                let key = visibleEntries[row].key()
+                selectedKeys = [key]; selectionAnchor = key
+                updateSelectionStatus(); fileList?.reloadData()
+                fileList?.scrollToRow(at: IndexPath(row: row, section: 0), at: .middle, animated: false)
+            }
+        }
         if case .success = result { scanDirectorySize() }
     }
 
     private func applyListingOrder() {
-        visibleEntries = allEntries.filter { nameFilter.isEmpty || $0.name().localizedCaseInsensitiveContains(nameFilter) }
-            .sorted { lhs, rhs in
+        let filtered = allEntries.filter { nameFilter.isEmpty || $0.name().localizedCaseInsensitiveContains(nameFilter) }
+        // readChildren already sorts directory-first/natural-name in the worker.
+        // Do not repeat that expensive comparison on the UI thread for the
+        // default order, particularly for tens of thousands of entries.
+        visibleEntries = sortField == 0 && sortAscending ? filtered : filtered.sorted { lhs, rhs in
                 if lhs.isDirectoryLike() != rhs.isDirectoryLike() { return lhs.isDirectoryLike() }
                 var order: ComparisonResult
                 switch sortField {
@@ -652,12 +797,16 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         filterStatus?.text = visibleEntries.isEmpty ? L10n.get("filter_no_matches") : String(format: L10n.get("filter_active_status"), visibleEntries.count, allEntries.count)
         fileList?.reloadData()
         updateSelectionStatus()
-        showDirectoryMessage(visibleEntries.isEmpty ? L10n.get(nameFilter.isEmpty ? "directory_empty" : "filter_no_matches") : nil, retry: false)
+        let emptyMessage = listingPending ? "directory_loading" : (nameFilter.isEmpty ? "directory_empty" : "filter_no_matches")
+        showDirectoryMessage(visibleEntries.isEmpty ? L10n.get(emptyMessage) : nil, retry: false)
     }
 
     private func showDirectoryMessage(_ message: String?, retry: Bool) {
         guard let message else { fileList?.backgroundView = nil; return }
-        let container = UIView()
+        let container = UIScrollView()
+        // Empty-state decoration must not become the hit-test target of a drop.
+        // Error states retain their interactive retry/reconnect buttons.
+        container.isUserInteractionEnabled = retry
         let stack = UIStackView()
         stack.axis = .vertical
         stack.spacing = 12
@@ -684,6 +833,10 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
 #if !targetEnvironment(macCatalyst)
             let chooseButton = UIButton(type: .system)
             chooseButton.setTitle(L10n.get("choose_another_folder"), for: .normal)
+            chooseButton.titleLabel?.numberOfLines = 0
+            chooseButton.titleLabel?.textAlignment = .center
+            chooseButton.titleLabel?.font = .systemFont(ofSize: 13)
+            chooseButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
             chooseButton.accessibilityIdentifier = "DirectoryChooseFolder-\(title)"
             chooseButton.addAction(UIAction { [weak self] _ in
                 guard let self else { return }
@@ -691,6 +844,7 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
                 self.viewController?.showComputerLocations()
             }, for: .touchUpInside)
             stack.addArrangedSubview(chooseButton)
+            chooseButton.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor).isActive = true
 #else
             if HostFileSystem.cloudClientName(for: currentDirectory.url) != nil {
                 let reconnect = UIButton(type: .system)
@@ -714,17 +868,32 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
 #endif
         }
         NSLayoutConstraint.activate([
-            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
-            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12)
+            stack.topAnchor.constraint(equalTo: container.contentLayoutGuide.topAnchor, constant: 12),
+            stack.bottomAnchor.constraint(equalTo: container.contentLayoutGuide.bottomAnchor, constant: -12),
+            stack.leadingAnchor.constraint(equalTo: container.contentLayoutGuide.leadingAnchor, constant: 12),
+            stack.trailingAnchor.constraint(equalTo: container.contentLayoutGuide.trailingAnchor, constant: -12),
+            stack.widthAnchor.constraint(equalTo: container.frameLayoutGuide.widthAnchor, constant: -24)
         ])
         fileList?.backgroundView = container
     }
     
     func rebuildTree() {
+        // Loading hovered children completes asynchronously. Preserve the
+        // visible node, otherwise reloadData can jump back to the system root
+        // while the user is still holding a file over a lower tree row.
+        let anchor = treeList?.indexPathsForVisibleRows?.first
+        let anchorKey = anchor.flatMap { flatTree.indices.contains($0.row) ? flatTree[$0.row].entry.key() : nil }
+        let anchorY = anchor.map { treeList.rectForRow(at: $0).minY - treeList.contentOffset.y }
         flatTree.removeAll()
         addVisibleNode(rootNode)
         treeList?.reloadData()
+        treeList?.layoutIfNeeded()
+        if let anchorKey, let anchorY, let row = flatTree.firstIndex(where: { $0.entry.key() == anchorKey }), let treeList {
+            let lower = -treeList.adjustedContentInset.top
+            let upper = max(lower, treeList.contentSize.height - treeList.bounds.height + treeList.adjustedContentInset.bottom)
+            let desired = treeList.rectForRow(at: IndexPath(row: row, section: 0)).minY - anchorY
+            treeList.setContentOffset(CGPoint(x: treeList.contentOffset.x, y: max(lower, min(upper, desired))), animated: false)
+        }
     }
 
     func reloadTreeKeepingExpansion() {
@@ -760,7 +929,12 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     private func scanDirectorySize() {
         let directory = currentDirectory!
         let generation = listingGeneration
-#if targetEnvironment(macCatalyst)
+#if !targetEnvironment(macCatalyst)
+        // Listing metadata only: never recursively hydrate a provider's folders.
+        currentDirectoryBytes = allEntries.filter { !$0.isDirectoryLike() }.reduce(0) { $0 + max(0, $1.size()) }
+        updateSelectionStatus()
+        return
+#else
         let directoryPath = directory.url.standardizedFileURL.path
         let homePath = HostFileSystem.homeDirectory.standardizedFileURL.path
         let volumePaths = Set((FileManager.default.mountedVolumeURLs(
@@ -773,7 +947,6 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
             updateSelectionStatus()
             return
         }
-#endif
         DispatchQueue.global(qos: .utility).async {
             let bytes = directory.contentBytes()
             DispatchQueue.main.async {
@@ -782,6 +955,7 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
                 self.updateSelectionStatus()
             }
         }
+#endif
     }
 
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
@@ -792,7 +966,39 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         return true
     }
 
-    func textFieldDidBeginEditing(_ textField: UITextField) { activatePane() }
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        activatePane()
+#if !targetEnvironment(macCatalyst)
+        textField.text = currentDirectory.displayPath()
+#endif
+    }
+    func textFieldDidEndEditing(_ textField: UITextField) { updateSelectionStatus() }
+#if !targetEnvironment(macCatalyst)
+    private func updateMobilePath() {
+        var chain: [FileEntry] = []
+        var cursor: FileEntry? = currentDirectory
+        while let entry = cursor, chain.count < 128 {
+            chain.insert(entry, at: 0)
+            if entry.key() == rootNode.entry.key() { break }
+            cursor = entry.parent
+        }
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        func label(_ entry: FileEntry) -> String {
+            if entry.url.standardizedFileURL.path.replacingOccurrences(of: "/private/var/", with: "/var/") == documents.standardizedFileURL.path.replacingOccurrences(of: "/private/var/", with: "/var/") && entry.zipPath == nil {
+                return L10n.get("local_documents")
+            }
+            return entry.name()
+        }
+        if !pathText.isFirstResponder { pathText.text = chain.map(label).joined(separator: " › ") }
+        let ancestors = chain.map { entry in
+            UIAction(title: label(entry), image: UIImage(systemName: "folder"), state: entry.key() == currentDirectory.key() ? .on : .off) { [weak self] _ in self?.openDirectory(entry) }
+        }
+        let retry = UIAction(title: L10n.get("directory_retry"), image: UIImage(systemName: "arrow.clockwise")) { [weak self] _ in
+            self?.reloadTreeKeepingExpansion(); self?.refreshFiles()
+        }
+        breadcrumbButton?.menu = UIMenu(title: L10n.get("mobile_path"), children: ancestors + [retry])
+    }
+#endif
 
     @objc private func activatePane() {
         viewController?.activePane = self
@@ -802,12 +1008,23 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool { true }
 
     private func openTypedPath(_ value: String) {
+#if targetEnvironment(macCatalyst)
+        var input = value
+        if input.hasSuffix("!/") { input.removeLast(2) }
+        guard let local = CommanderTools.searchDirectory(input) else {
+            updateSelectionStatus()
+            viewController?.updateGlobalStatus(L10n.get("path_invalid"))
+            return
+        }
+        let path = local.path
+#else
         var path = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if path.hasPrefix("/Documents") {
             let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].path
             path = documents + String(path.dropFirst("/Documents".count))
         }
         if path.hasSuffix("!/") { path.removeLast(2) }
+#endif
         guard !path.isEmpty else {
             updateSelectionStatus()
             viewController?.updateGlobalStatus(L10n.get("path_empty"))
@@ -841,7 +1058,6 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     }
     
     private func loadChildren(for node: TreeNode) {
-#if targetEnvironment(macCatalyst)
         // Mark this attempt before rebuilding to avoid duplicate provider requests.
         // A refresh creates new nodes, so failures and empty startup listings retry.
         node.loaded = true
@@ -861,23 +1077,20 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
                 self.rebuildTree()
             }
         }
-#else
-        node.children.removeAll()
-        for entry in node.entry.children(directoriesOnly: true) {
-            let child = TreeNode(entry: entry, depth: node.depth + 1)
-            node.children.append(child)
-        }
-        node.loaded = true
-#endif
+
     }
     
     func updateSelectionStatus() {
         viewController?.updateDesktopActions()
         guard let selectionText = selectionText, let pathText = pathText else { return }
-        let sizeStr = currentDirectoryBytes >= 0 ? "\(currentDirectoryBytes) B" : (currentDirectoryBytes == -2 ? "—" : "...")
+        let sizeStr = currentDirectoryBytes >= 0 ? ByteCountFormatter.string(fromByteCount: currentDirectoryBytes, countStyle: .file) : (currentDirectoryBytes == -2 ? "—" : "...")
         selectionText.text = listingPending ? L10n.get("directory_loading") : "\(selectedKeys.count)/\(visibleEntries.count) | \(sizeStr)"
         // A background size scan must not overwrite a path being typed.
+#if targetEnvironment(macCatalyst)
         if !pathText.isFirstResponder { pathText.text = currentDirectory.displayPath() }
+#else
+        updateMobilePath()
+#endif
     }
     
     // MARK: - UITableViewDataSource & Delegate
@@ -959,7 +1172,16 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
             }
 #endif
             updateSelectionStatus()
-            tableView.reloadData()
+            // Keep the cell under the mouse alive while a click turns into a
+            // drag. Reloading here destroys UIKit's candidate drag source.
+            for cell in tableView.visibleCells {
+                guard let index = tableView.indexPath(for: cell), visibleEntries.indices.contains(index.row),
+                      let fileCell = cell as? FileCell, let theme = viewController?.theme else { continue }
+                let item = visibleEntries[index.row]
+                let selected = selectedKeys.contains(item.key())
+                fileCell.configure(with: item, theme: theme, isSelected: selected)
+                cell.accessibilityTraits = selected ? [.button, .selected] : [.button]
+            }
         }
     }
     
@@ -1069,16 +1291,81 @@ extension CommanderPane: UITableViewDragDelegate, UITableViewDropDelegate {
     }
     
     // MARK: - Drag Delegate
+
+#if targetEnvironment(macCatalyst)
+    private func archiveProvider(_ entry: FileEntry) -> NSItemProvider {
+        let archive = entry.url, member = entry.zipPath!
+        let type = entry.zipDirectory ? UTType.folder : (UTType(filenameExtension: (entry.name() as NSString).pathExtension) ?? .data)
+        return FileDropTransfer.materializingProvider(name: entry.name(), type: type) { root, progress in
+            let scoped = archive.startAccessingSecurityScopedResource()
+            defer { if scoped { archive.stopAccessingSecurityScopedResource() } }
+            let output = root.appendingPathComponent("content")
+            var failure: Error?, coordination: NSError?
+            NSFileCoordinator().coordinate(readingItemAt: archive, options: [], error: &coordination) { source in
+                do {
+                    try CommanderNativeArchive.extract(source, prefixes: [member], to: output,
+                        maximumBytes: 256 * 1024 * 1024,
+                        checkCancellation: { if progress.isCancelled { throw CocoaError(.userCancelled) } })
+                } catch { failure = error }
+            }
+            if let coordination { throw coordination }
+            if let failure { throw failure }
+            return output.appendingPathComponent(member)
+        }
+    }
+
+    private func configureArchiveDrag() {
+        DesktopBridge.shared?.registerOnlineDragSource(archiveDragSourceID, items: { [weak self] point in
+            guard let self, self.onlineBrowser == nil, let window = self.fileList.window, window.isKeyWindow,
+                  self.viewController?.presentedViewController == nil,
+                  self.viewController?.operationInProgress == false else { return [] }
+            let point = CGPoint(x: point.x * window.bounds.width, y: point.y * window.bounds.height)
+            let local = self.fileList.convert(point, from: window)
+            guard self.fileList.bounds.contains(local), let index = self.fileList.indexPathForRow(at: local),
+                  self.visibleEntries.indices.contains(index.row) else { return [] }
+            let entry = self.visibleEntries[index.row]
+            guard entry.zipPath != nil, !entry.isUpButton else { return [] }
+            let entries = self.selectedKeys.contains(entry.key()) ? self.visibleEntries.filter { self.selectedKeys.contains($0.key()) } : [entry]
+            return entries.filter { $0.zipPath != nil && !$0.isUpButton }.map { entry in
+                entry.dragProvider = self.archiveProvider(entry)
+                return ["token": entry.registerArchiveDrag(), "name": entry.name(),
+                        "type": (entry.zipDirectory ? UTType.folder : (UTType(filenameExtension: (entry.name() as NSString).pathExtension) ?? .data)).identifier]
+            }
+        }, write: { token, destination, completion in
+            guard let provider = FileEntry.archiveDrag(token)?.dragProvider else {
+                completion(CocoaError(.fileReadUnknown) as NSError); return
+            }
+            FileDropTransfer.load([provider]) { result in
+                switch result {
+                case .failure(let error): completion(error as NSError)
+                case .success(let batch):
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        defer { batch.releaseResources() }
+                        do {
+                            guard let file = batch.items.first else { throw CocoaError(.fileReadUnknown) }
+                            try FileManager.default.copyItem(at: file.url, to: destination)
+                            completion(nil)
+                        } catch { completion(error as NSError) }
+                    }
+                }
+            }
+        })
+    }
+#endif
     
     func tableView(_ tableView: UITableView, itemsForBeginning session: UIDragSession, at indexPath: IndexPath) -> [UIDragItem] {
+        CommanderDragDiagnostics.event("drag beginning pane \(title) row \(indexPath.row)")
         guard indexPath.section == 0 else { return [] }
         let entries = tableView === treeList ? flatTree.map(\.entry) : visibleEntries
         guard entries.indices.contains(indexPath.row) else { return [] }
         let entry = entries[indexPath.row]
-        if entry.isUpButton || !entry.isPhysical() { return [] }
+        if entry.isUpButton { return [] }
+#if !targetEnvironment(macCatalyst)
+        if !entry.isPhysical() { return [] }
+#endif
         
         if !selectedKeys.contains(entry.key()) {
-            selectedKeys.insert(entry.key())
+            selectedKeys = [entry.key()]
             updateSelectionStatus()
         }
         
@@ -1086,9 +1373,18 @@ extension CommanderPane: UITableViewDragDelegate, UITableViewDropDelegate {
         session.localContext = self
         let dragged = tableView === treeList ? [entry] : visibleEntries.filter { selectedKeys.contains($0.key()) }
         return dragged.compactMap { entry in
-            guard entry.isPhysical(), !entry.isUpButton else { return nil }
-            let provider = FileDropTransfer.provider(for: entry.url)
+            guard !entry.isUpButton else { return nil }
+            let provider: NSItemProvider
+#if targetEnvironment(macCatalyst)
+            if entry.zipPath != nil {
+                provider = archiveProvider(entry)
+            } else { provider = FileDropTransfer.provider(for: entry.url) }
+#else
+            guard entry.isPhysical() else { return nil }
+            provider = FileDropTransfer.provider(for: entry.url)
+#endif
             let item = UIDragItem(itemProvider: provider)
+            entry.dragProvider = provider
             item.localObject = entry
             return item
         }
@@ -1097,10 +1393,12 @@ extension CommanderPane: UITableViewDragDelegate, UITableViewDropDelegate {
     // MARK: - Drop Delegate
     
     func tableView(_ tableView: UITableView, canHandle session: UIDropSession) -> Bool {
+        CommanderDragDiagnostics.event("drop queried pane \(title) items \(session.items.count)")
         guard viewController?.externalDropInProgress != true, viewController?.fileOperationInProgress != true,
               viewController?.presentedViewController == nil, !session.items.isEmpty else { return false }
 #if targetEnvironment(macCatalyst)
-        if session.items.allSatisfy({ $0.localObject is OneDriveSelection }) { return true }
+        if session.items.allSatisfy({ OneDriveSelection.resolve($0) != nil }) { return true }
+        if session.items.allSatisfy({ FileEntry.resolveDrag($0)?.zipPath != nil }) { return true }
 #endif
         if session.localDragSession?.localContext is CommanderPane {
             return session.items.allSatisfy { $0.localObject is FileEntry }
@@ -1108,9 +1406,40 @@ extension CommanderPane: UITableViewDragDelegate, UITableViewDropDelegate {
         return session.items.allSatisfy { FileDropTransfer.canLoad($0.itemProvider) }
     }
 
+#if targetEnvironment(macCatalyst)
+    func nativeFileDrop(_ point: CGPoint, urls: [URL], modifiers: Int, commit: Bool) -> Bool {
+        guard !urls.isEmpty else { stopDropHover(); _ = onlineBrowser?.nativeFileDrop(point, urls: [], modifiers: modifiers, commit: false); return false }
+        if let onlineBrowser { return onlineBrowser.nativeFileDrop(point, urls: urls, modifiers: modifiers, commit: commit) }
+        guard let window = fileList.window, let controller = viewController else { return false }
+        let location = CGPoint(x: point.x * window.bounds.width, y: point.y * window.bounds.height)
+        for table in [fileList, treeList].compactMap({ $0 }) {
+            let local = table.convert(location, from: window)
+            guard let target = targetForDrop(in: table, point: local), target.canWriteDirectory(),
+                  CommanderDropPolicy.accepts(urls.map { ($0, (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true) }, target: target.url) else { continue }
+            if commit {
+                stopDropHover()
+                controller.activePane = self
+                controller.receiveExternalDrop(providers: urls.map { FileDropTransfer.provider(for: $0) }, targetDirectory: target,
+                    moveOverride: FileDropAction.externalMove(modifiers: modifiers, moveMode: controller.moveMode))
+            } else {
+                dropHoverTable = table; currentDropSession = nil; nativeDropPoint = location
+                trackDropTarget(table, target: target)
+            }
+            return true
+        }
+        stopDropHover(); return false
+    }
+#endif
     private func targetForDrop(in tableView: UITableView, session: UIDropSession) -> FileEntry? {
+        targetForDrop(in: tableView, point: FileDropTransfer.location(session, in: tableView))
+    }
+    private func targetForDrop(in tableView: UITableView, point: CGPoint) -> FileEntry? {
+        // Reject a stale callback from a table the pointer has already left.
+        // In particular, its old tree row must not become a different target
+        // while an external file promise crosses into the adjacent file list.
+        guard tableView.bounds.contains(point) else { return nil }
         // Use the actual row under the pointer, not UIKit's insertion index.
-        if let index = tableView.indexPathForRow(at: session.location(in: tableView)), index.section == 0 {
+        if let index = tableView.indexPathForRow(at: point), index.section == 0 {
             if tableView === treeList, flatTree.indices.contains(index.row) { return flatTree[index.row].entry }
             if tableView === fileList, visibleEntries.indices.contains(index.row) {
                 let entry = visibleEntries[index.row]
@@ -1121,18 +1450,24 @@ extension CommanderPane: UITableViewDragDelegate, UITableViewDropDelegate {
         return currentDirectory
     }
     private func permittedDrop(_ session: UIDropSession, target: FileEntry) -> Bool {
-        let local = session.items.compactMap { $0.localObject as? FileEntry }
+        let local = session.items.compactMap { FileEntry.resolveDrag($0) }
         guard !local.isEmpty else { return true }
         guard local.count == session.items.count else { return false }
-        return CommanderDropPolicy.accepts(local.map { ($0.url, $0.offersDirectoryDrop) }, target: target.url)
+        // Archive entries are exported under their member names, not the
+        // archive's own name. Its parent directory is a valid export target.
+        return local.filter { $0.isPhysical() }.isEmpty || CommanderDropPolicy.accepts(local.filter { $0.isPhysical() }.map { ($0.url, $0.offersDirectoryDrop) }, target: target.url)
     }
     private func stopDropHover() {
         dropHoverWork?.cancel(); dropHoverWork = nil; dropHoverKey = nil
         dropScrollTimer?.invalidate(); dropScrollTimer = nil
-        dropHoverTable = nil; currentDropSession = nil
+        dropHoverTable = nil; currentDropSession = nil; nativeDropPoint = nil
     }
     private func trackDrop(_ table: UITableView, session: UIDropSession, target: FileEntry) {
         dropHoverTable = table; currentDropSession = session
+        nativeDropPoint = nil
+        trackDropTarget(table, target: target)
+    }
+    private func trackDropTarget(_ table: UITableView, target: FileEntry) {
         let hoverKey = table === treeList ? target.key() : nil
         if hoverKey != dropHoverKey {
             dropHoverWork?.cancel(); dropHoverKey = hoverKey
@@ -1151,8 +1486,9 @@ extension CommanderPane: UITableViewDragDelegate, UITableViewDropDelegate {
         }
         if dropScrollTimer == nil {
             dropScrollTimer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { [weak self] _ in
-                guard let self, let table = self.dropHoverTable, let session = self.currentDropSession else { return }
-                let y = session.location(in: table).y - table.contentOffset.y
+                guard let self, let table = self.dropHoverTable,
+                      let point = self.currentDropSession.map({ FileDropTransfer.location($0, in: table) }) ?? self.nativeDropPoint.map({ table.convert($0, from: table.window) }) else { return }
+                let y = point.y - table.contentOffset.y
                 let delta: CGFloat = y < 24 ? -12 : y > table.bounds.height - 24 ? 12 : 0
                 if delta != 0 {
                     let lower = -table.adjustedContentInset.top
@@ -1160,6 +1496,7 @@ extension CommanderPane: UITableViewDragDelegate, UITableViewDropDelegate {
                     table.setContentOffset(CGPoint(x: table.contentOffset.x, y: max(lower, min(upper, table.contentOffset.y + delta))), animated: false)
                 }
             }
+            if let timer = dropScrollTimer { RunLoop.main.add(timer, forMode: .common) }
         }
     }
     func tableView(_ tableView: UITableView, dropSessionDidExit session: UIDropSession) { stopDropHover() }
@@ -1172,19 +1509,28 @@ extension CommanderPane: UITableViewDragDelegate, UITableViewDropDelegate {
             return UITableViewDropProposal(operation: .forbidden)
         }
         trackDrop(tableView, session: session, target: target)
-        let internalDrag = session.localDragSession != nil
-        let operation: UIDropOperation = internalDrag && session.allowsMoveOperation && viewController?.moveMode == true ? .move : .copy
-        return UITableViewDropProposal(operation: operation, intent: .insertIntoDestinationIndexPath)
+        let archiveExport = session.items.contains { FileEntry.resolveDrag($0)?.zipPath != nil }
+        let operation = FileDropAction.proposal(moveMode: viewController?.moveMode == true,
+                                               allowsMove: session.allowsMoveOperation, archive: archiveExport)
+        // Dropping on background means copying into the current directory, not
+        // into a table row (which does not even exist for an empty directory).
+        let row = tableView.indexPathForRow(at: FileDropTransfer.location(session, in: tableView))
+        let intoFolder = row.map { index in
+            tableView === treeList || (visibleEntries.indices.contains(index.row) && visibleEntries[index.row].offersDirectoryDrop)
+        } ?? false
+        return UITableViewDropProposal(operation: operation, intent: intoFolder ? .insertIntoDestinationIndexPath : .unspecified)
     }
     
     func tableView(_ tableView: UITableView, performDropWith coordinator: UITableViewDropCoordinator) {
+        guard coordinator.proposal.operation == .copy || coordinator.proposal.operation == .move else { return }
+        CommanderDragDiagnostics.event("drop committed pane \(title)")
         stopDropHover()
         guard self.tableView(tableView, canHandle: coordinator.session),
               let target = targetForDrop(in: tableView, session: coordinator.session), target.canWriteDirectory(), permittedDrop(coordinator.session, target: target),
               let controller = viewController else { return }
         controller.activePane = self
 #if targetEnvironment(macCatalyst)
-        let online = coordinator.items.compactMap { $0.dragItem.localObject as? OneDriveSelection }
+        let online = coordinator.items.compactMap { OneDriveSelection.resolve($0.dragItem) }
         if let first = online.first {
             guard online.count == coordinator.items.count, online.allSatisfy({ $0.browser === first.browser && $0.generation == first.generation }) else { return }
             let selection = OneDriveSelection(browser: first.browser, items: online.flatMap(\.items), generation: first.generation)
@@ -1192,13 +1538,27 @@ extension CommanderPane: UITableViewDragDelegate, UITableViewDropDelegate {
             return
         }
 #endif
+        let archiveEntries = coordinator.items.compactMap { FileEntry.resolveDrag($0.dragItem) }
+        if archiveEntries.count == coordinator.items.count, archiveEntries.contains(where: { $0.zipPath != nil }) {
+            controller.receiveExternalDrop(providers: coordinator.items.map {
+                FileEntry.resolveDrag($0.dragItem)?.dragProvider ?? $0.dragItem.itemProvider
+            }, targetDirectory: target, forceCopy: true)
+            return
+        }
         if let sourcePane = coordinator.session.localDragSession?.localContext as? CommanderPane {
             // Use the actual drag payload, never a selection that may have changed.
             let sources = coordinator.items.compactMap { $0.dragItem.localObject as? FileEntry }
+            if sources.contains(where: { $0.zipPath != nil }) {
+                controller.receiveExternalDrop(providers: coordinator.items.map {
+                    ($0.dragItem.localObject as? FileEntry)?.dragProvider ?? $0.dragItem.itemProvider
+                }, targetDirectory: target, forceCopy: true)
+                return
+            }
             controller.runFileOperation(sources: sources, sourcePane: sourcePane, targetDirectory: target,
                                         move: coordinator.proposal.operation == .move)
         } else {
-            controller.receiveExternalDrop(providers: coordinator.items.map { $0.dragItem.itemProvider }, targetDirectory: target)
+            controller.receiveExternalDrop(providers: coordinator.items.map { $0.dragItem.itemProvider }, targetDirectory: target,
+                                           moveOverride: FileDropAction.externalMove(moveMode: controller.moveMode))
         }
     }
 
@@ -1211,9 +1571,12 @@ extension CommanderPane: UITableViewDragDelegate, UITableViewDropDelegate {
         if viewController?.activeDragPane === self {
             viewController?.activeDragPane = nil
         }
-        // Finder may have moved a directly exported URL; refresh, but never
-        // delete source files merely because a drag session ended.
-        viewController?.refreshAllPanes(clearSelectionIn: [])
+        // Finder may have moved a directly exported URL. Refresh only this
+        // source listing; committed internal operations refresh their own
+        // destinations. Rebuilding every tree here also reset hover expansion
+        // and scroll position after a cancelled drag.
+        // Never delete source files merely because a drag session ended.
+        refreshFiles()
     }
 }
 

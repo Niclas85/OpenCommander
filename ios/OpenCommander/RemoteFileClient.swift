@@ -21,6 +21,8 @@ import CryptoKit
     private let nameValidator: (String) -> Bool
     private let pathValidator: (String) -> Bool
     private let describePath: (String) -> String
+    private let allowsNativeExport: Bool
+    static let maximumNativeExportBytes: Int64 = 256 * 1024 * 1024
     func validFileName(_ name: String) -> Bool { nameValidator(name) }
     func accountIdentity() async throws -> String {
         try profile.validate()
@@ -40,8 +42,10 @@ import CryptoKit
     }
     init(_ profile: RemoteConnection, transport: Transport? = nil, cancel: ((String) -> Void)? = nil,
          password: (() throws -> String?)? = nil, validName: @escaping (String) -> Bool = RemoteConnection.validName,
-         validPath: ((String) -> Bool)? = nil, describePath: ((String) -> String)? = nil) {
+         validPath: ((String) -> Bool)? = nil, describePath: ((String) -> String)? = nil,
+         allowsNativeExport: Bool = false) {
         self.profile = profile; passwordProvider = password
+        self.allowsNativeExport = allowsNativeExport
         nameValidator = validName; pathValidator = validPath ?? profile.contains
         self.describePath = describePath ?? { profile.scheme + "://" + profile.host + ":\(profile.port)" + $0 }
 #if targetEnvironment(macCatalyst)
@@ -62,7 +66,13 @@ import CryptoKit
         return value
     }
     private func identifier(_ path: String) -> String {
-        if let existing = paths.first(where: { $0.value == path })?.key { return existing }
+        if let existing = paths.first(where: { $0.value == path })?.key {
+            // Swift String equality is canonically equivalent, but remote
+            // providers can require the exact UTF-8 spelling from their listing.
+            // Keep stable references while refreshing that authoritative spelling.
+            paths[existing] = path
+            return existing
+        }
         let id = UUID().uuidString; paths[id] = path; return id
     }
     private func childPath(_ parent: String, _ name: String) throws -> String {
@@ -71,7 +81,7 @@ import CryptoKit
     }
     private func perform(_ operation: String, _ path: String, destination: String? = nil, local: URL? = nil) async throws -> Data {
         defer {
-            if !["list", "download"].contains(operation) {
+            if !["list", "download", "export"].contains(operation) {
                 NotificationCenter.default.post(name: OneDriveClient.listingChanged, object: clientID)
             }
         }
@@ -90,18 +100,18 @@ import CryptoKit
             }
         }, onCancel: { cancel(requestID) })
     }
-    private func measuredDownload(_ path: String, local: URL, size: Int64, phase: String) async throws {
-        transferProgress?(phase, 0, size)
+    private func measuredDownload(_ path: String, local: URL, size: Int64, phase: String, operation: String = "download") async throws {
+        transferProgress?(phase, 0, max(0, size))
         let monitor = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 let count = (try? local.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
                 // 100% is reserved for the caller's completed integrity check.
-                self?.transferProgress?(phase, min(count, max(0, size - 1)), size)
+                self?.transferProgress?(phase, size < 0 ? count : min(count, max(0, size - 1)), max(0, size))
                 do { try await Task.sleep(nanoseconds: 200_000_000) } catch { return }
             }
         }
         defer { monitor.cancel() }
-        _ = try await perform("download", path, local: local)
+        _ = try await perform(operation, path, local: local)
     }
     func children(of id: String?) async throws -> [OneDriveItem] {
         try await directoryItems(path(id))
@@ -113,7 +123,7 @@ import CryptoKit
             let itemPath = try childPath(parent, entry.name)
             return OneDriveItem(id: identifier(itemPath), name: entry.name, size: entry.size >= 0 ? entry.size : nil,
                 folder: entry.directory ? .init(childCount: nil) : nil, lastModifiedDateTime: entry.modified,
-                eTag: entry.version, parentReference: .init(id: identifier(parent)))
+                eTag: entry.version, parentReference: .init(id: identifier(parent)), providerID: entry.providerID)
         }
     }
     func toolChildren(of id: String?) async throws -> [OneDriveItem] {
@@ -126,13 +136,19 @@ import CryptoKit
                 lastModifiedDateTime: nil, eTag: "root", root: [:])
         }
         let parent = (value as NSString).deletingLastPathComponent
-        guard let item = try await children(of: identifier(parent)).first(where: { $0.id == id }) else { throw RemoteConnection.failure("remote_missing") }
-        return item
+        // References are logical paths, not server-issued IDs. An externally
+        // removed name can leave an old alias when another item is moved there.
+        // Resolve the requested path, retaining its caller's reference, rather
+        // than depending on nondeterministic Dictionary iteration order.
+        guard let item = try await children(of: identifier(parent)).first(where: { $0.name == (value as NSString).lastPathComponent }),
+              let id else { throw RemoteConnection.failure("remote_missing") }
+        return OneDriveItem(id: id, name: item.name, size: item.size, folder: item.folder,
+            lastModifiedDateTime: item.lastModifiedDateTime, eTag: item.eTag, parentReference: item.parentReference, providerID: item.providerID)
     }
     private func vacant(_ name: String, parent: String?) async throws {
         guard nameValidator(name) else { throw RemoteConnection.failure("remote_invalid") }
         let listing = try JSONDecoder().decode([RemoteDirectoryItem].self, from: await perform("list", path(parent)))
-        guard !listing.contains(where: \.unsafe) else { throw RemoteConnection.failure("remote_listing") }
+        guard !listing.contains(where: { $0.unsafe && $0.nameCollision != true }) else { throw RemoteConnection.failure("remote_listing") }
         guard !listing.contains(where: { OneDriveConflictNames.key($0.name) == OneDriveConflictNames.key(name) }) else { throw OneDriveFailure.nameConflict }
     }
     func createFolder(_ name: String, parent: String?) async throws {
@@ -164,6 +180,17 @@ import CryptoKit
         _ = try await perform(item.isFolder ? "rmdir" : "delete", path(item.id))
     }
     func remoteSnapshot(_ item: OneDriveItem) async throws -> [String: String] {
+        // Exported office bytes are not the native Google object. They may be
+        // copied/previewed, but must never authorize deletion of the original.
+        func requireOriginal(_ item: OneDriveItem, depth: Int) async throws {
+            guard depth < 100 else { throw RemoteConnection.failure("remote_limit") }
+            let current = try await metadata(item.id)
+            guard current.eTag == item.eTag else { throw RemoteConnection.failure("remote_changed") }
+            if current.isFolder {
+                for child in try await toolChildren(of: item.id) { try await requireOriginal(child, depth: depth + 1) }
+            } else if current.size == nil { throw RemoteConnection.failure("remote_unknown_size") }
+        }
+        if allowsNativeExport { try await requireOriginal(item, depth: 0) }
         let url = try await downloadTree(item)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         return try await Task.detached { try RemoteContent.snapshot(url) }.value
@@ -235,15 +262,21 @@ import CryptoKit
         guard !item.isFolder, nameValidator(item.name) else { throw RemoteConnection.failure("remote_invalid") }
         let current = try await metadata(item.id)
         guard current.name == item.name, !current.isFolder else { throw RemoteConnection.failure("remote_changed") }
-        guard let knownSize = current.size, knownSize >= 0 else { throw RemoteConnection.failure("remote_unknown_size") }
+        let exporting = current.size == nil && allowsNativeExport
+        guard exporting || (current.size ?? -1) >= 0 else { throw RemoteConnection.failure("remote_unknown_size") }
+        let knownSize = current.size ?? -1
         let container = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent("OpenCommander-Remote-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: false)
         let file = container.appendingPathComponent(item.name)
         do {
-            try await measuredDownload(path(item.id), local: file, size: knownSize, phase: "remote_download_phase")
-            let size = try file.resourceValues(forKeys: [.fileSizeKey]).fileSize
-            guard Int64(size ?? -1) == current.size, try await metadata(item.id).eTag == current.eTag else { throw RemoteConnection.failure("remote_changed") }
-            transferProgress?("remote_download_phase", current.size ?? 0, current.size ?? 0)
+            try await measuredDownload(path(item.id), local: file, size: knownSize, phase: "remote_download_phase", operation: exporting ? "export" : "download")
+            try Task.checkCancellation()
+            let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
+            let size = (attributes[.size] as? NSNumber)?.int64Value ?? -1
+            guard attributes[.type] as? FileAttributeType == .typeRegular,
+                  exporting ? (size >= 0 && size <= Self.maximumNativeExportBytes) : size == knownSize,
+                  current.eTag != nil, try await metadata(item.id).eTag == current.eTag else { throw RemoteConnection.failure("remote_changed") }
+            transferProgress?("remote_download_phase", size, size)
             return file
         } catch { try? FileManager.default.removeItem(at: container); throw error }
     }

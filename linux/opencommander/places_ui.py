@@ -1,5 +1,6 @@
 """Local shortcut presentation and ordering; dragging never transfers files."""
 import json
+import re
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QMimeData, QSize, QTimer
@@ -30,6 +31,23 @@ def provider_icon(kind):
         return QIcon()
     path = Path(__file__).parent / 'assets' / 'providers' / (str(kind) + '.svg')
     return QIcon(str(path)) if path.is_file() else QIcon()
+
+
+def local_provider_kind(path):
+    name = Path(path).name.casefold()
+    return next((kind for prefix, kind in [('onedrive', 'onedrive'), ('dropbox', 'dropbox'),
+        ('google drive', 'drive'), ('icloud', 'iclouddrive')]
+        if name == prefix or name.startswith(prefix + ' ') or name.startswith(prefix + '-')), None)
+
+
+def external_place_name(profile, language):
+    name = profile['name']
+    if not re.fullmatch(r'oc_[0-9a-f]{32}', name):
+        return name
+    provider = {'onedrive': 'OneDrive', 'drive': 'Google Drive', 'dropbox': 'Dropbox',
+                'iclouddrive': 'iCloud Drive'}.get(profile.get('kind'), 'Cloud')
+    suffix = 'extern' if language == 'de' else 'external'
+    return f'{provider} ({suffix}, {name[-6:]})'
 
 
 class PlaceButton(QPushButton):

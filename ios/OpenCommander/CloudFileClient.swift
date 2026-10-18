@@ -21,6 +21,7 @@ import CryptoKit
     private var cached: [String: Cached] = [:]
     private var cooldowns: [String: (Date, NSError)] = [:]
     private var listingRevision = 0
+    private var ambiguousDirectories = Set<String>()
     private let clock: () -> Date
     private let wait: (TimeInterval) async throws -> Void
     private let configurationIdentity: () async throws -> String
@@ -37,11 +38,11 @@ import CryptoKit
         return RemoteFileClient(reference, transport: { [weak self] id, _, _, operation, path, destination, local, completion in
             guard let self else { completion(nil, CloudConnection.failure("cloud_backend_unavailable")); return }
             do {
-                let opcode = ["list": "list", "download": "download", "upload": "upload", "mkdir": "mkdir", "rename": "rename", "delete": "deletefile", "rmdir": "rmdir"][operation]
+                let opcode = ["list": "list", "download": "download", "export": "export", "upload": "upload", "mkdir": "mkdir", "rename": "rename", "delete": "deletefile", "rmdir": "rmdir"][operation]
                 guard let opcode else { throw CloudConnection.failure("cloud_invalid") }
                 let relative = try Self.relative(path), target = try destination.map(Self.relative)
                 let connection = try JSONEncoder().encode(self.profile)
-                let writing = !["list", "download"].contains(operation)
+                let writing = !["list", "download", "export"].contains(operation)
                 if writing { self.invalidate() }
                 self.transport(id, connection, opcode, relative, target, local) { [weak self] data, error in
                     Task { @MainActor in
@@ -51,7 +52,11 @@ import CryptoKit
                             if operation == "list" {
                                 guard let data, data.count <= 32 * 1024 * 1024 else { throw CloudConnection.failure("cloud_limit") }
                                 let items = try JSONDecoder().decode([RcloneListingItem].self, from: data)
-                                guard items.count <= 100_000, Set(items.map(\.Name)).count == items.count else { throw CloudConnection.failure("cloud_invalid_listing") }
+                                guard items.count <= 100_000 else { throw CloudConnection.failure("cloud_invalid_listing") }
+                                let groups = Dictionary(grouping: items, by: { OneDriveConflictNames.key($0.Name) })
+                                let ambiguous = Set(groups.filter { $0.value.count > 1 }.keys)
+                                if ambiguous.isEmpty { self?.ambiguousDirectories.remove(relative) }
+                                else { self?.ambiguousDirectories.insert(relative) }
                                 let entries = try items.map { item -> RemoteDirectoryItem in
                                     try item.validate()
                                     guard item.Path == item.Name else { throw CloudConnection.failure("cloud_invalid_listing") }
@@ -61,7 +66,8 @@ import CryptoKit
                                     // Native Google documents have unknown export sizes.
                                     // Preserve that state: it is not an empty file and
                                     // must not invalidate the rest of the directory.
-                                    return RemoteDirectoryItem(name: item.Name, directory: item.IsDir, size: item.Size, modified: item.ModTime ?? "", fingerprint: fingerprint)
+                                    let collision = ambiguous.contains(OneDriveConflictNames.key(item.Name))
+                                    return RemoteDirectoryItem(name: item.Name, directory: item.IsDir, size: item.Size, modified: item.ModTime ?? "", unsafe: collision, fingerprint: fingerprint, nameCollision: collision, providerID: item.ID)
                                 }
                                 completion(try JSONEncoder().encode(entries), nil)
                             } else { completion(data ?? Data(), nil) }
@@ -70,7 +76,8 @@ import CryptoKit
                 }
             } catch { completion(nil, error as NSError) }
         }, cancel: cancelTransport, password: { nil }, validName: CloudConnection.validName,
-            validPath: { (try? Self.relative($0)) != nil }, describePath: { [profile] in profile.name + ":" + $0 })
+            validPath: { (try? Self.relative($0)) != nil }, describePath: { [profile] in profile.name + ":" + $0 },
+            allowsNativeExport: profile.kind == "drive")
     }()
     init(_ profile: CloudConnection, transport: Transport? = nil, cancel: ((String) -> Void)? = nil,
          clock: @escaping () -> Date = Date.init,
@@ -125,6 +132,42 @@ import CryptoKit
         clientID + ":" + (try await configurationIdentity())
     }
     func persistentPath(_ id: String?) throws -> String? { try core.persistentPath(id) }
+    var supportsSharingLink: Bool { ["drive", "onedrive", "dropbox"].contains(profile.kind) }
+    /// Call only after explicit public-link confirmation in the browser UI.
+    /// No retries or automatic clipboard/browser handoff after publication.
+    func createPublicShareLink(_ item: OneDriveItem) async throws -> URL {
+        let account = try await accountIdentity()
+        guard supportsSharingLink, try await core.metadata(item.id).eTag == item.eTag,
+              let path = try core.persistentPath(item.id) else { throw CloudConnection.failure("cloud_changed") }
+        guard try await accountIdentity() == account else { throw CloudConnection.failure("cloud_config_changed") }
+        let relativePath = try Self.relative(path)
+        let id = UUID().uuidString, connection = try JSONEncoder().encode(profile), cancellation = cancelTransport
+        let data: Data = try await withTaskCancellationHandler(operation: {
+            try await withCheckedThrowingContinuation { continuation in
+                transport(id, connection, "link", relativePath, nil, nil) { data, error in
+                    if let error { continuation.resume(throwing: error) }
+                    else { continuation.resume(returning: data ?? Data()) }
+                }
+            }
+        }, onCancel: { cancellation(id) })
+        return try Self.sharingURL(data, kind: profile.kind)
+    }
+    static func sharingURL(_ data: Data, kind: String) throws -> URL {
+        guard data.count <= 8192, let text = String(data: data, encoding: .utf8),
+              let value = text.split(whereSeparator: \.isNewline).last,
+              let url = URL(string: String(value).trimmingCharacters(in: .whitespaces)),
+              url.scheme == "https", url.user == nil, url.password == nil, url.port == nil,
+              let host = url.host?.lowercased() else { throw CloudConnection.failure("cloud_request_failed") }
+        let allowed: Bool
+        switch kind {
+        case "drive": allowed = ["drive.google.com", "docs.google.com"].contains(host)
+        case "dropbox": allowed = ["dropbox.com", "www.dropbox.com"].contains(host)
+        case "onedrive": allowed = ["1drv.ms", "onedrive.live.com"].contains(host) || host.hasSuffix(".sharepoint.com")
+        default: allowed = false
+        }
+        guard allowed else { throw CloudConnection.failure("cloud_request_failed") }
+        return url
+    }
     func restoreReference(_ id: String?, path: String?) async throws -> OneDriveItem { try await core.restoreReference(id, path: path) }
     func children(of id: String?) async throws -> [OneDriveItem] { try await core.children(of: id) }
     func browserListing(of id: String?) async throws -> OnlineBrowserListing {
@@ -159,7 +202,9 @@ import CryptoKit
                 guard listingRevision == revision else { throw CancellationError() }
                 cached[key] = Cached(at: clock(), items: items); cooldowns.removeValue(forKey: key)
                 while cached.count > 32, let oldest = cached.min(by: { $0.value.at < $1.value.at })?.key { cached.removeValue(forKey: oldest) }
-                return OnlineBrowserListing(items: items, cachedAt: nil, warning: nil)
+                let relative = try Self.relative(core.persistentPath(id) ?? "/")
+                return OnlineBrowserListing(items: items, cachedAt: nil, warning: nil,
+                    warningKey: ambiguousDirectories.contains(relative) ? "cloud_ambiguous_names_hidden" : nil)
             } catch {
                 try Task.checkCancellation()
                 guard listingRevision == revision else { throw CancellationError() }

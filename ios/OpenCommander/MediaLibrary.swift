@@ -33,30 +33,55 @@ final class StorageSourcesController: UITableViewController {
         tableView.estimatedRowHeight = 64
     }
     @objc private func close() { dismiss(animated: true) }
-    override func numberOfSections(in tableView: UITableView) -> Int { 2 }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        tableView.reloadData()
+    }
+    override func numberOfSections(in tableView: UITableView) -> Int { 3 }
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        section == 0 ? 3 : 4 + locations.count
+        section == 0 ? 3 : (section == 1 ? 4 : locations.count)
     }
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        L10n.get(section == 0 ? "media_libraries" : "media_files")
+        L10n.get(section == 0 ? "media_libraries" : (section == 1 ? "media_files" : "mobile_shared"))
     }
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-        section == 0 ? L10n.get("media_source_note") : L10n.get("help_access_ios")
+        section == 0 ? L10n.get("media_source_note") : (section == 1 ? L10n.get("mobile_choose_note") : nil)
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
         let keys = indexPath.section == 0 ? ["media_photos", "media_videos", "media_music"] :
-            ["choose_another_folder", "local_documents", "media_folder", "import_photos_videos"]
-        cell.textLabel?.text = indexPath.row < keys.count ? L10n.get(keys[indexPath.row]) : locations[indexPath.row - 4].title
+            (indexPath.section == 1 ? ["choose_another_folder", "local_documents", "media_folder", "import_photos_videos"] : [])
+        cell.textLabel?.text = indexPath.row < keys.count ? L10n.get(keys[indexPath.row]) : locations[indexPath.row].title
         cell.textLabel?.numberOfLines = 0
         cell.accessoryType = .disclosureIndicator
-        cell.accessibilityIdentifier = indexPath.row < keys.count ? "Source-\(keys[indexPath.row])" : "Source-saved-\(indexPath.row - 4)"
+        cell.accessibilityIdentifier = indexPath.row < keys.count ? "Source-\(keys[indexPath.row])" : "Source-saved-\(indexPath.row)"
         let icons = indexPath.section == 0 ? ["photo", "video", "music.note"] : ["folder.badge.plus", "doc", "tray", "square.and.arrow.down"]
         cell.imageView?.image = UIImage(systemName: indexPath.row < icons.count ? icons[indexPath.row] : "folder")
+        cell.detailTextLabel?.numberOfLines = 0
+        if indexPath.section == 0 {
+            let key: String
+            if indexPath.row == 2 {
+                switch MPMediaLibrary.authorizationStatus() {
+                case .authorized: key = "mobile_allowed"
+                case .notDetermined: key = "mobile_ask"
+                default: key = "mobile_denied"
+                }
+            } else {
+                switch PHPhotoLibrary.authorizationStatus(for: .readWrite) {
+                case .authorized: key = "mobile_allowed"
+                case .limited: key = "mobile_limited"
+                case .notDetermined: key = "mobile_ask"
+                default: key = "mobile_denied"
+                }
+            }
+            cell.detailTextLabel?.text = L10n.get(key)
+        } else {
+            cell.detailTextLabel?.text = L10n.get(indexPath.section == 2 ? "mobile_saved_note" : (indexPath.row == 0 ? "mobile_choose_note" : "mobile_local_note"))
+        }
         return cell
     }
     override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        indexPath.section == 1 && indexPath.row >= 4 && locations[indexPath.row - 4].forget != nil
+        indexPath.section == 2 && locations[indexPath.row].forget != nil
     }
     override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         guard self.tableView(tableView, canEditRowAt: indexPath) else { return nil }
@@ -67,8 +92,8 @@ final class StorageSourcesController: UITableViewController {
     }
     override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         guard editingStyle == .delete else { return }
-        locations[indexPath.row - 4].forget?()
-        locations.remove(at: indexPath.row - 4)
+        locations[indexPath.row].forget?()
+        locations.remove(at: indexPath.row)
         tableView.deleteRows(at: [indexPath], with: .automatic)
     }
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
@@ -77,7 +102,7 @@ final class StorageSourcesController: UITableViewController {
             let controller: UIViewController = indexPath.row == 2 ? MusicLibraryController() : PhotoLibraryController(videos: indexPath.row == 1)
             navigationController?.pushViewController(controller, animated: true)
         } else {
-            let action = indexPath.row < 4 ? [chooseFolder, localFiles, importedFiles, importMedia][indexPath.row] : locations[indexPath.row - 4].open
+            let action = indexPath.section == 1 ? [chooseFolder, localFiles, importedFiles, importMedia][indexPath.row] : locations[indexPath.row].open
             dismiss(animated: true) { action?() }
         }
     }

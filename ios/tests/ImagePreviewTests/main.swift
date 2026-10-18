@@ -3,9 +3,33 @@ import ImageIO
 import UniformTypeIdentifiers
 
 let fm = FileManager.default
+for position in [0.0, 1, 5] { precondition(!MediaPlaybackPolicy.shouldRestart(position: position, duration: 6)) }
+for position in [5.96, 6, 7] { precondition(MediaPlaybackPolicy.shouldRestart(position: position, duration: 6)) }
+for duration in [0.0, -1, .nan, .infinity] { precondition(!MediaPlaybackPolicy.shouldRestart(position: 6, duration: duration)) }
+for position in [-1.0, .nan, .infinity] { precondition(!MediaPlaybackPolicy.shouldRestart(position: position, duration: 6)) }
+precondition(!MediaPlaybackPolicy.shouldRestart(position: 0, duration: 0.01))
+precondition(MediaPlaybackPolicy.shouldRestart(position: 0.00995, duration: 0.01))
+print("PASS playback replay policy: end/tolerance, short media, normal pause, unknown/invalid duration")
 let fixture = fm.temporaryDirectory.appendingPathComponent("OpenCommander-ImageTests-" + UUID().uuidString)
 try fm.createDirectory(at: fixture, withIntermediateDirectories: true)
 defer { if !CommandLine.arguments.contains("--keep-fixture") { try? fm.removeItem(at: fixture) } }
+let previewBase = fm.temporaryDirectory.appendingPathComponent("OpenCommanderPreview", isDirectory: true)
+try fm.createDirectory(at: previewBase, withIntermediateDirectories: true)
+let owned = previewBase.appendingPathComponent(UUID().uuidString, isDirectory: true)
+let neighbor = previewBase.appendingPathComponent(UUID().uuidString, isDirectory: true)
+try fm.createDirectory(at: owned, withIntermediateDirectories: false)
+try fm.createDirectory(at: neighbor, withIntermediateDirectories: false)
+defer { try? fm.removeItem(at: neighbor) }
+try Data("own temporary bytes".utf8).write(to: owned.appendingPathComponent("image.bin"))
+var previewFiles: PreviewTemporaryFiles? = PreviewTemporaryFiles()
+previewFiles!.retainCreatedRoot(owned)
+previewFiles!.retainCreatedRoot(owned)
+previewFiles!.retainCreatedRoot(fixture) // Never delete a physical/provider source.
+previewFiles!.retainCreatedRoot(previewBase) // Never delete the shared parent.
+precondition(fm.fileExists(atPath: owned.path))
+previewFiles = nil
+precondition(!fm.fileExists(atPath: owned.path) && fm.fileExists(atPath: neighbor.path) && fm.fileExists(atPath: fixture.path))
+print("PASS preview lifetime removes only explicitly owned UUID root, retains source/shared parent/neighbor")
 let context = CGContext(data: nil, width: 200, height: 100, bitsPerComponent: 8,
     bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
 context.setFillColor(CGColor(red: 0.15, green: 0.6, blue: 0.9, alpha: 1))

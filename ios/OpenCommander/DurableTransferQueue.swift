@@ -57,6 +57,7 @@ final class DurableTransferQueue {
     private var limit = 2
     private var storeFailure: Error?
     private var admissionFailure: String?
+    private var foregroundOperationActive = false
     var changed: (([Job], Int, String?) -> Void)?
 
     init(directory: URL) {
@@ -87,6 +88,15 @@ final class DurableTransferQueue {
         } catch { storeFailure = error }
     }
     func refresh() { serial.async { self.emit() } }
+    /// A foreground action has already checked the running queue's paths. Keep
+    /// paused/new jobs from starting underneath it via the still-visible panel.
+    /// Existing independent workers continue; release schedules queued work.
+    func setForegroundOperationActive(_ active: Bool) {
+        serial.async {
+            self.foregroundOperationActive = active
+            if !active { self.commitAndSchedule() } else { self.emit() }
+        }
+    }
     /// UI mutations must not invalidate an active queued copy or move. Check
     /// against the authoritative queue, not a delayed display snapshot.
     func conflicts(reading: [URL] = [], writing: [URL] = []) -> Bool {
@@ -101,14 +111,27 @@ final class DurableTransferQueue {
         }
     }
     static func pathConflicts(requested: String, writing: Bool, job: Job) -> Bool {
-        guard [.running, .queued].contains(job.state) else { return false }
+        guard [.running, .queued, .paused].contains(job.state) else { return false }
+        let requested = reservationPath(requested)
         func family(_ path: String) -> String {
             path.replacingOccurrences(of: #"(?: \([0-9]+\))+(?=\.[^./]+$|$)"#, with: "", options: .regularExpression)
         }
-        func related(_ a: String, _ b: String) -> Bool { a == b || a.hasPrefix(b + "/") || b.hasPrefix(a + "/") }
+        func related(_ a: String, _ b: String) -> Bool { a == b || a == "/" || b == "/" || a.hasPrefix(b + "/") || b.hasPrefix(a + "/") }
         return [(job.source, job.move == true), (job.destination, true)].contains { reserved, otherWrite in
-            (writing || otherWrite) && (related(requested, reserved) || related(family(requested), family(reserved)))
+            let reserved = reservationPath(reserved)
+            return (writing || otherWrite) && (related(requested, reserved) || related(family(requested), family(reserved)))
         }
+    }
+    /// Comparison only: never rewrite stored file identities/journal paths.
+    /// Catalyst can standardize a live URL to /tmp while its persisted queue
+    /// path remains /private/tmp. Both spellings reserve the same object.
+    static func reservationPath(_ raw: String) -> String {
+        var path = raw
+        while path.count > 1 && path.hasSuffix("/") { path.removeLast() }
+        for alias in ["/private/tmp", "/private/var", "/private/etc"] {
+            if path == alias || path.hasPrefix(alias + "/") { return String(path.dropFirst("/private".count)) }
+        }
+        return path
     }
     func setLimit(_ value: Int) {
         serial.async {
@@ -137,7 +160,7 @@ final class DurableTransferQueue {
     }
     func forget(_ id: UUID) {
         serial.async {
-            self.jobs.removeAll { $0.id == id && [.completed, .cancelled].contains($0.state) }
+            self.jobs.removeAll { $0.id == id && [.completed, .cancelled].contains($0.state) && !($0.engine == "nas-exclusive" && $0.state != .completed) }
             if self.jobs.count < 1000 { self.admissionFailure = nil }
             self.commitAndSchedule()
         }
@@ -156,6 +179,27 @@ final class DurableTransferQueue {
             guard ![.completed, .cancelled].contains(self.jobs[index].state) else { return }
             self.jobs[index].state = command == .proceed ? .queued : command == .pause ? .paused : .cancelled
             self.jobs[index].requestedControl = nil; self.jobs[index].controlRequestedAt = nil
+            self.commitAndSchedule()
+        }
+    }
+    /// Change the whole snapshot before scheduling, so pausing queued jobs
+    /// cannot accidentally start another worker between individual requests.
+    func controlAll(_ command: DurableFileCopy.Control) {
+        serial.async {
+            for index in self.jobs.indices {
+                let job = self.jobs[index]
+                if command == .proceed {
+                    guard job.state == .paused else { continue }
+                    self.jobs[index].state = .queued
+                } else if command == .pause {
+                    guard [.queued, .running].contains(job.state) else { continue }
+                    if let signal = self.signals[job.id] {
+                        signal.set(.pause)
+                        self.jobs[index].requestedControl = "pause"
+                        self.jobs[index].controlRequestedAt = Date()
+                    } else { self.jobs[index].state = .paused }
+                }
+            }
             self.commitAndSchedule()
         }
     }
@@ -198,19 +242,19 @@ final class DurableTransferQueue {
         func family(_ path: String) -> String {
             path.replacingOccurrences(of: #"(?: \([0-9]+\))+(?=\.[^./]+$|$)"#, with: "", options: .regularExpression)
         }
-        let left = [(a.source, a.move == true), (a.destination, true)]
-        let right = [(b.source, b.move == true), (b.destination, true)]
-        func related(_ a: String, _ b: String) -> Bool { a == b || a.hasPrefix(b + "/") || b.hasPrefix(a + "/") }
+        let left = [(reservationPath(a.source), a.move == true), (reservationPath(a.destination), true)]
+        let right = [(reservationPath(b.source), b.move == true), (reservationPath(b.destination), true)]
+        func related(_ a: String, _ b: String) -> Bool { a == b || a == "/" || b == "/" || a.hasPrefix(b + "/") || b.hasPrefix(a + "/") }
         return left.contains { path, write in right.contains { other, otherWrite in
             (write || otherWrite) && (related(path, other) || related(family(path), family(other)))
         } }
     }
     private func schedule() {
-        guard storeFailure == nil else { return }
+        guard storeFailure == nil, !foregroundOperationActive else { return }
         for index in jobs.indices where jobs[index].state == .queued {
             guard signals.count < limit else { break }
             let candidate = jobs[index]
-            if jobs.contains(where: { signals[$0.id] != nil && Self.overlaps(candidate, $0) }) { continue }
+            if jobs.contains(where: { $0.id != candidate.id && (signals[$0.id] != nil || $0.state == .paused) && Self.overlaps(candidate, $0) }) { continue }
             let signal = Signal(); signals[candidate.id] = signal
             jobs[index].state = .running
             jobs[index].workPhase = .planning
@@ -226,9 +270,14 @@ final class DurableTransferQueue {
         do {
             let source = URL(fileURLWithPath: job.source), destination = URL(fileURLWithPath: job.destination)
             let type = try? FileManager.default.attributesOfItem(atPath: source.path)[.type] as? FileAttributeType
+            let nas = job.engine == "nas-exclusive" || (staging == nil &&
+                (NASExclusiveCopy.isSMB(destination.deletingLastPathComponent()) || NASExclusiveCopy.isSMB(source.deletingLastPathComponent())))
             let tree = job.engine == "tree" || (staging == nil && (job.move == true || job.replace == true || type == .typeDirectory || type == .typeSymbolicLink))
             if staging == nil {
-                if tree {
+                if nas {
+                    staging = try NASExclusiveCopy.create(source: source, target: destination,
+                        journalParent: destination.deletingLastPathComponent(), replace: job.replace == true, move: job.move == true)
+                } else if tree {
                     staging = try DurableTreeTransfer.create(source: source, destination: destination, move: job.move == true, replace: job.replace == true, check: {
                         guard signal.get() == .proceed else { throw DurableFileCopy.Failure.interrupted }
                     })
@@ -236,7 +285,7 @@ final class DurableTransferQueue {
                 try serial.sync {
                     guard let index = jobs.firstIndex(where: { $0.id == job.id }) else { throw DurableFileCopy.Failure.invalidJournal }
                     jobs[index].staging = staging!.path
-                    jobs[index].engine = tree ? "tree" : "file"
+                    jobs[index].engine = nas ? "nas-exclusive" : tree ? "tree" : "file"
                     try persist()
                 }
             }
@@ -272,7 +321,17 @@ final class DurableTransferQueue {
                     self.emitProgressIfDue()
                 }
             }
-            if tree {
+            if nas {
+                activity(.init(phase: .copying))
+                let planned = try NASExclusiveCopy.summary(staging!)
+                report(planned.bytes, planned.total)
+                let outcome = try NASExclusiveCopy.resume(staging!, control: {
+                    switch signal.get() { case .proceed: return .proceed; case .pause: return .pause; case .cancel: return .cancel }
+                }, progress: { report($0, planned.total) })
+                let result = try NASExclusiveCopy.summary(staging!)
+                state = outcome == .completed ? .completed : outcome == .cancelled ? .cancelled : .paused
+                bytes = result.bytes; backup = result.backup?.path; quarantine = result.quarantine?.path
+            } else if tree {
                 let result = try DurableTreeTransfer.resume(staging!, control: signal.get, progress: report, activity: activity)
                 state = result.state; bytes = result.bytes; backup = result.backup?.path; quarantine = result.quarantine?.path
             } else {
@@ -290,11 +349,17 @@ final class DurableTransferQueue {
                 self.commitAndSchedule()
             }
         } catch {
+            let networkInterrupted = staging?.lastPathComponent.hasPrefix(".OpenCommanderExclusive-") == true && NASExclusiveCopy.isConnectionFailure(error)
             serial.async {
                 if let index = self.jobs.firstIndex(where: { $0.id == job.id }) {
                     let command = signal.get()
-                    self.jobs[index].state = command == .pause ? .paused : command == .cancel ? .cancelled : .failed
-                    if command == .proceed { self.jobs[index].error = error.localizedDescription }
+                    self.jobs[index].state = command == .pause ? .paused : command == .cancel ? .cancelled : networkInterrupted ? .paused : .failed
+                    if command == .proceed {
+                        self.jobs[index].error = networkInterrupted ? L10n.get("transfer_nas_reconnect") : error.localizedDescription
+                        if let staging, staging.lastPathComponent.hasPrefix(".OpenCommanderExclusive-") {
+                            self.jobs[index].error! += "\n" + L10n.get("recovery_retained", staging.path)
+                        }
+                    }
                     self.jobs[index].staging = staging?.path
                     self.finishElapsed(index)
                 }

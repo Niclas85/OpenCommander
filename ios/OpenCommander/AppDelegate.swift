@@ -1,4 +1,5 @@
 import UIKit
+import Darwin
 import ZIPFoundation
 
 @main
@@ -97,20 +98,69 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let resourcePath = Bundle.main.url(forResource: "MacUITestRoot", withExtension: "txt")
             .flatMap { try? String(contentsOf: $0, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines) }
         guard let path = ProcessInfo.processInfo.environment["OPENCOMMANDER_MAC_UI_ROOT"] ?? resourcePath else { return }
-        let root = URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL
-        guard root.lastPathComponent.hasPrefix("OpenCommander-MacUITest-"),
-              root.resolvingSymlinksInPath() == root,
+        guard let physical = realpath(path, nil) else { return }
+        defer { free(physical) }
+        let root = URL(fileURLWithPath: String(cString: physical), isDirectory: true)
+        guard root.path.hasPrefix("/private/tmp/OpenCommander-MacUITest-"),
               FileManager.default.fileExists(atPath: root.appendingPathComponent("Left").path),
               FileManager.default.fileExists(atPath: root.appendingPathComponent("Right").path) else { return }
         Self.macUITestRoot = root
+#if DEBUG
+        // Regression for directly opened (including empty) drop destinations:
+        // unlike child rows they initially have no cached listing metadata.
+        do {
+            for name in ["Left", "Right"] {
+                let entry = FileEntry(url: root.appendingPathComponent(name), parent: nil)
+                precondition(!entry.offersDirectoryDrop)
+                let children = try entry.readChildren(directoriesOnly: false)
+                precondition(entry.offersDirectoryDrop && entry.canWriteDirectory())
+                for file in children where !file.isPhysicalDirectory() {
+                    precondition(!file.offersDirectoryDrop)
+                }
+            }
+            let absent = FileEntry(url: root.appendingPathComponent("Missing-Drag-Regression-" + UUID().uuidString), parent: nil)
+            do { _ = try absent.readChildren(directoriesOnly: false); preconditionFailure("Missing directory accepted") }
+            catch { precondition(!absent.offersDirectoryDrop) }
+            CommanderDragDiagnostics.event("PASS directly opened drop roots, regular files and missing directory")
+        } catch { preconditionFailure("Drop-root regression: \(error)") }
+#endif
         let defaults = UserDefaults.standard
         if ProcessInfo.processInfo.arguments.contains("--mac-parity-reset") { defaults.removePersistentDomain(forName: testID) }
-        defaults.set("en", forKey: "language")
-        for key in ["onboarding_shown", "mac_folder_default_prompt_v1", "mac_full_disk_access_onboarding_shown"] { defaults.set(true, forKey: key) }
-        for (pane, directory) in [("1", "Left"), ("2", "Right")] {
-            defaults.removeObject(forKey: "folder_bookmark_pane_" + pane)
-            defaults.set(root.appendingPathComponent(directory).path, forKey: "folder_path_pane_" + pane)
+        let historyFixture = root.appendingPathComponent("AcceptanceHistory.json")
+        if defaults.string(forKey: "acceptance_history_root") != root.path,
+           let bytes = try? Data(contentsOf: historyFixture), bytes.count <= 2 * 1024 * 1024,
+           let history = try? JSONDecoder().decode([OperationType].self, from: bytes), history.count <= 1000,
+           history.allSatisfy({ operation in
+               switch operation {
+               case .cloud(let record):
+                   return record.undo == nil && record.source.hasPrefix(root.path + "/") && record.destination.hasPrefix(root.path + "/")
+               case .copy(let records):
+                   // One actual oldest-page Undo, restricted to named synthetic
+                   // files with a live proof, never an arbitrary seeded action.
+                   guard records.count == 1, let record = records.first,
+                         record.source == root.appendingPathComponent("Left/HistoryUndoSource.txt"),
+                         record.destination == root.appendingPathComponent("Right/HistoryOldestUndo.txt"),
+                         record.replacedBackup == nil, record.quarantinedSource == nil else { return false }
+                   do { try record.verifyUnchangedDestination(); return true } catch { return false }
+               default: return false
+               }
+           }) {
+            defaults.removeObject(forKey: "operation_history_v2")
+            defaults.set(bytes, forKey: "operation_history_v1")
+            defaults.set(root.path, forKey: "acceptance_history_root")
         }
+        let preserveState = FileManager.default.fileExists(atPath: root.appendingPathComponent("PreserveAppState.txt").path)
+        let initializeState = !preserveState || defaults.string(forKey: "acceptance_state_root") != root.path
+        if initializeState { defaults.set("en", forKey: "language") }
+        for key in ["onboarding_shown", "mac_folder_default_prompt_v1", "mac_full_disk_access_onboarding_shown"] { defaults.set(true, forKey: key) }
+        if initializeState {
+            for (pane, directory) in [("1", "Left"), ("2", "Right")] {
+                defaults.removeObject(forKey: "folder_bookmark_pane_" + pane)
+                defaults.removeObject(forKey: "folder_last_visited_pane_" + pane)
+                defaults.set(root.appendingPathComponent(directory).path, forKey: "folder_path_pane_" + pane)
+            }
+        }
+        defaults.set(root.path, forKey: "acceptance_state_root")
     }
 #endif
 

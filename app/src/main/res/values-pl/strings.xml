@@ -128,4 +128,5 @@
     <string name="undo_changed">Cofanie zatrzymane: pliki zmieniły się lub nie można ich zweryfikować. Żadne kolejne pliki nie zostaną usunięte.</string>
     <string name="move_cleanup_failed">Nie udało się całkowicie usunąć źródła. Pełna kopia została zachowana w: %1$s</string>
     <string name="recovery_retained">Pliki odzyskiwania zostały zachowane w: %1$s</string>
+    <string name="operation_cancelled">Operacja anulowana. Ukończone elementy można cofnąć.</string>
 </resources>

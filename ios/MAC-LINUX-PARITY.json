@@ -1,8 +1,145 @@
 {
-  "reference": "origin/codex/linux-desktop@a8839e0b191795c52729229d2aef31b9f8afee0c (application source unchanged since 653690e; newest commit only Windows publisher documentation)",
+  "reference": "origin/codex/linux-desktop@e3b2981ad5a88551be81b86b6c6453e26e2e2ff5",
   "target": "macOS / Mac Catalyst",
-  "verified_on": "2026-10-14",
-  "status": "Latest Linux sources integrated with safety backports; signed arm64 Mac build 13 installed. After verified user-performed restart, normal V2 passed two synthetic mounted write suites and independent Apple readback. Physical Elements remains read-only and untouched. Full parity and production readiness remain open; see docs/mac-linux-parity-2026-10-14.md",
+  "verified_on": "2026-10-18",
+  "continuation_acceptance_2026_10_18": {
+    "report": "docs/mac-continuation-2026-10-18.md",
+    "implemented": "Bounded on-demand local folder-size report with explicit partial/error/limit outcomes; Command-L; shared safe literal local-path and file-URL parsing; Mac Documents alias correction; EN/DE handbook and messages",
+    "native": "Local 22-byte partial/61-byte complete size; Unicode/punctuation/trailing-space file URL; invalid remote-host rejection; text-field shortcut isolation; mixed Finder Option copy, conflict Cancel/Replace and two Undo operations; mixed App-to-Finder Option export; mixed Finder-to-App Command move with exact bytes and empty directories",
+    "installed_path": "/Applications/OpenCommander.app",
+    "installed_dylib_sha256": "6c3d30411157cc5fb2a9acd9799097755158a675f75bab2de04147c58b421a73",
+    "rollback_app": "ntfs/NTFS3G/.build-native/App-before-install.buqnP2/OpenCommander.saved",
+    "postinstall": "Existing Google Drive 14 and OneDrive 15 visible file rows without sign-in; original iCloud/Downloads panes restored. Fresh NTFS isolated image passed including full detach/reattach durable resume; exit zero; normally ejected; fixture /private/tmp/OpenCommander-NTFS-Queue-xtqkTn.",
+    "complete_parity": false,
+    "limits": "Online/NAS recursive-size acceptance, complete original manual prerequisite matrix and arbitrary external representations remain open. Google duplicate-name protection warning retained; no personal cloud content changed. No Elements, OS restart, new authorization, commit or push. Previous endurance evidence is retained, not relabelled as live network testing."
+  },
+  "native_acceptance_2026_10_18": {
+    "reference_fetched": "e3b2981ad5a88551be81b86b6c6453e26e2e2ff5; exact Linux CI success verified again",
+    "implemented": [
+      "Parent navigation reentry selection and scroll, including /tmp and /private/tmp aliases",
+      "Private own-process location-bar reorder token cannot become file/text content; native drag completion, context/accessibility alternatives and deferred device refresh",
+      "50-entry history pagination with newest/oldest navigation and stable original Undo indices",
+      "Persistent created-folder Undo locally and online, refusing later child additions",
+      "Visible fallback filenames for Safari/Chrome private hidden promise transport names"
+    ],
+    "native": "Location mouse/context reorder, Escape, relaunch, attach during held drag, negative file-to-location drop; 20 paused jobs resumed with exact bytes; 1000-entry oldest-page actual Undo preserved source/sentinel; 50 Preview, 50 Get Info and 50 Settings cycles; Safari/Chrome image promises matched exact bytes and temporary Move safely refused",
+    "automated": "14 native regression runners plus safety, provider, NTFS-image and live FTP/FTPS/SFTP key/password runs succeeded; 218 overlapping PASS groups, including 57 cloud groups with 22 separate-process phases; location token excluded from file/text import",
+    "ntfs": "Fresh isolated image passed full detach/reattach durable resume and file/tree tests; cleanly ejected; /private/tmp/OpenCommander-NTFS-Queue-ILdSyy; no Elements",
+    "report": "docs/mac-endurance-2026-10-18.md; prior evidence docs/mac-acceptance-2026-10-18.md",
+    "manual_inventory": "docs/mac-linux-acceptance-ledger-2026-10-18.json; all 158 reference IDs listed with explicit native/partial/environment status",
+    "complete_parity": false,
+    "installed_this_batch": true,
+    "installed_path": "/Applications/OpenCommander.app",
+    "rollback_app": "ntfs/NTFS3G/.build-native/App-before-install.5nFz69/OpenCommander.saved",
+    "installed_dylib_sha256": "a87aa5cbfa2ab222aa34ec448bc290f6009979d1e1eb770a7925f6a5fbfe3436",
+    "endurance": "PASS: fresh 7204.059-second continuous four-lane production CloudFileClient run, 5860 verified move/reopen/Undo cycles, injected adapter outages and actual cancellation; exit 0. First ENOSPC attempt remains failed, not added to elapsed time. Not a two-hour live-provider GUI/host-network-switch test.",
+    "postinstall_ntfs": "Fresh 64MiB synthetic image passed engine, Foundation, durable file/tree and pause/full detach/reattach byte-exact resume; exit 0; normally detached. Fixture /private/tmp/OpenCommander-NTFS-Queue-2b661D. No Elements.",
+    "postinstall_cloud": "Normal app quit/process exit/relaunch: existing Google Drive (14 visible rows) and OneDrive (15 visible rows) authenticated without new login. Original iCloud/Downloads panes restored; installed app left running.",
+    "limits": "Complete original manual sequence/account/server/filesystem/resolution and arbitrary external-application matrix remains unaccepted. No OS restart or new security grant. Previous installed app retained for rollback; unrelated staged work preserved."
+  },
+  "hover_external_queue_media_acceptance_2026_10_17": {
+    "implementation": [
+      "Cancelled local drags refresh only the source file listing, not every pane tree; tree rebuilds anchor the first visible node to preserve the viewport during asynchronous hover expansion",
+      "Atomic pause-all/resume-all controls and paused-job path reservations, including deferred conflicting moves",
+      "Media preview deletion uses exact original-file operations, advances only after its own success, and distinguishes provider trash, cloud recovery and permanent server removal",
+      "Direct-cloud recoverable deletion records persistent relocation Undo for toolbar, context menu and media preview; serialized references survive a fresh client and refuse an occupied original name",
+      "Direct Google Drive, Dropbox and rclone OneDrive connections expose explicit public-link confirmation; no automatic clipboard/browser action, no automatic mutation retry, provider-bounded HTTPS result validation; unsupported providers and whole-account roots refused"
+    ],
+    "live_verified": [
+      "Internal tree hover expands Target and preserves expansion and viewport after Escape; no file transferred",
+      "Internal file-list lower edge scrolls from Folder-000 to Row-034; upper edge returns to Folder-000; Escape publishes no transfer",
+      "External Finder Command hover expands the destination and child without transfer after Escape",
+      "TextEdit document proxy imports exact bytes; OpenCommander exports a file URL into a synthetic TextEdit document; test document restored and saved",
+      "Local media preview Cancel retains the file; confirmed removal advances from 1/2 to 1/1; Undo restores original",
+      "Google media preview downloads and displays the synthetic PNG; Cancel retains it; recovery deletion removes the original visible name",
+      "Corrected Google deletion exposes HistoryUndo-83; after quitting and relaunching the app, global Undo restored its original name without sign-in. Independent private-config readback SHA-256 matches local PNG: 6e17ddd487ce37d0c9e53f0b918ba3fc4639ffc21eaf15e039633cf1fbc5e327"
+    ],
+    "large_list_live": "Synthetic LargeList contains 20,000 files. Mac UI displayed 0/20000, exact-name filtering found row 19999, clearing restored the complete count, and descending name sorting displayed 19999/19998 first. No personal files used.",
+    "native_regressions": "56 cloud groups (including 22 separate-process phases), 24 Graph, 25 Swift safety, 13 drop-provider/policy, 9 queue, 10 durable copy, 7 durable tree, 3 Commander tools, 5 config leases, 8 runtime, 8 OAuth, 8 cloud discovery/storage, 2 handbook, 3 NTFS access and 3 NTFS registration groups passed. Remote transport runner passed. Counts overlap behaviors and are not a claim of independent full manual Linux cases.",
+    "discovered_and_fixed_not_hidden": "Initial Google preview removal had a recoverable source but no History Undo. Global Undo affected the preceding synthetic local copy, not that deletion. A new persistent cloud-deletion Undo helper and collision/restart regression were added; initial deletion is not counted as a successful Undo test.",
+    "provider_probe_cleanup": "An independent rclone probe rotated the original config token and triggered its account pin. Identical provider options and the same nonempty refresh credential were verified against the app-owned lease; only the known account digest was reconciled, anchor preserved, prior pin backed up. Subsequent independent probes use private config snapshots and never rotate the product config. No credentials printed or product security checks relaxed.",
+    "linux_reference_ci": {
+      "run": "https://github.com/Niclas85/OpenCommander/actions/runs/38872779010",
+      "linux_job": "116880586373: success, 411 passed in 74.87 seconds, Linux package uploaded",
+      "overall_run": "Android setup infrastructure failed; this does not negate the successful Linux and Apple jobs",
+      "mac_host_experiment": "Full dirty-worktree Linux Qt suite on macOS: 321 passed, 98 failed, 3 skipped. Retained full-acceptance-linux.log and XML. Not a successful Linux-host or complete Mac parity acceptance; includes Linux/proc/mount/desktop assumptions. Disposable test virtualenv removed after completion."
+    },
+    "third_party_limits": "Dropping another image on Preview's image canvas changed neither Finder nor OpenCommander trials. Not counted as a successful transfer or proof of arbitrary application compatibility. TextEdit and Finder evidence applies to tested file/proxy representations only.",
+    "full_manual_linux_inventory": "158 reference cases across 16 groups remain a distinct manual inventory. Automated Linux CI plus native Mac regressions are not represented as execution of every reachable GUI/account/hardware state.",
+    "complete_parity": false,
+    "installed_this_batch": true,
+    "installed_path": "/Applications/OpenCommander.app",
+    "rollback_app": "ntfs/NTFS3G/.build-native/App-before-install.K5aSz2/OpenCommander.saved",
+    "last_install_backup": "ntfs/NTFS3G/.build-native/App-before-install.21JVkX/OpenCommander.saved",
+    "last_install_verification": "Public-link confirmation and Cancel tested on the installed app without creating a public link. Final installed context menu reads In Cloud-Wiederherstellung verschieben. Final NTFS isolated-image integration passed again, including full detach/reattach resume; retained fixture /private/tmp/OpenCommander-NTFS-Queue-pKmoNY, cleanly ejected. App returned to original iCloud/Downloads panes.",
+    "post_install": "Native tree hover/expand/Escape preserved Target expansion and viewport again. Installed NTFS isolated-image engine/Foundation/durable file/tree copies and paused-copy resume after complete detach/reattach passed; image ejected cleanly. Log: ntfs/NTFS3G/.build-native/full-final-ntfs-image.log; retained fixture /private/tmp/OpenCommander-NTFS-Queue-ybLoIi. Physical Elements unavailable; no new physical-disk claim.",
+    "system_changes": "No OS restart, no security/approval change, no default-folder association change, no commit or push. Existing unrelated staged Linux/Windows/Android changes preserved. Prior installed application retained for rollback."
+  },
+  "finder_command_acceptance_2026_10_17": {
+    "implemented": "Native external original-file receiver accepts Finder generic Command operation, captures modifier intent through mouse-up, routes local/cloud transfers through existing verified move/Undo, unregisters during internal drags, and shares hover/scroll handling",
+    "live": "Finder Command local and Google moves with exact bytes, Undo, Option copy, conflict Cancel, Command-Option refusal and folder-row target passed. Installed app Finder folder-row Command move/Undo and internal Command move/Undo passed",
+    "automated": "54 cloud groups including 22 process phases; provider/modifier, tools, durable file/tree, queue, handbook, NTFS access/registration passed. Installed NTFS isolated image integration including full detach/reattach resume passed",
+    "installed": "/Applications/OpenCommander.app",
+    "backup": "ntfs/NTFS3G/.build-native/App-before-install.YbtDLk/OpenCommander.saved",
+    "evidence": "docs/mac-finder-command-2026-10-17.md",
+    "limitations": "No new physical Elements test; not exhaustive native hover/scroll, arbitrary third-party source or complete Linux reachable-state acceptance",
+    "complete_parity": false
+  },
+  "external_acceptance_install_2026_10_17": {
+    "automated": "14 regression runners plus real loopback FTP/FTPS/SFTP key/password passed, 148 PASS groups with overlap. Provider suite and external copy-transport policy assertions passed separately",
+    "visible": "Finder Option import, explicit external Move and Undo, Option export to Finder, search default case/path, equal/different comparison, two-file batch rename and History Undo passed with synthetic files",
+    "fix": "Explicit external Move no longer lost when UIKit transports cross-process files as copy; temporary originals remain protected",
+    "installed": "/Applications/OpenCommander.app",
+    "backup": "ntfs/NTFS3G/.build-native/App-before-install.Mu6Vuh/OpenCommander.saved",
+    "evidence": "docs/mac-acceptance-2026-10-17.md",
+    "limitations": "Finder Command move still rejected by Catalyst; toolbar Move is the tested alternative. Arbitrary external apps, full Linux reachable-state coverage, provider onboarding variants and physical Elements were not newly accepted",
+    "complete_parity": false
+  },
+  "drag_modifiers_2026_10_17": {
+    "implemented": "Shared Option-copy / Command-move policy; unsupported Command-Option links rejected; archive copy safety; committed action retained through asynchronous provider loading",
+    "automated": "32 modifier combinations, eleven provider groups and 54 cloud groups including 22 process phases passed",
+    "live": "Local Command-move in Copy mode and Option-copy in Move mode passed exact byte checks. Command-Option caused no transfer. Google Option-upload in Move mode completed and matched independent SHA-256 readback; source retained. Repeated native Google Command-export in Copy mode completed, matched local bytes and removed the source from its original online location; initial no-transfer attempt was not counted",
+    "undo": "Google Command export Undo completed; online original restored with matching independent SHA-256, local move destination removed, separate local copy-test source preserved",
+    "open": "External modifier permutations and full Linux reachable-state acceptance still open",
+    "installed": false,
+    "complete_parity": false
+  },
+  "external_tree_acceptance_2026_10_17": {
+    "passed": "Finder multi-selection to folder row and tree row with exact byte comparison; conflict Cancel; explicit Move and Undo after app restart; internal hover expands Target and reveals Child; eleven provider regression groups",
+    "fixes": "Local drop receiver rejects coordinates outside table bounds; external unavailable-original and cancelled-conflict paths no longer leave loading status",
+    "installed": "/Applications/OpenCommander.app",
+    "backup": "ntfs/NTFS3G/.build-native/App-before-install.SD3GKH/OpenCommander.saved",
+    "remaining": "Exhaustive native modifier and third-party application combinations; complete Linux reachable-state acceptance",
+    "complete_parity": false
+  },
+  "cross_move_recovery_2026_10_17": {
+    "implemented": "Durable cross-provider intent before download, private nonce upload and server-object publication identity, nested source retention, target-side recovery UI, both-account/content/version validation and explicit online drop bounds",
+    "automated": "54 cloud groups passed including 22 separate-process phases, lost upload/rename responses and foreign equal-content final refusal; eleven file-provider groups passed",
+    "evidence": "ntfs/NTFS3G/.build-native/cross-nonce-verified-tests.log",
+    "build": "Signed Catalyst build and FSKit identity checks passed: cross-nonce-build.log",
+    "live": "Authenticated OneDrive-to-Google publication-checkpoint process termination, relaunch without login, Resume, History and Undo passed. Native mouse cloud copy into blank file-list space selected the exact QA destination and matched independent SHA-256; conflict Cancel preserved content, Escape created no target. Local multi-selection copy/move and Undo previously passed. Exhaustive external drag permutations remain unclaimed",
+    "installed": "/Applications/OpenCommander.app; previous app retained at ntfs/NTFS3G/.build-native/App-before-install.qxYwzd/OpenCommander.saved",
+    "additional_live": "Native drop into Backend child folder passed with independent 53-byte SHA-256 comparison; conflict Cancel and drag Escape passed",
+    "complete_parity": false
+  },
+  "early_move_recovery_2026_10_17": {
+    "implemented": "Move intent before upload/download, retained upload ownership receipt and local publication proof, nested source-retention checkpoints, account/source/destination validation, path-backed reference recovery across processes",
+    "automated": "48 cloud groups passed, including 18 separate-process phases; eleven existing file-provider groups rerun successfully",
+    "evidence": "ntfs/NTFS3G/.build-native/early-move-verified-tests.log",
+    "live_acceptance": "Not yet accepted with authenticated providers; installed app unchanged during this continuation",
+    "remaining": "Direct cloud-to-cloud early interruption recovery and remaining native external drag permutations",
+    "complete_parity": false
+  },
+  "continuation_2026_10_17": {
+    "reference_check": "Fetched origin/codex/linux-desktop; e3b2981 remains latest, with no new Linux feature commits",
+    "implemented": "Lazy bounded archive-member and folder drags, native Finder promises, original-provider retention for internal directory drops, and temporary-source lifetime through local transfer completion",
+    "live_passes": "ZIP member and nested directory to local pane, Finder and authenticated Google Drive; exact independently verified bytes and unchanged original ZIP. Destination-conflict Cancel preserves content. Google native document preview/export and Unicode cloud downloads passed earlier; see DRAG-AND-DROP-STATUS.md",
+    "automated": "Provider 11, archive/safety 25, cloud 39 including 11 process restart phases, queue 7, durable copy 10, durable tree 7, Graph 24, tools 3, handbook 2, NTFS policy 3 and registration 3 groups passed",
+    "installed": "/Applications/OpenCommander.app; prior app preserved at ntfs/NTFS3G/.build-native/App-before-install.2twblQ/OpenCommander.saved",
+    "complete_parity": false,
+    "remaining": "Exhaustive external drag permutations, broader remaining recovery and handbook acceptance below. No new physical NTFS test without Elements."
+  },
+  "status": "Latest Linux commit e3b2981 changes only website documentation. Verified incremental Mac build installed 2026-10-16, preserving the previous app. Authenticated upload/download recovery, confirmed replacement recovery after abrupt termination and replacement Undo passed with synthetic OneDrive files. Nested saved-session upload recovery passed fixtures. Installed app lists OneDrive without new login; post-install NTFS image write/read/detach/reattach recovery passed. No physical disk is currently connected. Full native parity and exhaustive external drag-and-drop acceptance remain open; see docs/mac-linux-parity-2026-10-16.md",
   "implemented": [
     "Shared light/dark palette and two-pane styling",
     "Linux toolbar order, context-only extraction action, header Copy/Move and Dark switches",
@@ -79,25 +216,40 @@
   },
   "remaining": [
     "Toolkit-native widgets are not pixel-identical; Mac-only default-app preferences remain accessible",
-    "Native physical Command/Shift click and complete range-selection acceptance still need verification; shared policy and plain-click UI checks pass",
+    "Basic native Shift-range and Command-toggle selection passed through CUA on 2026-10-15; exhaustive modifier/range permutations remain unverified",
     "Authenticated publisher wizard acceptance, live provider login and refresh-token rotation with a consenting test account",
-    "Durable direct-cloud checkpoints, restart and legacy staging adoption",
-    "Cross-backend online move Undo and full failed/partial cloud-operation history coverage",
-    "Full native Google document export and bounded media-cache/external save lifecycle",
-    "Global resource reservations across all workflows and app windows",
-    "Some bulk cloud operations still need exact per-item failure history and recovery actions",
+    "Authenticated upload/download restart, nested uploads, replacements and source-retention recovery passed. Early move intent and cross-cloud publication recovery now pass the dated 2026-10-17 fixtures and live test above. Incomplete downloads restart the network transfer. Legacy unreceipted staging remains deliberately unadopted; exhaustive interruption permutations are not accepted",
+    "Online-to-online and local/online composite move Undo are implemented and fixture-tested. Authenticated local/OneDrive move Undo passed after source-retention process termination in both directions, with exact readback. Global toolbar Undo now follows shared chronology instead of active-pane filtering; sparse Graph parent metadata resolved safely. Exhaustive failure recovery remains open",
+    "Authenticated Google-native document export and preview, ZIP member/folder exports to Finder and Google, and byte comparisons passed on 2026-10-17. Exhaustive external application/save/cache lifecycle permutations remain open",
+    "Foreground gate defers queued/resumed workers; extraction/duplicate/bulk-rename apply now check queue paths. Exhaustive cross-workflow reservations remain unverified; Linux and current Mac are single-window profiles",
+    "Independent delete/extract/duplicate failures now record per-item paths and continue; cancellation stops. ZIP/extract/duplicate prepared outputs use durable typed recovery jobs. Remaining bulk recovery edge cases are not exhaustively accepted",
     "Not every Linux reachable state or macOS external drag-and-drop permutation was retested",
     "Full illustrated Mac screenshot handbook and interaction acceptance-plan parity",
-    "Complete native mouse drag/lift/hover/cancel and external-app acceptance; automated drag emitted no transfer",
+    "Native direct Finder export, multi-folder export and internal drag/move/Undo/cancel passed on 2026-10-16; not every external application or modifier permutation is accepted",
     "Linux FUSE-dependent cases and interactive real Linux desktop acceptance remain unverified; the full headless suite and package build now pass on Linux CI",
     "Xcode UI runner builds for this host but times out enabling automation mode; Developer mode is disabled and administrator authorization is unavailable. Separate visible CUA acceptance passed for the listed cases"
   ],
   "ntfs": {
     "build_condition": "OPENCOMMANDER_NTFS3G_EXPERIMENTAL",
     "preflight": "Valid signatures and required sandbox/FSKit entitlements; normal V1/V2 identities explicitly allowlisted. User approved NTFS 2 and Settings is ON; discovery is not proof of successful startup",
-    "current_write_activation": "After verified user-performed restart on 2026-10-14, unchanged normal-host V2 build13 passed two complete synthetic mounted write/timestamp suites and independent Apple read-only reopen (uLwHKI, m9cu0T). Single installed registration unchanged. Both detached normally. Physical Elements remains read-only; no physical acceptance or production readiness implied",
+    "current_write_activation": "Build14 permanent signed helper and guarded USB automount were approved and tested on 2026-10-14. On 2026-10-15 installed V2 passed new synthetic Foundation and durable file/tree copies plus paused-copy resume after full detach/reattach. Fixed integration harness stale openntfs alias to read signed installed openntfs2 metadata. No reboot or approval change.",
     "existing_disks_written": true,
-    "physical_evidence": "Earlier explicitly authorized Elements synthetic write/UI-copy and independent Apple hash verification are documented in NTFS3G/README.md. This continuation made no physical-drive writes/remounts/permission changes; Elements remains Apple-read-only"
+    "physical_evidence": "2026-10-14 Elements automount/write/readback and independent Apple readback are documented in NTFS3G/AUTOMATIC-WRITE.md. On 2026-10-15 diskutil lists no external physical disk, so no new Elements or physical reconnect test was possible. Synthetic images only this turn."
+  },
+  "continuation_2026_10_15_autonomous": {
+    "implementation": [
+      "Google Drive native document copying/export supports unknown source sizes with a 256 MiB hard transfer bound; recursive export, version checks and staging cleanup; exported bytes never authorize destructive native-document moves/removal",
+      "Persistent online-to-online cross-account move Undo retains original source under a recovery name, restores source before retiring destination, checks both accounts and content, and allows retry after source restoration",
+      "Remote logical references resolve by verified path instead of nondeterministic dictionary alias selection after external deletion/name reuse",
+      "Transfer failures retain the affected item source/destination paths in history",
+      "Online media opens in-app; preview-owned downloads release with the viewer; external document opening first exports a user-saved copy; retained drag downloads limited to 128 entries/1 GiB"
+    ],
+    "automated": "Cloud suite including export/cross-account Undo/path aliases passed three consecutive runs after fixing an intermittent remote_missing alias defect. Swift file safety, Graph, queue, access policy, runtime, config leases, OAuth, cloud discovery, Commander tools, handbook, durable copy/tree passed. Real loopback FTP/FTPS/SFTP key/password suites passed.",
+    "visible_ui": "Isolated clone /tmp/OpenCommander-MacUITests.rTbs9X; fixture /private/tmp/OpenCommander-MacUITest-20261015-iA4mZf. Shift selects 2/2, Command deselects one, F5 copies only remaining item, History displays timestamp and Undo removes destination while retaining source. CUA drag emitted no transfer and remains unverified.",
+    "xcode_ui": "Build-for-testing succeeds; execution again fails while enabling macOS automation, before test cases run. No OS security setting or reboot performed.",
+    "installed_app_replaced": false,
+    "personal_cloud_writes": false,
+    "complete_parity": false
   },
   "latest_upstream_batch": {
     "date": "2026-10-13",

@@ -1,0 +1,14 @@
+{
+  "version": "1.4",
+  "build": "15",
+  "team": [
+    "WB497999XX"
+  ],
+  "profileName": "OpenCommander App Store",
+  "profileExpires": "2027-08-23 13:54:05",
+  "appIdentifier": "WB497999XX.com.github.niklaus85.OpenCommander",
+  "debuggingAllowed": false,
+  "ipa": "/tmp/OpenCommander-1.4-build15-export/OpenCommander.ipa",
+  "ipaSHA256": "fcecdf886d7b466ff8c759f9452ff435003a5eeb3841f63b9478bdde08490c15",
+  "signature": "codesign --verify --deep --strict passed"
+}

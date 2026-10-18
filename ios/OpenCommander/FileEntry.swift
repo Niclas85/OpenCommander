@@ -11,9 +11,15 @@ class FileEntry: Hashable, Equatable {
     let zipSize: Int64
     let zipModified: Int64
     let isUpButton: Bool
+    // Retain the original lazy provider for in-process drops: Catalyst may
+    // substitute a serialized provider that represents folders as ZIP bytes.
+    var dragProvider: NSItemProvider?
     private var listingSize: Int64?
     private var listingModified: Int64?
     private var listingDirectory: Bool?
+    private let entryName: String
+    private let archiveName: Bool
+    private let volumeRoot: Bool
 
     private func cacheListingMetadata() {
         let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey, .isDirectoryKey])
@@ -40,6 +46,17 @@ class FileEntry: Hashable, Equatable {
         self.zipSize = zipSize
         self.zipModified = zipModified
         self.isUpButton = isUpButton
+        volumeRoot = zipPath == nil && !isUpButton && url.path == "/"
+        if isUpButton { entryName = ".." }
+        else if let zipPath {
+            let normalized = zipPath.hasSuffix("/") ? String(zipPath.dropLast()) : zipPath
+            entryName = normalized.split(separator: "/", omittingEmptySubsequences: false).last.map(String.init) ?? normalized
+        } else { entryName = url.lastPathComponent }
+#if targetEnvironment(macCatalyst)
+        archiveName = CommanderNativeArchive.supports(entryName)
+#else
+        archiveName = entryName.lowercased().hasSuffix(".zip")
+#endif
     }
 
     static func == (lhs: FileEntry, rhs: FileEntry) -> Bool {
@@ -65,18 +82,10 @@ class FileEntry: Hashable, Equatable {
     }
 
     func name() -> String {
-        if isUpButton { return ".." }
-        if let zipPath = zipPath {
-            let normalized = zipPath.hasSuffix("/") ? String(zipPath.dropLast()) : zipPath
-            if let slash = normalized.lastIndex(of: "/") {
-                return String(normalized[normalized.index(after: slash)...])
-            }
-            return normalized
-        }
-        if url.path == "/" {
+        if volumeRoot {
             return (try? url.resourceValues(forKeys: [.volumeNameKey]).volumeName) ?? "Macintosh HD"
         }
-        return url.lastPathComponent
+        return entryName
     }
 
     func mimeType() -> String {
@@ -98,11 +107,7 @@ class FileEntry: Hashable, Equatable {
     }
 
     func isZipArchive() -> Bool {
-#if targetEnvironment(macCatalyst)
-        return zipPath == nil && !isPhysicalDirectory() && CommanderNativeArchive.supports(name())
-#else
-        return zipPath == nil && !isPhysicalDirectory() && name().lowercased().hasSuffix(".zip")
-#endif
+        return zipPath == nil && archiveName && !isPhysicalDirectory()
     }
 
     func isZipEntry() -> Bool {
@@ -135,7 +140,8 @@ class FileEntry: Hashable, Equatable {
         return FileManager.default.isWritableFile(atPath: url.path)
     }
     /// Cached shape only: do not stat FileProvider/network paths on mouse moves.
-    var offersDirectoryDrop: Bool { zipPath == nil && (listingDirectory == true || isUpButton) }
+    var isListedPhysicalDirectory: Bool { zipPath == nil && listingDirectory == true }
+    var offersDirectoryDrop: Bool { isListedPhysicalDirectory || (zipPath == nil && isUpButton) }
 
     func displayPath() -> String {
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -201,6 +207,11 @@ class FileEntry: Hashable, Equatable {
         var entries: [FileEntry] = []
         let urls = try HostFileSystem.directoryContents(at: url,
             showHidden: UserDefaults.standard.bool(forKey: "show_hidden_files"))
+        // Directly opened roots are not children of a previous listing, so
+        // their metadata cache starts empty. A successful enumeration proves
+        // the root is a directory, including when it contains no children.
+        // Drop proposals can now recognize it without blocking filesystem I/O.
+        listingDirectory = true
         for childUrl in urls {
             let entry = FileEntry(url: childUrl, parent: self)
             entry.cacheListingMetadata()
@@ -234,7 +245,7 @@ class FileEntry: Hashable, Equatable {
         return (try? BoundedFolderSize.bytes(at: url, excludingRecovery: true)) ?? -2
     }
 
-    func materializedURLForOpening(sourceURL: URL? = nil) throws -> URL {
+    func materializedURLForOpening(sourceURL: URL? = nil, temporaryRoot: ((URL) -> Void)? = nil) throws -> URL {
         let sourceURL = sourceURL ?? url
         guard let zipPath else { return sourceURL }
 #if targetEnvironment(macCatalyst)
@@ -244,6 +255,7 @@ class FileEntry: Hashable, Equatable {
             try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
             let root = parent.appendingPathComponent(UUID().uuidString, isDirectory: true)
             try CommanderNativeArchive.extract(sourceURL, prefixes: [zipPath], to: root, maximumBytes: 128 * 1024 * 1024)
+            temporaryRoot?(root)
             return root.appendingPathComponent(zipPath)
         }
 #endif
@@ -270,6 +282,7 @@ class FileEntry: Hashable, Equatable {
                 try handle.write(contentsOf: data)
             }
             guard checksum == item.checksum, written == item.uncompressedSize else { throw CocoaError(.fileReadCorruptFile) }
+            temporaryRoot?(outputDirectory)
             return output
         } catch {
             try? FileManager.default.removeItem(at: outputDirectory)

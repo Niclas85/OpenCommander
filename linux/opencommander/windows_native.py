@@ -11,6 +11,11 @@ import functools
 import pywintypes
 
 
+# Missing drive/path, not-ready, no-media, and device-disconnected results.
+# Access denied and sharing violations never prove successful safe removal.
+_REMOVED_MEDIA_ERRORS = frozenset((2, 3, 15, 21, 1112, 1167))
+
+
 def native_errors(callback):
     @functools.wraps(callback)
     def call(*args, **kwargs):
@@ -141,8 +146,9 @@ def locations():
                 label = win32api.GetVolumeInformation(str(root))[0]
                 if label:
                     name = f'{label} ({root.drive})'
-            except (OSError, pywintypes.error):
-                pass
+            except (OSError, pywintypes.error) as error:
+                if kind == 2 and getattr(error, 'winerror', None) in _REMOVED_MEDIA_ERRORS:
+                    continue  # Safe-ejected USB controllers can retain an empty drive letter.
         result.append(dict(id=str(root), path=str(root), name=name, mounted=True,
                            eject=kind in (2, 5), unmount=kind == 4,
                            kind={2: 'USB', 4: 'Network', 5: 'DVD'}.get(kind, 'Drive')))
@@ -162,6 +168,13 @@ def locations():
         finally:
             enumeration.Close()
     except pywintypes.error:
+        pass
+    from .windows_devices import locations as portable_locations
+    try:
+        result.extend(portable_locations())
+    except OSError:
+        # An unavailable WPD service must not hide ordinary disks and shares.
+        # Explicit connection attempts still report their device error.
         pass
     return result
 
@@ -207,6 +220,17 @@ def network_path(uri):
 
 
 def dispatch(action, identifier):
+    if action == 'ssh-fingerprints':
+        from .windows_ssh import scan
+        return scan(identifier['host'], identifier['port'])
+    if action == 'mount' and identifier.startswith('wpd:'):
+        from .windows_devices import mount
+        mount(identifier)
+        return locations()
+    if action == 'unmount' and identifier.startswith('wpd:'):
+        from .windows_devices import unmount
+        unmount(identifier)
+        return locations()
     if action == 'scan':
         result = []
         with os.scandir(identifier) as entries:
@@ -254,6 +278,7 @@ def dispatch(action, identifier):
         return locations()
     if action == 'eject':
         import pythoncom
+        import win32api
         import win32com.client
         # Let the shell perform safe removal; never force-dismount a busy volume.
         pythoncom.CoInitialize()
@@ -262,9 +287,16 @@ def dispatch(action, identifier):
             if item is None:
                 raise OSError('Drive unavailable')
             item.InvokeVerb('Eject')
-            for _ in range(30):
-                if not Path(identifier).exists():
-                    return locations()
+            for _ in range(100):
+                try:
+                    win32api.GetVolumeInformation(identifier)
+                except pywintypes.error as error:
+                    if error.winerror in _REMOVED_MEDIA_ERRORS:
+                        return locations()
+                    if error.winerror not in (5, 32):
+                        raise
+                    # Windows can deny access while safe removal is in progress.
+                    # Retry; permission/sharing errors alone are never success.
                 time.sleep(.1)
             raise OSError('Laufwerk noch verbunden. Windows „Hardware sicher entfernen“ verwenden. / Drive still connected; use Windows Safely Remove Hardware.')
         finally:
@@ -276,7 +308,7 @@ def invoke(action='list', identifier='', cancel=None):
     from .platform_support import helper_command
     command = helper_command('windows_bridge')
     request = json.dumps(dict(action=action, id=identifier))
-    timeout = 15 if action in ('list', 'scan', 'properties', 'directory-size') else None
+    timeout = 15 if action in ('list', 'scan', 'properties', 'directory-size', 'ssh-fingerprints') else None
     with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                           text=True, encoding='utf-8') as process:
         start, first = time.monotonic(), True

@@ -1,0 +1,1 @@
+Kopieren und Verschieben per Drag-and-drop verbessert, auch in leere Ordner. Direkter Kopieren/Verschieben-Schalter. Kopieren und ZIP lassen sich abbrechen. Sicherere ZIP-Erstellung und Rückgängig-Funktion. Bildansicht und Wischgesten verbessert. Kompaktere Bedienelemente; die gewählte Sprache bleibt beim Drehen erhalten. Einheitliches App-Symbol.

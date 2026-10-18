@@ -1,0 +1,58 @@
+plugins {
+    id "com.android.application"
+}
+
+def uploadKeystorePropertiesFile = rootProject.file("keystore.properties")
+def uploadKeystoreProperties = new Properties()
+if (uploadKeystorePropertiesFile.exists()) {
+    uploadKeystorePropertiesFile.withInputStream { uploadKeystoreProperties.load(it) }
+}
+
+def uploadKeystoreFile = rootProject.file(
+        uploadKeystoreProperties.getProperty("storeFile", "release/opencommander-upload-key.jks"))
+def uploadStorePassword = uploadKeystoreProperties.getProperty("storePassword")
+        ?: System.getenv("OPENCOMMANDER_KEYSTORE_PASSWORD")
+def uploadKeyAlias = uploadKeystoreProperties.getProperty("keyAlias", "opencommander")
+def uploadKeyPassword = uploadKeystoreProperties.getProperty("keyPassword")
+        ?: System.getenv("OPENCOMMANDER_KEY_PASSWORD")
+def hasUploadSigning = uploadKeystoreFile.exists()
+        && uploadStorePassword
+        && uploadKeyAlias
+        && uploadKeyPassword
+
+android {
+    namespace "com.opencommander"
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.opencommander"
+        minSdk 26
+        targetSdk 36
+        versionCode 9
+        versionName "1.3.2"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    signingConfigs {
+        release {
+            if (hasUploadSigning) {
+                storeFile uploadKeystoreFile
+                storePassword uploadStorePassword
+                keyAlias uploadKeyAlias
+                keyPassword uploadKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (hasUploadSigning) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+}

@@ -1,4 +1,249 @@
 import XCTest
+import CryptoKit
+
+#if targetEnvironment(simulator)
+/// Runs against a second app's Files-visible Documents container. Simulator
+/// permission behavior is not evidence of physical-device security scopes.
+final class SharedFolderFileOperationsTests: XCTestCase {
+    private let app = XCUIApplication()
+    private let fm = FileManager.default
+    private var root: URL!
+    private var payloads: [String: Data] = [:]
+
+    private func file(_ name: String, _ pane: Int) -> XCUIElement {
+        app.cells["File-\(pane)-\(name)"]
+    }
+    private func navigate(_ path: URL, _ pane: Int) {
+        let field = app.textFields["Path-\(pane)"]
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
+        field.tap(); field.tap(withNumberOfTaps: 3, numberOfTouches: 1)
+        if let old = field.value as? String {
+            field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: old.count))
+        }
+        field.typeText(path.path + "\n")
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value ENDSWITH %@", path.lastPathComponent), object: field)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
+    }
+    private func awaitPath(_ path: URL, exists: Bool = true) {
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            self.fm.fileExists(atPath: path.path) == exists
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 30), .completed, path.path)
+    }
+    private func verify(_ path: URL) throws {
+        awaitPath(path)
+        for (relative, data) in payloads {
+            XCTAssertEqual(try Data(contentsOf: path.appendingPathComponent(relative)), data, relative)
+        }
+        var directory: ObjCBool = false
+        XCTAssertTrue(fm.fileExists(atPath: path.appendingPathComponent("Leer").path, isDirectory: &directory))
+        XCTAssertTrue(directory.boolValue)
+    }
+    private func evidence(_ name: String) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name; shot.lifetime = .keepAlways; add(shot)
+    }
+    func testExternalFolderCopyMoveZipAndUndo() throws {
+        continueAfterFailure = false
+        let environment = ProcessInfo.processInfo.environment
+        guard let external = environment["OC_SHARED_ROOT"], let fixture = environment["OC_FIXTURE_NAME"] else {
+            throw XCTSkip("Requires a separate simulator helper app's Documents container and an isolated fixture name")
+        }
+        XCTAssertTrue(fixture.hasPrefix("OpenCommander-FileOps-QA-"))
+        root = URL(fileURLWithPath: external).appendingPathComponent(fixture)
+        XCTAssertFalse(fm.fileExists(atPath: root.path), "Never overwrite an earlier test run")
+        for directory in ["Source/Folder/Unterordner", "Source/Folder/Leer", "CopyTarget", "MoveTarget"] {
+            try fm.createDirectory(at: root.appendingPathComponent(directory), withIntermediateDirectories: true)
+        }
+        payloads = ["Beweis.txt": Data("Copy, Move, ZIP on iOS\n".utf8),
+                    "Unterordner/Grüsse 日本語.txt": Data("äöü — 日本語\n".utf8),
+                    "Unterordner/data.bin": Data((0..<1_048_576).map { UInt8($0 % 251) }),
+                    "empty.txt": Data()]
+        let source = root.appendingPathComponent("Source/Folder")
+        for (relative, data) in payloads { try data.write(to: source.appendingPathComponent(relative)) }
+        app.launchArguments = ["-mobile_tree_1", "YES", "-mobile_tree_2", "YES"]; app.launch()
+        if app.buttons["StorageSourcesClose"].waitForExistence(timeout: 5) { app.buttons["StorageSourcesClose"].tap() }
+        // Physical Files selection is tested separately. This fixture explicitly
+        // exercises an external container, not the app's own Documents directory.
+        navigate(source.deletingLastPathComponent(), 1); navigate(root, 2)
+        let operation = app.buttons["OperationButton"]
+        if operation.isSelected { operation.tap() }
+        XCTAssertFalse(operation.isSelected)
+        XCTAssertTrue(file("Folder", 1).waitForExistence(timeout: 10))
+        file("Folder", 1).press(forDuration: 1.5, thenDragTo: file("CopyTarget", 2), withVelocity: .slow, thenHoldForDuration: 1)
+        let copied = root.appendingPathComponent("CopyTarget/Folder")
+        try verify(copied); try verify(source); evidence("external-copy-byte-verified")
+
+        navigate(copied.deletingLastPathComponent(), 1)
+        operation.tap(); XCTAssertTrue(operation.isSelected)
+        file("Folder", 1).press(forDuration: 1.5, thenDragTo: file("MoveTarget", 2), withVelocity: .slow, thenHoldForDuration: 1)
+        let moved = root.appendingPathComponent("MoveTarget/Folder")
+        try verify(moved); awaitPath(copied, exists: false); try verify(source)
+        evidence("external-move-byte-verified")
+        app.buttons["UndoButton"].tap()
+        try verify(copied); awaitPath(moved, exists: false)
+        app.buttons["UndoButton"].tap()
+        awaitPath(copied, exists: false); try verify(source)
+        evidence("external-copy-move-undo")
+
+        operation.tap(); XCTAssertFalse(operation.isSelected)
+        navigate(source.deletingLastPathComponent(), 1)
+        file("Folder", 1).tap(); app.buttons["ZipButton"].tap()
+        let archive = source.deletingLastPathComponent().appendingPathComponent("Folder.zip")
+        awaitPath(archive)
+        XCTAssertGreaterThan(try Data(contentsOf: archive).count, 0)
+        file("Folder.zip", 1).doubleTap()
+        XCTAssertTrue(file("Folder", 1).waitForExistence(timeout: 10))
+        file("Folder", 1).doubleTap()
+        XCTAssertTrue(file("Beweis.txt", 1).waitForExistence(timeout: 10))
+        XCTAssertTrue(file("Unterordner", 1).exists)
+        try verify(source); evidence("external-folder-zip-browsed")
+        app.buttons["Breadcrumbs-1"].tap()
+        app.buttons["Source"].tap()
+        XCTAssertTrue(file("Folder.zip", 1).waitForExistence(timeout: 5))
+        XCTAssertEqual(app.textFields["Path-1"].value as? String, "Source")
+        // Keep only this isolated fixture for independent host-side ZIP CRC,
+        // Unicode filename, byte-content and empty-directory verification.
+    }
+    func testLargeFileCopyZipAndMissingFolderRecovery() throws {
+        continueAfterFailure = false
+        let env = ProcessInfo.processInfo.environment
+        guard let external = env["OC_SHARED_ROOT"], let name = env["OC_FIXTURE_NAME"] else { throw XCTSkip("External fixture required") }
+        XCTAssertTrue(name.hasPrefix("OpenCommander-FileOps-QA-"))
+        root = URL(fileURLWithPath: external).appendingPathComponent(name + "-large")
+        XCTAssertFalse(fm.fileExists(atPath: root.path))
+        let source = root.appendingPathComponent("Source")
+        let target = root.appendingPathComponent("Target")
+        try fm.createDirectory(at: source, withIntermediateDirectories: true)
+        try fm.createDirectory(at: target, withIntermediateDirectories: true)
+        let big = source.appendingPathComponent("Large.bin")
+        XCTAssertTrue(fm.createFile(atPath: big.path, contents: nil))
+        let writer = try FileHandle(forWritingTo: big)
+        var seed: UInt32 = 42
+        let chunk = Data((0..<1_048_576).map { _ -> UInt8 in
+            seed = seed &* 1664525 &+ 1013904223
+            return UInt8(truncatingIfNeeded: seed >> 24)
+        })
+        var expected = SHA256()
+        for _ in 0..<128 { try writer.write(contentsOf: chunk); expected.update(data: chunk) }
+        try writer.close()
+        func hash(_ url: URL) throws -> Data {
+            let reader = try FileHandle(forReadingFrom: url); defer { try? reader.close() }
+            var hash = SHA256()
+            while let data = try reader.read(upToCount: 1_048_576), !data.isEmpty { hash.update(data: data) }
+            return Data(hash.finalize())
+        }
+        let expectedHash = Data(expected.finalize())
+        app.launchArguments = ["-language", "en"]; app.launch()
+        if app.buttons["StorageSourcesClose"].waitForExistence(timeout: 5) { app.buttons["StorageSourcesClose"].tap() }
+        navigate(source, 1); navigate(root, 2)
+        if app.buttons["OperationButton"].isSelected { app.buttons["OperationButton"].tap() }
+        XCTAssertTrue(file("Large.bin", 1).waitForExistence(timeout: 10))
+        file("Large.bin", 1).press(forDuration: 1.5, thenDragTo: file("Target", 2), withVelocity: .slow, thenHoldForDuration: 1)
+        let copied = target.appendingPathComponent("Large.bin")
+        awaitPath(copied)
+        XCTAssertEqual(try hash(copied), expectedHash)
+        XCTAssertEqual(try hash(big), expectedHash)
+        evidence("128MiB-copy-byte-verified")
+        // The source pane remains open after the drag. Select its visible row
+        // directly instead of retyping a long simulator-only container path.
+        if !app.staticTexts["Selection-1"].label.hasPrefix("1/") { file("Large.bin", 1).tap() }
+        app.buttons["ZipButton"].tap()
+        let cancel = app.buttons["CancelFileOperation"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 3))
+        cancel.tap()
+        XCTAssertTrue(cancel.waitForNonExistence(timeout: 30))
+        XCTAssertFalse(fm.fileExists(atPath: source.appendingPathComponent("Large.zip").path))
+        XCTAssertEqual(try hash(big), expectedHash)
+        XCTAssertTrue(app.buttons["ZipButton"].isEnabled)
+        evidence("large-zip-cancelled-source-unchanged")
+        app.buttons["ZipButton"].tap()
+        awaitPath(source.appendingPathComponent("Large.zip"))
+        XCTAssertEqual(try hash(big), expectedHash)
+        // A provider-like disappearance must show recovery, not stale file rows.
+        let parked = root.appendingPathComponent("Source-parked")
+        try fm.moveItem(at: source, to: parked)
+        app.buttons["Breadcrumbs-1"].tap(); app.buttons["Try Again"].tap()
+        XCTAssertTrue(app.staticTexts["DirectoryMessage-1"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["DirectoryMessage-1"].label.contains("no longer available"))
+        XCTAssertFalse(file("Large.bin", 1).isHittable)
+        XCTAssertTrue(app.staticTexts["Selection-1"].label.hasPrefix("0/0"))
+        evidence("missing-folder-actionable-recovery")
+        try fm.moveItem(at: parked, to: source)
+        app.buttons["DirectoryRetry-1"].tap()
+        XCTAssertTrue(file("Large.bin", 1).waitForExistence(timeout: 10))
+        XCTAssertEqual(try hash(big), expectedHash)
+        evidence("folder-retry-restored")
+    }
+}
+#endif
+
+
+#if targetEnvironment(simulator)
+final class MobileStorageUsabilityTests: XCTestCase {
+    private let app = XCUIApplication()
+    override func setUpWithError() throws { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
+    override func tearDownWithError() throws { app.terminate(); XCUIDevice.shared.orientation = .portrait }
+    private func start(_ language: String = "en") {
+        app.launchArguments = ["-language", language, "-mobile_tree_1", "YES", "-mobile_tree_2", "YES"]
+        app.launch()
+        XCTAssertTrue(app.buttons["StorageSourcesClose"].waitForExistence(timeout: 15))
+    }
+    private func tapVisible(_ element: XCUIElement) {
+        XCTAssertTrue(element.waitForExistence(timeout: 10))
+        XCTAssertTrue(element.isHittable)
+        XCTAssertTrue(app.frame.contains(element.frame), "Clipped control: \(element.identifier) \(element.frame)")
+        element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    }
+    private func shot(_ name: String) {
+        // Application screenshots can be cropped/rotated incorrectly by XCTest
+        // after an orientation transition; capture the complete device screen.
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+    func testSourceHubPermissionLabelsAndFriendlyPaths() {
+        start()
+        for key in ["media_photos", "media_videos", "media_music", "choose_another_folder", "local_documents"] {
+            XCTAssertTrue(app.cells["Source-" + key].exists)
+        }
+        shot("sources-permission-status")
+        let local = app.cells["Source-local_documents"]
+        // Explicit visible scrolling is normal on a compact iPhone; never rely
+        // on XCTest silently scrolling an offscreen row into view during tap.
+        if !local.isHittable || !app.frame.contains(local.frame) { app.tables.firstMatch.swipeUp() }
+        tapVisible(local)
+        let path = app.textFields["Path-1"]
+        XCTAssertFalse((path.value as? String ?? "").contains("/var/"))
+        XCTAssertEqual(path.value as? String, "Local OpenCommander files")
+        tapVisible(app.buttons["Breadcrumbs-1"])
+        shot("friendly-breadcrumb-menu")
+        app.tap() // dismiss the native menu
+        tapVisible(app.buttons["Up-1"])
+        XCTAssertTrue(app.buttons["StorageSourcesClose"].waitForExistence(timeout: 5))
+    }
+    func testPaneFocusTreeToggleAndBothOrientations() {
+        for language in ["de", "ar", "fr"] {
+            start(language); tapVisible(app.buttons["StorageSourcesClose"])
+            for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+                XCUIDevice.shared.orientation = orientation
+                tapVisible(app.buttons["ToggleTree-1"])
+                XCTAssertFalse(app.tables["TreeList-1"].isHittable)
+                let before = app.tables["FileList-1"].frame
+                tapVisible(app.buttons["FocusPane-1"])
+                XCTAssertFalse(app.tables["FileList-2"].isHittable)
+                let after = app.tables["FileList-1"].frame
+                XCTAssertGreaterThan(after.width * after.height, before.width * before.height)
+                shot("focused-" + language + "-" + String(orientation.rawValue))
+                tapVisible(app.buttons["FocusPane-1"])
+                XCTAssertTrue(app.tables["FileList-2"].isHittable)
+                tapVisible(app.buttons["ToggleTree-1"])
+                XCTAssertTrue(app.tables["TreeList-1"].isHittable)
+                shot("dual-pane-" + language + "-" + String(orientation.rawValue))
+            }
+            app.terminate(); XCUIDevice.shared.orientation = .portrait
+        }
+    }
+}
+#endif
 
 /// Desktop runs use their own bundle defaults, files and transfer queue.
 /// Assertions check the real output bytes and persisted history, not just UI labels.

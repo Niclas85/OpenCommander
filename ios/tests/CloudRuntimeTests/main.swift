@@ -45,6 +45,17 @@ runner.cancel("before-start")
 rejects { _ = try runner.run(URL(fileURLWithPath: "/bin/sleep"), ["10"], id: "before-start") }
 runner.finish("before-start")
 print("PASS native runner: no shell, bounded output, timeout and pre-start cancellation")
+let browserStart = Date()
+let browserDelivered = DispatchSemaphore(value: 0)
+_ = try runner.run(URL(fileURLWithPath: "/usr/bin/python3"),
+    ["-c", "import sys,time; sys.stderr.write('http://127.0.0.1:53682/auth?state=abcdefghijklmnopqrstuv\\n'); sys.stderr.flush(); time.sleep(3)"],
+    id: "live-browser-url", timeout: 5, browser: { url in
+        require(Date().timeIntervalSince(browserStart) < 2, "browser URL buffered until process exit")
+        require(url.host == "127.0.0.1", "unexpected browser host")
+        browserDelivered.signal()
+    })
+require(browserDelivered.wait(timeout: .now()) == .success, "browser callback never delivered")
+print("PASS short OAuth browser URL delivered while child process is still waiting")
 let quotaError = CloudProviderErrors.classify(Data("SYNTHETIC_SECRET_TOKEN: defaultPerMinutePerProject".utf8))
 require(CloudProviderErrors.cooldown(quotaError) == 60 && quotaError.localizedDescription == "cloud_google_quota", "Google application quota classification/cooldown")
 require(!quotaError.localizedDescription.contains("SYNTHETIC"), "provider error leaked credential output")

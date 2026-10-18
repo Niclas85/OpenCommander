@@ -1,6 +1,191 @@
 import AppKit
 import UniformTypeIdentifiers
 import Darwin
+import QuickLookUI
+
+/// Original file URLs use AppKit's cross-application move negotiation; UIKit
+/// only accepts copy transport. Ordinary clicks continue through to Catalyst.
+private final class NativeFileDropView: NSView {
+    var handlers: [String: (CGPoint, [URL], Int, Bool) -> Bool] = [:]
+    private var trackedModifiers = 0
+    private var activationObserver: NSObjectProtocol?
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.updateRegistration()
+        }
+        updateRegistration()
+    }
+    private func updateRegistration() {
+        // Drag destination lookup is independent of ordinary hitTest. Remove
+        // registration while our app is active so UIKit owns all internal
+        // drags, including its native online/ZIP promises.
+        if NSWorkspace.shared.frontmostApplication?.processIdentifier == ProcessInfo.processInfo.processIdentifier {
+            unregisterDraggedTypes()
+        } else { registerForDraggedTypes([.fileURL]) }
+    }
+    deinit { if let activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(activationObserver) } }
+    required init?(coder: NSCoder) { fatalError("Not archived") }
+    private func handle(_ sender: NSDraggingInfo, commit: Bool, track: Bool = false) -> NSDragOperation {
+        guard sender.draggingSource == nil,
+              let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self],
+                options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty else { return [] }
+        // AppKit's external drag tracking does not update NSApp.currentEvent;
+        // it can still contain the preceding unmodified keyboard event.
+        if track {
+            let flags = NSEvent.modifierFlags
+            trackedModifiers = (flags.contains(.option) ? 1 : 0) | (flags.contains(.command) ? 2 : 0)
+        }
+        let modifiers = trackedModifiers
+        guard modifiers != 3 else { return [] }
+        let location = convert(sender.draggingLocation, from: nil)
+        let point = CGPoint(x: location.x / bounds.width,
+                            y: (isFlipped ? location.y : bounds.height - location.y) / bounds.height)
+        let operation: NSDragOperation = modifiers == 2
+            ? (sender.draggingSourceOperationMask.contains(.generic) ? .generic : .move) : .copy
+        guard sender.draggingSourceOperationMask.contains(operation) else { return [] }
+        for handler in handlers.values where handler(point, urls, modifiers, commit) {
+            return operation
+        }
+        return []
+    }
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        return handle(sender, commit: false, track: true)
+    }
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { handle(sender, commit: false, track: true) }
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { !handle(sender, commit: false).isEmpty }
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool { !handle(sender, commit: true).isEmpty }
+    override func draggingExited(_ sender: NSDraggingInfo?) { clearHover() }
+    override func concludeDragOperation(_ sender: NSDraggingInfo?) { clearHover() }
+    private func clearHover() {
+        for handler in handlers.values { _ = handler(.zero, [], 0, false) }
+    }
+}
+
+/// Native Quick Look avoids Catalyst's silently invisible document presenter.
+/// The downloaded file stays owned until the preview has actually closed.
+private final class NativeDocumentPreview: NSWindowController, NSWindowDelegate {
+    private var closed: (() -> Void)?
+    private let preview: QLPreviewView
+    init?(url: URL, closed: @escaping () -> Void) {
+        guard let view = QLPreviewView(frame: NSRect(x: 0, y: 0, width: 800, height: 600), style: .normal) else { return nil }
+        preview = view; self.closed = closed
+        let panel = NSPanel(contentRect: view.frame, styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        panel.title = url.lastPathComponent
+        panel.isReleasedWhenClosed = false
+        panel.contentView = view
+        super.init(window: panel)
+        panel.delegate = self
+        view.shouldCloseWithWindow = false
+        view.previewItem = url as NSURL
+    }
+    required init?(coder: NSCoder) { fatalError("Not archived") }
+    func windowWillClose(_ notification: Notification) {
+        preview.close()
+        let completion = closed; closed = nil; completion?()
+    }
+    deinit { closed?() }
+}
+
+/// AppKit file promises let Finder choose the destination before any network
+/// work starts. Unlike Catalyst's lazy file URLs, this never blocks pasteboard
+/// resolution waiting for the main actor.
+private final class OnlineFilePromise: NSFilePromiseProvider, NSFilePromiseProviderDelegate {
+    let token: String
+    let name: String
+    let writer: (String, URL, @escaping (NSError?) -> Void) -> Void
+    init(token: String, name: String, type: String,
+         writer: @escaping (String, URL, @escaping (NSError?) -> Void) -> Void) {
+        self.token = token; self.name = name; self.writer = writer
+        super.init()
+        fileType = type; delegate = self
+    }
+    required init?(coder: NSCoder) { fatalError("Not archived") }
+    override func writableTypes(for pasteboard: NSPasteboard) -> [NSPasteboard.PasteboardType] {
+        super.writableTypes(for: pasteboard) + [NSPasteboard.PasteboardType(token)]
+    }
+    override func pasteboardPropertyList(forType type: NSPasteboard.PasteboardType) -> Any? {
+        type.rawValue == token ? Data() : super.pasteboardPropertyList(forType: type)
+    }
+    func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, fileNameForType fileType: String) -> String { name }
+    func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, writePromiseTo url: URL,
+                             completionHandler: @escaping (Error?) -> Void) {
+        NSLog("OpenCommander native promise write requested")
+        DispatchQueue.main.async { [self] in
+            writer(token, url) { [self] error in
+                withExtendedLifetime(self) { completionHandler(error) }
+            }
+        }
+    }
+}
+
+private final class OnlineFilePromiseSource: NSObject, NSDraggingSource {
+    typealias Writer = (String, URL, @escaping (NSError?) -> Void) -> Void
+    private var sources: [String: ((CGPoint) -> [[String: String]], Writer)] = [:]
+    private var monitor: Any?
+    private var down: NSEvent?
+    private var prepared: [OnlineFilePromise] = []
+    private var active: [OnlineFilePromise] = []
+    func register(_ id: String, items: @escaping (CGPoint) -> [[String: String]], write: @escaping Writer) {
+        sources[id] = (items, write)
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { [weak self] event in
+            guard let self else { return event }; return self.handle(event)
+        }
+    }
+    func remove(_ id: String) { sources.removeValue(forKey: id) }
+    deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
+    private func handle(_ event: NSEvent) -> NSEvent? {
+        if event.type == .leftMouseDown {
+            down = event; prepared = []
+            guard let view = event.window?.contentView else { return event }
+            let location = view.convert(event.locationInWindow, from: nil)
+            let point = CGPoint(x: location.x / view.bounds.width, y: (view.isFlipped ? location.y : view.bounds.height - location.y) / view.bounds.height)
+            // Snapshot before UIKit changes selection for the pressed row.
+            for (items, writer) in sources.values {
+                let entries = items(point)
+                guard !entries.isEmpty else { continue }
+                prepared = entries.compactMap { entry in
+                    guard let token = entry["token"], let name = entry["name"], let type = entry["type"] else { return nil }
+                    return OnlineFilePromise(token: token, name: name, type: type, writer: writer)
+                }
+                break
+            }
+            return event
+        }
+        if event.type == .leftMouseUp { down = nil; prepared = []; return event }
+        guard let start = down, start.window === event.window,
+              hypot(event.locationInWindow.x - start.locationInWindow.x,
+                    event.locationInWindow.y - start.locationInWindow.y) > 5,
+              let view = event.window?.contentView else { return event }
+        down = nil
+        let location = view.convert(start.locationInWindow, from: nil)
+        if !prepared.isEmpty {
+            active = prepared; prepared = []
+            let draggingItems = active.map { promise -> NSDraggingItem in
+                let item = NSDraggingItem(pasteboardWriter: promise)
+                let icon = NSWorkspace.shared.icon(for: UTType(promise.fileType) ?? .data)
+                item.setDraggingFrame(NSRect(x: location.x, y: location.y, width: 32, height: 32), contents: icon)
+                return item
+            }
+            guard !draggingItems.isEmpty else { return event }
+            view.beginDraggingSession(with: draggingItems, event: event, source: self)
+            return nil
+        }
+        return event
+    }
+    func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        return context == .withinApplication ? [.copy, .move] : .copy
+    }
+    func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        NSLog("OpenCommander native drag ended at %@ operation %lu", NSStringFromPoint(screenPoint), operation.rawValue)
+        // Keep delegate-backed providers alive through Finder's asynchronous
+        // write request. The writer's completion captures each provider too.
+        let retained = active; active = []
+        DispatchQueue.main.asyncAfter(deadline: .now() + 300) { withExtendedLifetime(retained) {} }
+    }
+}
 
 private final class SSHPasswordBroker {
     let path: String
@@ -55,6 +240,52 @@ private final class SSHPasswordBroker {
 /// Native AppKit bundle loaded only by the Mac Catalyst host. Uses public
 /// NSWorkspace APIs, the same Launch Services associations as Finder, no shell.
 final class DesktopBridge: NSObject, DesktopBridgeProtocol {
+    private var fileDropView: NativeFileDropView?
+    private var fileDropHandlers: [String: (CGPoint, [URL], Int, Bool) -> Bool] = [:]
+    private var fileDropObserver: NSObjectProtocol?
+    func registerFileDropTarget(_ identifier: String, handler: @escaping (CGPoint, [URL], Int, Bool) -> Bool) {
+        fileDropHandlers[identifier] = handler
+        if fileDropObserver == nil {
+            fileDropObserver = NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.installFileDropTarget()
+            }
+        }
+        DispatchQueue.main.async { [weak self] in self?.installFileDropTarget() }
+    }
+    private func installFileDropTarget() {
+            guard let content = NSApp.windows.first(where: { $0.title == "OpenCommander" })?.contentView else { return }
+            if fileDropView?.superview !== content {
+                fileDropView?.removeFromSuperview()
+                let overlay = NativeFileDropView(frame: content.bounds)
+                overlay.autoresizingMask = [.width, .height]
+                content.addSubview(overlay, positioned: .above, relativeTo: nil)
+                fileDropView = overlay
+            }
+            fileDropView?.handlers = fileDropHandlers
+    }
+    func dragModifierKeys() -> Int {
+        // Catalyst asks while handling the native drag event. Its flags also
+        // cover synthesized/accessibility input, unlike physical keyboard state.
+        let flags = NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags
+        return (flags.contains(.option) ? 1 : 0) | (flags.contains(.command) ? 2 : 0)
+    }
+    private var documentPreview: NativeDocumentPreview?
+    func previewFile(_ url: URL, closed: @escaping () -> Void) -> Bool {
+        guard Thread.isMainThread, url.isFileURL, FileManager.default.isReadableFile(atPath: url.path),
+              let preview = NativeDocumentPreview(url: url, closed: closed) else { return false }
+        documentPreview?.close()
+        documentPreview = preview
+        preview.window?.center()
+        preview.showWindow(nil)
+        preview.window?.makeKeyAndOrderFront(nil)
+        return true
+    }
+    private let onlineDragSource = OnlineFilePromiseSource()
+    func registerOnlineDragSource(_ identifier: String, items: @escaping (CGPoint) -> [[String: String]],
+                                  write: @escaping (String, URL, @escaping (NSError?) -> Void) -> Void) {
+        onlineDragSource.register(identifier, items: items, write: write)
+    }
+    func removeOnlineDragSource(_ identifier: String) { onlineDragSource.remove(identifier) }
     override init() {
         super.init()
         NTFSExtensionRegistration.start()
@@ -208,14 +439,14 @@ final class DesktopBridge: NSObject, DesktopBridgeProtocol {
                     let item = try JSONDecoder().decode(RcloneListingItem.self, from: metadata)
                     if item.IsDir { arguments = try RcloneCommandPlan.arguments(profile: profile, operation: operation + "tree", path: path, destination: destination) }
                 }
-                if operation == "download" {
+                if ["download", "export"].contains(operation) {
                     guard let localURL, lstat(localURL.path, &info) != 0, errno == ENOENT,
                         localURL.deletingLastPathComponent().resolvingSymlinksInPath() == localURL.deletingLastPathComponent() else { throw CloudConnection.failure("cloud_invalid") }
                 } else if operation == "upload" {
                     guard let localURL, lstat(localURL.path, &info) == 0, info.st_mode & S_IFMT == S_IFREG else { throw CloudConnection.failure("cloud_invalid") }
                 }
                 try lease?.checkSource()
-                let data = try self.cloudRunner.run(binary, arguments, id: requestID, timeout: ["download", "upload", "copy", "rename"].contains(operation) ? 900 : 60)
+                let data = try self.cloudRunner.run(binary, arguments, id: requestID, timeout: ["download", "export", "upload", "copy", "rename"].contains(operation) ? 900 : 60)
                 try lease?.commit()
                 DispatchQueue.main.async { completion(data, nil) }
             } catch {

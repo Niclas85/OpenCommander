@@ -128,4 +128,5 @@
     <string name="undo_changed">Скасування зупинено: файли змінено або їх неможливо перевірити. Інші файли не видалятимуться.</string>
     <string name="move_cleanup_failed">Не вдалося повністю видалити джерело. Повну копію збережено тут: %1$s</string>
     <string name="recovery_retained">Файли відновлення збережено тут: %1$s</string>
+    <string name="operation_cancelled">Операцію скасовано. Завершені дії можна скасувати.</string>
 </resources>

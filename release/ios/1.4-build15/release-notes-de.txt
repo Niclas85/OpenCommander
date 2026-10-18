@@ -1,0 +1,7 @@
+Mehr Übersicht auf dem iPhone:
+• Verständliche Ordnerpfade mit direkter Navigation zu übergeordneten Ordnern.
+• Klar getrennte Mediatheken, lokale Dateien und freigegebene Ordner mit Hinweisen zum Zugriff.
+• Ordnerbaum ein- und ausblenden und ein Dateifenster vergrössern. Die Zweifensteransicht bleibt jederzeit erreichbar.
+• Ordner laden im Hintergrund. Bei fehlendem Zugriff, Verbindungsproblemen und knappem Speicher helfen konkrete Hinweise weiter.
+• Verbesserter Abbruch von Kopiervorgängen und ZIP-Erstellung und Erhalt gespeicherter Ordnerverbindungen bei vorübergehenden Zugriffsproblemen.
+• Neue Hinweise in allen 20 unterstützten Sprachen.

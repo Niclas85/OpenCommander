@@ -69,6 +69,10 @@ struct RemoteDirectoryItem: Codable {
     var modified: String
     var unsafe: Bool = false
     var fingerprint: String? = nil
+    // Only a validated cloud name collision may coexist with unrelated writes.
+    // Unknown/unsafe FTP entries still block destination checks entirely.
+    var nameCollision: Bool? = nil
+    var providerID: String? = nil
     var version: String { fingerprint ?? "\(directory):\(size):\(modified)" }
 
     /// RFC 3659 MLSD avoids locale-dependent FTP LIST parsing. Never follow links.

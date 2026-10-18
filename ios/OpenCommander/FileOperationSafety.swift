@@ -2,6 +2,25 @@ import Foundation
 import CryptoKit
 import Darwin
 
+/// Classifies the complete underlying error chain; a provider wrapper must not
+/// hide a full disk or a revoked grant. No localized-message matching.
+enum MobileStorageIssue {
+    static func key(for error: Error) -> String {
+        var errors: [NSError] = []
+        var current: NSError? = error as NSError
+        while let item = current, errors.count < 12 {
+            errors.append(item); current = item.userInfo[NSUnderlyingErrorKey] as? NSError
+        }
+        if errors.contains(where: { ($0.domain == NSCocoaErrorDomain && $0.code == NSUserCancelledError) || ($0.domain == NSPOSIXErrorDomain && $0.code == Int(ECANCELED)) }) { return "history_error_cancelled" }
+        if errors.contains(where: { ($0.domain == NSPOSIXErrorDomain && $0.code == Int(ENOSPC)) || ($0.domain == NSCocoaErrorDomain && $0.code == NSFileWriteOutOfSpaceError) }) { return "mobile_error_space" }
+        if errors.contains(where: { ($0.domain == NSPOSIXErrorDomain && [Int(EACCES), Int(EPERM)].contains($0.code)) || ($0.domain == NSCocoaErrorDomain && [NSFileReadNoPermissionError, NSFileWriteNoPermissionError].contains($0.code)) }) { return "mobile_error_permission" }
+        if errors.contains(where: { ($0.domain == NSPOSIXErrorDomain && $0.code == Int(EROFS)) || ($0.domain == NSCocoaErrorDomain && $0.code == NSFileWriteVolumeReadOnlyError) }) { return "mobile_error_readonly" }
+        if errors.contains(where: { ($0.domain == NSPOSIXErrorDomain && $0.code == Int(ENOENT)) || ($0.domain == NSCocoaErrorDomain && [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains($0.code)) }) { return "mobile_error_missing" }
+        if errors.contains(where: { $0.domain == NSURLErrorDomain }) { return "mobile_error_network" }
+        return "mobile_error_provider"
+    }
+}
+
 /// Pointer-time preflight only: no filesystem reads, symlink resolution or network
 /// requests. The transfer engine must still perform authoritative validation.
 enum CommanderDropPolicy {
@@ -40,6 +59,71 @@ enum CommanderNativeArchive {
     static let extensions = [".zip", ".7z", ".rar", ".tar", ".tgz", ".tar.gz", ".tbz", ".tbz2", ".tar.bz2", ".txz", ".tar.xz", ".tar.zst"]
     static func supports(_ name: String) -> Bool { extensions.contains { name.lowercased().hasSuffix($0) } }
 
+    /// libarchive on macOS otherwise tries to run a separately installed zstd
+    /// program. Decode in-process into an exclusive private staging file instead.
+    /// Header bytes, not the filename, decide whether decoding is necessary.
+    static func decodedZstandard(_ source: URL, maximumBytes: UInt64 = SafeArchiveLimits.maximumBytes + 64 * 1024 * 1024,
+                                checkCancellation: () throws -> Void = {}) throws -> URL? {
+        let input = try FileHandle(forReadingFrom: source)
+        defer { try? input.close() }
+        let header = try input.read(upToCount: 4) ?? Data()
+        guard header.count == 4 else { return nil }
+        let bytes = Array(header)
+        let magic = UInt32(bytes[0]) | UInt32(bytes[1]) << 8 | UInt32(bytes[2]) << 16 | UInt32(bytes[3]) << 24
+        guard magic == 0xFD2FB528 || magic & 0xFFFFFFF0 == 0x184D2A50 else { return nil }
+#if OPENCOMMANDER_ZSTD || targetEnvironment(macCatalyst)
+        try checkCancellation()
+        guard let context = oc_zstd_create() else { throw CocoaError(.fileReadUnknown) }
+        defer { oc_zstd_free(context) }
+        let output = FileManager.default.temporaryDirectory.appendingPathComponent("OpenCommander-Zstd-" + UUID().uuidString + ".tar")
+        let descriptor = Darwin.open(output.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0o600)
+        guard descriptor >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        var retained = false
+        defer { try? handle.close(); if !retained { try? FileManager.default.removeItem(at: output) } }
+        try input.seek(toOffset: 0)
+        var buffer = [UInt8](repeating: 0, count: 64 * 1024)
+        var total: UInt64 = 0, lastStatus: Int32 = 1
+        let deadline = Date().addingTimeInterval(60)
+        while true {
+            try checkCancellation()
+            guard Date() < deadline else { throw CocoaError(.userCancelled) }
+            let compressed = try input.read(upToCount: 64 * 1024) ?? Data()
+            if compressed.isEmpty {
+                guard lastStatus == 0 else { throw CocoaError(.fileReadCorruptFile) }
+                break
+            }
+            var position = 0, lastProduced = 0
+            repeat {
+                try checkCancellation()
+                guard Date() < deadline else { throw CocoaError(.userCancelled) }
+                var consumed = 0, produced = 0
+                lastStatus = compressed.withUnsafeBytes { raw in
+                    buffer.withUnsafeMutableBytes { out in
+                        oc_zstd_step(context, raw.baseAddress!.advanced(by: position), raw.count - position,
+                                     &consumed, out.baseAddress, out.count, &produced)
+                    }
+                }
+                guard lastStatus >= 0 else { throw CocoaError(.fileReadCorruptFile) }
+                if consumed == 0 && produced == 0 {
+                    guard position == compressed.count else { throw CocoaError(.fileReadCorruptFile) }
+                    break // Decoder needs the next input chunk.
+                }
+                guard UInt64(produced) <= maximumBytes - total else { throw CocoaError(.fileReadTooLarge) }
+                if produced > 0 { try handle.write(contentsOf: Data(buffer.prefix(produced))); total += UInt64(produced) }
+                position += consumed
+                lastProduced = produced
+                // Drain a full output buffer even when this input chunk ended.
+            } while position < compressed.count || (lastProduced == buffer.count && lastStatus != 0)
+        }
+        try handle.close()
+        retained = true
+        return output
+#else
+        throw CocoaError(.featureUnsupported)
+#endif
+    }
+
     private final class Reader {
         private let library: UnsafeMutableRawPointer
         let archive: UnsafeMutableRawPointer
@@ -54,7 +138,12 @@ enum CommanderNativeArchive {
         let hardlink: @convention(c) (UnsafeMutableRawPointer?) -> UnsafePointer<CChar>?
         let encrypted: @convention(c) (UnsafeMutableRawPointer?) -> Int32
         let release: @convention(c) (UnsafeMutableRawPointer?) -> Int32
-        init(_ source: URL) throws {
+        private let decoded: URL?
+        init(_ source: URL, checkCancellation: () throws -> Void = {}) throws {
+            let decoded = try CommanderNativeArchive.decodedZstandard(source, checkCancellation: checkCancellation)
+            self.decoded = decoded
+            var retained = false
+            defer { if !retained, let decoded { try? FileManager.default.removeItem(at: decoded) } }
             guard let library = dlopen("/usr/lib/libarchive.dylib", RTLD_NOW | RTLD_LOCAL) else { throw CocoaError(.featureUnsupported) }
             func symbol<T>(_ name: String, _: T.Type) throws -> T {
                 guard let address = dlsym(library, name) else { throw CocoaError(.featureUnsupported) }
@@ -73,25 +162,31 @@ enum CommanderNativeArchive {
                 symlink = try symbol("archive_entry_symlink", (@convention(c) (UnsafeMutableRawPointer?) -> UnsafePointer<CChar>?).self)
                 hardlink = try symbol("archive_entry_hardlink", (@convention(c) (UnsafeMutableRawPointer?) -> UnsafePointer<CChar>?).self)
                 encrypted = try symbol("archive_entry_is_encrypted", (@convention(c) (UnsafeMutableRawPointer?) -> Int32).self)
-                let filters = try symbol("archive_read_support_filter_all", (@convention(c) (UnsafeMutableRawPointer?) -> Int32).self)
                 let formats = try symbol("archive_read_support_format_all", (@convention(c) (UnsafeMutableRawPointer?) -> Int32).self)
                 let open = try symbol("archive_read_open_filename", (@convention(c) (UnsafeMutableRawPointer?, UnsafePointer<CChar>?, Int) -> Int32).self)
+                let builtinFilters = try ["none", "gzip", "bzip2", "xz", "lzma"].map { filter in
+                    try symbol("archive_read_support_filter_" + filter, (@convention(c) (UnsafeMutableRawPointer?) -> Int32).self)
+                }
                 guard let archive = create() else { throw CocoaError(.fileReadUnknown) }
-                guard filters(archive) == 0, formats(archive) == 0,
-                      source.path.withCString({ open(archive, $0, 64 * 1024) }) == 0 else {
-                    _ = release(archive); throw CocoaError(.fileReadCorruptFile)
+                // Register only built-in filters, never libarchive's external
+                // program fallbacks (zstd/lzop/etc.).
+                let filtersOK = builtinFilters.allSatisfy { $0(archive) == 0 }
+                guard filtersOK, formats(archive) == 0,
+                      (decoded ?? source).path.withCString({ open(archive, $0, 64 * 1024) }) == 0 else {
+                    _ = release(archive); throw CocoaError(.fileReadCorruptFile, userInfo: [NSDebugDescriptionErrorKey: "native archive reader initialization"])
                 }
                 self.archive = archive; self.library = library
+                retained = true
             } catch { dlclose(library); throw error }
         }
-        deinit { _ = release(archive); dlclose(library) }
+        deinit { _ = release(archive); dlclose(library); if let decoded { try? FileManager.default.removeItem(at: decoded) } }
         func member(_ entry: UnsafeMutableRawPointer) throws -> Member? {
-            guard let pointer = pathname(entry), var path = String(validatingUTF8: pointer) else { throw CocoaError(.fileReadCorruptFile) }
+            guard let pointer = pathname(entry), var path = String(validatingUTF8: pointer) else { throw CocoaError(.fileReadCorruptFile, userInfo: [NSDebugDescriptionErrorKey: "native archive UTF-8 pathname unavailable"]) }
             let directory = filetype(entry) == UInt32(S_IFDIR)
             guard [UInt32(S_IFREG), UInt32(S_IFDIR)].contains(filetype(entry)),
                   symlink(entry) == nil, hardlink(entry) == nil, encrypted(entry) == 0, size(entry) >= 0,
                   !directory || size(entry) == 0 else {
-                throw CocoaError(.fileReadCorruptFile)
+                throw CocoaError(.fileReadCorruptFile, userInfo: [NSDebugDescriptionErrorKey: "native archive unsupported member metadata: type=\(filetype(entry)), size=\(size(entry)), encrypted=\(encrypted(entry))"])
             }
             if directory && [".", "./"].contains(path) { return nil }
             while path.hasPrefix("./") { path.removeFirst(2) }
@@ -102,19 +197,19 @@ enum CommanderNativeArchive {
         }
     }
     static func members(_ source: URL, checkCancellation: () throws -> Void = {}) throws -> [Member] {
-        let reader = try Reader(source)
+        let reader = try Reader(source, checkCancellation: checkCancellation)
         var result: [Member] = [], limits = SafeArchiveLimits()
         while true {
             try checkCancellation()
             var entry: UnsafeMutableRawPointer?
             let status = reader.next(reader.archive, &entry)
             if status == 1 { break }
-            guard status == 0, let entry else { throw CocoaError(.fileReadCorruptFile) }
+            guard status == 0, let entry else { throw CocoaError(.fileReadCorruptFile, userInfo: [NSDebugDescriptionErrorKey: "native archive listing header \(status)"]) }
             if let member = try reader.member(entry) {
                 try limits.include(path: member.path, size: UInt64(member.size), symbolicLink: false)
                 result.append(member)
             }
-            guard reader.skip(reader.archive) == 0 else { throw CocoaError(.fileReadCorruptFile) }
+            guard reader.skip(reader.archive) == 0 else { throw CocoaError(.fileReadCorruptFile, userInfo: [NSDebugDescriptionErrorKey: "native archive listing skip"]) }
         }
         return result
     }
@@ -131,7 +226,7 @@ enum CommanderNativeArchive {
         guard !SafeFileOperations.exists(destination) else { throw SafeFileOperations.conflict(destination) }
         try fm.createDirectory(at: destination, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         do {
-            let reader = try Reader(source)
+            let reader = try Reader(source, checkCancellation: checkCancellation)
             let expected = Dictionary(uniqueKeysWithValues: all.map { ($0.path, $0) })
             var seen = Set<String>(), completed = 0, total: UInt64 = 0
             let wanted = Set(selected.map(\.path))
@@ -141,14 +236,13 @@ enum CommanderNativeArchive {
                 var entry: UnsafeMutableRawPointer?
                 let status = reader.next(reader.archive, &entry)
                 if status == 1 { break }
-                guard status == 0, let entry else { throw CocoaError(.fileReadCorruptFile) }
+                guard status == 0, let entry else { throw CocoaError(.fileReadCorruptFile, userInfo: [NSDebugDescriptionErrorKey: "archive extraction header status \(status)"]) }
                 guard let member = try reader.member(entry) else { continue }
-                guard expected[member.path] == member, seen.insert(member.path).inserted else { throw CocoaError(.fileReadCorruptFile) }
+                guard expected[member.path] == member, seen.insert(member.path).inserted else { throw CocoaError(.fileReadCorruptFile, userInfo: [NSDebugDescriptionErrorKey: "archive extraction changed or duplicate member"]) }
                 if !wanted.contains(member.path) {
-                    guard reader.skip(reader.archive) == 0 else { throw CocoaError(.fileReadCorruptFile) }; continue
+                    guard reader.skip(reader.archive) == 0 else { throw CocoaError(.fileReadCorruptFile, userInfo: [NSDebugDescriptionErrorKey: "native archive extraction skip"]) }; continue
                 }
-                let output = destination.appendingPathComponent(member.path)
-                guard output.standardizedFileURL.path.hasPrefix(destination.standardizedFileURL.path + "/") else { throw CocoaError(.fileReadCorruptFile) }
+                let output = try SafeArchiveLimits.outputURL(for: member.path, in: destination)
                 if member.directory {
                     try fm.createDirectory(at: output, withIntermediateDirectories: true)
                 } else {
@@ -161,19 +255,19 @@ enum CommanderNativeArchive {
                     while true {
                         try checkCancellation()
                         let count = buffer.withUnsafeMutableBytes { reader.read(reader.archive, $0.baseAddress, $0.count) }
-                        guard count >= 0 else { throw CocoaError(.fileReadCorruptFile) }
+                        guard count >= 0 else { throw CocoaError(.fileReadCorruptFile, userInfo: [NSDebugDescriptionErrorKey: "archive extraction data read failed"]) }
                         if count == 0 { break }
                         guard UInt64(count) <= UInt64(member.size) - written, UInt64(count) <= maximumBytes - total else { throw CocoaError(.fileReadTooLarge) }
                         try handle.write(contentsOf: Data(buffer.prefix(count)))
                         written += UInt64(count); total += UInt64(count)
                     }
-                    guard written == UInt64(member.size) else { throw CocoaError(.fileReadCorruptFile) }
+                    guard written == UInt64(member.size) else { throw CocoaError(.fileReadCorruptFile, userInfo: [NSDebugDescriptionErrorKey: "archive extraction declared-size mismatch"]) }
                     try handle.synchronize()
                     if member.modified > 0 { try fm.setAttributes([.modificationDate: Date(timeIntervalSince1970: Double(member.modified) / 1000)], ofItemAtPath: output.path) }
                 }
                 completed += 1; progress(completed, selected.count)
             }
-            guard seen == Set(expected.keys), completed == selected.count else { throw CocoaError(.fileReadCorruptFile) }
+            guard seen == Set(expected.keys), completed == selected.count else { throw CocoaError(.fileReadCorruptFile, userInfo: [NSDebugDescriptionErrorKey: "archive extraction incomplete member set"]) }
             try checkCancellation()
         } catch { try? fm.removeItem(at: destination); throw error }
     }
@@ -191,6 +285,20 @@ struct CloudUndoPayload: Codable, Equatable {
         let parentPath: String?
         let content: [String: String]
     }
+    struct SourceRestore: Codable, Equatable {
+        let endpoint: String
+        let account: String
+        let recovery: Object
+        let name: String
+        let parent: String?
+        let parentPath: String?
+    }
+    struct LocalSourceRestore: Codable, Equatable {
+        let original: String
+        let recovery: String
+        let parentDevice: UInt64
+        let parentInode: UInt64
+    }
     let endpoint: String
     let account: String
     let kind: String
@@ -199,11 +307,33 @@ struct CloudUndoPayload: Codable, Equatable {
     var originalName: String? = nil
     var originalParent: String? = nil
     var originalParentPath: String? = nil
+    var sourceRestore: SourceRestore? = nil
+    var localSourceRestore: LocalSourceRestore? = nil
+    var localCopyUndo: Data? = nil
     func validate() throws {
         func bounded(_ text: String?, limit: Int = 8192) -> Bool { text == nil || (text!.utf8.count <= limit && !text!.contains("\0")) }
         func name(_ text: String) -> Bool { !text.isEmpty && text != "." && text != ".." && !text.contains("/") && !text.contains("\0") }
-        let objects = [current] + [previous].compactMap { $0 }
-        guard ["relocate", "replacement", "remove"].contains(kind), !endpoint.isEmpty, !account.isEmpty,
+        let objects = [current] + [previous, sourceRestore?.recovery].compactMap { $0 }
+        if let source = sourceRestore {
+            guard !source.endpoint.isEmpty, !source.account.isEmpty, bounded(source.endpoint, limit: 512),
+                  bounded(source.account, limit: 1024), name(source.name), bounded(source.parent), bounded(source.parentPath) else {
+                throw NSError(domain: "OpenCommander.Cloud", code: 1, userInfo: [NSLocalizedDescriptionKey: "cloud_undo_changed"])
+            }
+        }
+        if let local = localSourceRestore {
+            guard [local.original, local.recovery].allSatisfy({ $0.hasPrefix("/") && $0 != "/" && bounded($0) && !$0.split(separator: "/").contains("..") }),
+                  local.original != local.recovery else {
+                throw NSError(domain: "OpenCommander.Cloud", code: 1, userInfo: [NSLocalizedDescriptionKey: "cloud_undo_changed"])
+            }
+        }
+        if let data = localCopyUndo {
+            let record = try JSONDecoder().decode(FileUndoRecord.self, from: data)
+            guard data.count <= 16 * 1024 * 1024, record.destination.isFileURL, record.destination.path != "/",
+                  record.replacedBackup == nil, record.quarantinedSource == nil else {
+                throw NSError(domain: "OpenCommander.Cloud", code: 1, userInfo: [NSLocalizedDescriptionKey: "cloud_undo_changed"])
+            }
+        }
+        guard ["relocate", "replacement", "remove", "crossMove", "localMove", "downloadMove"].contains(kind), !endpoint.isEmpty, !account.isEmpty,
             bounded(endpoint, limit: 512), bounded(account, limit: 1024), bounded(originalParent), bounded(originalParentPath),
             originalName.map(name) != false, objects.allSatisfy({ object in
                 !object.id.isEmpty && bounded(object.id) && name(object.name) && bounded(object.path) && bounded(object.parent) && bounded(object.parentPath) &&
@@ -212,6 +342,9 @@ struct CloudUndoPayload: Codable, Equatable {
                     (digest == "directory" || (digest.hasPrefix("sha256:") && digest.utf8.count == 51))
                 })
             }), kind != "replacement" || previous != nil,
+            kind != "crossMove" || (sourceRestore != nil && sourceRestore?.recovery.content == current.content),
+            kind != "localMove" || localSourceRestore != nil,
+            kind != "downloadMove" || (localCopyUndo != nil && originalName != nil),
             kind != "relocate" || originalName != nil, try JSONEncoder().encode(self).count <= 16 * 1024 * 1024 else {
             throw NSError(domain: "OpenCommander.Cloud", code: 1, userInfo: [NSLocalizedDescriptionKey: "cloud_undo_changed"])
         }
@@ -250,6 +383,18 @@ enum OperationType: Codable {
     case cloud(record: CloudOperationRecord)
 }
 
+/// Presentation only: never truncate the persistent audit or change Undo IDs.
+enum HistoryPaging {
+    static func indices(count: Int, page: Int, size: Int = 50) -> [Int] {
+        guard count > 0 else { return [] }
+        let size = max(1, min(100, size))
+        let pages = (count - 1) / size + 1
+        let page = max(0, min(pages - 1, page))
+        let upper = count - page * size
+        return Array((max(0, upper - size)..<upper).reversed())
+    }
+}
+
 /// Desktop selection rules mirror the Linux context menu and ZIP toolbar.
 enum DesktopInteractionPolicy {
     static func selection(clicked: String, visible: [String], selected: Set<String>, anchor: String?,
@@ -284,6 +429,22 @@ struct SafeArchiveLimits {
     private var paths = Set<String>()
     private var bytes: UInt64 = 0
 
+    /// Compare validated lexical components. standardizedFileURL may resolve
+    /// /private/tmp and append directory slashes differently for an existing
+    /// staging root and its not-yet-existing child on Mac Catalyst.
+    static func outputURL(for path: String, in root: URL) throws -> URL {
+        var validation = SafeArchiveLimits()
+        try validation.include(path: path, size: 0, symbolicLink: false)
+        guard root.isFileURL else { throw CocoaError(.fileReadCorruptFile) }
+        let output = root.appendingPathComponent(path)
+        let parent = root.pathComponents.filter { $0 != "/" }
+        let child = output.pathComponents.filter { $0 != "/" }
+        guard child.count > parent.count, Array(child.prefix(parent.count)) == parent else {
+            throw CocoaError(.fileReadCorruptFile, userInfo: [NSDebugDescriptionErrorKey: "archive output path confinement"])
+        }
+        return output
+    }
+
     mutating func include(path: String, size: UInt64, symbolicLink: Bool) throws {
         let name = path.hasSuffix("/") ? String(path.dropLast()) : path
         let parts = name.split(separator: "/", omittingEmptySubsequences: false)
@@ -301,6 +462,61 @@ struct SafeArchiveLimits {
 }
 
 enum BoundedFolderSize {
+    struct Report {
+        var bytes: Int64 = 0
+        var entries = 0
+        var errors = 0
+        var limit: String?
+        var complete: Bool { errors == 0 && limit == nil }
+        var summary: String {
+            let size = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+            if complete { return size }
+            return String(format: L10n.get("folder_size_partial"), size, entries, errors,
+                          limit.map { L10n.get($0) } ?? L10n.get("folder_size_read_errors"))
+        }
+    }
+
+    /// Interactive properties may report a lower bound. Transfer verification
+    /// continues to use the throwing, all-or-nothing `bytes` function below.
+    static func report(at root: URL, timeout: TimeInterval = 10, maximumEntries: Int = 100_000) -> Report {
+        var result = Report()
+        let start = ProcessInfo.processInfo.systemUptime
+        func withinBudget() -> Bool {
+            if ProcessInfo.processInfo.systemUptime - start >= timeout {
+                result.limit = "folder_size_time_limit"; return false
+            }
+            return true
+        }
+        guard withinBudget() else { return result }
+        let keys: Set<URLResourceKey> = [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey, .isDirectoryKey]
+        guard let rootValues = try? root.resourceValues(forKeys: keys),
+              rootValues.isDirectory == true, rootValues.isSymbolicLink != true else {
+            result.errors = 1; return result
+        }
+        guard let items = FileManager.default.enumerator(at: root, includingPropertiesForKeys: Array(keys),
+            errorHandler: { _, _ in result.errors += 1; return withinBudget() }) else {
+            result.errors += 1; return result
+        }
+        while withinBudget(), let url = items.nextObject() as? URL {
+            guard result.entries < maximumEntries else { result.limit = "folder_size_entry_limit"; break }
+            result.entries += 1
+            do {
+                let values = try url.resourceValues(forKeys: keys)
+                if values.isSymbolicLink == true { continue }
+                if values.isDirectory == true, isRecoveryName(url.lastPathComponent) {
+                    items.skipDescendants(); continue
+                }
+                if values.isRegularFile == true {
+                    guard let size = values.fileSize, size >= 0 else { result.errors += 1; continue }
+                    let sum = result.bytes.addingReportingOverflow(Int64(size))
+                    guard !sum.overflow else { result.limit = "folder_size_overflow"; break }
+                    result.bytes = sum.partialValue
+                }
+            } catch { result.errors += 1 }
+        }
+        return result
+    }
+
     static func bytes(at root: URL, timeout: TimeInterval = 10, maximumEntries: Int = 100_000, excludingRecovery: Bool = false) throws -> Int64 {
         let deadline = Date().addingTimeInterval(timeout)
         var total: Int64 = 0
@@ -332,7 +548,7 @@ enum BoundedFolderSize {
         return total
     }
     static func isRecoveryName(_ name: String) -> Bool {
-        [".OpenCommanderJob-", ".OpenCommanderTransfer-", ".OpenCommanderMoved-", ".OpenCommanderUndo-", ".OpenCommanderExtract-", ".OpenCommander-transfer-"].contains {
+        [".OpenCommanderExclusive-", ".OpenCommanderJob-", ".OpenCommanderTransfer-", ".OpenCommanderMoved-", ".OpenCommanderUndo-", ".OpenCommanderExtract-", ".OpenCommander-transfer-"].contains {
             name.hasPrefix($0) && UUID(uuidString: String(name.dropFirst($0.count))) != nil
         }
     }
@@ -349,7 +565,6 @@ final class FileOperationCancellation {
 
     func copy(_ source: URL, _ destination: URL) throws {
         try check()
-#if os(macOS) || targetEnvironment(macCatalyst)
         guard let state = copyfile_state_alloc() else { throw POSIXError(.ENOMEM) }
         defer { copyfile_state_free(state) }
         let callback: copyfile_callback_t = { _, _, _, _, _, context in
@@ -363,9 +578,6 @@ final class FileOperationCancellation {
             try check()
             throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
         }
-#else
-        try FileManager.default.copyItem(at: source, to: destination)
-#endif
         try check()
     }
 }
@@ -382,7 +594,19 @@ enum SafeFileOperations {
                 userInfo: [NSLocalizedDescriptionKey: L10n.get("undo_changed") + "\n" + url.path])
     }
 
-    static func snapshot(_ url: URL, rootName: String? = nil, contentOnly: Bool = false,
+    /// Provider reconciliation may replace an inode without changing the file.
+    /// Restrict the relaxed identity format to known per-user provider roots.
+    static func providerLocation(_ url: URL, home: URL? = nil) -> Bool {
+        let userHome = home ?? getpwuid(getuid()).map { URL(fileURLWithPath: String(cString: $0.pointee.pw_dir)) }
+            ?? URL(fileURLWithPath: NSHomeDirectory())
+        let path = url.resolvingSymlinksInPath().standardizedFileURL.path
+        return ["Library/CloudStorage", "Library/Mobile Documents"].contains { component in
+            let root = userHome.appendingPathComponent(component).resolvingSymlinksInPath().standardizedFileURL.path
+            return path.hasPrefix(root + "/")
+        }
+    }
+
+    static func snapshot(_ url: URL, rootName: String? = nil, contentOnly: Bool = false, providerIdentity: Bool = false,
                          progress: ((Int64) -> Void)? = nil, checkCancellation: () throws -> Void = {}) throws -> Data {
         let fm = FileManager.default
         var digest = SHA256()
@@ -395,12 +619,31 @@ enum SafeFileOperations {
         }
         func visit(_ item: URL) throws {
             try checkCancellation()
-            let attributes = try fm.attributesOfItem(atPath: item.path)
+            var attributes = try fm.attributesOfItem(atPath: item.path)
             guard let type = attributes[.type] as? FileAttributeType else { throw conflict(item) }
+            // Open before recording metadata. SMB can replace speculative cached
+            // attributes on the first server open. Keep the same descriptor open
+            // through verification instead of comparing pre-open and post-close
+            // caches. O_NOFOLLOW also rejects a raced-in link.
+            var input: FileHandle?
+            var openedInfo = stat()
+            if type == .typeRegular {
+                let fd = open(item.path, O_RDONLY | O_NOFOLLOW)
+                guard fd >= 0 else { throw conflict(item) }
+                let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+                guard fstat(fd, &openedInfo) == 0, openedInfo.st_mode & S_IFMT == S_IFREG else {
+                    try? handle.close(); throw conflict(item)
+                }
+                input = handle
+                attributes = try fm.attributesOfItem(atPath: item.path)
+                guard attributes[.type] as? FileAttributeType == .typeRegular else { throw conflict(item) }
+            }
+            defer { try? input?.close() }
             field(item == url ? (rootName ?? item.lastPathComponent) : item.lastPathComponent)
             field(type.rawValue)
             if !contentOnly {
-                field(String(describing: attributes[.systemFileNumber]))
+                if providerIdentity { field(String(describing: attributes[.systemNumber])) }
+                else { field(String(describing: attributes[.systemFileNumber])) }
                 field(String((attributes[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0))
                 for key in [FileAttributeKey.posixPermissions, .ownerAccountID, .groupOwnerAccountID] {
                     field(String(describing: attributes[key]))
@@ -415,8 +658,7 @@ enum SafeFileOperations {
                 field(try fm.destinationOfSymbolicLink(atPath: item.path))
             } else if type == .typeRegular {
                 var content = SHA256()
-                let handle = try FileHandle(forReadingFrom: item)
-                defer { try? handle.close() }
+                guard let handle = input else { throw conflict(item) }
                 while let data = try handle.read(upToCount: 64 * 1024), !data.isEmpty {
                     try checkCancellation()
                     content.update(data: data)
@@ -425,6 +667,21 @@ enum SafeFileOperations {
                 digest.update(data: Data(content.finalize()))
             } else {
                 throw conflict(item)
+            }
+            // Even provider proofs must reject replacement or mutation during
+            // verification; inode relaxation applies only between snapshots.
+            let after = try fm.attributesOfItem(atPath: item.path)
+            if let input {
+                var finished = stat()
+                guard fstat(input.fileDescriptor, &finished) == 0,
+                      openedInfo.st_dev == finished.st_dev, openedInfo.st_ino == finished.st_ino,
+                      openedInfo.st_size == finished.st_size,
+                      openedInfo.st_mtimespec.tv_sec == finished.st_mtimespec.tv_sec,
+                      openedInfo.st_mtimespec.tv_nsec == finished.st_mtimespec.tv_nsec else { throw conflict(item) }
+            }
+            for key in [FileAttributeKey.systemNumber, .systemFileNumber, .type, .size,
+                        .modificationDate, .posixPermissions, .ownerAccountID, .groupOwnerAccountID] {
+                guard String(describing: attributes[key]) == String(describing: after[key]) else { throw conflict(item) }
             }
         }
         try visit(url)
@@ -547,6 +804,8 @@ final class FileUndoRecord: Codable {
     let createdAt: Date
     let source: URL
     var displaySource: String? = nil
+    /// Optional for backward-compatible decoding of histories written before folder Undo.
+    private(set) var createdDirectory: Bool? = nil
     let destination: URL
     let replacedBackup: URL?
     let quarantinedSource: URL?
@@ -554,8 +813,11 @@ final class FileUndoRecord: Codable {
     private var backupVerificationRequired: Bool? = nil
     private let quarantineSnapshot: Data?
     private let snapshot: Data?
+    private var providerIdentity: Bool? = nil
     private var destinationReverted = false
     private var restorePublished: Bool? = nil
+    private var nasRestoreStage: String? = nil
+    private var nasMoveRestoreStage: String? = nil
     private(set) var completed = false
     var lastError: String?
     var lastFailure: HistoryFailure?
@@ -570,17 +832,27 @@ final class FileUndoRecord: Codable {
         lastError = nil
     }
 
-    init(source: URL, destination: URL, replacedBackup: URL?, quarantinedSource: URL? = nil) {
+    init(source: URL, destination: URL, replacedBackup: URL?, quarantinedSource: URL? = nil, createdDirectory: Bool = false) {
         createdAt = Date()
         self.source = source
         self.destination = destination
         self.replacedBackup = replacedBackup
         self.quarantinedSource = quarantinedSource
+        self.createdDirectory = createdDirectory ? true : nil
         backupVerificationRequired = replacedBackup != nil
         backupSnapshot = replacedBackup.flatMap { try? SafeFileOperations.snapshot($0, contentOnly: true) }
         quarantineSnapshot = quarantinedSource.flatMap { try? SafeFileOperations.snapshot($0) }
         // A read failure disables undo; it must never roll back an already completed move.
-        snapshot = try? SafeFileOperations.snapshot(destination)
+        providerIdentity = SafeFileOperations.providerLocation(destination)
+        snapshot = try? SafeFileOperations.snapshot(destination, providerIdentity: providerIdentity == true)
+    }
+
+    func verifyUnchangedDestination(checkCancellation: () throws -> Void = {}) throws {
+        guard !completed, !destinationReverted else { throw SafeFileOperations.conflict(destination) }
+        if providerIdentity == true, !SafeFileOperations.providerLocation(destination) { throw SafeFileOperations.conflict(destination) }
+        guard let snapshot, snapshot == (try SafeFileOperations.snapshot(destination, providerIdentity: providerIdentity == true, checkCancellation: checkCancellation)) else {
+            throw SafeFileOperations.conflict(destination)
+        }
     }
 
     func undo(move: Bool, checkCancellation: () throws -> Void = {}) throws {
@@ -595,10 +867,34 @@ final class FileUndoRecord: Codable {
             if let backupSnapshot, current != backupSnapshot { throw SafeFileOperations.conflict(backup) }
         }
         if !destinationReverted {
-            guard let snapshot, snapshot == (try SafeFileOperations.snapshot(destination, checkCancellation: checkCancellation)) else {
-                throw SafeFileOperations.conflict(destination)
-            }
+            try verifyUnchangedDestination(checkCancellation: checkCancellation)
             try checkCancellation()
+            var restoredNASMove = false
+            #if OPENCOMMANDER_NAS || targetEnvironment(macCatalyst)
+            if move, let original = quarantinedSource,
+               NASExclusiveCopy.isSMB(source.deletingLastPathComponent()) || NASExclusiveCopy.isSMB(destination.deletingLastPathComponent()) {
+                guard let quarantineSnapshot,
+                      try SafeFileOperations.snapshot(original, checkCancellation: checkCancellation) == quarantineSnapshot else { throw SafeFileOperations.conflict(original) }
+                if nasMoveRestoreStage == nil {
+                    nasMoveRestoreStage = try NASExclusiveCopy.create(source: original, target: source,
+                        journalParent: source.deletingLastPathComponent()).path
+                }
+                let state = try NASExclusiveCopy.resume(URL(fileURLWithPath: nasMoveRestoreStage!), control: {
+                    do { try checkCancellation(); return .proceed } catch { return .pause }
+                })
+                guard state == .completed else { throw CocoaError(.userCancelled) }
+                // Retain both recovery versions. Never restore onto a public
+                // source name with an overwriting Foundation rename on SMB.
+                try verifyUnchangedDestination(checkCancellation: checkCancellation)
+                let recovery = destination.deletingLastPathComponent().appendingPathComponent(".OpenCommanderUndo-\(UUID().uuidString)", isDirectory: true)
+                try fm.createDirectory(at: recovery, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+                try fm.moveItem(at: destination, to: recovery.appendingPathComponent(destination.lastPathComponent))
+                restoredNASMove = true
+            }
+            #endif
+            if restoredNASMove {
+                destinationReverted = true
+            } else {
             if move {
                 guard !SafeFileOperations.exists(source) else { throw SafeFileOperations.conflict(source) }
                 if let original = quarantinedSource {
@@ -621,14 +917,31 @@ final class FileUndoRecord: Codable {
                 try fm.moveItem(at: destination, to: recovery.appendingPathComponent(destination.lastPathComponent))
             }
             destinationReverted = true
+            }
         }
         if let backup = replacedBackup {
             try checkCancellation()
             if restorePublished != true {
+                #if OPENCOMMANDER_NAS || targetEnvironment(macCatalyst)
+                if NASExclusiveCopy.isSMB(destination.deletingLastPathComponent()) {
+                    if nasRestoreStage == nil {
+                        nasRestoreStage = try NASExclusiveCopy.create(source: backup, target: destination,
+                            journalParent: destination.deletingLastPathComponent()).path
+                    }
+                    let outcome = try NASExclusiveCopy.resume(URL(fileURLWithPath: nasRestoreStage!), control: {
+                        do { try checkCancellation(); return .proceed } catch { return .pause }
+                    })
+                    guard outcome == .completed else { throw CocoaError(.userCancelled) }
+                } else {
+                    guard !SafeFileOperations.exists(destination) else { throw SafeFileOperations.conflict(destination) }
+                    try fm.copyItem(at: backup, to: destination)
+                }
+                #else
                 guard !SafeFileOperations.exists(destination) else { throw SafeFileOperations.conflict(destination) }
                 // A provider can acknowledge a move before reconciliation. Keep
                 // the backup until restored bytes have been read back successfully.
                 try fm.copyItem(at: backup, to: destination)
+                #endif
                 restorePublished = true
             }
             guard try SafeFileOperations.snapshot(destination, rootName: backup.lastPathComponent, contentOnly: true,

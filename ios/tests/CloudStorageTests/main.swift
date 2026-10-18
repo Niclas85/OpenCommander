@@ -31,6 +31,21 @@ check(restoredPreferences.count == 1 && restoredPreferences[0].name == "My renam
 let coordinatedName = try HostFileSystem.coordinatedRead(at: oneDrive) { $0.lastPathComponent }
 check(coordinatedName == oneDrive.lastPathComponent, "Coordinated archive input uses the granted URL")
 print("PASS persisted location configuration and coordinated provider input")
+let barA = DesktopLocationPreference(path: "/synthetic/A", name: "Renamed A", enabled: true, custom: true, bookmark: Data([1,2,3]), visibilityConfigured: true)
+let barB = DesktopLocationPreference(path: "/synthetic/B", name: "B", enabled: true, custom: false)
+let hiddenBar = DesktopLocationPreference(path: "/synthetic/hidden", name: "Hidden", enabled: false, custom: true)
+let discoveredBar = DesktopLocationPreference(path: "/synthetic/new-drive", name: "New drive", enabled: true, custom: false)
+let movedBar = DesktopLocationPreferences.reordered([barA, hiddenBar, barB], visible: [barA, barB, discoveredBar], source: barB.path, target: barA.path, before: true)!
+check(movedBar.map(\.path) == [barB.path, barA.path, hiddenBar.path, discoveredBar.path], "visible reorder preserves hidden and newly discovered entries")
+check(movedBar[1].name == barA.name && movedBar[1].bookmark == barA.bookmark && movedBar[1].custom && movedBar[1].visibilityConfigured == true && !movedBar[2].enabled, "reorder lost bookmark/name/visibility metadata")
+let movedBack = DesktopLocationPreferences.reordered(movedBar, visible: [barB, barA, discoveredBar], source: barB.path, target: barA.path, before: false)!
+check(movedBack.map(\.path) == [barA.path, barB.path, hiddenBar.path, discoveredBar.path], "right reorder failed")
+check(DesktopLocationPreferences.reordered(movedBar, visible: [barB, barA], source: "/not-a-location", target: barA.path, before: true) == nil, "file/foreign source became a location")
+check(DesktopLocationPreferences.reordered(movedBar, visible: [barA, barA], source: barB.path, target: barA.path, before: true) == nil, "ambiguous location reorder accepted")
+check(DesktopLocationPreferences.reordered(movedBar, visible: [barB, barA], source: barA.path, target: barA.path, before: true) == nil, "self reorder mutates preferences")
+DesktopLocationPreferences.save(movedBar, to: isolatedDefaults)
+check(DesktopLocationPreferences.load(from: isolatedDefaults).map(\.path) == movedBar.map(\.path), "bar order lost after reopening preferences")
+print("PASS location-bar reorder: left/right, hidden and discovered entries, bookmark/name retention, foreign/duplicate/self refusal and restart persistence")
 check(HostFileSystem.isDisabledProvider(NSError(domain: "NSFileProviderErrorDomain", code: -2011)), "Disabled OneDrive domain is diagnosed")
 check(!HostFileSystem.isDisabledProvider(NSError(domain: "NSFileProviderErrorDomain", code: -2012)), "Transient error is not falsely reported as disabled")
 do {

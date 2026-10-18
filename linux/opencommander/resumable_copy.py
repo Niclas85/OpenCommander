@@ -14,7 +14,7 @@ import tempfile
 import time
 
 from .operations import (Cancelled, SafetyError, exists, selected_roots,
-                         validate_target, unique_path, rename_new, safe_snapshot)
+                         validate_target, unique_path, rename_new, safe_snapshot, recorded_snapshot)
 from .transfer_store import mount_identity
 from .platform_support import is_link, canonical_path
 
@@ -124,7 +124,16 @@ def copy_file(engine, source, target):
             offset = 0
             with os.fdopen(open_regular(source, os.O_RDONLY), 'rb') as inp:
                 if exists(target):
+                    from .provider_mounts import portable
+                    if portable(target):
+                        # A paused upload can still have rclone's synthetic
+                        # timestamp cached. Refresh before opening the read-only
+                        # verification handle so both metadata checks describe
+                        # the device object, not two different cache generations.
+                        from .windows_devices import settle
+                        settle(target)
                     with os.fdopen(open_regular(target, os.O_RDONLY), 'rb') as previous:
+                        partial_info = os.fstat(previous.fileno())
                         while True:
                             engine.check_cancel()
                             block = previous.read(1024 * 1024)
@@ -140,7 +149,7 @@ def copy_file(engine, source, target):
                     # writing, since cloud mounts may upload on writable close.
                     fd = None
                     if offset < info.st_size:
-                        from .provider_mounts import rclone_mount
+                        from .provider_mounts import rclone_mount, portable
                         engine.check_cancel()
                         if rclone_mount(target) is not None:
                             # Cache-off rclone accepts an append descriptor but
@@ -149,7 +158,22 @@ def copy_file(engine, source, target):
                             # Finished files above remain read-only. Be conservative
                             # for external mounts whose cache mode can change.
                             inp.seek(0)
-                            fd = open_regular(target, os.O_WRONLY | os.O_TRUNC)
+                            if portable(target):
+                                # The device bridge rejects replacement PUTs.
+                                # This is exclusively our incomplete staging
+                                # file, whose entire prefix was just compared to
+                                # the source. Recreate it with exclusive creation
+                                # rather than asking WPD to overwrite an object.
+                                current_partial = target.lstat()
+                                if (not stat.S_ISREG(current_partial.st_mode) or current_partial.st_size != offset or
+                                        (current_partial.st_dev, current_partial.st_ino, current_partial.st_mtime_ns) !=
+                                        (partial_info.st_dev, partial_info.st_ino, partial_info.st_mtime_ns)):
+                                    raise SafetyError(f'Zwischenstand geändert / Partial copy changed: {target}')
+                                target.unlink()
+                                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+                                             getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_BINARY', 0), 0o600)
+                            else:
+                                fd = open_regular(target, os.O_WRONLY | os.O_TRUNC)
                             digest = hashlib.sha256()
                             offset = 0
                             engine.compatibility_warnings.add(
@@ -278,7 +302,7 @@ def finish_move(engine, job, index, root, operation):
     if backup.parent.parent != source.parent or not backup.parent.name.startswith('.OpenCommanderMove-') or backup.name != source.name or is_link(backup.parent):
         raise SafetyError('Ungültiger Verschiebe-Zwischenstand / Invalid move recovery path')
     # A restart must verify the only published original before continuing cleanup.
-    if safe_snapshot(target, engine.check_cancel) != record['snapshot'] or record['snapshot'] is None:
+    if recorded_snapshot(record, target, engine.check_cancel) != record['snapshot'] or record['snapshot'] is None:
         raise SafetyError('Ziel geändert; Quellkopie bleibt erhalten / Changed target; source backup retained')
     engine.report_transfer('cleanup', source.name)
     if exists(backup):

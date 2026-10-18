@@ -161,6 +161,61 @@ final class MockMicrosoft: URLProtocol {
         }
         do { try await api.upload(large, parent: nil); fatalError("Unexpected chunk offset accepted") } catch { }
         check(FileManager.default.fileExists(atPath: large.path), "Failed chunk upload retains the source")
+        check(OneDriveClient.nextUploadOffset(["3276800-12582911"], size: 12582912) == 3276800, "Bounded remaining suffix accepted")
+        for ranges in [["0-8"], ["0-9", "4-9"], ["-1-9"], ["10-"], ["+1-"], ["1-10"], ["1-2-9"]] {
+            check(OneDriveClient.nextUploadOffset(ranges, size: 10) == nil, "Malformed or partial suffix rejected")
+        }
+        let checkpointRoot = fixture.appendingPathComponent("upload-sessions")
+        api.uploadRecoveryAccount = "fixture-account"
+        api.uploadSessionDirectory = checkpointRoot
+        var accepted = 0
+        var interrupted = false
+        MockMicrosoft.handler = { request in
+            if request.url!.host == "graph.microsoft.com" { return (200, #"{"uploadUrl":"https://upload.example/restart"}"#) }
+            check(request.value(forHTTPHeaderField: "Authorization") == nil, "Preauthenticated fragments have no Graph token")
+            if accepted > 0 { interrupted = true; throw URLError(.networkConnectionLost) }
+            accepted += body(request).count
+            return (202, "{\"nextExpectedRanges\":[\"\(accepted)-\"]}")
+        }
+        do { try await api.upload(large, parent: nil); fatalError("Interrupted chunk upload reported success") } catch {}
+        check(interrupted && accepted == 10 * 327_680, "One fragment persisted before connection loss")
+        let relaunched = OneDriveClient(clientID: id, session: session, store: MemoryTokens())
+        relaunched.uploadRecoveryAccount = "fixture-account"
+        relaunched.uploadSessionDirectory = checkpointRoot
+        var statusReads = 0
+        MockMicrosoft.handler = { request in
+            check(request.url!.host == "upload.example", "Resume reuses existing session, no new upload session")
+            check(request.value(forHTTPHeaderField: "Authorization") == nil, "Status query and resumed fragments carry no Graph token")
+            if request.httpMethod == "GET" {
+                statusReads += 1
+                return (200, "{\"nextExpectedRanges\":[\"\(accepted)-\(total - 1)\"]}")
+            }
+            let bytes = body(request).count
+            check(request.value(forHTTPHeaderField: "Content-Range") == "bytes \(accepted)-\(accepted + bytes - 1)/\(total)", "Resumed range begins at server-verified byte offset")
+            accepted += bytes
+            return accepted == total ? (201, "{\"id\":\"large\",\"name\":\"large.bin\",\"size\":\(total)}")
+                : (202, "{\"nextExpectedRanges\":[\"\(accepted)-\(total - 1)\"]}")
+        }
+        let resumedSession = try await relaunched.resumePendingUpload(large, parent: nil)
+        check(resumedSession, "Existing session can finish its visible incomplete placeholder")
+        check(statusReads == 1 && accepted == total, "New client resumes all remaining bytes")
+        let remainingSessions = try FileManager.default.contentsOfDirectory(atPath: checkpointRoot.path)
+        check(remainingSessions.isEmpty, "Successful upload removes capability checkpoint")
+        let absentSession = try await relaunched.resumePendingUpload(large, parent: nil)
+        check(!absentSession, "No stored session cannot overwrite a same-name file")
+        MockMicrosoft.handler = { request in
+            if request.url!.host == "graph.microsoft.com" { return (200, #"{"uploadUrl":"https://upload.example/changed-source"}"#) }
+            throw URLError(.networkConnectionLost)
+        }
+        do { try await api.upload(large, parent: nil); fatalError("Interrupted fixture upload succeeded") } catch {}
+        let changedHandle = try FileHandle(forWritingTo: large)
+        try changedHandle.write(contentsOf: Data([0x7f])); try changedHandle.close()
+        var changedSourceRequests = 0
+        MockMicrosoft.handler = { _ in changedSourceRequests += 1; throw URLError(.badServerResponse) }
+        do { try await relaunched.upload(large, parent: nil); fatalError("Changed source resumed old session") } catch {}
+        check(changedSourceRequests == 0, "Changed source refuses resume before any session request")
+        api.uploadRecoveryAccount = nil
+        print("PASS durable large-file upload session: new client verifies server offset, avoids duplicate chunks, removes checkpoint, rejects changed source and never forwards bearer token")
         let beforeSnapshot = try OneDriveClient.localSnapshot(local)
         try Data("changed".utf8).write(to: local)
         let afterSnapshot = try OneDriveClient.localSnapshot(local)
@@ -319,6 +374,25 @@ final class MockMicrosoft: URLProtocol {
         do { try await login.completeLogin(expired); fatalError("Expired device code accepted") } catch { }
         check(polls == 2, "Expired code makes no token requests")
         print("PASS device-code pending/success and cancellation")
+
+        var transportPolls = 0
+        MockMicrosoft.handler = { _ in
+            transportPolls += 1
+            if transportPolls == 1 { throw URLError(.networkConnectionLost) }
+            return (200, #"{"access_token":"fixture-access","refresh_token":"recovered-refresh","expires_in":3600}"#)
+        }
+        try await login.completeLogin(code)
+        check(transportPolls == 2 && loginStore.value == "recovered-refresh", "Device login survives a transient network loss")
+        transportPolls = 0
+        MockMicrosoft.handler = { _ in transportPolls += 1; throw URLError(.networkConnectionLost) }
+        do { try await login.completeLogin(code); fatalError("Unbounded device login retry") }
+        catch { check((error as NSError).code == NSURLErrorNetworkConnectionLost, "Original transport failure is retained") }
+        check(transportPolls == 4, "Device login transport retry budget is bounded")
+        transportPolls = 0
+        MockMicrosoft.handler = { _ in transportPolls += 1; throw URLError(.serverCertificateUntrusted) }
+        do { try await login.completeLogin(code); fatalError("Invalid certificate accepted") } catch { }
+        check(transportPolls == 1, "Certificate failures are not retried")
+        print("PASS device-code transient network recovery, retry limit and certificate refusal")
 
         let deniedStore = MemoryTokens()
         let denied = OneDriveClient(clientID: id, session: session, store: deniedStore)

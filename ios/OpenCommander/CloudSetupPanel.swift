@@ -20,6 +20,7 @@ final class CloudSetupPanel: UIViewController {
     private var requestID: String?
     private var work: Task<Void, Never>?
     private var pending = false
+    private var authorizationCompleted = false
     private var browserURL: URL?
     private var smsSentAt: Date?
     private var smsTimer: Timer?
@@ -121,6 +122,7 @@ final class CloudSetupPanel: UIViewController {
         answer.text = nil; clientSecret.text = nil; browserURL = nil; smsTimer?.invalidate(); smsTimer = nil
     }
     private func resetConnection() {
+        authorizationCompleted = false
         question = nil; browserURL = nil; selectedClient = nil; selectedValue = ""
         answer.text = nil; smsSentAt = nil; smsTimer?.invalidate(); smsTimer = nil
         profile.id = UUID().uuidString
@@ -129,7 +131,7 @@ final class CloudSetupPanel: UIViewController {
     }
     private func displayQuestion() {
         let option = question?.Option
-        restart.isHidden = question == nil && browserURL == nil
+        restart.isHidden = !authorizationCompleted && question == nil && browserURL == nil
         fieldLabel.isHidden = option == nil; answer.isHidden = option == nil || !(option?.Examples ?? []).isEmpty
         choice.isHidden = (option?.Examples ?? []).isEmpty
         if let option {
@@ -159,7 +161,7 @@ final class CloudSetupPanel: UIViewController {
                 }
             })
         }
-        nextButton.setTitle(L10n.get(option == nil ? "cloud_setup_begin" : "cloud_setup_continue"), for: .normal)
+        nextButton.setTitle(L10n.get(authorizationCompleted ? "cloud_test_save" : option == nil ? "cloud_setup_begin" : "cloud_setup_continue"), for: .normal)
         if profile.kind == "drive" && option?.Name == "config_shared_client_id" {
             help.text = L10n.get("cloud_google_signin_choice")
         } else { help.text = L10n.get(profile.kind == "iclouddrive" ? "cloud_setup_icloud_help" : "cloud_setup_oauth_help") }
@@ -244,6 +246,10 @@ final class CloudSetupPanel: UIViewController {
             guard let self else { return }
             defer { self.work = nil; self.setPending(false) }
             do {
+                if self.authorizationCompleted {
+                    try await self.verifyAndSave()
+                    return
+                }
                 if state == nil {
                     let manualID = self.clientID.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                     let manualSecret = self.clientSecret.text ?? ""
@@ -260,11 +266,9 @@ final class CloudSetupPanel: UIViewController {
                 }
                 try Task.checkCancellation()
                 if nextQuestion.complete {
-                    _ = try await CloudFileClient.browserClient(self.profile).children(of: nil)
-                    try Task.checkCancellation()
-                    guard let completed = self.completed else { throw CloudConnection.failure("cloud_invalid") }
-                    try completed(self.profile)
-                    self.status.text = L10n.get("cloud_connected")
+                    self.authorizationCompleted = true
+                    self.question = nil; self.browserURL = nil
+                    try await self.verifyAndSave()
                 } else {
                     self.question = nextQuestion; self.displayQuestion(); self.status.text = L10n.get("cloud_setup_answer")
                 }
@@ -276,9 +280,19 @@ final class CloudSetupPanel: UIViewController {
                 }
                 // Retry is another NEW private connection. Partial setup never
                 // gets reused as an existing account or overwritten.
-                self.resetConnection(); self.displayQuestion()
+                // A listing/quota failure after OAuth is not a failed login.
+                // Keep the private authorized profile for a read-only retry.
+                if !self.authorizationCompleted { self.resetConnection() }
+                self.displayQuestion()
             }
         }
+    }
+    private func verifyAndSave() async throws {
+        _ = try await CloudFileClient.browserClient(profile).children(of: nil)
+        try Task.checkCancellation()
+        guard let completed else { throw CloudConnection.failure("cloud_invalid") }
+        try completed(profile)
+        status.text = L10n.get("cloud_connected")
     }
     private func automaticAnswer(_ question: CloudSetupQuestion) -> String? {
         if selectedClient?.pkce == true && question.Option?.Name == "config_refresh_token" { return "false" }

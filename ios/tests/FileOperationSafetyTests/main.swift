@@ -1,4 +1,13 @@
 import Foundation
+
+precondition(HistoryPaging.indices(count: 0, page: 0).isEmpty)
+precondition(HistoryPaging.indices(count: 1000, page: 0) == Array((950..<1000).reversed()))
+precondition(HistoryPaging.indices(count: 1000, page: 19) == Array((0..<50).reversed()))
+precondition(HistoryPaging.indices(count: 1000, page: Int.max) == HistoryPaging.indices(count: 1000, page: 19))
+precondition(HistoryPaging.indices(count: 3, page: -1) == [2, 1, 0])
+let pagedHistory = (0..<20).flatMap { HistoryPaging.indices(count: 1000, page: $0) }
+precondition(pagedHistory == Array((0..<1000).reversed()) && Set(pagedHistory).count == 1000)
+print("PASS bounded history pages preserve every original Undo index exactly once, newest/oldest and invalid-page bounds")
 import CryptoKit
 
 let fm = FileManager.default
@@ -18,7 +27,52 @@ func mustFail(_ label: String, _ action: () throws -> Void) {
     do { try action(); fatalError("FAIL: expected error: " + label) } catch { }
 }
 
+let emptyFolder = fixture.appendingPathComponent("new-empty-folder", isDirectory: true)
+try fm.createDirectory(at: emptyFolder, withIntermediateDirectories: false)
+let folderUndo = FileUndoRecord(source: emptyFolder, destination: emptyFolder, replacedBackup: nil, createdDirectory: true)
+let reopenedFolderUndo = try JSONDecoder().decode(FileUndoRecord.self, from: JSONEncoder().encode(folderUndo))
+try check(reopenedFolderUndo.createdDirectory == true, "Created-folder identity survives restart")
+try reopenedFolderUndo.undo(move: false)
+try check(!fm.fileExists(atPath: emptyFolder.path), "Undo removes the visible created folder")
+let changedFolder = fixture.appendingPathComponent("new-changed-folder", isDirectory: true)
+try fm.createDirectory(at: changedFolder, withIntermediateDirectories: false)
+let changedUndo = FileUndoRecord(source: changedFolder, destination: changedFolder, replacedBackup: nil, createdDirectory: true)
+let addedContent = changedFolder.appendingPathComponent("later.txt")
+try Data("added afterwards".utf8).write(to: addedContent)
+mustFail("Created folder changed before Undo") { try changedUndo.undo(move: false) }
+try check(try contents(addedContent) == "added afterwards", "Later folder contents remain untouched")
+print("PASS: created-folder Undo survives restart and refuses later content without removing it")
+
 let source = try write("source.txt", "new contents")
+let providerFile = try write("provider-proof.txt", "provider bytes")
+try fm.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_700_000_000)], ofItemAtPath: providerFile.path)
+let providerAttributes = try fm.attributesOfItem(atPath: providerFile.path)
+let strictProof = try SafeFileOperations.snapshot(providerFile)
+let providerProof = try SafeFileOperations.snapshot(providerFile, providerIdentity: true)
+let oldProviderFile = fixture.appendingPathComponent("retained-provider-proof.txt")
+try fm.moveItem(at: providerFile, to: oldProviderFile)
+try Data("provider bytes".utf8).write(to: providerFile)
+try fm.setAttributes([.modificationDate: providerAttributes[.modificationDate]!,
+                      .posixPermissions: providerAttributes[.posixPermissions]!], ofItemAtPath: providerFile.path)
+try check(SafeFileOperations.snapshot(providerFile) != strictProof, "Local proof still rejects a replacement inode")
+try check(SafeFileOperations.snapshot(providerFile, providerIdentity: true) == providerProof, "Provider proof accepts identical bytes and metadata after inode refresh")
+try Data("changed bytes!".utf8).write(to: providerFile)
+try fm.setAttributes([.modificationDate: providerAttributes[.modificationDate]!], ofItemAtPath: providerFile.path)
+try check(SafeFileOperations.snapshot(providerFile, providerIdentity: true) != providerProof, "Provider proof rejects changed bytes even with restored timestamp")
+try check(SafeFileOperations.providerLocation(fixture.appendingPathComponent("Library/CloudStorage/Account/file"), home: fixture), "Known provider subtree accepted")
+try check(!SafeFileOperations.providerLocation(fixture.appendingPathComponent("Library/CloudStorage-other/file"), home: fixture), "Provider name-prefix collision refused")
+let racingFile = try write("racing-proof.txt", String(repeating: "a", count: 131072))
+var replacedDuringRead = false
+mustFail("provider changes during verification") {
+    _ = try SafeFileOperations.snapshot(racingFile, providerIdentity: true, progress: { bytes in
+        if bytes > 0 && !replacedDuringRead {
+            replacedDuringRead = true
+            try! fm.moveItem(at: racingFile, to: fixture.appendingPathComponent("retained-racing-proof"))
+            try! Data("replacement".utf8).write(to: racingFile)
+        }
+    })
+}
+print("PASS: provider inode refresh preserves content/metadata proofs; local replacement and in-read mutation refused")
 let sizeFixture = fixture.appendingPathComponent("size-check")
 try fm.createDirectory(at: sizeFixture, withIntermediateDirectories: false)
 try Data("visible".utf8).write(to: sizeFixture.appendingPathComponent(".ordinary-hidden"))
@@ -197,6 +251,29 @@ mustFail("bounded folder entry limit") { _ = try BoundedFolderSize.bytes(at: fol
 mustFail("bounded folder timeout") { _ = try BoundedFolderSize.bytes(at: folder, timeout: -1) }
 print("PASS: recursive native copy, symlinks and bounded folder metadata")
 
+let fullSizeReport = BoundedFolderSize.report(at: folder)
+try check(fullSizeReport.complete && fullSizeReport.bytes == scannedBytes, "interactive size excludes symlink targets")
+let limitedSizeReport = BoundedFolderSize.report(at: folder, maximumEntries: 1)
+try check(!limitedSizeReport.complete && limitedSizeReport.limit == "folder_size_entry_limit" && limitedSizeReport.entries == 1, "partial entry-limit report")
+let timedSizeReport = BoundedFolderSize.report(at: folder, timeout: -1)
+try check(!timedSizeReport.complete && timedSizeReport.limit == "folder_size_time_limit" && timedSizeReport.entries == 0, "monotonic time limit before scanning")
+let linkedRoot = fixture.appendingPathComponent("size-root-link")
+try fm.createSymbolicLink(atPath: linkedRoot.path, withDestinationPath: folder.path)
+try check(!BoundedFolderSize.report(at: linkedRoot).complete, "folder properties must not follow root symlink")
+try check(BoundedFolderSize.report(at: sizeFixture).bytes == 11, "interactive size excludes private recovery directories")
+let unreadableSize = fixture.appendingPathComponent("size-read-errors")
+try fm.createDirectory(at: unreadableSize, withIntermediateDirectories: false)
+let deniedSize = unreadableSize.appendingPathComponent("denied")
+try fm.createDirectory(at: deniedSize, withIntermediateDirectories: false)
+try Data("hidden".utf8).write(to: deniedSize.appendingPathComponent("secret.txt"))
+try Data("kept".utf8).write(to: unreadableSize.appendingPathComponent("readable.txt"))
+try fm.setAttributes([.posixPermissions: 0], ofItemAtPath: deniedSize.path)
+let unreadableReport = BoundedFolderSize.report(at: unreadableSize)
+try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: deniedSize.path)
+try check(!unreadableReport.complete && unreadableReport.errors > 0 && unreadableReport.bytes == 4, "partial read failure retains known bytes")
+try check(unreadableReport.summary.contains("4"), "partial report includes known size")
+print("PASS: interactive folder size reports partial bytes, read errors, entry/time limits and refuses root symlinks")
+
 for name in ["../escape", "/absolute", "a/../escape", "a/./b", "a//b", "C:/escape", "a\\b", "nul\0name", ""] {
     mustFail("unsafe ZIP name \(name)") {
         var limits = SafeArchiveLimits()
@@ -332,11 +409,21 @@ try check(cancelUndoRecord.completed && !SafeFileOperations.exists(cancelUndoFil
 print("PASS: cancellable blockwise undo verification, destination retained and safe retry")
 
 #if os(macOS)
+let archivePathRoot = fixture.appendingPathComponent("archive-existing-root", isDirectory: true)
+try fm.createDirectory(at: archivePathRoot, withIntermediateDirectories: false)
+for spelling in [archivePathRoot, URL(fileURLWithPath: archivePathRoot.path + "/", isDirectory: true)] {
+    let child = try SafeArchiveLimits.outputURL(for: "Ordner/Grüsse.txt", in: spelling)
+    try check(child.lastPathComponent == "Grüsse.txt" && child.deletingLastPathComponent().lastPathComponent == "Ordner", "Existing archive root and missing Unicode child stay confined")
+    for unsafe in ["../Escape", "/Escape", "a/../Escape", "a//Escape", "./Escape", "a\\Escape", "file:Escape"] {
+        mustFail("archive output path " + unsafe) { _ = try SafeArchiveLimits.outputURL(for: unsafe, in: spelling) }
+    }
+}
+print("PASS: archive path confinement for existing directory roots, missing Unicode children and unsafe path refusal")
 let archiveSource = fixture.appendingPathComponent("archive-source")
 try fm.createDirectory(at: archiveSource.appendingPathComponent("Ordner"), withIntermediateDirectories: true)
 try Data("Grüsse aus dem Archiv".utf8).write(to: archiveSource.appendingPathComponent("Ordner/Grüsse.txt"))
 try Data("other".utf8).write(to: archiveSource.appendingPathComponent("Other.txt"))
-for (suffix, options) in [("tar", ["-cf"]), ("tgz", ["-czf"]), ("tar.bz2", ["-cjf"]), ("tar.xz", ["-cJf"]), ("7z", ["--format=7zip", "-cf"])] {
+for (suffix, options) in [("zip", ["--format=zip", "-cf"]), ("tar", ["-cf"]), ("tgz", ["-czf"]), ("tar.bz2", ["-cjf"]), ("tar.xz", ["-cJf"]), ("7z", ["--format=7zip", "-cf"])] {
     let archive = fixture.appendingPathComponent("native." + suffix)
     let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
     process.arguments = options + [archive.path, "-C", archiveSource.path, "."]
@@ -349,6 +436,11 @@ for (suffix, options) in [("tar", ["-cf"]), ("tgz", ["-czf"]), ("tar.bz2", ["-cj
     try CommanderNativeArchive.extract(archive, prefixes: ["Ordner/"], to: output)
     try check(String(contentsOf: output.appendingPathComponent("Ordner/Grüsse.txt"), encoding: .utf8) == "Grüsse aus dem Archiv", "Selected folder extraction: " + suffix)
     try check(!SafeFileOperations.exists(output.appendingPathComponent("Other.txt")), "Unselected file not extracted")
+    let originalArchive = try Data(contentsOf: archive)
+    let singleOutput = fixture.appendingPathComponent("single-" + suffix)
+    try CommanderNativeArchive.extract(archive, prefixes: ["Ordner/Grüsse.txt"], to: singleOutput, maximumBytes: 256 * 1024 * 1024)
+    try check(Data(contentsOf: singleOutput.appendingPathComponent("Ordner/Grüsse.txt")) == Data("Grüsse aus dem Archiv".utf8), "Virtual file drag extraction content")
+    try check(Data(contentsOf: archive) == originalArchive, "Read-only archive export preserved original bytes")
     let limited = fixture.appendingPathComponent("limited-" + suffix)
     mustFail("preview byte limit") { try CommanderNativeArchive.extract(archive, to: limited, maximumBytes: 1) }
     try check(!SafeFileOperations.exists(limited), "Byte limit leaves no output")
@@ -357,6 +449,63 @@ for (suffix, options) in [("tar", ["-cf"]), ("tgz", ["-czf"]), ("tar.bz2", ["-cj
     try check(!SafeFileOperations.exists(cancelled), "Cancelled extraction leaves no output")
 }
 print("PASS: native TAR/TGZ/BZ2/XZ/7z listing, Unicode, selection, byte limits and cancellation")
+
+#if OPENCOMMANDER_ZSTD
+// Independently compressed with upstream zstd v1.5.7; no external executable
+// is used by the decoder. Includes a Unicode file and an empty directory.
+let zstdArchive = fixture.appendingPathComponent("native.tar.zst")
+let zstdBytes = Data(base64Encoded: "KLUv/WQAJ10RAOZVTDQgTbUNQNEdgCAUBsIKDIA08/jSXSMJzSu6jPMXtm88KGGyoTlUsjdXLmtglAkQgHlVQigFOgBAAEAALIC7ITQl0hRdwJzgAAUA9KZWzAfr0I0mY7mzpRfreLPLB523T+fTo3zRNfzn7u6yY5zuzrZaFxuxtNPhi6Zb1Cpzq3aYNUv36E5h64XWR0YlFSQYuJBgw+U5geBKWdSqHo69Wt1cF20VhyKAGMDMGCaViqSBeQIzP+Y/o/nupIzwKdyralhabJbOQQUUATI9GJSOHnrrgWa6JB+Kg4E0NZAWzd5Ls9ZwMD0YE0nBBOkZIRdn5DNy3vzBrWZ44PBgHX3gWvVaHKqrJ4OhrCRfxgcdwXty/pQuo/j/0AJz6fXe/f30f3mz2yqGWejQsQ5Le/de8ZwMW6gBHilVQQUpKEjKhTHQApGRQITKAxKgUCgOgVCERDiSoCJAEIKEACGACCIOQQIiHElICH6ZCwfl2VBIOHxCY+L1B0B+FCj/4PseAxANf7hSAJgCcCYMABzZgB8sNIB8LwM6h27agFcN8Oswip/2JWnE7va7ghDIDVApFrg1w68LrnjhB1RVm8uBis9ffL6Wp2FAdAZEhQUCFdQ1QBfHog/IKs6YA5xgaFUILB/gbQVz5I9BWW13fjQpBuAvsldgwGzvAA/5FviKKTpAOqhuuMWqWIKuL6+HI98BaxepiXI9V2w1QBerTpjoFnyWJ9oK8LsV4RxLAWcwEkE=")!
+try zstdBytes.write(to: zstdArchive)
+let zstdEntries = try CommanderNativeArchive.members(zstdArchive)
+try check(zstdEntries.contains { $0.path == "Ordner/Grüsse.txt" && !$0.directory }, "Bundled Zstandard Unicode listing")
+try check(zstdEntries.contains { $0.path == "Ordner/Empty/" && $0.directory }, "Zstandard empty folder retained")
+let zstdOutput = fixture.appendingPathComponent("zstd-output")
+try CommanderNativeArchive.extract(zstdArchive, prefixes: ["Ordner/"], to: zstdOutput)
+try check(try Data(contentsOf: zstdOutput.appendingPathComponent("Ordner/Grüsse.txt")) == Data("Archive content, Grüße.\n".utf8), "Zstandard exact selected extraction")
+try check(try Data(contentsOf: zstdArchive) == zstdBytes, "Zstandard source unchanged")
+let disguisedZstd = fixture.appendingPathComponent("zstandard-disguised.tar")
+try zstdBytes.write(to: disguisedZstd)
+try check(try CommanderNativeArchive.members(disguisedZstd) == zstdEntries, "Zstandard detected by content, not extension")
+print("PASS: bundled TAR.ZST listing/extraction, Unicode, empty folders and disguised filename without external helper")
+
+func rawZstdFrame(_ data: Data) -> Data {
+    precondition(data.count <= 128 * 1024)
+    var result = Data([0x28, 0xB5, 0x2F, 0xFD, 0xA0])
+    var length = UInt32(data.count).littleEndian
+    withUnsafeBytes(of: &length) { result.append(contentsOf: $0) }
+    let block = UInt32(data.count << 3) | 1 // final raw block
+    result.append(contentsOf: [UInt8(block & 255), UInt8((block >> 8) & 255), UInt8((block >> 16) & 255)])
+    result.append(data)
+    return result
+}
+let zstdStream = fixture.appendingPathComponent("concatenated.zst")
+let zstdPayload = Data((0..<120_000).map { UInt8($0 % 251) })
+try (rawZstdFrame(zstdPayload) + rawZstdFrame(Data("tail".utf8))).write(to: zstdStream)
+let decodedZstd = try CommanderNativeArchive.decodedZstandard(zstdStream)!
+try check(try Data(contentsOf: decodedZstd) == zstdPayload + Data("tail".utf8), "Zstandard streaming chunks and concatenated frames exact")
+try fm.removeItem(at: decodedZstd)
+func zstdStaging() throws -> Set<String> {
+    Set(try fm.contentsOfDirectory(atPath: fm.temporaryDirectory.path).filter { $0.hasPrefix("OpenCommander-Zstd-") && $0.hasSuffix(".tar") })
+}
+let zstdStagingBefore = try zstdStaging()
+mustFail("Zstandard decompression output limit") { _ = try CommanderNativeArchive.decodedZstandard(zstdStream, maximumBytes: 1024) }
+var zstdCancelChecks = 0
+mustFail("Zstandard in-flight cancellation") {
+    _ = try CommanderNativeArchive.decodedZstandard(zstdStream, checkCancellation: {
+        zstdCancelChecks += 1
+        if zstdCancelChecks == 5 { throw CocoaError(.userCancelled) }
+    })
+}
+try check(zstdCancelChecks == 5, "Zstandard cancellation reached a streaming boundary")
+let truncatedZstd = fixture.appendingPathComponent("truncated.zst")
+try zstdBytes.dropLast().write(to: truncatedZstd)
+mustFail("Truncated Zstandard") { _ = try CommanderNativeArchive.members(truncatedZstd) }
+let hugeWindowZstd = fixture.appendingPathComponent("huge-window.zst")
+try Data([0x28, 0xB5, 0x2F, 0xFD, 0xA0, 0, 0, 0, 8, 1, 0, 0]).write(to: hugeWindowZstd)
+mustFail("Zstandard 128-MiB history window") { _ = try CommanderNativeArchive.decodedZstandard(hugeWindowZstd) }
+try check(try zstdStaging() == zstdStagingBefore, "Zstandard failure/cancel staging removed")
+print("PASS: Zstandard bounded streaming, concatenated frames, truncation, output/window limits, cancellation and cleanup")
+#endif
 
 func unsafeTar(_ name: String, entries: [(String, UInt8, String)]) throws -> URL {
     var tar = Data()
@@ -443,3 +592,77 @@ try check(!CommanderDropPolicy.accepts([], target: URL(fileURLWithPath: "/target
 try check(!CommanderDropPolicy.accepts([(URL(fileURLWithPath: "/"), true)], target: URL(fileURLWithPath: "/target")), "root-descendant drop refused")
 print("PASS: pointer-time drop policy rejects self, descendant, same-parent and empty targets without filesystem access")
 #endif
+
+// Provider wrappers and low-space failures must preserve actionable diagnostics.
+try check(MobileStorageIssue.key(for: NSError(domain: "ProviderWrapper", code: 99, userInfo: [NSUnderlyingErrorKey: POSIXError(.ENOSPC)])) == "mobile_error_space", "Nested ENOSPC classification")
+try check(MobileStorageIssue.key(for: CocoaError(.fileReadNoPermission)) == "mobile_error_permission", "Permission recovery classification")
+try check(MobileStorageIssue.key(for: POSIXError(.EROFS)) == "mobile_error_readonly", "Read-only recovery classification")
+try check(MobileStorageIssue.key(for: CocoaError(.fileReadNoSuchFile)) == "mobile_error_missing", "Missing folder classification")
+try check(MobileStorageIssue.key(for: URLError(.notConnectedToInternet)) == "mobile_error_network", "Offline classification")
+let limitedSource = try write("limited-source", "new complete contents")
+let limitedDestination = try write("limited-destination", "original destination")
+for injected in [POSIXError(.ENOSPC) as Error, CocoaError(.userCancelled) as Error] {
+    mustFail("injected low storage or interrupted copy") {
+        _ = try SafeFileOperations.copyReplacing(source: limitedSource, destination: limitedDestination, replace: true, copy: { _, stage in
+            try Data("partial".utf8).write(to: stage)
+            throw injected
+        })
+    }
+    try check(contents(limitedDestination) == "original destination", "Failed copy preserves prior destination")
+    try check(contents(limitedSource) == "new complete contents", "Failed copy preserves source")
+}
+let token = FileOperationCancellation()
+token.cancel()
+mustFail("cancelled copy") { try token.copy(limitedSource, fixture.appendingPathComponent("cancelled-result")) }
+token.reset()
+let retried = fixture.appendingPathComponent("retry-result")
+try token.copy(limitedSource, retried)
+try check(contents(retried) == "new complete contents", "Retry succeeds after cancellation")
+print("PASS: mobile provider diagnostics, low-storage/cancel rollback, untouched source and successful retry")
+
+// Exercise the real Darwin copyfile callback after data has reached staging.
+// A bounded, non-sparse source prevents an instant sparse-file copy from racing the observer.
+let streamingSource = fixture.appendingPathComponent("streaming-source")
+try Data("source-start".utf8).write(to: streamingSource)
+let streamingHandle = try FileHandle(forWritingTo: streamingSource)
+let streamingBlock = Data(repeating: 0x35, count: 1024 * 1024)
+try streamingHandle.seek(toOffset: 12)
+for _ in 0..<256 { try streamingHandle.write(contentsOf: streamingBlock) }
+try streamingHandle.seek(toOffset: 256 * 1024 * 1024 + 12)
+try streamingHandle.write(contentsOf: Data([0x7f]))
+try streamingHandle.close()
+let streamingToken = FileOperationCancellation()
+let retainedStagingBefore = Set(try FileManager.default.contentsOfDirectory(atPath: fixture.path).filter { $0.hasPrefix(".OpenCommanderTransfer-") })
+let observedProgress = DispatchSemaphore(value: 0)
+let observerFinished = DispatchSemaphore(value: 0)
+do {
+    _ = try SafeFileOperations.copyReplacing(source: streamingSource, destination: limitedDestination, replace: true, copy: { source, stage in
+        DispatchQueue.global(qos: .userInitiated).async {
+            defer { observerFinished.signal() }
+            let deadline = Date().addingTimeInterval(10)
+            while Date() < deadline {
+                if let size = (try? FileManager.default.attributesOfItem(atPath: stage.path)[.size]) as? NSNumber,
+                   size.int64Value >= 64 * 1024 {
+                    observedProgress.signal()
+                    streamingToken.cancel()
+                    return
+                }
+                Thread.sleep(forTimeInterval: 0.001)
+            }
+        }
+        try streamingToken.copy(source, stage)
+    })
+    fatalError("In-flight copy was not cancelled")
+} catch {
+    try check(MobileStorageIssue.key(for: error) == "history_error_cancelled", "In-flight cancellation reports cancellation")
+}
+try check(observerFinished.wait(timeout: .now() + 12) == .success, "Copy observer finished")
+try check(observedProgress.wait(timeout: .now()) == .success, "Cancellation happened after staging data existed")
+try check(contents(limitedDestination) == "original destination", "In-flight cancel preserves existing destination")
+try check(Set(FileManager.default.contentsOfDirectory(atPath: fixture.path).filter { $0.hasPrefix(".OpenCommanderTransfer-") }) == retainedStagingBefore, "Cancelled copy removes its staging and preserves previous recovery files")
+let streamingReader = try FileHandle(forReadingFrom: streamingSource)
+try check(streamingReader.read(upToCount: 12) == Data("source-start".utf8), "Cancelled source prefix unchanged")
+try streamingReader.seek(toOffset: 256 * 1024 * 1024 + 12)
+try check(streamingReader.read(upToCount: 1) == Data([0x7f]), "Cancelled source suffix unchanged")
+try streamingReader.close()
+print("PASS: real in-flight copy cancellation after staging writes, original destination/source preserved, staging removed")

@@ -179,7 +179,7 @@ def test_managed_fuse_record_waits_for_stable_verification(tmp_path, monkeypatch
     target = tmp_path / 'mount' / 'file'
     monkeypatch.setattr(provider_mounts, 'managed', lambda path: path == target)
     snapshots = iter(['initial-attributes', 'refreshed-attributes', 'refreshed-attributes'])
-    monkeypatch.setattr(operations, 'safe_snapshot', lambda _: next(snapshots))
+    monkeypatch.setattr(operations, 'safe_snapshot', lambda _, check=None, **kwargs: next(snapshots))
     operation = engine.begin('move')
     engine.record(operation, tmp_path / 'source', target, 'move')
     assert operation['records'][0]['snapshot'] == 'refreshed-attributes'

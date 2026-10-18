@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        D01920261018000000000001 = {isa = PBXBuildFile; fileRef = D01920261018000000000011; platformFilter = maccatalyst; };
+        D01920261018000000000002 = {isa = PBXBuildFile; fileRef = D01920261018000000000013; };
         D01720261014000000000001 = {isa = PBXBuildFile; fileRef = D01720261014000000000011; };
         D01820261014000000000001 = {isa = PBXBuildFile; fileRef = D01820261014000000000011; };
         D01820261014000000000002 = {isa = PBXBuildFile; fileRef = D01820261014000000000012; };
@@ -17,6 +19,7 @@
         D01420261013000000000002 = {isa = PBXBuildFile; fileRef = D01420261013000000000011; };
         D01320261013000000000001 = {isa = PBXBuildFile; fileRef = D01320261013000000000011; };
         D01220261012000000000001 = {isa = PBXBuildFile; fileRef = D01220261012000000000011; };
+        D01820261018000000000081 = {isa = PBXBuildFile; fileRef = D01820261018000000000082; };
         D01220261012000000000002 = {isa = PBXBuildFile; fileRef = D01220261012000000000012; };
         D01220261012000000000003 = {isa = PBXBuildFile; fileRef = D01220261012000000000013; };
         D01220261012000000000004 = {isa = PBXBuildFile; fileRef = D01220261012000000000014; };
@@ -112,6 +115,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+        D01920261018000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ZstandardDecoder.c; sourceTree = "<group>"; };
+        D01920261018000000000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ZstandardDecoder.h; sourceTree = "<group>"; };
+        D01920261018000000000013 = {isa = PBXFileReference; lastKnownFileType = text; path = Vendor/Zstandard/Zstandard-LICENSE.txt; sourceTree = SOURCE_ROOT; };
         D01720261014000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCommanderMacBridge/NTFSExtensionRegistration.swift; sourceTree = SOURCE_ROOT; };
         D01820261014000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCommanderMacBridge/NTFSAccessPolicy.swift; sourceTree = SOURCE_ROOT; };
         D01820261014000000000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCommanderMacBridge/NTFSAutoMount.swift; sourceTree = SOURCE_ROOT; };
@@ -121,6 +127,7 @@
         D01420261013000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicCloudOAuth.swift; sourceTree = "<group>"; };
         D01320261013000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSetupPanel.swift; sourceTree = "<group>"; };
         D01220261012000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurableFileCopy.swift; sourceTree = "<group>"; };
+        D01820261018000000000082 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NASExclusiveCopy.swift; sourceTree = "<group>"; };
         D01220261012000000000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurableTransferQueue.swift; sourceTree = "<group>"; };
         D01220261012000000000013 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferQueuePanel.swift; sourceTree = "<group>"; };
         D01220261012000000000014 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurableTreeTransfer.swift; sourceTree = "<group>"; };
@@ -215,6 +222,9 @@
 		0E1A43017A3ABCF26CDACD2B /* OpenCommander */ = {
 			isa = PBXGroup;
 			children = (
+                D01920261018000000000011,
+                D01920261018000000000012,
+                D01920261018000000000013,
                 0D0420261004000000000002 /* OneDriveClient.swift */,
                 C08020261008000000000011,
                 C08020261008000000000012,
@@ -230,6 +240,7 @@
 				DAD000000000000000000002 /* FileDropTransfer.swift */,
 				5AFE00000000000000000002 /* FileOperationSafety.swift */,
                 D01220261012000000000011,
+                D01820261018000000000082,
                 D01220261012000000000012,
                 D01220261012000000000013,
                 D01320261013000000000011,
@@ -447,6 +458,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+                D01920261018000000000002,
 				66FD241B56D3FB5B06D8A04B /* Assets.xcassets in Resources */,
 				71D10DF294C56A43F58AA1DC /* Localization-ar.json in Resources */,
 				A39D2B39C5BDD442BCA25D52 /* Localization-hi.json in Resources */,
@@ -524,6 +536,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+                D01920261018000000000001,
                 0D0420261004000000000001 /* OneDriveClient.swift in Sources */,
                 C08020261008000000000001,
                 C08020261008000000000003,
@@ -533,6 +546,7 @@
 				DAD000000000000000000001 /* FileDropTransfer.swift in Sources */,
 				5AFE00000000000000000001 /* FileOperationSafety.swift in Sources */,
                 D01220261012000000000001,
+                D01820261018000000000081,
                 D01220261012000000000002,
                 D01220261012000000000003,
                 D01320261013000000000001,
@@ -637,6 +651,7 @@
 				PROVISIONING_PROFILE_SPECIFIER = "OpenCommander App Store";
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = OpenCommander/ZstandardDecoder.h;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -690,6 +705,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "$(OPENCOMMANDER_APP_BUNDLE_IDENTIFIER)";
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = OpenCommander/ZstandardDecoder.h;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

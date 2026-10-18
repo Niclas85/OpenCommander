@@ -1,0 +1,1 @@
+Improved drag-and-drop copying and moving, including empty folders. Direct Copy/Move toggle. Cancel copying and ZIP creation. Safer ZIP creation and undo. Improved image viewer and swipe gestures. More compact controls; the selected language is retained when rotating the device. Unified app icon.

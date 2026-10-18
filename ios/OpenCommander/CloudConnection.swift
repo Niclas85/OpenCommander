@@ -73,10 +73,16 @@ enum RcloneCommandPlan {
         case "profiles": return ["listremotes", "--json", "--source", "file"] + global
         case "list": return ["lsjson", "--hash"] + global + ["--", address]
         case "stat": return ["lsjson", "--stat", "--hash"] + global + ["--", address]
+        case "link":
+            guard ["drive", "onedrive", "dropbox"].contains(profile.kind), !path.isEmpty else { throw CloudConnection.failure("cloud_invalid") }
+            return ["link"] + global + ["--", address]
         case "mkdir", "rmdir", "deletefile":
             guard !path.isEmpty else { throw CloudConnection.failure("cloud_invalid") }
             return [operation] + global + ["--", address]
         case "download": return ["copyto", "--immutable"] + global + ["--", address, try localPath()]
+        case "export":
+            guard profile.kind == "drive", !path.isEmpty else { throw CloudConnection.failure("cloud_invalid") }
+            return ["copyto", "--immutable", "--max-transfer", "256Mi", "--cutoff-mode", "HARD"] + global + ["--", address, try localPath()]
         case "upload":
             guard !path.isEmpty else { throw CloudConnection.failure("cloud_invalid") }
             return ["copyto", "--immutable"] + global + ["--", try localPath(), address]

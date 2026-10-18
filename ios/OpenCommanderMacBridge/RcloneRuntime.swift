@@ -42,7 +42,15 @@ final class RcloneProcessRunner {
         DispatchQueue.global(qos: .utility).async {
             defer { errorFinished.signal() }
             var browserSent = false
-            while let chunk = try? errorPipe.fileHandleForReading.read(upToCount: 4096), !chunk.isEmpty {
+            // Foundation's counted read can wait for the buffer to fill or EOF.
+            // OAuth writes a short URL and then waits for browser authorization:
+            // use a pipe read that returns immediately when any bytes arrive.
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            while true {
+                let count = Darwin.read(errorPipe.fileHandleForReading.fileDescriptor, &buffer, buffer.count)
+                if count < 0 && errno == EINTR { continue }
+                guard count > 0 else { break }
+                let chunk = Data(buffer.prefix(count))
                 errorOutput.append(chunk)
                 if !browserSent, let browser, let url = CloudSetupQuestion.browserURL(errorOutput.data) {
                     browserSent = true; browser(url)

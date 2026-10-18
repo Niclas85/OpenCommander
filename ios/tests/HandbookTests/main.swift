@@ -20,8 +20,17 @@ for german in [true, false] {
     let base = baseIDs.map { CommanderHandbook.Chapter(id: $0, title: "Existing", text: "Preserve localized app guidance") }
     let complete = CommanderHandbook.complete(base + base, german: german)
     require(complete.count == 18 && complete.map(\.id) == CommanderHandbook.anchors, "eighteen-topic coverage or ordering missing")
-    require(complete.filter { baseIDs.contains($0.id) }.allSatisfy { $0.id == "cloud" ? $0.text.hasPrefix(base[0].text + "\n\n") : $0.text == base[0].text }, "localized base descriptions replaced")
+    require(complete.filter { baseIDs.contains($0.id) }.allSatisfy { ["cloud", "tastatur"].contains($0.id) ? $0.text.hasPrefix(base[0].text + "\n\n") : $0.text == base[0].text }, "localized base descriptions replaced")
+    let keyboard = complete.first(where: { $0.id == "tastatur" })!.text
+    require(keyboard.contains("native") && keyboard.contains("Command") && keyboard.contains("Option"), "native external drag guidance missing")
+    require(keyboard.contains(german ? "Schalter" : "select Move"), "working external move alternative missing")
     require(complete.first(where: { $0.id == "cloud" })?.text.contains("PKCE") == true, "publisher desktop sign-in guidance missing")
+    let media = complete.first(where: { $0.id == "medien" })!.text
+    require(media.contains(german ? "Original beim Anbieter" : "provider original") && !media.contains("cannot yet be safely exported"), "media deletion/export guidance stale")
+    let recovery = complete.first(where: { $0.id == "wiederherstellen" })!.text
+    require(recovery.contains(german ? "gemeinsamen Historie" : "shared chronological History") && !recovery.contains("only in the same online session"), "persistent chronological Undo guidance stale")
+    let sharing = complete.first(where: { $0.id == "teilen" })!.text
+    require(sharing.contains("Dropbox") && sharing.contains(german ? "Abbrechen vor Erstellen" : "Cancel before Create"), "explicit provider-sharing consent guidance missing")
     let result = CommanderHandbook.html(complete, german: german)
     require(!result.contains("https://") && !result.contains("<script>"), "completed handbook loads outside content")
 }

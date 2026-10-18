@@ -8,17 +8,7 @@ import subprocess
 from PySide6.QtCore import QUrl
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QMessageBox
-
-
-def host_environment():
-    env = os.environ.copy()
-    if 'LD_LIBRARY_PATH_ORIG' in env:
-        env['LD_LIBRARY_PATH'] = env.pop('LD_LIBRARY_PATH_ORIG')
-    else:
-        env.pop('LD_LIBRARY_PATH', None)
-    env.pop('QT_PLUGIN_PATH', None)
-    env.pop('QT_QPA_PLATFORM_PLUGIN_PATH', None)
-    return env
+from .platform_support import host_environment
 
 
 def folder_argument(value):
