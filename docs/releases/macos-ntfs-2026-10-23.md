@@ -1,4 +1,11 @@
-# OpenCommander macOS 1.3 — notarized experimental NTFS preview
+# OpenCommander macOS 1.3 — notarized experimental NTFS preview r2
+
+Revision r2 corrects the first October NTFS package's native FSKit signing
+entitlements. The first package passed notarization/Gatekeeper but macOS refused
+to launch its extension because a Catalyst-only `application-identifier` was not
+authorized by the native module's profile. Use the **r2** asset, not the first ZIP.
+The distribution gate now independently checks each restricted signed identity
+against the corresponding profile, with regression tests for this exact failure.
 
 Apple Silicon (arm64). GUI requires macOS 13 or newer; integrated NTFS writing
 requires macOS 15.4 or newer and approval of the included FSKit extension.
@@ -31,9 +38,12 @@ restart reconciliation, drag-and-drop representations/modifiers, Undo, transfer
 queue clearing/pagination, search, compare, multi-rename, NAS safety and localized
 diagnostics. Help/settings include https://haenggi.vip/ for more apps.
 
-Earlier local image write/read, detach/reattach and regression tests passed on
-the approved development installation. The public candidate additionally passed
-the complete signature/profile/NTFS-component/notarization/Gatekeeper gate.
+Revision r2 was installed and passed mounted NTFS image write/read, Unicode,
+case-preserving listing, rename/replace/delete, timestamps, copy, truncate and
+fsync tests. After detach, Apple's independent read-only NTFS driver verified
+persisted bytes and metadata. The image was safely detached again. The public
+candidate also passed the strengthened signature/profile/NTFS-component/
+notarization/Gatekeeper gate and eight distribution policy regression tests.
 This does not replace a fresh install and physical disk test on every target Mac.
 Physical Elements/NAS tests were not repeated during this signing/release run.
 

@@ -37,9 +37,12 @@ python3 - "$task_output" <<'PY'
 import sys,plistlib,pathlib
 root=pathlib.Path(sys.argv[1]);team='WB497999XX'
 for name,identifier,module in [('Host','com.github.niklaus85.OpenCommander',False),('Module','com.github.niklaus85.OpenCommander.NTFSModuleV2',True)]:
-    p={'application-identifier':team+'.'+identifier,'com.apple.application-identifier':team+'.'+identifier,'com.apple.developer.team-identifier':team}
+    # Native FSKit profiles authorize com.apple.application-identifier only.
+    # A Catalyst-only application-identifier on the module passes notarization
+    # but taskgated rejects it at launch as an unsatisfied entitlement.
+    p={'com.apple.application-identifier':team+'.'+identifier,'com.apple.developer.team-identifier':team}
     if module: p.update({'com.apple.security.app-sandbox':True,'com.apple.developer.fskit.fsmodule':True})
-    else: p['keychain-access-groups']=[team+'.'+identifier]
+    else: p.update({'application-identifier':team+'.'+identifier,'keychain-access-groups':[team+'.'+identifier]})
     (root/(name+'.entitlements.plist')).write_bytes(plistlib.dumps(p))
 PY
 for task_binary in OpenCommanderCloudArguments OpenCommanderSSHAskPass OpenCommanderNTFSAccess; do

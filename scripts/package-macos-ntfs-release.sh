@@ -27,6 +27,6 @@ cp "$task_zip_license" "$task_output/Package/LICENSE-ZIPFoundation.txt"
 git -C "$task_root" rev-parse HEAD > "$task_output/Package/SOURCE-COMMIT.txt"
 task_commit=$(git -C "$task_root" rev-parse --short=7 HEAD)
 git -C "$task_root" archive --format=zip --prefix=OpenCommander-source/ --output="$task_output/OpenCommander-$task_commit-ntfs-source.zip" HEAD
-ditto -c -k --sequesterRsrc --keepParent "$task_output/Package" "$task_output/OpenCommander-1.3-macos-arm64-ntfs-20261023.zip"
-(cd "$task_output" && shasum -a 256 OpenCommander-1.3-macos-arm64-ntfs-20261023.zip "OpenCommander-$task_commit-ntfs-source.zip" > SHA256SUMS-NTFS-20261023.txt)
+ditto -c -k --sequesterRsrc --keepParent "$task_output/Package" "$task_output/OpenCommander-1.3-macos-arm64-ntfs-20261023-r2.zip"
+(cd "$task_output" && shasum -a 256 OpenCommander-1.3-macos-arm64-ntfs-20261023-r2.zip "OpenCommander-$task_commit-ntfs-source.zip" > SHA256SUMS-NTFS-20261023-r2.txt)
 echo 'PASS full notarized NTFS package, corresponding source and checksums created'

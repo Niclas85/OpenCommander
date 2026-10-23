@@ -63,6 +63,19 @@ class ProfilePolicy(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(gate.Refused):
                 self.check(value)
 
+    def test_native_module_refuses_catalyst_only_identity(self):
+        signed = dict(self.profile["Entitlements"])
+        signed["com.apple.security.app-sandbox"] = True
+        gate.check_profile_authorization(self.profile, signed)
+        signed["application-identifier"] = self.team + "." + self.identifier
+        with self.assertRaises(gate.Refused):
+            gate.check_profile_authorization(self.profile, signed)
+
+    def test_signed_identity_must_match_profile(self):
+        signed = {"com.apple.application-identifier": "OTHERTEAM1.invalid"}
+        with self.assertRaises(gate.Refused):
+            gate.check_profile_authorization(self.profile, signed)
+
 
 if __name__ == "__main__":
     unittest.main()

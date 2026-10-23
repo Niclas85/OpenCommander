@@ -82,3 +82,33 @@ Gatekeeper assessment passed (source=Notarized Developer ID).
 Remaining: complete full packaging gate and publish verified GitHub assets.
 Ship matching GPL engine source/vendor archive/notices with the full binary.
 The GUI-only public preview is not silently described as NTFS-capable.
+
+## Post-publication installation regression / r2
+
+Installation of the exact GitHub download preserved the previous app in ignored
+`.build-native/notarized-install.PVgR43/OpenCommander.previous` and retained user
+settings. App startup and Gatekeeper passed. Mounted NTFS image testing found a
+real runtime failure: taskgated reported `Unsatisfied entitlements:
+application-identifier` for the native FSKit module, despite notarization success.
+The native profile authorizes `com.apple.application-identifier`, not the
+Catalyst-only unprefixed identity. The release was immediately marked with this
+failure rather than continuing to claim runtime readiness.
+
+The signer now emits the unprefixed identity only for the Catalyst host, never
+the native module. The distribution gate checks restricted identity entitlement
+authorization for both bundles, including regression tests that refuse the
+original notarized package. Revision r2 is separately signed and submitted.
+No personal volume was mounted or written, and the failed test image detached.
+
+Apple accepted corrected submission 730f8b7a-4174-4ad7-bba8-a75036243b82.
+The corrected app was stapled, passed the strengthened distribution gate and
+installed at `/Applications/OpenCommander.app`. The normal app started with
+existing settings/locations. With its existing extension approval unchanged,
+`test-fskit.sh` completed successfully (exit0), log:
+`.build-native/parity-20261023-installed-r2-ntfs-test.log`.
+Mounted tests passed Unicode/case-preserving listing, case-only rename, exact
+access/modify/create timestamps, copy metadata preservation, create/read/write,
+copy/rename/replace/delete/truncate/fsync. After detach, Apple's independent
+read-only NTFS implementation verified persisted bytes, Unicode, rename/delete
+state and exact timestamps; the test image was detached again. Engine safety
+regressions also passed. No physical user disk was touched and no reboot used.

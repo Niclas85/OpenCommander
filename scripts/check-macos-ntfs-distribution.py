@@ -56,6 +56,16 @@ def check_profile(profile, identifier, team, fskit=False):
                 "Distribution profile does not authorize FSKit")
 
 
+def check_profile_authorization(profile, signed_entitlements):
+    """taskgated enforces each restricted identity, even after notarization."""
+    allowed = profile.get("Entitlements", {})
+    for key in ("application-identifier", "com.apple.application-identifier",
+                "com.apple.developer.team-identifier", "com.apple.developer.fskit.fsmodule"):
+        if key in signed_entitlements:
+            require(key in allowed and signed_entitlements[key] == allowed[key],
+                    "Signed restricted entitlement not authorized by profile: " + key)
+
+
 def check(app):
     require(app.is_dir() and not app.is_symlink(), "Expected a real app directory")
     contents = app / "Contents"
@@ -108,7 +118,10 @@ def check(app):
         require(profile.is_file() and not profile.is_symlink(),
                 "Expected Developer ID provisioning profile missing")
         decoded, _ = run("/usr/bin/security", "cms", "-D", "-i", str(profile))
-        check_profile(plistlib.loads(decoded), identifier, team, fskit)
+        profile_data = plistlib.loads(decoded)
+        check_profile(profile_data, identifier, team, fskit)
+        signed, _ = run("/usr/bin/codesign", "-d", "--entitlements", ":-", str(bundle))
+        check_profile_authorization(profile_data, plistlib.loads(signed) if signed.strip() else {})
     run("/usr/bin/xcrun", "stapler", "validate", str(app))
     run("/usr/sbin/spctl", "--assess", "--type", "execute", str(app))
     print("PASS complete NTFS app: Developer ID, distribution profiles, helper, writable FSKit, stapled notarization and Gatekeeper")
