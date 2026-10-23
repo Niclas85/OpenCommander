@@ -241,7 +241,7 @@ final class CloudSetupPanel: UIViewController {
         return try CloudSetupQuestion.decode(data, kind: profile.kind)
     }
     private func start(state: String?, answer: String?, password: Bool) {
-        guard !pending else { return }; setPending(true); status.text = L10n.get("cloud_connecting")
+        guard !pending else { return }; setPending(true); status.textColor = .secondaryLabel; status.text = L10n.get("cloud_connecting")
         work = Task { [weak self] in
             guard let self else { return }
             defer { self.work = nil; self.setPending(false) }
@@ -273,17 +273,25 @@ final class CloudSetupPanel: UIViewController {
                     self.question = nextQuestion; self.displayQuestion(); self.status.text = L10n.get("cloud_setup_answer")
                 }
             } catch {
-                if error is CancellationError { self.status.text = L10n.get("history_error_cancelled") }
-                else {
-                    let error = error as NSError
-                    self.status.text = error.domain == "OpenCommander.Cloud" ? L10n.get(error.localizedDescription) : L10n.get("cloud_login_incomplete")
-                }
+                let cancelled = error is CancellationError
+                let failure = error as NSError
+                let message = cancelled ? L10n.get("history_error_cancelled") :
+                    failure.domain == "OpenCommander.Cloud" ? L10n.get(failure.localizedDescription) : L10n.get("cloud_login_incomplete")
                 // Retry is another NEW private connection. Partial setup never
                 // gets reused as an existing account or overwritten.
                 // A listing/quota failure after OAuth is not a failed login.
                 // Keep the private authorized profile for a read-only retry.
                 if !self.authorizationCompleted { self.resetConnection() }
                 self.displayQuestion()
+                self.status.text = message
+                self.status.textColor = cancelled ? .secondaryLabel : .systemRed
+                if !cancelled, self.view.window != nil, self.presentedViewController == nil {
+                    let alert = UIAlertController(title: L10n.get("cloud_login_failed_title"), message: message, preferredStyle: .alert)
+                    alert.view.accessibilityIdentifier = "CloudSetupFailureAlert"
+                    alert.addAction(UIAlertAction(title: L10n.get("ok"), style: .default))
+                    self.present(alert, animated: true)
+                    UIAccessibility.post(notification: .announcement, argument: message)
+                }
             }
         }
     }

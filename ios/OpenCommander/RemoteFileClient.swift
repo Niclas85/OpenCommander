@@ -392,6 +392,44 @@ private extension String { var withLeadingSlash: String { "/" + self } }
     }
     struct Entry { let item: OneDriveItem; let ancestors: [OneDriveItem]; let path: String }
     struct Rename { let item: OneDriveItem; let name: String }
+    /// Properties scan only. No downloads or mutation; incomplete provider
+    /// listings, unknown sizes and traversal bounds remain visible to the user.
+    static func folderSize(_ client: any CommanderOnlineClient, root: OneDriveItem,
+                           timeout: TimeInterval = 10, maximumEntries: Int = 100_000,
+                           clock: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) async throws -> BoundedFolderSize.Report {
+        var report = BoundedFolderSize.Report()
+        guard root.isFolder else { report.errors = 1; return report }
+        let started = clock()
+        var pending: [(OneDriveItem, Int)] = [(root, 0)], seen: Set<String> = [root.id]
+        while let (folder, depth) = pending.popLast() {
+            try Task.checkCancellation()
+            guard clock() - started < timeout else { report.limit = "folder_size_time_limit"; break }
+            guard depth < 100 else { report.limit = "folder_size_entry_limit"; break }
+            let children: [OneDriveItem]
+            do { children = try await client.toolChildren(of: folder.id) }
+            catch {
+                try Task.checkCancellation()
+                if error is CancellationError { throw error }
+                report.errors += 1; continue
+            }
+            try Task.checkCancellation()
+            guard clock() - started < timeout else { report.limit = "folder_size_time_limit"; break }
+            for item in children {
+                try Task.checkCancellation()
+                guard report.entries < maximumEntries else { report.limit = "folder_size_entry_limit"; return report }
+                report.entries += 1
+                guard seen.insert(item.id).inserted else { report.errors += 1; continue }
+                if item.isFolder {
+                    if !BoundedFolderSize.isRecoveryName(item.name) { pending.append((item, depth + 1)) }
+                } else if let bytes = item.size, bytes >= 0 {
+                    let sum = report.bytes.addingReportingOverflow(bytes)
+                    guard !sum.overflow else { report.limit = "folder_size_overflow"; return report }
+                    report.bytes = sum.partialValue
+                } else { report.errors += 1 }
+            }
+        }
+        return report
+    }
     static func resolve(_ path: String, client: any CommanderOnlineClient) async throws -> [OneDriveItem] {
         guard path.hasPrefix("/"), !path.contains("\0"), !path.split(separator: "/").contains("..") else { throw RemoteConnection.failure("remote_invalid") }
         var result: [OneDriveItem] = []
@@ -408,7 +446,11 @@ private extension String { var withLeadingSlash: String { "/" + self } }
         func visit(_ parents: [OneDriveItem], relative: String, depth: Int) async throws {
             try Task.checkCancellation()
             guard depth < 100 else { throw RemoteConnection.failure("remote_limit") }
-            for item in try await client.toolChildren(of: parents.last?.id) {
+            let children = try await client.toolChildren(of: parents.last?.id)
+            // A provider may acknowledge a request after cancellation. Empty
+            // replies never enter the loop, so check the await boundary too.
+            try Task.checkCancellation()
+            for item in children {
                 try Task.checkCancellation()
                 if !hidden && item.name.hasPrefix(".") { continue }
                 guard entries.count < 100_000, seen.insert(item.id).inserted else { throw RemoteConnection.failure("remote_limit") }
@@ -417,7 +459,9 @@ private extension String { var withLeadingSlash: String { "/" + self } }
                 if item.isFolder { try await visit(parents + [item], relative: path, depth: depth + 1) }
             }
         }
-        try await visit(ancestors, relative: "", depth: 0); return entries
+        try await visit(ancestors, relative: "", depth: 0)
+        try Task.checkCancellation()
+        return entries
     }
     static func matches(_ name: String, query: String, caseSensitive: Bool) throws -> Bool {
         let query = query.precomposedStringWithCanonicalMapping
@@ -442,10 +486,12 @@ private extension String { var withLeadingSlash: String { "/" + self } }
             progress(index + 1, entries.count)
         }
         let after = try await scan(client, ancestors: ancestors, hidden: hidden)
+        try Task.checkCancellation()
         func versions(_ entries: [Entry]) -> [String: String] {
             Dictionary(uniqueKeysWithValues: entries.map { ($0.path, $0.item.id + "|" + ($0.item.eTag ?? "")) })
         }
         guard versions(entries) == versions(after) else { throw RemoteConnection.failure("remote_changed") }
+        try Task.checkCancellation()
         return result
     }
     static func renamePlan(_ client: any CommanderOnlineClient, parent: String?, selected: [OneDriveItem], fields: [String]) async throws -> [Rename] {

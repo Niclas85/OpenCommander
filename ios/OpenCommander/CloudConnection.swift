@@ -2,6 +2,30 @@ import Foundation
 import CryptoKit
 import Darwin
 
+/// Navigation only. Credentials and session-local provider IDs never belong here.
+struct OnlinePaneSession: Codable, Equatable {
+    let location: String
+    let components: [String]
+    static func key(_ pane: String) -> String { "online_pane_session_v1_" + pane }
+    var valid: Bool {
+        (location == "onedrive-online" || ["cloud://", "remote://"].contains { prefix in
+            location.hasPrefix(prefix) && UUID(uuidString: String(location.dropFirst(prefix.count))) != nil
+        }) && components.count <= 100 && components.allSatisfy {
+            !$0.isEmpty && $0 != "." && $0 != ".." && $0.utf8.count <= 255 &&
+            !$0.contains(where: { $0 == "/" || $0 == "\\" || $0.asciiValue.map { $0 < 32 || $0 == 127 } == true })
+        }
+    }
+    static func load(_ pane: String, defaults: UserDefaults = .standard) -> Self? {
+        guard let data = defaults.data(forKey: key(pane)), data.count <= 128 * 1024,
+              let value = try? JSONDecoder().decode(Self.self, from: data), value.valid else { return nil }
+        return value
+    }
+    func save(_ pane: String, defaults: UserDefaults = .standard) {
+        guard valid, let data = try? JSONEncoder().encode(self) else { return }
+        defaults.set(data, forKey: Self.key(pane))
+    }
+}
+
 /// References an explicitly chosen rclone remote; credentials stay in its
 /// private config and never enter location preferences or history.
 struct CloudConnection: Codable, Equatable {
@@ -41,7 +65,11 @@ struct CloudConnection: Codable, Equatable {
     }
     func address(_ relative: String) throws -> String {
         try validate(); guard Self.validRelative(relative) else { throw Self.failure("cloud_invalid") }
-        return remote + ":" + [root, relative].filter { !$0.isEmpty }.joined(separator: "/")
+        let path = [root, relative].filter { !$0.isEmpty }.joined(separator: "/")
+        // iCloud listings can return decomposed names, while its path lookup
+        // accepts the composed spelling. Normalize only this backend's wire
+        // path; preserve literal names for providers that distinguish them.
+        return remote + ":" + (kind == "iclouddrive" ? path.precomposedStringWithCanonicalMapping : path)
     }
     var website: URL? {
         let sites = ["drive": "https://drive.google.com/drive/my-drive", "onedrive": "https://onedrive.live.com/",
@@ -61,8 +89,14 @@ enum RcloneCommandPlan {
         try profile.validate()
         guard CloudConnection.validRelative(path), path.utf8.count <= 4096,
               destination.map({ CloudConnection.validRelative($0) && $0.utf8.count <= 4096 }) != false else { throw CloudConnection.failure("cloud_invalid") }
-        let global = ["--config", profile.configPath, "--ask-password=false", "--retries", "1", "--low-level-retries", "1",
+        var global = ["--config", profile.configPath, "--ask-password=false", "--retries", "1", "--low-level-retries", "1",
             "--contimeout", "15s", "--timeout", "30s", "--log-level", "ERROR"]
+        if profile.kind == "dropbox" {
+            // Dropbox namespace commits can reject concurrent server-side
+            // copies, even for tiny files. Serialize files inside each command
+            // and require synchronous upload completion before verification.
+            global += ["--transfers", "1", "--checkers", "1", "--dropbox-batch-mode", "sync"]
+        }
         let address = try profile.address(path)
         func localPath() throws -> String {
             guard let local, local.isFileURL, local.path.hasPrefix("/"), !local.path.contains("\0"),
@@ -90,7 +124,13 @@ enum RcloneCommandPlan {
             guard !path.isEmpty, let destination, !destination.isEmpty, path != destination,
                 !destination.hasPrefix(path + "/"), !path.hasPrefix(destination + "/") else { throw CloudConnection.failure("cloud_invalid") }
             let command = ["copy": "copyto", "rename": "moveto", "copytree": "copy", "renametree": "move"][operation]!
-            let flags = operation == "copytree" ? ["--create-empty-src-dirs"] : operation == "renametree" ? ["--create-empty-src-dirs", "--delete-empty-src-dirs"] : []
+            var flags = operation == "copytree" ? ["--create-empty-src-dirs"] : operation == "renametree" ? ["--create-empty-src-dirs", "--delete-empty-src-dirs"] : []
+            if profile.kind == "dropbox", operation == "copy" || operation == "copytree" {
+                // Dropbox server-side Copy can reject namespace commits even
+                // sequentially. Stream the copy with synchronous upload
+                // completion instead; independent content verification remains.
+                flags += ["--disable", "Copy"]
+            }
             return [command, "--immutable"] + flags + global + ["--", address, try profile.address(destination)]
         default: throw CloudConnection.failure("cloud_invalid")
         }
@@ -178,9 +218,17 @@ struct CloudSetupQuestion: Codable {
             if ["quota", "ratelimit", "rate limit"].contains(where: value.contains) { return CloudConnection.failure("cloud_rate_limited") }
         }
         if kind == "iclouddrive" {
+            if value.contains("apple id or password was incorrect") || value.contains("apple account or password was incorrect") ||
+                value.contains("incorrect password") || value.contains("invalid username/password") ||
+                value.range(of: #"(?:error.?code|errcode|code)[\"':=\s]+-20101\b"#, options: .regularExpression) != nil {
+                return CloudConnection.failure("cloud_icloud_credentials_incorrect")
+            }
             if value.contains("missing pcs cookies") || value.contains("requestpcs:") { return CloudConnection.failure("cloud_icloud_web_access") }
             if value.range(of: #"\b401\b"#, options: .regularExpression) != nil || value.contains("invalid credentials") { return CloudConnection.failure("cloud_icloud_login_denied") }
-            return CloudConnection.failure("cloud_icloud_verification")
+            if value.contains("verification") || value.contains("2fa") || value.contains("security code") || value.contains("trusted device") {
+                return CloudConnection.failure("cloud_icloud_verification")
+            }
+            return CloudConnection.failure("cloud_icloud_signin_failed")
         }
         return CloudConnection.failure("cloud_login_incomplete")
     }
@@ -272,8 +320,8 @@ enum CloudProviderErrors {
             return CloudConnection.failure("cloud_login_incomplete")
         }
         if text.contains("defaultperminuteperproject") { return temporary("cloud_google_quota", cooldown: 60) }
-        if ["ratelimitexceeded", "rate_limit_exceeded", "userratelimitexceeded", "quota exceeded", "429", "too many requests"].contains(where: text.contains) {
-            return temporary("cloud_rate_limited")
+        if ["ratelimitexceeded", "rate_limit_exceeded", "userratelimitexceeded", "quota exceeded", "429", "too many requests", "too_many_write_operations", "too_many_requests"].contains(where: text.contains) {
+            return temporary("cloud_rate_limited", cooldown: text.contains("too_many_") ? 15 : 10)
         }
         if ["timeout", "timed out", "temporary failure", "connection reset", "connection refused", "network is unreachable", "no such host", "server error", "503 service", "502 bad gateway", "504 gateway", "500 internal"].contains(where: text.contains) {
             return temporary("cloud_temporarily_unavailable")

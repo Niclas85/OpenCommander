@@ -5,6 +5,14 @@ import ZIPFoundation
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
+#if targetEnvironment(macCatalyst)
+    private var profileLease: CommanderProfileLease?
+#endif
+    func applicationWillTerminate(_ application: UIApplication) {
+#if targetEnvironment(macCatalyst)
+        DesktopBridge.shared?.shutdownCloudOperations()
+#endif
+    }
 #if DEBUG && targetEnvironment(macCatalyst)
     static private(set) var macUITestRoot: URL?
 #endif
@@ -17,6 +25,26 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+#if targetEnvironment(macCatalyst)
+        // Acquire before fixture preparation, preferences, queue recovery or
+        // history import. LaunchServices normally reuses the running app, but a
+        // forced second executable must not become another profile writer.
+        do { profileLease = try CommanderProfileLease(directory: desktopProfileDirectory()) }
+        catch {
+            let occupied = (error as? CommanderProfileLease.Failure) == .inUse
+            let controller = UIViewController()
+            controller.view.backgroundColor = .systemBackground
+            window = UIWindow(frame: UIScreen.main.bounds)
+            window?.rootViewController = controller; window?.makeKeyAndVisible()
+            DispatchQueue.main.async {
+                let alert = UIAlertController(title: L10n.get("app_name"),
+                    message: L10n.get(occupied ? "profile_in_use" : "profile_unavailable"), preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: L10n.get("ok"), style: .cancel) { _ in exit(0) })
+                controller.present(alert, animated: true)
+            }
+            return true
+        }
+#endif
 #if !targetEnvironment(macCatalyst)
         MediaExportFiles.cleanInterruptedExports()
 #endif
@@ -55,6 +83,26 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 #endif
         return true
     }
+
+#if targetEnvironment(macCatalyst)
+    private func desktopProfileDirectory() -> URL {
+#if DEBUG
+        if Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander.MacUITests" {
+            let resource = Bundle.main.url(forResource: "MacUITestRoot", withExtension: "txt")
+                .flatMap { try? String(contentsOf: $0, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines) }
+            if let path = ProcessInfo.processInfo.environment["OPENCOMMANDER_MAC_UI_ROOT"] ?? resource,
+               let canonical = realpath(path, nil) {
+                defer { free(canonical) }
+                let root = URL(fileURLWithPath: String(cString: canonical), isDirectory: true)
+                if root.path.hasPrefix("/private/tmp/OpenCommander-MacUITest-"),
+                   FileManager.default.fileExists(atPath: root.appendingPathComponent("Left").path),
+                   FileManager.default.fileExists(atPath: root.appendingPathComponent("Right").path) { return root }
+            }
+        }
+#endif
+        return HostFileSystem.homeDirectory.appendingPathComponent("Library/Application Support/OpenCommander", isDirectory: true)
+    }
+#endif
 
 #if DEBUG
     private func prepareAppReviewFixtures() {

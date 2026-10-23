@@ -23,9 +23,119 @@ func write(_ name: String, _ content: String) throws -> URL {
     return url
 }
 func contents(_ url: URL) throws -> String { try String(contentsOf: url, encoding: .utf8) }
+let propertyFile = try write("Properties ä.txt", "fresh metadata")
+try fm.setAttributes([.posixPermissions: 0o640], ofItemAtPath: propertyFile.path)
+let fileProperties = CommanderFileProperties(at: propertyFile)
+try check(fileProperties.size == 14 && !fileProperties.isDirectory && !fileProperties.isSymbolicLink, "properties selected regular file")
+try check(fileProperties.permissions == "0640" && fileProperties.created != nil && fileProperties.modified != nil && fileProperties.accessed != nil, "properties fresh dates and reported mode")
+try check(fileProperties.filesystem != nil && fileProperties.capacity != nil && fileProperties.available != nil && fileProperties.readOnly != nil, "properties real volume metadata")
+let propertyDirectory = fixture.appendingPathComponent("Properties directory")
+try fm.createDirectory(at: propertyDirectory, withIntermediateDirectories: false)
+let directoryProperties = CommanderFileProperties(at: propertyDirectory)
+try check(directoryProperties.isDirectory && directoryProperties.size == nil, "properties directory inode size is not content size")
+let propertyLink = fixture.appendingPathComponent("Properties link")
+try fm.createSymbolicLink(at: propertyLink, withDestinationURL: propertyDirectory)
+let linkProperties = CommanderFileProperties(at: propertyLink)
+try check(linkProperties.isSymbolicLink && !linkProperties.isDirectory && linkProperties.linkTarget == propertyDirectory.path, "properties directory symlink never becomes target directory")
+try check(linkProperties.readable == nil && linkProperties.writable == nil, "properties link does not claim target access")
+try fm.removeItem(at: propertyDirectory)
+let brokenProperties = CommanderFileProperties(at: propertyLink)
+try check(brokenProperties.isSymbolicLink && brokenProperties.linkTarget == propertyDirectory.path, "properties broken link is still a reported link")
+let missingProperties = CommanderFileProperties(at: fixture.appendingPathComponent("Properties absent"))
+try check(missingProperties.size == nil && missingProperties.permissions == nil && missingProperties.readable == nil && missingProperties.readOnly == nil, "properties unknown is not zero or false")
+let propertiesLanguage = L10n.currentLanguage
+L10n.currentLanguage = "de"
+try check(linkProperties.extraDescription.contains("Ziel der symbolischen Verknüpfung") && missingProperties.extraDescription.contains("Nicht vom Dateisystem gemeldet"), "properties German labels and unknown")
+L10n.currentLanguage = "en"
+try check(fileProperties.extraDescription.contains("Filesystem:") && fileProperties.extraDescription.contains("may be synthetic"), "properties English provider caveat")
+L10n.currentLanguage = propertiesLanguage
+print("PASS properties: fresh file, directory without scan, link and broken link, unknown metadata, real volume, DE/EN provider caveat")
+let archiveMetadata: [CommanderArchiveProperties.Member] = [
+    .init(path: "folder/a.txt", directory: false, size: 7, compressed: 5, modified: Date(timeIntervalSince1970: 123456)),
+    .init(path: "folder/sub/", directory: true, size: 0, compressed: 0, modified: nil),
+    .init(path: "folder/sub/b.txt", directory: false, size: 9, compressed: 6, modified: nil),
+    .init(path: "folderish/not-selected.txt", directory: false, size: 999, compressed: 22, modified: nil)]
+let archiveFile = try CommanderArchiveProperties(member: "folder/a.txt", directory: false, members: archiveMetadata)
+try check(archiveFile.size == 7 && archiveFile.compressed == 5 && archiveFile.modified == Date(timeIntervalSince1970: 123456) && archiveFile.entries == nil, "archive properties selected member not container")
+let archiveFolder = try CommanderArchiveProperties(member: "folder", directory: true, members: archiveMetadata)
+try check(archiveFolder.size == 16 && archiveFolder.entries == 3 && archiveFolder.compressed == nil, "archive implicit folder bounded prefix and summed contents")
+do {
+    _ = try CommanderArchiveProperties(member: "missing.txt", directory: false, members: archiveMetadata)
+    fatalError("missing archive member must not use stale listing metadata")
+} catch {}
+do {
+    _ = try CommanderArchiveProperties(member: "folder/a.txt", directory: false, members: archiveMetadata + [archiveMetadata[0]])
+    fatalError("duplicate archive member must not fabricate unique properties")
+} catch {}
+do {
+    _ = try CommanderArchiveProperties(member: "folder", directory: true, members: [
+        .init(path: "folder/a", directory: false, size: Int64.max, compressed: nil, modified: nil),
+        .init(path: "folder/b", directory: false, size: 1, compressed: nil, modified: nil)])
+    fatalError("archive summed size overflow must fail")
+} catch {}
+print("PASS archive properties: selected member size/compression/date, implicit directory totals, prefix boundary, stale missing/duplicate refusal, overflow")
+let archiveLanguage = L10n.currentLanguage, archiveTimezone = NSTimeZone.default
+L10n.currentLanguage = "de"; NSTimeZone.default = TimeZone(identifier: "Europe/Zurich")!
+let archiveWallClock = try CommanderArchiveProperties(member: "folder/a.txt", directory: false, members: archiveMetadata, wallClockTimestamp: true)
+try check(archiveWallClock.modifiedDescription.contains("10:17:36") && archiveWallClock.extraDescription.contains("eine Zeitzone ist nicht hinterlegt"), "ZIP stored wall-clock timestamp not shifted by viewer timezone")
+NSTimeZone.default = archiveTimezone; L10n.currentLanguage = archiveLanguage
+print("PASS ZIP stored timestamp remains timezone-neutral with explicit DE caveat")
+let archiveRootProperties = try CommanderArchiveProperties(member: "", directory: true, members: archiveMetadata)
+try check(archiveRootProperties.size == 1015 && archiveRootProperties.entries == 4, "archive root totals all members without prefix exclusion")
+let emptyArchiveProperties = try CommanderArchiveProperties(member: "", directory: true, members: [])
+try check(emptyArchiveProperties.size == 0 && emptyArchiveProperties.entries == 0, "valid empty archive root reports true zero")
+NSTimeZone.default = TimeZone(identifier: "Europe/Zurich")!
+try check(CommanderArchiveProperties.storedZIPColumnDate(Date(timeIntervalSince1970: 123456)) == "1970-01-02 10:17", "ZIP list timestamp remains stored wall clock")
+NSTimeZone.default = TimeZone(identifier: "America/New_York")!
+try check(CommanderArchiveProperties.storedZIPColumnDate(Date(timeIntervalSince1970: 123456)) == "1970-01-02 10:17", "ZIP list independent of viewer timezone")
+NSTimeZone.default = archiveTimezone
+print("PASS archive root/empty-root totals and ZIP column timestamps in Zurich/New York")
+let aliasTarget = fixture.appendingPathComponent("Tree physical ä 日本語", isDirectory: true)
+let aliasLink = fixture.appendingPathComponent("Tree alias", isDirectory: true)
+try fm.createDirectory(at: aliasTarget, withIntermediateDirectories: false)
+try fm.createSymbolicLink(at: aliasLink, withDestinationURL: aliasTarget)
+try check(DesktopInteractionPolicy.treePath(aliasTarget) == DesktopInteractionPolicy.treePath(aliasLink), "tree alias identity")
+try check(DesktopInteractionPolicy.treePath(URL(fileURLWithPath: "/private/tmp")) == "/private/tmp", "POSIX tree path must not shorten private/tmp")
+try check(DesktopInteractionPolicy.treePath(URL(fileURLWithPath: "/tmp")) == "/private/tmp", "tree path resolves macOS temporary alias")
+let absentTree = fixture.appendingPathComponent("Absent directory")
+try check(DesktopInteractionPolicy.treePath(absentTree) == absentTree.standardizedFileURL.path, "missing tree path does not invent an identity")
+try check(aliasLink.lastPathComponent == "Tree alias", "tree canonicalization never rewrites display URL")
+print("PASS tree physical identity: Unicode alias, true private/tmp ancestry, missing fallback and unchanged displayed URL")
 func mustFail(_ label: String, _ action: () throws -> Void) {
     do { try action(); fatalError("FAIL: expected error: " + label) } catch { }
 }
+
+let caseSource = try write("Case-Rename.txt", "case rename exact bytes")
+let caseTarget = fixture.appendingPathComponent("case-rename.txt")
+try SafeFileOperations.renameEntry(caseSource, to: caseTarget)
+try check(try fm.contentsOfDirectory(atPath: fixture.path).contains("case-rename.txt"), "Case-only spelling not published")
+try check(try !fm.contentsOfDirectory(atPath: fixture.path).contains("Case-Rename.txt"), "Old case-only spelling remains")
+let caseUndo = FileUndoRecord(source: caseSource, destination: caseTarget, replacedBackup: nil)
+let reloadedCaseUndo = try JSONDecoder().decode(FileUndoRecord.self, from: JSONEncoder().encode(caseUndo))
+try reloadedCaseUndo.undo(move: true)
+try check(try fm.contentsOfDirectory(atPath: fixture.path).contains("Case-Rename.txt"), "Persisted case-only Undo lost original spelling")
+try check(try contents(caseSource) == "case rename exact bytes", "Case-only Undo changed bytes")
+let linkedName = fixture.appendingPathComponent("hardlink-collision.txt")
+try fm.linkItem(at: caseSource, to: linkedName)
+mustFail("Distinct hard link is a collision") { try SafeFileOperations.renameEntry(caseSource, to: linkedName) }
+try check(try contents(caseSource) == contents(linkedName), "Hard-link collision lost data")
+let occupiedLink = fixture.appendingPathComponent("dangling-collision")
+try fm.createSymbolicLink(atPath: occupiedLink.path, withDestinationPath: fixture.appendingPathComponent("absent-target").path)
+mustFail("Dangling link is a rename collision") { try SafeFileOperations.renameEntry(caseSource, to: occupiedLink) }
+try check(try fm.destinationOfSymbolicLink(atPath: occupiedLink.path).hasSuffix("absent-target"), "Dangling collision replaced")
+let caseFolder = fixture.appendingPathComponent("Case-Folder")
+try fm.createDirectory(at: caseFolder, withIntermediateDirectories: false)
+let caseFolderTarget = fixture.appendingPathComponent("case-folder")
+try SafeFileOperations.renameEntry(caseFolder, to: caseFolderTarget)
+let folderRenameUndo = FileUndoRecord(source: caseFolder, destination: caseFolderTarget, replacedBackup: nil)
+try folderRenameUndo.undo(move: true)
+try check(try fm.contentsOfDirectory(atPath: fixture.path).contains("Case-Folder"), "Folder case-only Undo failed")
+let caseLink = fixture.appendingPathComponent("Case-Link")
+try fm.createSymbolicLink(atPath: caseLink.path, withDestinationPath: "Case-Rename.txt")
+let caseLinkTarget = fixture.appendingPathComponent("case-link")
+try SafeFileOperations.renameEntry(caseLink, to: caseLinkTarget)
+try check(try fm.destinationOfSymbolicLink(atPath: caseLinkTarget.path) == "Case-Rename.txt", "Case-only rename followed link")
+print("PASS: atomic case-only file/folder/symlink rename, persisted Undo, hard-link and dangling-link collision preservation")
 
 let emptyFolder = fixture.appendingPathComponent("new-empty-folder", isDirectory: true)
 try fm.createDirectory(at: emptyFolder, withIntermediateDirectories: false)
@@ -84,6 +194,14 @@ try Data("file".utf8).write(to: similarFile)
 try check(BoundedFolderSize.bytes(at: sizeFixture) == 19, "Default folder size includes all regular files")
 try check(BoundedFolderSize.bytes(at: sizeFixture, excludingRecovery: true) == 11, "UI size excludes private recovery directories, not hidden files or similarly named files")
 print("PASS: folder size excludes internal recovery only")
+let missingClipboardSource = fixture.appendingPathComponent("missing-clipboard-source")
+let clipboardLink = fixture.appendingPathComponent("broken-clipboard-link")
+try fm.createSymbolicLink(at: clipboardLink, withDestinationURL: missingClipboardSource)
+try check(SafeFileOperations.clipboardSourcesAvailable([source, clipboardLink]), "clipboard must preserve broken symlink objects")
+try check(!SafeFileOperations.clipboardSourcesAvailable([source, missingClipboardSource]), "mixed missing selection silently reduced to existing files")
+try check(!SafeFileOperations.clipboardSourcesAvailable([]), "empty selection accepted")
+try check(!SafeFileOperations.clipboardSourcesAvailable([URL(string: "https://example.invalid/file")!]), "website treated as a local file")
+print("PASS: clipboard sources validated as a complete selection; missing members and web URLs refused, symlink objects retained")
 let target = try write("target.txt", "old contents")
 mustFail("partial copy") {
     _ = try SafeFileOperations.copyReplacing(source: source, destination: target, replace: true, copy: { _, staging in
@@ -377,6 +495,16 @@ for (domain, code, key) in [(NSCocoaErrorDomain, 513, "history_error_permission"
     ("OpenCommander.FileSafety", 1, "undo_changed"), ("Unknown", 7, "history_error_generic")] {
     try check(HistoryFailure(NSError(domain: domain, code: code)).message == L10n.get(key), "Localized error code mapping")
 }
+for language in ["de", "en"] {
+    L10n.currentLanguage = language
+    let full = NSError(domain: NSCocoaErrorDomain, code: 640,
+        userInfo: [NSLocalizedDescriptionKey: "Can't save /private/SYNTHETIC-SECRET/lease because the disk is full"])
+    try check(HistoryFailure.presentation(full) == L10n.get("history_error_space"), "cloud alert must follow selected app language")
+    try check(!HistoryFailure.presentation(full).contains("SYNTHETIC-SECRET"), "cloud alert leaked configuration path")
+    let provider = NSError(domain: "OpenCommander.Cloud", code: 1, userInfo: [NSLocalizedDescriptionKey: "cloud_rate_limited"])
+    try check(HistoryFailure.presentation(provider) == L10n.get("cloud_rate_limited"), "provider key localization changed")
+}
+L10n.currentLanguage = "de"
 localizedRecord.lastFailure = nil
 localizedRecord.lastError = "English error from an earlier installation"
 var oldJSON = try JSONSerialization.jsonObject(with: JSONEncoder().encode(localizedRecord)) as! [String: Any]

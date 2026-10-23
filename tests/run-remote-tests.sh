@@ -24,6 +24,8 @@ fi
 xcrun --sdk macosx clang -Os -Wall -Wextra -Werror ios/OpenCommanderMacBridge/SSHAskPass.c -o "$task_output/OpenCommanderSSHAskPass"
 xcrun swiftc -parse-as-library -DREMOTE_TRANSPORT_TESTS \
     ios/OpenCommander/CloudConnection.swift \
+    ios/OpenCommander/Localization.swift \
+    ios/OpenCommander/FileOperationSafety.swift \
     ios/OpenCommander/PublicCloudOAuth.swift \
     ios/OpenCommanderMacBridge/CloudConfigurationLease.swift \
     ios/OpenCommander/VolumeIdentity.swift \

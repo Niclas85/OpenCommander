@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="more_apps">Weitere Apps auf haenggi.vip ↗</string>
+    <string name="more_apps_open_failed">Kein Browser verfügbar. Öffne https://haenggi.vip/ auf einem anderen Gerät.</string>
     <string name="app_name">OpenCommander</string>
     <string name="ready">Bereit</string>
     <string name="legal_short">AGB</string>

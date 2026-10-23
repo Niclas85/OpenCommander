@@ -29,6 +29,15 @@ client_key = paramiko.RSAKey.generate(2048)
 key_path = root.parent / "client-key"
 client_key.write_private_key_file(str(key_path))
 os.chmod(key_path, 0o600)
+encrypted_key_path = root.parent / "encrypted-client-key"
+encrypted_key_path.write_bytes(client_key.key.private_bytes(
+    serialization.Encoding.PEM, serialization.PrivateFormat.OpenSSH,
+    serialization.BestAvailableEncryption(b"synthetic-agent-passphrase")))
+os.chmod(encrypted_key_path, 0o600)
+# Only synthetic fixture credentials; never an account/key from the host.
+askpass_path = root.parent / "synthetic-agent-askpass"
+askpass_path.write_text("#!/bin/sh\nprintf '%s\\n' 'synthetic-agent-passphrase'\n", encoding="utf-8")
+os.chmod(askpass_path, 0o700)
 
 authorizer = DummyAuthorizer()
 authorizer.add_user("fixture", "test-only-password", str(root), perm="elradfmwMT")
@@ -108,7 +117,18 @@ class Files(paramiko.SFTPServerInterface):
             fd = os.open(self.local(path), flags, 0o600)
             mode = "r+b" if flags & os.O_RDWR else "wb" if flags & os.O_WRONLY else "rb"
             file = os.fdopen(fd, mode)
-            handle = paramiko.SFTPHandle(flags)
+            class DropHandle(paramiko.SFTPHandle):
+                def read(self, offset, length):
+                    # First payload chunk succeeds; break the actual TCP stream
+                    # before a later chunk, only once in this disposable server.
+                    marker = root / "Drop-transfer.once"
+                    if offset > 0 and marker.exists():
+                        marker.unlink()
+                        for active in list(transports):
+                            active.close()
+                        return paramiko.SFTP_CONNECTION_LOST
+                    return super().read(offset, length)
+            handle = DropHandle(flags) if path.endswith("Drop-transfer.txt") else paramiko.SFTPHandle(flags)
             handle.readfile = file
             handle.writefile = file
             return handle
@@ -161,6 +181,7 @@ def accept():
 ssh_thread = threading.Thread(target=accept, daemon=True)
 ssh_thread.start()
 print(json.dumps({"ftp": ftp.socket.getsockname()[1], "ftps": ftps.socket.getsockname()[1], "ca": str(ca_path), "sftp": sftp_port, "key": str(key_path),
+                  "encryptedKey": str(encrypted_key_path), "agentAskpass": str(askpass_path),
                   "hostKeys": f"[127.0.0.1]:{sftp_port} {host_key.get_name()} {host_key.get_base64()}\n",
                   "wrongHostKeys": f"[127.0.0.1]:{sftp_port} {wrong_host_key.get_name()} {wrong_host_key.get_base64()}\n"}), flush=True)
 for line in sys.stdin:

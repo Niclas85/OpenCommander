@@ -230,6 +230,20 @@ func check(_ value: Bool, _ message: String) {
             catch is CancellationError { }
             catch { fatalError("cancellation lost: \(error)") }
             if scheme == "sftp" {
+                let dropped = directory.appendingPathComponent("server/Drop-transfer.txt")
+                let droppedBytes = Data(repeating: 71, count: 1024 * 1024 + 17)
+                try droppedBytes.write(to: dropped)
+                let droppedItem = try await client.children().first { $0.name == "Drop-transfer.txt" }!
+                try Data("drop one connection".utf8).write(to: directory.appendingPathComponent("server/Drop-transfer.once"))
+                do { _ = try await client.download(droppedItem); fatalError("broken TCP transfer reported success") }
+                catch is CancellationError { fatalError("network loss misreported as user cancellation") }
+                catch { }
+                check(try Data(contentsOf: dropped) == droppedBytes, "TCP failure changed server source")
+                let retriedDownload = try await client.download(droppedItem)
+                check(try Data(contentsOf: retriedDownload) == droppedBytes, "explicit retry after TCP loss corrupted bytes")
+                try fm.removeItem(at: retriedDownload.deletingLastPathComponent())
+                try fm.removeItem(at: dropped)
+                print("PASS live \(mode): real loopback TCP loss reports failure, preserves source and explicit retry returns exact bytes")
                 let slow = directory.appendingPathComponent("server/Cancel-transfer.txt")
                 try Data(repeating: 65, count: 1024 * 1024).write(to: slow)
                 let slowItem = try await client.children().first { $0.name == "Cancel-transfer.txt" }!
@@ -244,5 +258,69 @@ func check(_ value: Bool, _ message: String) {
             }
             print("PASS live \(mode): transfers, byte progress, recursive search/path/case, content comparison, multi-rename preview/staleness/audit, recovery moves, rollback, cancellation and authentication protection")
         }
+        // A private agent/socket, never the user's agent or personal keychain.
+        // sockaddr_un on macOS has a short path limit; the compiler's temporary
+        // directory under /var/folders is too long for an agent socket.
+        let agentRoot = URL(fileURLWithPath: "/private/tmp").appendingPathComponent("OpenCommander-Agent-" + UUID().uuidString)
+        try fm.createDirectory(at: agentRoot, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? fm.removeItem(at: agentRoot) }
+        let agentSocket = agentRoot.appendingPathComponent("agent.sock").path
+        let agent = Process()
+        agent.executableURL = URL(fileURLWithPath: "/usr/bin/ssh-agent")
+        agent.arguments = ["-D", "-a", agentSocket]
+        agent.standardInput = FileHandle.nullDevice; agent.standardOutput = FileHandle.nullDevice; agent.standardError = FileHandle.nullDevice
+        try agent.run()
+        defer { if agent.isRunning { agent.terminate(); agent.waitUntilExit() } }
+        for _ in 0..<100 {
+            if fm.fileExists(atPath: agentSocket) { break }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        check(fm.fileExists(atPath: agentSocket), "private agent did not start")
+        let previousAgent = ProcessInfo.processInfo.environment["SSH_AUTH_SOCK"]
+        setenv("SSH_AUTH_SOCK", agentSocket, 1)
+        check(ProcessInfo.processInfo.environment["SSH_AUTH_SOCK"] == agentSocket, "test process did not select its private agent")
+        defer { if let previousAgent { setenv("SSH_AUTH_SOCK", previousAgent, 1) } else { unsetenv("SSH_AUTH_SOCK") } }
+        let encryptedPath = settings["encryptedKey"] as! String
+        let encryptedBefore = try Data(contentsOf: URL(fileURLWithPath: encryptedPath))
+        let agentProfile = RemoteConnection(name: "QA private agent", scheme: "sftp", host: "127.0.0.1",
+            port: settings["sftp"] as! Int, user: "fixture", root: "/", keyPath: encryptedPath,
+            trustedHostKeys: settings["hostKeys"] as? String)
+        let agentClient = RemoteFileClient(agentProfile, transport: { id, connection, password, operation, path, destination, local, completion in
+            bridge.remoteOperation(id, connection: connection, password: password, operation: operation, path: path, destination: destination, localURL: local, completion: completion)
+        }, password: { nil })
+        func agentListMustFail() async throws {
+            do { _ = try await agentClient.children(); fatalError("locked/expired encrypted key authenticated") }
+            catch { check((error as NSError).domain == "OpenCommander.Remote", "agent failure lost safe classification") }
+        }
+        try await agentListMustFail()
+        print("Private agent: locked encrypted-key refusal verified"); fflush(stdout)
+        func loadAgentKey(seconds: Int) throws {
+            let add = Process()
+            add.executableURL = URL(fileURLWithPath: "/usr/bin/ssh-add")
+            add.arguments = ["-t", String(seconds), encryptedPath]
+            var environment = ProcessInfo.processInfo.environment
+            environment["SSH_AUTH_SOCK"] = agentSocket
+            environment["SSH_ASKPASS"] = settings["agentAskpass"] as? String
+            environment["SSH_ASKPASS_REQUIRE"] = "force"; environment["DISPLAY"] = "OpenCommander-QA"
+            add.environment = environment
+            add.standardInput = FileHandle.nullDevice; add.standardOutput = FileHandle.nullDevice; add.standardError = FileHandle.nullDevice
+            try add.run(); add.waitUntilExit()
+            check(add.terminationStatus == 0, "synthetic encrypted key not loaded into private agent")
+        }
+        try loadAgentKey(seconds: 10)
+        print("Private agent: encrypted OpenSSH key loaded with ten-second expiry"); fflush(stdout)
+        check(try await agentClient.children().contains { $0.name == "Grüsse mit Leerzeichen.txt" }, "agent listing failed")
+        try await Task.sleep(nanoseconds: 11_000_000_000)
+        try await agentListMustFail()
+        print("Private agent: actual timed expiry refusal verified"); fflush(stdout)
+        try loadAgentKey(seconds: 60)
+        let restoredItems = try await agentClient.children()
+        let restoredItem = restoredItems.first { $0.name == "Grüsse mit Leerzeichen.txt" }!
+        let restoredDownload = try await agentClient.download(restoredItem)
+        check(try String(contentsOf: restoredDownload, encoding: .utf8) == "OpenCommander FTP/SFTP fixture\n", "agent reconnect byte mismatch")
+        try fm.removeItem(at: restoredDownload.deletingLastPathComponent())
+        check(try Data(contentsOf: URL(fileURLWithPath: encryptedPath)) == encryptedBefore, "encrypted private key rewritten")
+        check((try fm.attributesOfItem(atPath: encryptedPath)[.posixPermissions] as? NSNumber)?.intValue == 0o600, "private key permissions changed")
+        print("PASS encrypted SFTP key: isolated agent, locked refusal, timed expiry, explicit unlock/reconnect and unchanged encrypted key")
     }
 }

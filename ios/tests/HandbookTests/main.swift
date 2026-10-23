@@ -1,4 +1,5 @@
 import Foundation
+assert(CommanderHandbook.moreAppsURL.absoluteString == "https://haenggi.vip/")
 func require(_ value: Bool, _ message: String) { if !value { fatalError(message) } }
 let chapters = CommanderHandbook.anchors.map { CommanderHandbook.Chapter(id: $0, title: "Titel <&>\"", text: "Deutsch\n<script>alert('unsafe')</script>") }
 let html = CommanderHandbook.html(chapters, german: true)
@@ -20,7 +21,10 @@ for german in [true, false] {
     let base = baseIDs.map { CommanderHandbook.Chapter(id: $0, title: "Existing", text: "Preserve localized app guidance") }
     let complete = CommanderHandbook.complete(base + base, german: german)
     require(complete.count == 18 && complete.map(\.id) == CommanderHandbook.anchors, "eighteen-topic coverage or ordering missing")
-    require(complete.filter { baseIDs.contains($0.id) }.allSatisfy { ["cloud", "tastatur"].contains($0.id) ? $0.text.hasPrefix(base[0].text + "\n\n") : $0.text == base[0].text }, "localized base descriptions replaced")
+    require(complete.filter { baseIDs.contains($0.id) }.allSatisfy { ["cloud", "tastatur", "uebertragungen"].contains($0.id) ? $0.text.hasPrefix(base[0].text + "\n\n") : $0.text == base[0].text }, "localized base descriptions replaced")
+    let transfer = complete.first(where: { $0.id == "uebertragungen" })!.text
+    require(transfer.contains(german ? "Ersetzen beim Online-Verschieben" : "Replace during an online move"), "replacement move guidance missing")
+    require(transfer.contains(german ? "Löschauftrag" : "deletion job") && transfer.contains(german ? "Ordnerinhalt" : "folder contents") && transfer.contains(german ? "Zurücklegen" : "Put Back"), "deferred deletion scope, recursive folder proof and Finder recovery limitation missing")
     let keyboard = complete.first(where: { $0.id == "tastatur" })!.text
     require(keyboard.contains("native") && keyboard.contains("Command") && keyboard.contains("Option"), "native external drag guidance missing")
     require(keyboard.contains(german ? "Schalter" : "select Move"), "working external move alternative missing")

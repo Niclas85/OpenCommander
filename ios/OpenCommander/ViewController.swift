@@ -13,6 +13,22 @@ import PhotosUI
 import MediaPlayer
 #endif
 
+/// Read-only information must remain operable without a mouse. Do not install
+/// this shortcut on the presenting file pane, where Escape clears selection.
+private final class CommanderInformationController: UIViewController {
+    override var canBecomeFirstResponder: Bool { true }
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        becomeFirstResponder()
+    }
+    override var keyCommands: [UIKeyCommand]? {
+        let escape = UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(closeInformation))
+        escape.wantsPriorityOverSystemBehavior = true
+        return [escape]
+    }
+    @objc private func closeInformation() { dismiss(animated: true) }
+}
+
 
 private final class PreviewDownloadLifetime {
     let cleanup: (() -> Void)?
@@ -433,6 +449,15 @@ private final class DesktopLocationSettingsViewController: UITableViewController
         title = L10n.get("location_settings")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override var canBecomeFirstResponder: Bool { true }
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        becomeFirstResponder()
+    }
+    override var keyCommands: [UIKeyCommand]? {
+        guard presentedViewController == nil, navigationController?.presentedViewController == nil else { return [] }
+        return [UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(close))]
+    }
     override func viewDidLoad() {
         super.viewDidLoad()
         navigationItem.leftBarButtonItem = UIBarButtonItem(title: L10n.get("settings_done"), style: .done,
@@ -458,7 +483,7 @@ private final class DesktopLocationSettingsViewController: UITableViewController
     }
     override func numberOfSections(in tableView: UITableView) -> Int { 2 }
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        section == 0 ? 5 : entries.count
+        section == 0 ? 6 : entries.count
     }
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
         section == 1 ? L10n.get("location_settings_help") : nil
@@ -487,6 +512,13 @@ private final class DesktopLocationSettingsViewController: UITableViewController
                 return cell
             }
             if indexPath.row > 1 {
+                if indexPath.row == 5 {
+                    cell.textLabel?.text = L10n.get("more_apps")
+                    cell.accessibilityIdentifier = "SettingsMoreApps"
+                    cell.accessoryType = .disclosureIndicator
+                    cell.editingAccessoryType = .disclosureIndicator
+                    return cell
+                }
                 cell.textLabel?.text = indexPath.row == 4 ? "OneDrive online" : L10n.get(indexPath.row == 2 ? "folder_default_title" : "legal_short")
                 cell.accessoryType = .disclosureIndicator
                 cell.editingAccessoryType = .disclosureIndicator
@@ -539,6 +571,10 @@ private final class DesktopLocationSettingsViewController: UITableViewController
     }
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         if indexPath.section == 0 {
+            if indexPath.row == 5 {
+                DesktopBridge.shared?.openFile(CommanderHandbook.moreAppsURL, application: nil) { _, _ in }
+                return
+            }
             let action = indexPath.row == 2 ? defaultAppRequested : indexPath.row == 3 ? legalRequested : indexPath.row == 4 ? oneDriveRequested : nil
             if let action { closeRequested(action) }
             return
@@ -795,6 +831,54 @@ class ViewController: UIViewController {
     private struct HistoryEnvelope: Codable { var history: [OperationType]; var transferIDs: Set<UUID> }
     private var recordedTransferIDs = Set<UUID>()
     private var preparingTransferHistory = Set<UUID>()
+    private var renameRecoveryInProgress = false
+    private var renameRecoveryFailed = false
+    private var renameJournalRoot: URL {
+#if targetEnvironment(macCatalyst)
+#if DEBUG
+        if let root = AppDelegate.macUITestRoot { return root.appendingPathComponent("RenameBatches") }
+#endif
+        return HostFileSystem.homeDirectory.appendingPathComponent("Library/Application Support/OpenCommander/RenameBatches")
+#else
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("OpenCommander/RenameBatches")
+#endif
+    }
+    private func finishRenameReceipt(_ record: FileUndoRecord) throws {
+        guard let batch = record.renameBatchID, record.renameEntryID != nil else { return }
+        try CommanderRenameJournal(root: renameJournalRoot, id: batch).finish(record)
+    }
+    private func recoverRenameHistory() {
+        let root = renameJournalRoot
+        guard FileManager.default.fileExists(atPath: root.path) else { return }
+        renameRecoveryInProgress = true
+        updateGlobalStatus(L10n.get("rename_recovery_loading"))
+        DispatchQueue.global(qos: .utility).async {
+            do {
+                let recovery = try CommanderRenameJournal.recovery(root: root)
+                DispatchQueue.main.async {
+                    let oldIDs = Set(self.operationHistory.flatMap { operation -> [UUID] in
+                        if case .move(let records) = operation { return records.compactMap(\.renameEntryID) }; return []
+                    })
+                    let imported = recovery.records.compactMap(\.renameEntryID).filter { !oldIDs.contains($0) }.count
+                    do { self.operationHistory = try CommanderRenameJournal.merge(self.operationHistory, recovery: recovery) }
+                    catch {
+                        self.renameRecoveryInProgress = false; self.renameRecoveryFailed = true
+                        if !self.operationInProgress { self.updateGlobalStatus(L10n.get("rename_recovery_failed")) }; return
+                    }
+                    self.renameRecoveryInProgress = false
+                    if !self.operationInProgress {
+                        self.updateGlobalStatus(imported > 0 ? L10n.get("rename_recovery_found", String(imported)) : L10n.get("ready"))
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.renameRecoveryInProgress = false; self.renameRecoveryFailed = true
+                    if !self.operationInProgress { self.updateGlobalStatus(L10n.get("rename_recovery_failed")) }
+                }
+            }
+        }
+    }
     private struct FileClipboard {
         let urls: [URL]
         let move: Bool
@@ -857,7 +941,14 @@ class ViewController: UIViewController {
 
     var leftPane: CommanderPane!
     var rightPane: CommanderPane!
-    weak var activePane: CommanderPane?
+    weak var activePane: CommanderPane? {
+        didSet {
+#if targetEnvironment(macCatalyst)
+            leftPane?.updateActiveAppearance()
+            rightPane?.updateActiveAppearance()
+#endif
+        }
+    }
     private weak var extractActionButton: UIButton?
     private weak var desktopActionToolbar: CompactActionToolbar?
     private weak var hiddenActionButton: UIButton?
@@ -1004,12 +1095,41 @@ class ViewController: UIViewController {
 #if DEBUG
         if let root = AppDelegate.macUITestRoot { queueDirectory = root.appendingPathComponent("Transfers") }
 #endif
-        let queue = DurableTransferQueue(directory: queueDirectory)
+        var queueCheckpoint: ((DurableTransferQueue.Job) -> Void)?
+#if DEBUG
+        if Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander.MacUITests",
+           let root = AppDelegate.macUITestRoot {
+            let fixture = DesktopInteractionPolicy.treePath(root.appendingPathComponent("QueueControls"))
+            let flag = root.appendingPathComponent("SlowQueueControls.txt")
+            queueCheckpoint = { job in
+                let source = DesktopInteractionPolicy.treePath(URL(fileURLWithPath: job.source))
+                let targetParent = DesktopInteractionPolicy.treePath(URL(fileURLWithPath: job.destination).deletingLastPathComponent())
+                if source.hasPrefix(fixture + "/"), targetParent.hasPrefix(fixture + "/"),
+                   FileManager.default.fileExists(atPath: flag.path) {
+                    Thread.sleep(forTimeInterval: 0.2)
+                }
+            }
+        }
+#endif
+        let queue = DurableTransferQueue(directory: queueDirectory, controlCheckpoint: queueCheckpoint)
         transferQueue = queue
         queue.changed = { [weak self] jobs, limit, error in
             guard let self else { return }
+            let removedCards = DurableTransferQueue.removedCards(previous: self.transferJobs, current: jobs)
+            let previousFailed = Set(self.transferJobs.filter { $0.state == .failed }.map(\.id))
+            let newFailure = jobs.first { $0.state == .failed && !previousFailed.contains($0.id) }
+            let previousQueueError = self.transferStoreError
             self.transferJobs = jobs; self.transferParallelism = limit; self.transferStoreError = error
             self.transferPanel?.render(jobs, limit: limit, error: error)
+            if let error, !self.operationInProgress { self.updateGlobalStatus(L10n.get(error)) }
+            else if let newFailure, !self.operationInProgress {
+                self.updateGlobalStatus(newFailure.errorMessage ?? L10n.get("transfer_failed"))
+            }
+            else if let previousQueueError, !self.operationInProgress,
+                    self.globalStatus.text == L10n.get(previousQueueError) {
+                self.updateGlobalStatus(L10n.get("transfer_queue"))
+            }
+            if removedCards { self.refreshAllPanes(clearSelectionIn: []) }
             for job in jobs where job.state == .completed && !self.recordedTransferIDs.contains(job.id) && !self.preparingTransferHistory.contains(job.id) {
                 self.preparingTransferHistory.insert(job.id)
                 DispatchQueue.global(qos: .utility).async {
@@ -1019,11 +1139,12 @@ class ViewController: UIViewController {
                         self.preparingTransferHistory.remove(job.id)
                         guard !self.recordedTransferIDs.contains(job.id) else { return }
                         self.recordedTransferIDs.insert(job.id)
-                        self.operationHistory.append(job.move == true ? .move(files: [record]) : .copy(files: [record]))
+                        if job.isDeletion { self.operationHistory.append(.delete(files: [record])) }
+                        else { self.operationHistory.append(job.move == true ? .move(files: [record]) : .copy(files: [record])) }
                         self.refreshAllPanes(clearSelectionIn: [])
                         if !self.operationInProgress {
                             let remaining = self.transferJobs.filter { ![.completed, .cancelled].contains($0.state) }.count
-                            self.updateGlobalStatus(remaining == 0 ? L10n.get("transfer_completed") : "\(L10n.get("transfers")): \(remaining)")
+                            self.updateGlobalStatus(remaining == 0 ? L10n.get("transfer_completed") : "\(L10n.get("transfer_queue")): \(remaining)")
                         }
                     }
                 }
@@ -1040,6 +1161,25 @@ class ViewController: UIViewController {
         } else {
             showRestoredFolderAccessRecovery()
         }
+#if targetEnvironment(macCatalyst)
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.presentedViewController == nil else { return }
+            for pane in [self.leftPane, self.rightPane].compactMap({ $0 }) {
+                guard let saved = OnlinePaneSession.load(pane.title) else { continue }
+                self.activePane = pane
+                if saved.location == "onedrive-online" {
+                    self.openOnlineBrowser(remote: nil, restored: saved)
+                } else if let cloud = CloudConnection.load().first(where: { $0.locationPath == saved.location }) {
+                    self.openOnlineBrowser(remote: nil, cloud: cloud, restored: saved)
+                } else if let remote = RemoteConnection.load().first(where: { $0.locationPath == saved.location }) {
+                    self.openOnlineBrowser(remote: remote, restored: saved)
+                }
+            }
+            self.activePane = self.leftPane
+            self.updateDesktopActions()
+        }
+#endif
+        recoverRenameHistory()
     }
 
     deinit {
@@ -1425,7 +1565,7 @@ class ViewController: UIViewController {
 
     override var keyCommands: [UIKeyCommand]? {
 #if targetEnvironment(macCatalyst)
-        if cloudWizard != nil { return [] }
+        if cloudWizard != nil || settingsPanel != nil || helpPanel != nil { return [] }
 #endif
         if operationInProgress || presentedViewController != nil { return [] }
         // Do not intercept Return, Delete, Cmd-C/V or Space while the user
@@ -2306,6 +2446,12 @@ extension ViewController {
     
     func executeDeleteOperation(panes: [CommanderPane], sources: [FileEntry], toTrash: Bool, completion: @escaping (Bool) -> Void = { _ in }) {
 #if targetEnvironment(macCatalyst)
+        if let queue = transferQueue, queue.conflicts(writing: sources.map(\.url)) {
+            sources.forEach { queue.enqueueDeletion(source: $0.url, toTrash: toTrash) }
+            showTransferQueue(); updateGlobalStatus(L10n.get("transfer_delete_queued"))
+            // Admission is not a successful deletion (including media viewers).
+            completion(false); return
+        }
         guard allowTransferPaths(writing: sources.map(\.url)) else { completion(false); return }
 #endif
         showProgress(String(format: L10n.get("deleting_items"), sources.count), progress: 0)
@@ -2387,7 +2533,17 @@ extension ViewController {
     @objc func showCommanderRename() { showCommanderTool(.rename) }
     private func showCommanderTool(_ mode: CommanderToolsController.Mode) {
         guard !operationInProgress, let pane = activePane else { return }
+        if mode == .rename, renameRecoveryInProgress || renameRecoveryFailed {
+            updateGlobalStatus(L10n.get(renameRecoveryFailed ? "rename_recovery_failed" : "rename_recovery_loading")); return
+        }
 #if targetEnvironment(macCatalyst)
+        // Check non-online sides before routing a mixed cloud/local comparison.
+        // Otherwise a physical archive file could be treated as an empty tree.
+        if mode == .compare,
+           (leftPane.onlineBrowser == nil && !leftPane.currentDirectory.isPhysicalDirectory()) ||
+           (rightPane.onlineBrowser == nil && !rightPane.currentDirectory.isPhysicalDirectory()) {
+            updateGlobalStatus(L10n.get("commander_local_only")); return
+        }
         if let browser = pane.onlineBrowser ?? (mode == .compare ? (leftPane.onlineBrowser ?? rightPane.onlineBrowser) : nil) {
             guard let controller = browser.commanderTool(mode, left: leftPane.onlineBrowser, right: rightPane.onlineBrowser,
                 leftURL: leftPane.currentDirectory.url, rightURL: rightPane.currentDirectory.url) else {
@@ -2400,7 +2556,11 @@ extension ViewController {
             return
         }
 #endif
-        guard pane.currentDirectory.isPhysical(), mode != .compare || (leftPane.currentDirectory.isPhysical() && rightPane.currentDirectory.isPhysical()) else {
+        // An archive root is a physical file, not a physical directory. Do not
+        // pass its .zip URL to folder tools or admit an archive in either side
+        // of a comparison. Online providers have already been routed above.
+        guard pane.currentDirectory.isPhysicalDirectory(),
+              mode != .compare || (leftPane.currentDirectory.isPhysicalDirectory() && rightPane.currentDirectory.isPhysicalDirectory()) else {
             updateGlobalStatus(L10n.get("commander_local_only")); return
         }
         let selection = pane.selectedEntries().sorted { $0.name().localizedStandardCompare($1.name()) == .orderedAscending }
@@ -2414,6 +2574,7 @@ extension ViewController {
         controller.overrideUserInterfaceStyle = darkMode ? .dark : .light
         controller.modalPresentationStyle = .formSheet
         controller.preferredContentSize = CGSize(width: 940, height: 720)
+        controller.renameJournalRoot = renameJournalRoot
         controller.onOpen = { [weak self, weak pane] url in
             guard let self, let pane else { return }
             pane.openDirectory(FileEntry(url: url.deletingLastPathComponent(), parent: nil))
@@ -2477,16 +2638,15 @@ extension ViewController {
 #if targetEnvironment(macCatalyst)
         guard allowTransferPaths(writing: [url, newUrl]) else { return }
 #endif
-        guard !FileManager.default.fileExists(atPath: newUrl.path) else {
-            updateGlobalStatus(L10n.get("rename_failed"))
+        guard url.path != newUrl.path else {
+            updateGlobalStatus(L10n.get("ready"))
             return
         }
         
         showProgress(L10n.get("rename_title"), progress: 0)
         DispatchQueue.global(qos: .userInitiated).async {
-            let fm = FileManager.default
             do {
-                try fm.moveItem(at: url, to: newUrl)
+                try SafeFileOperations.renameEntry(url, to: newUrl)
                 let record = FileUndoRecord(source: url, destination: newUrl, replacedBackup: nil)
                 DispatchQueue.main.async {
                     self.operationHistory.append(.rename(record: record))
@@ -2495,7 +2655,7 @@ extension ViewController {
                 }
             } catch {
                 DispatchQueue.main.async {
-                    self.finishProgress(L10n.get("rename_failed"))
+                    self.finishProgress(HistoryFailure.presentation(error))
                 }
             }
         }
@@ -3105,6 +3265,7 @@ extension ViewController {
 
     private func undoOperation(at index: Int) {
         guard !operationInProgress else { return }
+        guard !renameRecoveryInProgress else { updateGlobalStatus(L10n.get("rename_recovery_loading")); return }
         guard operationHistory.indices.contains(index) else {
             updateGlobalStatus(L10n.get("undo_empty"))
             return
@@ -3132,7 +3293,10 @@ extension ViewController {
                 case .delete(let files):
                     for file in files.reversed() { try file.undo(move: true, checkCancellation: self.operationCancellation.check) }
                 case .move(let files):
-                    for file in files.reversed() { try file.undo(move: true, checkCancellation: self.operationCancellation.check) }
+                    for file in files.reversed() {
+                        try file.undo(move: true, checkCancellation: self.operationCancellation.check,
+                            didRestore: { try self.finishRenameReceipt(file) })
+                    }
                 case .copy(let files):
                     for file in files.reversed() { try file.undo(move: false, checkCancellation: self.operationCancellation.check) }
                 case .zip(let record): try record.undo(move: false, checkCancellation: self.operationCancellation.check)
@@ -3174,8 +3338,8 @@ extension ViewController {
 
 extension ViewController {
     
-    func showScrollableDialog(title: String, message: String) {
-        let vc = UIViewController()
+    func showScrollableDialog(title: String, message: String, actionTitle: String? = nil, actionIdentifier: String = "FileInfoCalculateSize", action: (() -> Void)? = nil) {
+        let vc = CommanderInformationController()
         vc.view.backgroundColor = theme.appBackground
         
         let navBar = UINavigationBar()
@@ -3184,6 +3348,12 @@ extension ViewController {
         navBar.titleTextAttributes = [.foregroundColor: theme.primaryText]
         let navItem = UINavigationItem(title: title)
         navItem.rightBarButtonItem = UIBarButtonItem(title: L10n.get("ok"), style: .done, target: self, action: #selector(dismissModal))
+        if let actionTitle, let action {
+            navItem.leftBarButtonItem = UIBarButtonItem(title: actionTitle, primaryAction: UIAction { [weak vc] _ in
+                vc?.dismiss(animated: true, completion: action)
+            })
+            navItem.leftBarButtonItem?.accessibilityIdentifier = actionIdentifier
+        }
         navBar.items = [navItem]
         
         let textView = UITextView()
@@ -3262,7 +3432,9 @@ extension ViewController {
 #endif
         showScrollableDialog(
             title: L10n.get("help_title"),
-            message: sections.joined(separator: "\n\n")
+            message: sections.joined(separator: "\n\n"),
+            actionTitle: L10n.get("more_apps"), actionIdentifier: "HelpMoreApps",
+            action: { UIApplication.shared.open(CommanderHandbook.moreAppsURL) }
         )
 #endif
     }
@@ -3870,6 +4042,11 @@ extension ViewController: UIDocumentPickerDelegate {
                     [.typeRegular, .typeDirectory, .typeSymbolicLink].contains(type) else { return false }
                 return true
             }) else { return false }
+        if let error = transferStoreError {
+            showTransferQueue()
+            updateGlobalStatus(L10n.get(error))
+            return true // handled by the queue; never fall back to an unjournaled copy
+        }
         func canonical(_ url: URL) -> URL? {
             guard let value = realpath(url.path, nil) else { return nil }
             defer { free(value) }; return URL(fileURLWithPath: String(cString: value))
@@ -3879,10 +4056,20 @@ extension ViewController: UIDocumentPickerDelegate {
             canonical(url.deletingLastPathComponent())?.appendingPathComponent(url.lastPathComponent)
         }
         guard resolvedSources.count == sources.count else { return false }
+        // Validate the whole batch before admitting any job. Queueing first
+        // leaves self/descendant failures as misleading pending cards and could
+        // partially accept the rest of a dangerous selection.
+        for source in resolvedSources {
+            let preferred = parent.appendingPathComponent(source.lastPathComponent)
+            let isDirectory = (try? FileManager.default.attributesOfItem(atPath: source.path)[.type] as? FileAttributeType) == .typeDirectory
+            if source == preferred || (isDirectory && (parent.path == source.path || parent.path.hasPrefix(source.path + "/"))) {
+                updateGlobalStatus(String(format: L10n.get("cannot_copy_into_self"), source.lastPathComponent))
+                return true
+            }
+        }
         var destinations = Set(transferJobs.filter { ![.completed, .cancelled].contains($0.state) }.map(\.destination))
         for source in resolvedSources {
             let preferred = parent.appendingPathComponent(source.lastPathComponent)
-            if source == preferred { continue }
             var destination = replace ? preferred : uniqueURL(in: parent, name: source.lastPathComponent)
             var suffix = 2
             while !replace && (destinations.contains(destination.path) || SafeFileOperations.exists(destination)) {
@@ -4023,12 +4210,19 @@ extension ViewController: UIDocumentPickerDelegate {
             self.reloadStorageLocationsBar(); self.openCloudConnection(selected)
         }
     }
-    private func openOnlineBrowser(remote: RemoteConnection?, cloud: CloudConnection? = nil) {
+    private func openOnlineBrowser(remote: RemoteConnection?, cloud: CloudConnection? = nil, restored: OnlinePaneSession? = nil) {
         guard !operationInProgress, presentedViewController == nil else { return }
         guard let pane = activePane ?? leftPane else { return }
         activePane = pane
         if pane.onlineNavigation != nil { pane.closeOnline() }
         let browser = OneDriveBrowser(remote: remote, cloud: cloud)
+        let location = cloud?.locationPath ?? remote?.locationPath ?? "onedrive-online"
+        browser.initialFolderNames = restored?.components
+        OnlinePaneSession(location: location, components: restored?.components ?? []).save(pane.title)
+        browser.onNavigationSaved = { [weak pane] names in
+            guard let pane else { return }
+            OnlinePaneSession(location: location, components: names).save(pane.title)
+        }
         browser.commander = self
         browser.paneTitle = pane.title
         browser.onStateChanged = { [weak self] in self?.updateDesktopActions() }
@@ -4036,6 +4230,7 @@ extension ViewController: UIDocumentPickerDelegate {
         navigation.setNavigationBarHidden(true, animated: false)
         navigation.overrideUserInterfaceStyle = darkMode ? .dark : .light
         browser.onClose = { [weak self, weak pane] in
+            if let pane { UserDefaults.standard.removeObject(forKey: OnlinePaneSession.key(pane.title)) }
             pane?.closeOnline()
             self?.activePane = pane
             self?.updateDesktopActions()
@@ -4226,6 +4421,7 @@ extension ViewController: UIDocumentPickerDelegate {
             return
         }
 #endif
+        UserDefaults.standard.removeObject(forKey: OnlinePaneSession.key(pane.title))
         if persistPath {
             UserDefaults.standard.set(url.path, forKey: pathKey(forPane: pane.title))
             UserDefaults.standard.removeObject(forKey: bookmarkKey(forPane: pane.title))
@@ -4441,12 +4637,15 @@ extension ViewController: UIDocumentPickerDelegate {
         }
         let internalClipboard = fileClipboard
         let urls = internalClipboard?.urls ?? UIPasteboard.general.urls ?? []
-        let existing = urls.filter { FileManager.default.fileExists(atPath: $0.path) }
-        guard !existing.isEmpty else {
+        guard !urls.isEmpty else {
             updateGlobalStatus(L10n.get("clipboard_empty"))
             return
         }
-        executeClipboardPaste(urls: existing, move: internalClipboard?.move == true, targetPane: pane)
+        guard SafeFileOperations.clipboardSourcesAvailable(urls) else {
+            updateGlobalStatus(L10n.get("clipboard_source_unavailable"))
+            return
+        }
+        executeClipboardPaste(urls: urls, move: internalClipboard?.move == true, targetPane: pane)
     }
 
     private func executeClipboardPaste(urls: [URL], move: Bool, targetPane: CommanderPane) {
@@ -4658,29 +4857,30 @@ extension ViewController: UIDocumentPickerDelegate {
         let request = UUID()
         fileInfoRequest = request
         DispatchQueue.global(qos: .utility).async {
-            let fm = FileManager.default
             let physical = entry.isPhysical()
-            let attributes = physical ? try? fm.attributesOfItem(atPath: entry.url.path) : nil
-            let values = physical ? try? entry.url.resourceValues(forKeys: [.localizedTypeDescriptionKey,
-                .isDirectoryKey, .volumeTotalCapacityKey, .volumeAvailableCapacityKey, .volumeIsReadOnlyKey]) : nil
-            let directory = physical ? values?.isDirectory == true : entry.zipDirectory
+            let properties = physical ? CommanderFileProperties(at: entry.url) : nil
+            let archiveProperties = !physical ? try? entry.archiveProperties() : nil
+            let values = physical && properties?.isSymbolicLink != true ? try? entry.url.resourceValues(forKeys: [.localizedTypeDescriptionKey]) : nil
+            let directory = physical ? properties?.isDirectory == true : entry.zipDirectory
             let folderReport = directory && calculateFolder && physical ? BoundedFolderSize.report(at: entry.url) : nil
             let bytes: Int64?
             if directory {
                 bytes = folderReport?.bytes
             } else {
-                bytes = physical ? (attributes?[.size] as? NSNumber)?.int64Value : entry.zipSize
+                bytes = physical ? properties?.size : archiveProperties?.size
             }
-            let size = folderReport?.summary ?? bytes.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "—"
+            let folderSize = folderReport.map { $0.complete ? CommanderFileProperties.byteDescription($0.bytes) : $0.summary }
+            let size = folderSize ?? bytes.map(CommanderFileProperties.byteDescription) ?? L10n.get(directory ? "properties_folder_uncalculated" : "properties_unknown")
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: L10n.currentLanguage)
             formatter.dateStyle = .medium; formatter.timeStyle = .medium
-            let created = (attributes?[.creationDate] as? Date).map(formatter.string) ?? "—"
-            let modified = physical ? (attributes?[.modificationDate] as? Date).map(formatter.string) ?? "—" :
-                (entry.zipModified > 0 ? formatter.string(from: Date(timeIntervalSince1970: Double(entry.zipModified) / 1000)) : "—")
-            let permissions = (attributes?[.posixPermissions] as? NSNumber).map { String(format: "%03o", $0.intValue) } ?? "—"
+            let created = properties?.created.map(formatter.string) ?? L10n.get("properties_unknown")
+            let modified = physical ? properties?.modified.map(formatter.string) ?? L10n.get("properties_unknown") :
+                archiveProperties?.modifiedDescription ?? L10n.get("properties_unknown")
+            let permissions = properties?.permissions ?? L10n.get("properties_unknown")
             let kind: String
-            if directory { kind = L10n.get("folder") }
+            if properties?.isSymbolicLink == true { kind = L10n.get("properties_link") }
+            else if directory { kind = L10n.get("folder") }
             else if L10n.resolvedLanguage(Bundle.main.preferredLocalizations.first ?? "en") == L10n.resolvedLanguage(L10n.currentLanguage),
                     let description = values?.localizedTypeDescription { kind = description }
             else {
@@ -4692,24 +4892,15 @@ extension ViewController: UIDocumentPickerDelegate {
             }
             var message = String(format: L10n.get("file_info_message"), entry.name(), kind,
                 entry.displayPath(), size, created, modified, physical ? permissions : L10n.get("volume_read_only"))
-            if physical {
-                let owner = attributes?[.ownerAccountName] as? String ?? "—"
-                let group = attributes?[.groupOwnerAccountName] as? String ?? "—"
-                let total = values?.volumeTotalCapacity.map { ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file) } ?? "—"
-                let free = values?.volumeAvailableCapacity.map { ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file) } ?? "—"
-                message += String(format: L10n.get("file_info_extra"), owner, group, total, free)
-            }
+            if let properties { message += "\n\n" + properties.extraDescription }
+            if let archiveProperties { message += "\n\n" + archiveProperties.extraDescription }
+            else if !physical { message += "\n\n" + L10n.get("properties_archive_unavailable") }
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.fileInfoRequest == request, self.presentedViewController == nil else { return }
                 self.fileInfoRequest = nil
-                let alert = UIAlertController(title: L10n.get("file_info"), message: message, preferredStyle: .alert)
-                if directory && physical && !calculateFolder {
-                    alert.addAction(UIAlertAction(title: L10n.get("calculate_folder_size"), style: .default) { _ in
-                        self.loadFileInfo(entry, calculateFolder: true)
-                    })
-                }
-                alert.addAction(UIAlertAction(title: L10n.get("ok"), style: .cancel))
-                self.present(alert, animated: true)
+                self.showScrollableDialog(title: L10n.get("file_info"), message: message,
+                    actionTitle: directory && physical && !calculateFolder ? L10n.get("calculate_folder_size") : nil,
+                    action: { [weak self] in self?.loadFileInfo(entry, calculateFolder: true) })
                 self.updateGlobalStatus(L10n.get("file_info"))
             }
         }

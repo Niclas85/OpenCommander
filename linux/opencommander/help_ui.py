@@ -5,6 +5,7 @@ import sys
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QTextBrowser
+from .external_links import more_apps_label, open_more_apps
 
 
 def handbook_path():
@@ -37,6 +38,10 @@ class HelpDialog(QDialog):
         self.notice.setTextFormat(Qt.PlainText)
         self.notice.setTextInteractionFlags(Qt.TextSelectableByMouse)
         layout.addWidget(self.notice)
+        self.more_apps_button = QPushButton()
+        self.more_apps_button.setObjectName('HelpMoreApps')
+        self.more_apps_button.clicked.connect(lambda: open_more_apps(self, self.main.language))
+        layout.addWidget(self.more_apps_button)
         row = QHBoxLayout()
         row.addStretch()
         self.close_button = QPushButton()
@@ -47,6 +52,7 @@ class HelpDialog(QDialog):
 
     def retranslate(self):
         de = self.main.language == 'de'
+        self.more_apps_button.setText(more_apps_label(self.main.language))
         self.setWindowTitle('Hilfe und Handbuch' if de else 'Help and handbook')
         self.intro.setText('Die Hilfe kann geöffnet bleiben, während du mit Dateien arbeitest. Das Handbuch öffnet sich offline im Browser.' if de else
                            'Keep this help open while working with files. The German handbook opens offline in your browser.')

@@ -62,7 +62,7 @@ enum DurableFileCopy {
         let fd = open(url.path, O_RDONLY | O_NOFOLLOW)
         guard fd >= 0 else { throw Failure.unsafePath }
         defer { close(fd) }
-        guard fsync(fd) == 0 else { throw POSIXError(.EIO) }
+        guard fsync(fd) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
     }
     private static func save(_ journal: Journal, in staging: URL) throws {
         let pending = staging.appendingPathComponent("journal-next-\(UUID().uuidString).json")
@@ -75,11 +75,11 @@ enum DurableFileCopy {
             var offset = 0
             while offset < bytes.count {
                 let count = write(fd, bytes.baseAddress!.advanced(by: offset), bytes.count - offset)
-                guard count > 0 else { throw POSIXError(.EIO) }
+                guard count > 0 else { throw POSIXError(POSIXErrorCode(rawValue: count < 0 ? errno : EIO) ?? .EIO) }
                 offset += count
             }
         }
-        guard fsync(fd) == 0, rename(pending.path, final.path) == 0 else { throw POSIXError(.EIO) }
+        guard fsync(fd) == 0, rename(pending.path, final.path) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         try syncDirectory(staging)
     }
     static func create(source: URL, destination: URL) throws -> URL {
@@ -92,7 +92,7 @@ enum DurableFileCopy {
         guard source.standardizedFileURL != destination.standardizedFileURL else { throw Failure.unsafePath }
         let id = UUID()
         let staging = parent.appendingPathComponent(".OpenCommanderTransfer-\(id.uuidString)", isDirectory: true)
-        guard mkdir(staging.path, 0o700) == 0 else { throw POSIXError(.EIO) }
+        guard mkdir(staging.path, 0o700) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         do {
             try save(Journal(id: id, source: source.path,
                 destination: destination.path, sourceIdentity: sourceIdentity,
@@ -184,7 +184,7 @@ enum DurableFileCopy {
         guard currentSourceIdentity == journal.sourceIdentity else { throw Failure.changedSource }
         let payloadURL = staging.appendingPathComponent("payload")
         let payload = open(payloadURL.path, O_RDWR | O_CREAT | O_NOFOLLOW, 0o600)
-        guard payload >= 0 else { throw Failure.unsafePath }
+        guard payload >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         defer { close(payload) }
         let partialIdentity = try identity(payload)
         guard partialIdentity.size >= journal.offset else { throw Failure.changedPartial }
@@ -209,7 +209,7 @@ enum DurableFileCopy {
             verificationOffset += Int64(wanted)
             activity(Activity(phase: .checkingPartial, done: verificationOffset, total: journal.offset))
         }
-        guard ftruncate(payload, off_t(journal.offset)) == 0 else { throw POSIXError(.EIO) }
+        guard ftruncate(payload, off_t(journal.offset)) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         journal.state = .copying
         activity(Activity(phase: .copying))
         try save(journal, in: staging)
@@ -228,10 +228,10 @@ enum DurableFileCopy {
                 let step = buffer.withUnsafeBytes {
                     pwrite(payload, $0.baseAddress!.advanced(by: written), count - written, off_t(journal.offset + Int64(written)))
                 }
-                guard step > 0 else { throw POSIXError(.EIO) }
+                guard step > 0 else { throw POSIXError(POSIXErrorCode(rawValue: step < 0 ? errno : EIO) ?? .EIO) }
                 written += step
             }
-            guard fsync(payload) == 0 else { throw POSIXError(.EIO) }
+            guard fsync(payload) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
             journal.offset += Int64(count)
             try save(journal, in: staging)
             progress(journal.offset, journal.sourceIdentity.size)
@@ -244,7 +244,7 @@ enum DurableFileCopy {
             return Result(staging: staging, destination: destination, state: journal.state, bytes: journal.offset)
         }
         guard fcopyfile(source, payload, nil, copyfile_flags_t(COPYFILE_METADATA)) == 0,
-            fsync(payload) == 0 else { throw POSIXError(.EIO) }
+            fsync(payload) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         // Exclusive rename works without hard-link support (e.g. exFAT) and
         // atomically refuses an existing destination.
         // Replacement/Undo must be coordinated by the queue, not by this engine.

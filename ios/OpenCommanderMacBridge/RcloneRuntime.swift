@@ -6,15 +6,34 @@ import Darwin
 /// Bounded native child processes. No shell, inherited rclone credentials,
 /// stderr logging, or user-controlled executable path.
 final class RcloneProcessRunner {
+    private let argumentHelper: URL?
+    init(argumentHelper: URL? = nil) {
+        let bundled = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("OpenCommanderCloudArguments")
+        self.argumentHelper = argumentHelper ?? bundled.flatMap { FileManager.default.isExecutableFile(atPath: $0.path) ? $0 : nil }
+    }
     private let lock = NSLock()
     private var processes: [String: Process] = [:]
     private var cancelled = Set<String>()
+    private var shuttingDown = false
+    /// Closing the host must also stop pending browser authorization listeners.
+    /// Otherwise an orphan can retain the loopback port after the app has quit.
+    func shutdown() {
+        lock.lock()
+        shuttingDown = true
+        cancelled.formUnion(processes.keys)
+        let active = Array(processes.values)
+        lock.unlock()
+        for process in active where process.isRunning { process.terminate() }
+        let deadline = Date().addingTimeInterval(1)
+        while active.contains(where: { $0.isRunning }) && Date() < deadline { Thread.sleep(forTimeInterval: 0.01) }
+        for process in active where process.isRunning { _ = kill(process.processIdentifier, SIGKILL) }
+    }
     func cancel(_ id: String) {
         lock.lock(); cancelled.insert(id); let process = processes[id]; lock.unlock()
         if process?.isRunning == true { process?.terminate() }
     }
     func check(_ id: String) throws {
-        lock.lock(); let stopped = cancelled.contains(id); lock.unlock()
+        lock.lock(); let stopped = shuttingDown || cancelled.contains(id); lock.unlock()
         if stopped { throw CancellationError() }
     }
     func finish(_ id: String) { lock.lock(); cancelled.remove(id); lock.unlock() }
@@ -25,6 +44,9 @@ final class RcloneProcessRunner {
             key.hasPrefix("RCLONE_") && key.range(of: #"^[A-Z0-9_]+$"#, options: .regularExpression) != nil && value.utf8.count <= 16384 && !value.contains("\0")
         }) else { throw CloudConnection.failure("cloud_invalid") }
         let process = Process(), pipe = Pipe(), errorPipe = Pipe()
+        if Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander", argumentHelper == nil {
+            throw CloudConnection.failure("cloud_backend_unavailable")
+        }
         let inputPipe = input == nil ? nil : Pipe()
         process.executableURL = executable; process.arguments = arguments
         process.standardOutput = pipe; process.standardError = errorPipe
@@ -32,8 +54,16 @@ final class RcloneProcessRunner {
         process.environment = ["PATH": "/usr/bin:/bin", "LANG": "en_US.UTF-8", "LC_ALL": "en_US.UTF-8",
             "HOME": FileManager.default.homeDirectoryForCurrentUser.path]
         process.environment?.merge(environment) { _, new in new }
+        if let argumentHelper {
+            let payload = try JSONSerialization.data(withJSONObject: [executable.path, arguments])
+            let encoded = payload.base64EncodedString()
+            guard encoded.utf8.count <= 512 * 1024 else { throw CloudConnection.failure("cloud_limit") }
+            process.executableURL = argumentHelper
+            process.arguments = []
+            process.environment?["OPENCOMMANDER_CLOUD_ARGV"] = encoded
+        }
         lock.lock()
-        if cancelled.contains(id) { lock.unlock(); throw CancellationError() }
+        if shuttingDown || cancelled.contains(id) { lock.unlock(); throw CancellationError() }
         processes[id] = process
         do { try process.run() } catch { processes.removeValue(forKey: id); lock.unlock(); throw error }
         lock.unlock()
@@ -122,6 +152,33 @@ private final class RuntimeFlag {
 /// validates the ZIP SHA-256, then atomically installs an app-private executable.
 final class RcloneRuntime {
     private static let installation = NSLock()
+    // Process-local only: invalidate on replacement, writes (including restored
+    // mtime), permissions or owner changes. Never cache remote content proofs.
+    private struct BinaryIdentity: Equatable {
+        let device: dev_t, inode: ino_t, size: off_t
+        let mode: mode_t, owner: uid_t, group: gid_t
+        let modifiedSeconds: Int, modifiedNanos: Int, changedSeconds: Int, changedNanos: Int
+        init(_ value: stat) {
+            device = value.st_dev; inode = value.st_ino; size = value.st_size
+            mode = value.st_mode; owner = value.st_uid; group = value.st_gid
+            modifiedSeconds = value.st_mtimespec.tv_sec; modifiedNanos = value.st_mtimespec.tv_nsec
+            changedSeconds = value.st_ctimespec.tv_sec; changedNanos = value.st_ctimespec.tv_nsec
+        }
+    }
+    // Access is serialized by installation, including across bridge requests.
+    private static var verifiedBinaries: [String: (BinaryIdentity, String)] = [:]
+#if CLOUD_RUNTIME_TESTS
+    private(set) var binaryVerificationCount = 0
+#endif
+    private func binaryIdentity(_ url: URL) throws -> BinaryIdentity {
+        var value = stat()
+        guard lstat(url.path, &value) == 0, value.st_mode & S_IFMT == S_IFREG,
+              value.st_uid == geteuid(), value.st_mode & 0o022 == 0,
+              value.st_size > 0, value.st_size <= 128 * 1024 * 1024 else {
+            throw CloudConnection.failure("cloud_runtime_unsafe")
+        }
+        return BinaryIdentity(value)
+    }
     let root: URL
     let runner: RcloneProcessRunner
     var status: ((String) -> Void)?
@@ -159,8 +216,19 @@ final class RcloneRuntime {
         try runner.check(id); try privateDirectory(root)
         let binary = root.appendingPathComponent("rclone"), marker = root.appendingPathComponent("binary-sha256.txt")
         if FileManager.default.isExecutableFile(atPath: binary.path) {
-            guard let expected = try? String(contentsOf: marker, encoding: .utf8), expected.count == 64,
-                try Self.hash(binary) == expected else { throw CloudConnection.failure("cloud_runtime_unsafe") }
+            let identity = try binaryIdentity(binary)
+            guard let expected = try? String(contentsOf: marker, encoding: .utf8), expected.count == 64 else {
+                throw CloudConnection.failure("cloud_runtime_unsafe")
+            }
+            if let verifiedBinary = Self.verifiedBinaries[binary.path], verifiedBinary.0 == identity, verifiedBinary.1 == expected { return binary }
+#if CLOUD_RUNTIME_TESTS
+            binaryVerificationCount += 1
+#endif
+            guard try Self.hash(binary) == expected, try binaryIdentity(binary) == identity else {
+                Self.verifiedBinaries.removeValue(forKey: binary.path)
+                throw CloudConnection.failure("cloud_runtime_unsafe")
+            }
+            Self.verifiedBinaries[binary.path] = (identity, expected)
             return binary
         }
         let temp = root.appendingPathComponent("download-" + UUID().uuidString, isDirectory: true)

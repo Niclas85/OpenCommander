@@ -58,6 +58,8 @@ else
     fi
 fi
 codesign --verify --deep --strict "$task_app"
+test -x "$task_app/Contents/MacOS/OpenCommanderCloudArguments"
+codesign --verify --strict "$task_app/Contents/MacOS/OpenCommanderCloudArguments"
 xcrun swift "$task_root/ntfs/NTFS3G/tests/signature_preflight.swift" \
     "$task_app/Contents/Extensions/OpenCommanderNTFSModule.appex"
 echo "EXPERIMENTAL_APP $task_app"

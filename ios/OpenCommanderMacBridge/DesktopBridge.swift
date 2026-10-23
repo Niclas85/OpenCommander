@@ -288,6 +288,8 @@ final class DesktopBridge: NSObject, DesktopBridgeProtocol {
     func removeOnlineDragSource(_ identifier: String) { onlineDragSource.remove(identifier) }
     override init() {
         super.init()
+        terminationObserver = NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification,
+            object: nil, queue: nil) { [weak self] _ in self?.shutdownCloudOperations() }
         NTFSExtensionRegistration.start()
         NTFSAutoMount.shared.start()
     }
@@ -299,6 +301,9 @@ final class DesktopBridge: NSObject, DesktopBridgeProtocol {
     private var remoteTasks: [String: Process] = [:]
     private var cancelledRemote = Set<String>()
     private let cloudRunner = RcloneProcessRunner()
+    private var terminationObserver: NSObjectProtocol?
+    deinit { if let terminationObserver { NotificationCenter.default.removeObserver(terminationObserver) } }
+    func shutdownCloudOperations() { cloudRunner.shutdown() }
     func stableVolumeIdentity(_ url: URL) -> String? { VolumeIdentity.nativeToken(at: url) }
     func chooseCloudConfiguration(title: String, completion: @escaping (URL?) -> Void) {
         guard locationPanel == nil else { completion(nil); return }
@@ -423,16 +428,19 @@ final class DesktopBridge: NSObject, DesktopBridgeProtocol {
                     try CloudConfigurationValidator.validate(configuration, profile: profile)
                 }
                 let binary = try RcloneRuntime(runner: self.cloudRunner).executable(id: requestID)
-                let profiles = try self.cloudRunner.run(binary, try RcloneCommandPlan.arguments(profile: profile, operation: "profiles", path: ""), id: requestID)
-                try lease?.checkSource()
-                let available = try JSONDecoder().decode([RcloneRemoteInfo].self, from: profiles)
-                guard available.count <= 1000 else { throw CloudConnection.failure("cloud_limit") }
                 if operation == "profiles" {
+                    let profiles = try self.cloudRunner.run(binary, try RcloneCommandPlan.arguments(profile: profile, operation: "profiles", path: ""), id: requestID)
+                    let available = try JSONDecoder().decode([RcloneRemoteInfo].self, from: profiles)
+                    guard available.count <= 1000 else { throw CloudConnection.failure("cloud_limit") }
                     let supported = available.filter { CloudConnection.kinds.contains($0.type) && $0.source == "file" }
                     let data = try JSONEncoder().encode(supported)
                     DispatchQueue.main.async { completion(data, nil) }; return
                 }
-                guard available.contains(where: { $0.name == profile.remote && $0.type == profile.kind && $0.source == "file" }) else { throw CloudConnection.failure("cloud_config_changed") }
+                // The bounded, private configuration was already parsed above:
+                // selected section exists exactly once and has the exact type.
+                // Running listremotes again adds a child process per request but
+                // no account/content evidence. Keep lease checks around IO.
+                try lease?.checkSource()
                 if ["copy", "rename"].contains(operation) {
                     let metadata = try self.cloudRunner.run(binary, RcloneCommandPlan.arguments(profile: profile, operation: "stat", path: path), id: requestID)
                     try lease?.checkSource()

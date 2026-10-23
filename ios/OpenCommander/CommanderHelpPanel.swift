@@ -14,6 +14,16 @@ final class CommanderHelpPanel: UIViewController, WKNavigationDelegate {
     var closeRequested: (() -> Void)?
     init(chapters: [CommanderHandbook.Chapter]) { self.chapters = chapters; super.init(nibName: nil, bundle: nil) }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override var canBecomeFirstResponder: Bool { true }
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        becomeFirstResponder()
+    }
+    override var keyCommands: [UIKeyCommand]? {
+        guard presentedViewController == nil else { return [] }
+        return [UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(closeForKeyboard))]
+    }
+    @objc private func closeForKeyboard() { closeRequested?() }
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .secondarySystemBackground
@@ -54,7 +64,14 @@ final class CommanderHelpPanel: UIViewController, WKNavigationDelegate {
         searchRow.addArrangedSubview(query); searchRow.addArrangedSubview(searchStatus)
         searchRow.addArrangedSubview(previous); searchRow.addArrangedSubview(next)
         searchRow.spacing = 8; searchRow.isHidden = true
-        let controls = UIStackView(arrangedSubviews: [header, searchRow]); controls.axis = .vertical; controls.spacing = 8
+        let moreApps = UIButton(type: .system)
+        moreApps.setTitle(L10n.get("more_apps"), for: .normal)
+        moreApps.accessibilityIdentifier = "HelpMoreApps"
+        moreApps.contentHorizontalAlignment = .leading
+        moreApps.addAction(UIAction { _ in
+            DesktopBridge.shared?.openFile(CommanderHandbook.moreAppsURL, application: nil) { _, _ in }
+        }, for: .touchUpInside)
+        let controls = UIStackView(arrangedSubviews: [header, moreApps, searchRow]); controls.axis = .vertical; controls.spacing = 8
         controls.translatesAutoresizingMaskIntoConstraints = false
         web.translatesAutoresizingMaskIntoConstraints = false; web.navigationDelegate = self
         view.addSubview(controls); view.addSubview(web)

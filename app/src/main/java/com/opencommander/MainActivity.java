@@ -552,6 +552,13 @@ public class MainActivity extends Activity {
                         + "\n\n" + getString(R.string.help_access_android)
                         + "\n\n" + getString(R.string.apk_tv_help))
                 .setPositiveButton(getString(R.string.understood), null)
+                .setNeutralButton(R.string.more_apps, (dialog, which) -> {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://haenggi.vip/")));
+                    } catch (android.content.ActivityNotFoundException error) {
+                        Toast.makeText(this, R.string.more_apps_open_failed, Toast.LENGTH_LONG).show();
+                    }
+                })
                 .show();
     }
 

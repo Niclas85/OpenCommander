@@ -15,6 +15,7 @@ final class CommanderToolsController: UIViewController, UITableViewDataSource, U
     var onRename: (([FileUndoRecord]) -> Void)?
     var onWillRename: (([URL]) -> Bool)?
     var onDidFinishRename: (() -> Void)?
+    var renameJournalRoot: URL?
     var onlineRun: (@MainActor (String, Bool, String, [String]) async throws -> [Row])?
     var onlineApply: (@MainActor () async throws -> Int)?
     var displayRoot: String?
@@ -42,6 +43,18 @@ final class CommanderToolsController: UIViewController, UITableViewDataSource, U
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     private func text(_ de: String, _ en: String) -> String { german ? de : en }
+    override var canBecomeFirstResponder: Bool { true }
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // Preserve an explicitly focused text field; its responder chain still
+        // includes this controller's Escape command.
+        if !searchPath.isFirstResponder && !fields.contains(where: { $0.isFirstResponder }) { becomeFirstResponder() }
+    }
+    override var keyCommands: [UIKeyCommand]? {
+        let escape = UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(close))
+        escape.wantsPriorityOverSystemBehavior = true
+        return [escape]
+    }
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
@@ -155,7 +168,11 @@ final class CommanderToolsController: UIViewController, UITableViewDataSource, U
             setBusy(true)
             onlineTask = Task { @MainActor in
                 do {
-                    self.rows = try await onlineRun(query, caseSensitive, path, values)
+                    let result = try await onlineRun(query, caseSensitive, path, values)
+                    // Do not publish a successful provider reply that raced
+                    // with Cancel, including an empty comparison/equality.
+                    try Task.checkCancellation()
+                    self.rows = result
                     self.setBusy(false); self.table.reloadData()
                     self.status.text = "\(self.rows.count) " + self.text("Einträge", "entries")
                 } catch { self.failed(error) }
@@ -225,7 +242,9 @@ final class CommanderToolsController: UIViewController, UITableViewDataSource, U
         DispatchQueue.global(qos: .userInitiated).async {
             defer { DispatchQueue.main.async { release?() } }
             do {
-                let records = try CommanderTools.rename(plan, cancel: self.cancellation)
+                let journal = try self.renameJournalRoot.map { try CommanderRenameJournal(root: $0) }
+                let records = try CommanderTools.rename(plan, cancel: self.cancellation, journal: journal,
+                    checkpoint: { try self.pauseRenameAcceptance(journal, count: $0) })
                 DispatchQueue.main.async {
                     self.onRename?(records); self.setBusy(false)
                     self.status.text = "\(records.count) " + self.text("umbenannt. Rückgängig über die Historie.", "renamed. Undo through History.")
@@ -233,11 +252,34 @@ final class CommanderToolsController: UIViewController, UITableViewDataSource, U
             } catch { self.failed(error) }
         }
     }
+    private func pauseRenameAcceptance(_ journal: CommanderRenameJournal?, count: Int) throws {
+#if DEBUG && targetEnvironment(macCatalyst)
+        guard count == 1, let journal,
+              Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander.MacUITests",
+              let root = AppDelegate.macUITestRoot else { return }
+        let flag = root.appendingPathComponent("PauseRenameAfterFirstCheckpoint")
+        guard FileManager.default.fileExists(atPath: flag.path) else { return }
+        try Data(journal.id.uuidString.utf8).write(to: root.appendingPathComponent("RenameCheckpointReady.txt"), options: .atomic)
+        let deadline = Date().addingTimeInterval(90)
+        while FileManager.default.fileExists(atPath: flag.path) {
+            try cancellation.check()
+            guard Date() < deadline else { throw CocoaError(.userCancelled) }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+#endif
+    }
     private func failed(_ error: Error) {
         DispatchQueue.main.async {
             self.plan = []; self.rows = []; self.table.reloadData(); self.setBusy(false)
+            if let partial = error as? CommanderTools.RenameFailure {
+                self.onRename?(partial.remaining)
+                self.status.text = "⚠ " + self.text(
+                    "Umbenennen gestoppt. \(partial.remaining.count) Schritt(e) konnten nicht zurückgenommen werden und stehen mit Fehlernachweis in der Historie. Prüfe die Dateien; Rückgängig ersetzt keine veränderten Ziele.",
+                    "Rename stopped. \(partial.remaining.count) step(s) could not be rolled back and remain in History with their failure details. Check the files; Undo does not replace changed destinations.")
+                return
+            }
             let ns = error as NSError
-            self.status.text = "⚠ " + (error is CancellationError ? self.text("Abgebrochen. Abgeschlossene Schritte bleiben erhalten.", "Cancelled. Completed steps remain.") : ns.domain == "OpenCommander.Remote" ? L10n.get(ns.localizedDescription) : HistoryFailure(error).message)
+            self.status.text = "⚠ " + (error is CancellationError ? self.text("Abgebrochen. Abgeschlossene Schritte bleiben erhalten.", "Cancelled. Completed steps remain.") : ns.domain == "OpenCommander.Tools" ? ns.localizedDescription : ["OpenCommander.Remote", "OpenCommander.Cloud"].contains(ns.domain) ? L10n.get(ns.localizedDescription) : HistoryFailure(error).message)
         }
     }
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { rows.count }

@@ -1,4 +1,5 @@
 import json
+from .external_links import more_apps_label, open_more_apps
 from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QTableWidget,
@@ -63,6 +64,10 @@ class LocationSettingsDialog(QDialog):
         self.connections_button = QPushButton()
         self.connections_button.clicked.connect(lambda: (self.accept(), main.connections()))
         layout.addWidget(self.connections_button)
+        self.more_apps_button = QPushButton()
+        self.more_apps_button.setObjectName('SettingsMoreApps')
+        self.more_apps_button.clicked.connect(lambda: open_more_apps(self, self.main.language))
+        layout.addWidget(self.more_apps_button)
         self.retranslate()
         self.refresh()
         self.table.itemChanged.connect(self.save)
@@ -75,6 +80,7 @@ class LocationSettingsDialog(QDialog):
         self.retranslate()
 
     def retranslate(self):
+        self.more_apps_button.setText(more_apps_label(self.main.language))
         self.setWindowTitle('Einstellungen / Orte' if self.de else 'Settings / Locations')
         self.language_label.setText('Sprache' if self.de else 'Language')
         self.theme_checkbox.setText('Dunkles Erscheinungsbild' if self.de else 'Dark appearance')

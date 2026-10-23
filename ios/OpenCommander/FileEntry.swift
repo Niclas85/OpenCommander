@@ -231,15 +231,10 @@ class FileEntry: Hashable, Equatable {
     }
 
     func contentBytes() -> Int64 {
-        if isZipEntry() { return zipSize }
-        if isZipArchive() {
-#if targetEnvironment(macCatalyst)
-            if url.pathExtension.lowercased() != "zip" {
-                return (try? CommanderNativeArchive.members(url).reduce(Int64(0)) { $0 + $1.size }) ?? -2
-            }
-#endif
-            guard let archive = Archive(url: url, accessMode: .read) else { return 0 }
-            return archive.reduce(Int64(0)) { $0 + Int64($1.uncompressedSize) }
+        if isZipEntry() || isZipArchive() {
+            // Synthetic archive folders have a listing size of zero, not zero
+            // contents. Re-read bounded metadata; failures remain unknown.
+            return (try? archiveProperties().size) ?? -2
         }
         if !isPhysicalDirectory() { return size() }
         return (try? BoundedFolderSize.bytes(at: url, excludingRecovery: true)) ?? -2
@@ -288,6 +283,43 @@ class FileEntry: Hashable, Equatable {
             try? FileManager.default.removeItem(at: outputDirectory)
             throw error
         }
+    }
+
+    func archiveProperties() throws -> CommanderArchiveProperties {
+        guard zipPath != nil || isZipArchive() else { throw CocoaError(.fileReadUnsupportedScheme) }
+        let selectedPath = zipPath ?? ""
+        let deadline = ProcessInfo.processInfo.systemUptime + 10
+        func zipMembers() throws -> [CommanderArchiveProperties.Member] {
+            var members: [CommanderArchiveProperties.Member] = []
+            let archive = try Archive(url: url, accessMode: .read, pathEncoding: nil)
+            for item in archive {
+                guard members.count < 100_000, ProcessInfo.processInfo.systemUptime < deadline,
+                      item.uncompressedSize <= UInt64(Int64.max), item.compressedSize <= UInt64(Int64.max) else {
+                    throw CocoaError(.fileReadTooLarge)
+                }
+                members.append(.init(path: item.path, directory: item.type == .directory,
+                    size: Int64(item.uncompressedSize), compressed: Int64(item.compressedSize),
+                    modified: item.fileAttributes[.modificationDate] as? Date))
+            }
+            return members
+        }
+        let members: [CommanderArchiveProperties.Member]
+#if targetEnvironment(macCatalyst)
+        if url.pathExtension.lowercased() != "zip" {
+            members = try CommanderNativeArchive.members(url, checkCancellation: {
+                guard ProcessInfo.processInfo.systemUptime < deadline else { throw CocoaError(.userCancelled) }
+            }).map {
+                .init(path: $0.path, directory: $0.directory, size: $0.size, compressed: nil,
+                      modified: $0.modified > 0 ? Date(timeIntervalSince1970: Double($0.modified) / 1000) : nil)
+            }
+        } else {
+            members = try zipMembers()
+        }
+#else
+        members = try zipMembers()
+#endif
+        return try CommanderArchiveProperties(member: selectedPath, directory: zipPath == nil || zipDirectory, members: members,
+            wallClockTimestamp: url.pathExtension.lowercased() == "zip")
     }
 
     private func zipChildren(directoriesOnly: Bool) throws -> [FileEntry] {

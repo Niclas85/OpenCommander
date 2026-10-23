@@ -33,7 +33,7 @@ guard modes.count <= 1, Set(modifiers).count == modifiers.count else { fatalErro
 let option = modes.first ?? ""
 let cancel = behaviours.contains("--cancel")
 guard Set(behaviours).count == behaviours.count,
-      ["", "--app-window", "--finder-source", "--finder-target", "--finder-window", "--finder-preview-target", "--textedit-source", "--textedit-target", "--textedit-window", "--preview-source", "--preview-target", "--preview-window", "--safari-source", "--chrome-source"].contains(option) else { fatalError("Unknown option") }
+      ["", "--scroll-right", "--scroll-left", "--app-window", "--finder-source", "--finder-target", "--finder-window", "--finder-preview-target", "--textedit-source", "--textedit-target", "--textedit-window", "--preview-source", "--preview-target", "--preview-window", "--safari-source", "--chrome-source"].contains(option) else { fatalError("Unknown option") }
 guard CGPreflightPostEventAccess() else { fatalError("UI event posting is not authorized") }
 // Explicit opt-in for live acceptance of the installed build. Never default to it.
 let installedFixture = ProcessInfo.processInfo.environment["OPENCOMMANDER_DRAG_TEST_FIXTURE"]
@@ -135,6 +135,27 @@ guard visibleOwner(at: CGPoint(x: sx, y: sy)) == app.processIdentifier,
     fatalError("A test endpoint is covered by another window; no mouse events sent")
 }
 let source = CGEventSource(stateID: .hidSystemState)
+if ["--scroll-right", "--scroll-left"].contains(option) {
+    guard installedFixture == nil, modifiers.isEmpty, behaviours.isEmpty, sx == dx, sy == dy,
+          let bundleURL = testApp.bundleURL, let bundle = Bundle(url: bundleURL),
+          let resource = bundle.url(forResource: "MacUITestRoot", withExtension: "txt"),
+          let root = try? String(contentsOf: resource, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
+          root.hasPrefix("/private/tmp/OpenCommander-MacUITest-"),
+          FileManager.default.fileExists(atPath: root + "/Left"),
+          FileManager.default.fileExists(atPath: root + "/Right") else {
+        fatalError("Wheel test is restricted to a visible isolated fixture; no events sent")
+    }
+    let point = CGPoint(x: sx, y: sy)
+    CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
+    for _ in 0..<15 {
+        let wheel = CGEvent(scrollWheelEvent2Source: source, units: .pixel, wheelCount: 2,
+                            wheel1: 0, wheel2: option == "--scroll-right" ? -40 : 40, wheel3: 0)
+        wheel?.location = point; wheel?.post(tap: .cghidEventTap)
+        Thread.sleep(forTimeInterval: 0.02)
+    }
+    print("POSTED guarded horizontal wheel; no mouse button, key or file mutation")
+    exit(0)
+}
 var dragFlags: CGEventFlags = []
 let modifierKeys: [CGKeyCode] = modifiers.map { $0 == "--option" ? 58 : 55 }
 defer {
@@ -174,8 +195,18 @@ for step in 1...steps {
 }
 Thread.sleep(forTimeInterval: behaviours.contains("--hover") ? 5 : 0.3)
 if cancel {
-    CGEvent(keyboardEventSource: source, virtualKey: 53, keyDown: true)?.post(tap: .cghidEventTap)
-    CGEvent(keyboardEventSource: source, virtualKey: 53, keyDown: false)?.post(tap: .cghidEventTap)
+    // Cancel with plain Escape, not Command-Escape inherited from the
+    // preceding modifier test. Keep the mouse held until cancellation settles.
+    dragFlags = []
+    for key in modifierKeys.reversed() {
+        let release = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: false)
+        release?.flags = []; release?.post(tap: .cghidEventTap)
+    }
+    Thread.sleep(forTimeInterval: 0.1)
+    let escapeDown = CGEvent(keyboardEventSource: source, virtualKey: 53, keyDown: true)
+    escapeDown?.flags = []; escapeDown?.post(tap: .cghidEventTap)
+    let escapeUp = CGEvent(keyboardEventSource: source, virtualKey: 53, keyDown: false)
+    escapeUp?.flags = []; escapeUp?.post(tap: .cghidEventTap)
     Thread.sleep(forTimeInterval: 0.15)
 }
 event(.leftMouseUp, x: dx, y: dy)

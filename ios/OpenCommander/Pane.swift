@@ -35,11 +35,32 @@ enum CommanderDragDiagnostics {
 }
 
 #if targetEnvironment(macCatalyst)
+enum CommanderVisibleHit {
+    static func contains(_ point: CGPoint, in view: UIView) -> Bool {
+        guard view.window != nil, view.bounds.contains(point) else { return false }
+        var ancestor: UIView? = view
+        while let current = ancestor {
+            if current.isHidden || current.alpha <= 0.01 { return false }
+            if current.clipsToBounds && !current.bounds.contains(current.convert(point, from: view)) { return false }
+            ancestor = current.superview
+        }
+        return true
+    }
+}
+
 /// Capture the actual pointer event before UITableView sends its selection
 /// callback, including Shift and Command. Consume once so accessibility clicks
 /// cannot inherit a modifier from an earlier pointer action.
 final class CommanderSelectionTableView: UITableView {
     private var selectionModifiers: UIKeyModifierFlags = []
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer === panGestureRecognizer,
+           superview?.superview is CommanderTreeViewport {
+            let velocity = panGestureRecognizer.velocity(in: self)
+            if abs(velocity.x) > abs(velocity.y) { return false }
+        }
+        return super.gestureRecognizerShouldBegin(gestureRecognizer)
+    }
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         CommanderDragDiagnostics.event("pointer began")
         selectionModifiers = event?.modifierFlags ?? []
@@ -118,6 +139,84 @@ class TreeNode {
     }
 }
 
+#if targetEnvironment(macCatalyst)
+final class CommanderTreeTableView: UITableView {
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer === panGestureRecognizer {
+            let velocity = panGestureRecognizer.velocity(in: self)
+            // Let the enclosing horizontal viewport own trackpad/wheel pans
+            // along X instead of swallowing them in the vertical row table.
+            if abs(velocity.x) > abs(velocity.y) { return false }
+        }
+        return super.gestureRecognizerShouldBegin(gestureRecognizer)
+    }
+}
+
+/// Keep vertical row navigation in the table, with a separate horizontal
+/// viewport so deep/long directory names need not be truncated to column width.
+final class CommanderTreeViewport: UIScrollView {
+    private let minimumContentWidth: NSLayoutConstraint
+    private let listingTable: UITableView
+#if DEBUG
+    private var reportedGeometry = ""
+#endif
+    init(table: UITableView, identifier: String, header: UIView? = nil, minimumWidth: CGFloat = 0) {
+        listingTable = table
+        let content = UIStackView()
+        content.axis = .vertical
+        if let header { content.addArrangedSubview(header) }
+        content.addArrangedSubview(table)
+        minimumContentWidth = content.widthAnchor.constraint(greaterThanOrEqualToConstant: minimumWidth)
+        super.init(frame: .zero)
+        accessibilityIdentifier = identifier
+        showsHorizontalScrollIndicator = true
+        showsVerticalScrollIndicator = false
+        alwaysBounceVertical = false
+        isDirectionalLockEnabled = true
+        panGestureRecognizer.allowedScrollTypesMask = .all
+        content.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(content)
+        let fittingWidth = content.widthAnchor.constraint(equalTo: frameLayoutGuide.widthAnchor)
+        fittingWidth.priority = .defaultHigh
+        NSLayoutConstraint.activate([
+            content.leadingAnchor.constraint(equalTo: contentLayoutGuide.leadingAnchor),
+            content.trailingAnchor.constraint(equalTo: contentLayoutGuide.trailingAnchor),
+            content.topAnchor.constraint(equalTo: contentLayoutGuide.topAnchor),
+            content.bottomAnchor.constraint(equalTo: contentLayoutGuide.bottomAnchor),
+            content.heightAnchor.constraint(equalTo: frameLayoutGuide.heightAnchor),
+            content.widthAnchor.constraint(greaterThanOrEqualTo: frameLayoutGuide.widthAnchor),
+            minimumContentWidth, fittingWidth
+        ])
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override func layoutSubviews() {
+        super.layoutSubviews()
+#if DEBUG
+        let geometry = String(format: "tree viewport %@ visible=%.0f content=%.0f offset=%.0f", accessibilityIdentifier ?? "", bounds.width, contentSize.width, contentOffset.x)
+        if geometry != reportedGeometry {
+            reportedGeometry = geometry
+            CommanderDragDiagnostics.event(geometry)
+            if Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander.MacUITests",
+               contentSize.width > bounds.width + 4,
+               CommanderVisibleHit.contains(CGPoint(x: bounds.midX, y: bounds.midY), in: self) {
+                let outside = listingTable.convert(CGPoint(x: bounds.maxX + 2, y: bounds.midY), from: self)
+                if listingTable.bounds.contains(outside) {
+                    precondition(!CommanderVisibleHit.contains(outside, in: listingTable), "Clipped table must not steal a neighbouring pane's drag")
+                    CommanderDragDiagnostics.event("PASS clipped viewport hit \(accessibilityIdentifier ?? "")")
+                }
+            }
+        }
+#endif
+    }
+    func fit(_ titles: [String]) {
+        let font = UIFont.systemFont(ofSize: 12)
+        minimumContentWidth.constant = ceil(titles.reduce(CGFloat(0)) {
+            max($0, ($1 as NSString).size(withAttributes: [.font: font]).width)
+        }) + 48
+    }
+}
+#endif
+
 class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITextFieldDelegate, UIGestureRecognizerDelegate {
     private let archiveDragSourceID = UUID().uuidString
     let title: String
@@ -137,6 +236,10 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     private weak var resizingTree: UIView?
     private var treeWidthConstraint: NSLayoutConstraint?
     private var treeFraction: CGFloat = 0.28
+#if targetEnvironment(macCatalyst)
+    private weak var treeViewport: CommanderTreeViewport?
+    private var pendingTreeRevealPath: String?
+#endif
 #if !targetEnvironment(macCatalyst)
     private weak var mobileTreeColumn: UIView?
     private weak var breadcrumbButton: UIButton?
@@ -185,6 +288,16 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
             content.topAnchor.constraint(equalTo: shell.topAnchor, constant: 4),
             content.bottomAnchor.constraint(equalTo: shell.bottomAnchor, constant: -4)
         ])
+        // Embedded views may load before inheriting the host's explicit theme.
+        // Refresh their static surfaces after mounting, without reconnecting.
+        if let controller = viewController {
+            navigation.overrideUserInterfaceStyle = controller.darkMode ? .dark : .light
+            if let browser = onlineBrowser {
+                browser.overrideUserInterfaceStyle = controller.darkMode ? .dark : .light
+                browser.loadViewIfNeeded()
+                browser.refreshPresentation(darkMode: controller.darkMode)
+            }
+        }
     }
     func closeOnline() {
         guard let navigation = onlineNavigation else { return }
@@ -244,6 +357,7 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         expandedTreeKeys.removeAll()
 #if targetEnvironment(macCatalyst)
         rootNode = TreeNode(entry: FileEntry(url: URL(fileURLWithPath: "/", isDirectory: true), parent: nil), depth: 0)
+        pendingTreeRevealPath = DesktopInteractionPolicy.treePath(root.url)
 #else
         rootNode = TreeNode(entry: currentDirectory, depth: 0)
 #endif
@@ -383,7 +497,11 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         columns.setContentHuggingPriority(.defaultLow, for: .vertical)
         
         let treeColumn = createColumn(title: L10n.get("tree"), accent: accent, theme: theme)
+#if targetEnvironment(macCatalyst)
+        treeList = CommanderTreeTableView()
+#else
         treeList = UITableView()
+#endif
         treeList.accessibilityIdentifier = "TreeList-\(title)"
         treeList.backgroundColor = theme.treeBackground
         treeList.separatorStyle = .singleLine
@@ -391,7 +509,13 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         treeList.dataSource = self
         treeList.delegate = self
         treeList.register(UITableViewCell.self, forCellReuseIdentifier: "TreeCell")
+#if targetEnvironment(macCatalyst)
+        let viewport = CommanderTreeViewport(table: treeList, identifier: "TreeHorizontal-\(title)")
+        treeViewport = viewport
+        treeColumn.addArrangedSubview(viewport)
+#else
         treeColumn.addArrangedSubview(treeList)
+#endif
         
         let fileColumn = createColumn(title: L10n.get("files"), accent: accent, theme: theme)
 #if !targetEnvironment(macCatalyst)
@@ -464,7 +588,8 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
             }, for: .touchUpInside)
             sortRow.addArrangedSubview(button)
         }
-        fileColumn.addArrangedSubview(sortRow)
+        // Keep metadata columns intact at narrow pane widths. Header and rows
+        // share horizontal scrolling, while filter and title remain fixed.
 #endif
 #if targetEnvironment(macCatalyst)
         fileList = CommanderSelectionTableView()
@@ -512,7 +637,12 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         setupDragAndDrop()
         
         fileList.register(FileCell.self, forCellReuseIdentifier: "FileCell")
+#if targetEnvironment(macCatalyst)
+        fileColumn.addArrangedSubview(CommanderTreeViewport(table: fileList,
+            identifier: "FileHorizontal-\(title)", header: sortRow, minimumWidth: 440))
+#else
         fileColumn.addArrangedSubview(fileList)
+#endif
         
         columns.addArrangedSubview(treeColumn)
 #if targetEnvironment(macCatalyst)
@@ -549,7 +679,19 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         mountOnlineView()
         configureArchiveDrag()
 #endif
+        updateActiveAppearance()
         return shell
+    }
+
+    func updateActiveAppearance() {
+#if targetEnvironment(macCatalyst)
+        guard let controller = viewController, let theme = controller.theme, let shell = paneShell else { return }
+        let active = controller.activePane === self
+        let accent = UIColor(hex: title == "1" ? (controller.darkMode ? "#88baff" : "#185bb5") : (controller.darkMode ? "#79dcb9" : "#147454"))
+        shell.layer.borderWidth = active ? 2 : 1
+        shell.layer.borderColor = (active ? accent : theme.panelBorder).cgColor
+        shell.accessibilityValue = L10n.get(active ? "pane_active" : "pane_inactive")
+#endif
     }
 
     @objc private func resizeTree(_ gesture: UIPanGestureRecognizer) {
@@ -626,8 +768,11 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     private func isEntryInside(_ parent: FileEntry, _ child: FileEntry) -> Bool {
 #if targetEnvironment(macCatalyst)
         if parent.isPhysicalDirectory() {
-            let parentPath = parent.url.standardizedFileURL.path
-            let childPath = child.url.standardizedFileURL.path
+            // macOS presents /tmp while directory enumeration returns
+            // /private/tmp. Compare physical directory identities for tree
+            // ancestry without changing the user's displayed/navigation path.
+            let parentPath = DesktopInteractionPolicy.treePath(parent.url)
+            let childPath = DesktopInteractionPolicy.treePath(child.url)
             if parentPath == "/" || childPath == parentPath || childPath.hasPrefix(parentPath + "/") { return true }
         }
 #endif
@@ -655,6 +800,9 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     private func showDirectory(_ directory: FileEntry) {
         if reentrySelection?.directory != navigationKey(directory) { reentrySelection = nil }
         currentDirectory = directory
+#if targetEnvironment(macCatalyst)
+        pendingTreeRevealPath = DesktopInteractionPolicy.treePath(directory.url)
+#endif
         if !isEntryInside(rootNode.entry, directory) {
             treeGeneration += 1
             rootNode = TreeNode(entry: directory, depth: 0)
@@ -886,6 +1034,11 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
         let anchorY = anchor.map { treeList.rectForRow(at: $0).minY - treeList.contentOffset.y }
         flatTree.removeAll()
         addVisibleNode(rootNode)
+#if targetEnvironment(macCatalyst)
+        treeViewport?.fit(flatTree.map { node in
+            String(repeating: "  ", count: node.depth) + "▼ " + node.entry.name()
+        })
+#endif
         treeList?.reloadData()
         treeList?.layoutIfNeeded()
         if let anchorKey, let anchorY, let row = flatTree.firstIndex(where: { $0.entry.key() == anchorKey }), let treeList {
@@ -894,6 +1047,16 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
             let desired = treeList.rectForRow(at: IndexPath(row: row, section: 0)).minY - anchorY
             treeList.setContentOffset(CGPoint(x: treeList.contentOffset.x, y: max(lower, min(upper, desired))), animated: false)
         }
+#if targetEnvironment(macCatalyst)
+        // Ancestors load asynchronously. Retain explicit navigation's reveal
+        // until its row arrives; ordinary hover rebuilds keep the anchor above.
+        if let target = pendingTreeRevealPath, let row = flatTree.firstIndex(where: {
+            DesktopInteractionPolicy.treePath($0.entry.url) == target
+        }) {
+            treeList?.scrollToRow(at: IndexPath(row: row, section: 0), at: .middle, animated: false)
+            pendingTreeRevealPath = nil
+        }
+#endif
     }
 
     func reloadTreeKeepingExpansion() {
@@ -918,6 +1081,10 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     @discardableResult
     private func ensureTreePathVisible(_ node: TreeNode, target: FileEntry) -> Bool {
         if node.entry.key() == target.key() { return true }
+#if targetEnvironment(macCatalyst)
+        if node.entry.isPhysicalDirectory(), target.isPhysicalDirectory(),
+           DesktopInteractionPolicy.treePath(node.entry.url) == DesktopInteractionPolicy.treePath(target.url) { return true }
+#endif
         if !node.loaded { loadChildren(for: node) }
         for child in node.children where isEntryInside(child.entry, target) {
             node.expanded = true
@@ -1321,7 +1488,7 @@ extension CommanderPane: UITableViewDragDelegate, UITableViewDropDelegate {
                   self.viewController?.operationInProgress == false else { return [] }
             let point = CGPoint(x: point.x * window.bounds.width, y: point.y * window.bounds.height)
             let local = self.fileList.convert(point, from: window)
-            guard self.fileList.bounds.contains(local), let index = self.fileList.indexPathForRow(at: local),
+            guard CommanderVisibleHit.contains(local, in: self.fileList), let index = self.fileList.indexPathForRow(at: local),
                   self.visibleEntries.indices.contains(index.row) else { return [] }
             let entry = self.visibleEntries[index.row]
             guard entry.zipPath != nil, !entry.isUpButton else { return [] }
@@ -1438,6 +1605,9 @@ extension CommanderPane: UITableViewDragDelegate, UITableViewDropDelegate {
         // In particular, its old tree row must not become a different target
         // while an external file promise crosses into the adjacent file list.
         guard tableView.bounds.contains(point) else { return nil }
+#if targetEnvironment(macCatalyst)
+        guard CommanderVisibleHit.contains(point, in: tableView) else { return nil }
+#endif
         // Use the actual row under the pointer, not UIKit's insertion index.
         if let index = tableView.indexPathForRow(at: point), index.section == 0 {
             if tableView === treeList, flatTree.indices.contains(index.row) { return flatTree[index.row].entry }
@@ -1758,7 +1928,8 @@ class FileCell: UITableViewCell {
         
         if entry.modified() > 0 {
             let d = Date(timeIntervalSince1970: TimeInterval(entry.modified() / 1000))
-            dateLabel.text = OnlineDisplayPolicy.localDate(d)
+            dateLabel.text = entry.isZipEntry() && entry.url.pathExtension.lowercased() == "zip"
+                ? CommanderArchiveProperties.storedZIPColumnDate(d) : OnlineDisplayPolicy.localDate(d)
         } else {
             dateLabel.text = ""
         }

@@ -1,15 +1,21 @@
 import Foundation
 import CryptoKit
+import Darwin
 
 @MainActor private final class RecoverableSessionClient: CommanderOnlineClient {
     let base: any CommanderOnlineClient
     let resume: (URL, String?) async throws -> Bool
+    var toolsListing: ((String?) async throws -> [OneDriveItem])?
     init(_ base: any CommanderOnlineClient, resume: @escaping (URL, String?) async throws -> Bool) { self.base = base; self.resume = resume }
     var clientID: String { base.clientID }
     func accountIdentity() async throws -> String { try await base.accountIdentity() }
     func persistentPath(_ id: String?) throws -> String? { try base.persistentPath(id) }
     func restoreReference(_ id: String?, path: String?) async throws -> OneDriveItem { try await base.restoreReference(id, path: path) }
     func children(of id: String?) async throws -> [OneDriveItem] { try await base.children(of: id) }
+    func toolChildren(of id: String?) async throws -> [OneDriveItem] {
+        if let toolsListing { return try await toolsListing(id) }
+        return try await base.toolChildren(of: id)
+    }
     func metadata(_ id: String?) async throws -> OneDriveItem { try await base.metadata(id) }
     func createFolder(_ name: String, parent: String?) async throws { try await base.createFolder(name, parent: parent) }
     func rename(_ item: OneDriveItem, to name: String) async throws { try await base.rename(item, to: name) }
@@ -91,6 +97,17 @@ import CryptoKit
                     try fm.copyItem(at: localURL!, to: source)
                 case "rename":
                     try fm.moveItem(at: source, to: backend.appendingPathComponent(destination!))
+                    // Real abrupt process loss after the backend committed but
+                    // before its callback acknowledged the mutation. Strictly
+                    // limited to this runner's disposable restart fixture.
+                    if restartPhase == "cross-kill-crash",
+                       let boundary = ProcessInfo.processInfo.environment["OPENCOMMANDER_KILL_BOUNDARY"],
+                       (boundary == "publication" && selected.id != profile.id && destination == "kill-target.txt") ||
+                       (boundary == "retention" && selected.id == profile.id && (destination! as NSString).lastPathComponent.hasPrefix(".OpenCommander-Moved-")) {
+                        try Data(boundary.utf8).write(to: fixture.appendingPathComponent("kill-boundary-reached"), options: .atomic)
+                        Darwin.kill(getpid(), SIGKILL)
+                        _exit(99)
+                    }
                     if failAfterUpload && (destination! as NSString).lastPathComponent.hasPrefix(".OpenCommander-Cross-") {
                         throw CloudConnection.failure("cloud_request_failed")
                     }
@@ -105,6 +122,64 @@ import CryptoKit
         let client = CloudFileClient(profile, transport: transport)
         func require(_ value: Bool, _ text: String) { if !value { fatalError(text) } }
         if restartPhase == nil {
+            let cancelledListing = RecoverableSessionClient(client, resume: { _, _ in false })
+            cancelledListing.toolsListing = { _ in
+                // Simulate a provider completing an empty response concurrently
+                // with cancellation; transports may still acknowledge success.
+                withUnsafeCurrentTask { $0?.cancel() }
+                return []
+            }
+            let emptyScan = Task { @MainActor in
+                try await CommanderOnlineTools.scan(cancelledListing, ancestors: [], hidden: false)
+            }
+            do { _ = try await emptyScan.value; fatalError("cancelled empty online scan reported complete") }
+            catch is CancellationError { }
+            let emptyContent = Task { @MainActor in
+                try await CommanderOnlineTools.content(cancelledListing, ancestors: [], hidden: false)
+            }
+            do { _ = try await emptyContent.value; fatalError("cancelled empty online comparison reported equality") }
+            catch is CancellationError { }
+            print("PASS cancellation concurrent with empty online listing cannot publish complete scan or equality")
+            let sizingProfile = CloudConnection(name: "Dropbox size fixture", kind: "dropbox", remote: "size", configPath: "/private/tmp/size.conf")
+            var unknownSize = false, denied = false, huge = false
+            var sizingWrites = 0
+            let sizing = CloudFileClient(sizingProfile, transport: { _, _, operation, path, _, _, callback in
+                guard operation == "list" else { sizingWrites += 1; callback(nil, CloudConnection.failure("cloud_invalid")); return }
+                if denied && path == "Root/Sub" { callback(nil, CloudConnection.failure("cloud_request_failed")); return }
+                let nodes: [(String, Int64, Bool)]
+                switch path {
+                case "": nodes = [("Root", 99999, true)]
+                case "Root": nodes = [("a.bin", huge ? Int64.max : 5, false), ("Sub", 123, true), (".OpenCommanderMoved-DB68BA5F-A947-473E-8865-FCBEF42BF73E", 0, true)]
+                case "Root/Sub": nodes = [("b.bin", unknownSize ? -1 : 7, false)]
+                default: nodes = [("recovery.bin", 400, false)]
+                }
+                let rows: [[String: Any]] = nodes.map { ["Name": $0.0, "Path": $0.0, "Size": $0.1, "IsDir": $0.2] }
+                callback(try! JSONSerialization.data(withJSONObject: rows), nil)
+            })
+            let folder = try await sizing.children(of: nil)[0]
+            let complete = try await CommanderOnlineTools.folderSize(sizing, root: folder)
+            require(complete.complete && complete.bytes == 12 && complete.entries == 4, "online size must count files, not provider folder sizes or recovery contents")
+            unknownSize = true
+            let unknown = try await CommanderOnlineTools.folderSize(sizing, root: folder)
+            require(!unknown.complete && unknown.bytes == 5 && unknown.errors == 1, "unknown online export size must be partial")
+            unknownSize = false; denied = true
+            let inaccessible = try await CommanderOnlineTools.folderSize(sizing, root: folder)
+            require(!inaccessible.complete && inaccessible.bytes == 5 && inaccessible.errors == 1, "inaccessible online subfolder must be partial")
+            denied = false
+            let bounded = try await CommanderOnlineTools.folderSize(sizing, root: folder, maximumEntries: 1)
+            require(!bounded.complete && bounded.limit == "folder_size_entry_limit", "online size entry bound")
+            let timed = try await CommanderOnlineTools.folderSize(sizing, root: folder, timeout: 0)
+            require(timed.limit == "folder_size_time_limit", "online size time bound")
+            huge = true
+            let overflow = try await CommanderOnlineTools.folderSize(sizing, root: folder)
+            require(overflow.limit == "folder_size_overflow", "online size overflow must not wrap")
+            let cancelled = Task { @MainActor in
+                withUnsafeCurrentTask { $0?.cancel() }
+                return try await CommanderOnlineTools.folderSize(sizing, root: folder)
+            }
+            do { _ = try await cancelled.value; fatalError("online size ignored cancellation") } catch is CancellationError { }
+            require(sizingWrites == 0, "properties scan performed a mutation")
+            print("PASS online folder size: recursive exact bytes, recovery exclusion, unknown/denied partial results, entry/time/overflow bounds and cancellation")
             var collisionWrites = 0
             var collisionNames = ["duplicate.txt", "duplicate.txt", "Case.txt", "case.txt", "Safe"]
             let collisions = CloudFileClient(profile, transport: { _, _, operation, _, _, _, callback in
@@ -129,7 +204,84 @@ import CryptoKit
             let journal = fixture.appendingPathComponent("journal")
             let source = local.appendingPathComponent("Restart folder")
             let bytes = Data("Cloud restart: Grüsse, exact bytes\n".utf8)
-            if restartPhase.hasPrefix("cross-") {
+            if restartPhase.hasPrefix("cross-kill-") {
+                let targetFile = fixture.appendingPathComponent("kill-target-profile.json")
+                let targetProfile: CloudConnection
+                if fm.fileExists(atPath: targetFile.path) {
+                    targetProfile = try JSONDecoder().decode(CloudConnection.self, from: Data(contentsOf: targetFile))
+                } else {
+                    targetProfile = CloudConnection(name: "Kill target", kind: "drive", remote: "kill-target", configPath: "/private/tmp/synthetic-kill.conf")
+                    try JSONEncoder().encode(targetProfile).write(to: targetFile, options: .atomic)
+                }
+                let target = CloudFileClient(targetProfile, transport: transport)
+                let killJournal = fixture.appendingPathComponent("kill-journal")
+                let original = remote.appendingPathComponent("kill-source.txt")
+                let destination = secondRemote.appendingPathComponent("kill-target.txt")
+                let old = Data("previous kill-test destination\n".utf8)
+                let replacing = ProcessInfo.processInfo.environment["OPENCOMMANDER_KILL_REPLACE"] == "1"
+                if restartPhase == "cross-kill-prepare" {
+                    try bytes.write(to: original)
+                    if replacing { try old.write(to: destination) }
+                    let item = try await client.children(of: nil).first { $0.name == "kill-source.txt" }!
+                    let previous = try await target.children(of: nil).first { $0.name == "kill-target.txt" }
+                    _ = try await PendingCrossCloudMove.prepare(item, source: client, target: target, parent: nil,
+                        name: "kill-target.txt", sourceLocation: "synthetic:/kill-source.txt", destinationLocation: "synthetic:/kill-target.txt",
+                        replacing: previous, root: killJournal)
+                    print("PASS abrupt-loss fixture intent persisted before mutation")
+                } else {
+                    let jobs = try PendingCrossCloudMove.pending(root: killJournal)
+                    require(jobs.count == 1, "abrupt loss lost/duplicated move intent")
+                    let job = jobs[0]
+                    if restartPhase == "cross-kill-crash" {
+                        _ = try await PendingCrossCloudMove.resume(job, source: client, target: target, root: killJournal)
+                        fatalError("kill boundary was not reached")
+                    }
+                    require(fm.fileExists(atPath: fixture.appendingPathComponent("kill-boundary-reached").path), "no actual kill boundary evidence")
+                    require(try Data(contentsOf: destination) == bytes, "committed target lost after kill")
+                    if restartPhase == "cross-kill-tamper" {
+                        let sourceObject: URL
+                        if fm.fileExists(atPath: original.path) { sourceObject = original }
+                        else {
+                            let recovery = try fm.contentsOfDirectory(at: remote, includingPropertiesForKeys: nil)
+                                .filter { $0.lastPathComponent.hasPrefix(".OpenCommander-Moved-") }
+                            require(recovery.count == 1, "ambiguous source recovery in isolated kill fixture")
+                            sourceObject = recovery[0]
+                        }
+                        let changed = Data("externally changed after actual process loss\n".utf8)
+                        try changed.write(to: sourceObject)
+                        do {
+                            _ = try await PendingCrossCloudMove.resume(job, source: client, target: target, root: killJournal)
+                            fatalError("changed source accepted during abrupt-loss cleanup")
+                        } catch {}
+                        require(try Data(contentsOf: sourceObject) == changed, "changed source overwritten or removed")
+                        require(try Data(contentsOf: destination) == bytes, "refused cleanup changed verified target")
+                        require(try PendingCrossCloudMove.pending(root: killJournal).count == 1, "refused cleanup lost intent")
+                        // Restore only this synthetic fixture's bytes for the
+                        // following separate-process positive recovery test.
+                        try bytes.write(to: sourceObject)
+                        print("PASS after actual kill changed visible/retained source blocks cleanup; verified target and pending intent preserved")
+                        return
+                    }
+                    let undo = try await PendingCrossCloudMove.resume(job, source: client, target: target, root: killJournal)
+                    require(try Data(contentsOf: destination) == bytes, "resume changed published bytes")
+                    require(!fm.fileExists(atPath: original.path), "resume did not retain source")
+                    require(try fm.contentsOfDirectory(atPath: remote.path).filter { $0.hasPrefix(".OpenCommander-Moved-") }.count == 1,
+                        "resume duplicated source retention")
+                    if restartPhase == "cross-kill-resume" {
+                        print("PASS fresh process reconciles actual SIGKILL after committed mutation without duplicate retention")
+                    } else if restartPhase == "cross-kill-undo" {
+                        _ = try await PersistentOnlineUndo.undo(undo, client: target, sourceClient: client)
+                        require(try Data(contentsOf: original) == bytes, "kill recovery Undo lost original source")
+                        if replacing { require(try Data(contentsOf: destination) == old, "kill recovery Undo lost previous target") }
+                        else { require(!fm.fileExists(atPath: destination.path), "kill recovery Undo left published target") }
+                        try PendingCrossCloudMove.finish(job, root: killJournal)
+                        require(try PendingCrossCloudMove.pending(root: killJournal).isEmpty, "kill recovery journal not finished")
+                        print("PASS actual-kill recovery two-sided Undo and explicit journal cleanup")
+                    } else { fatalError("unknown kill phase") }
+                }
+                return
+            }
+            if restartPhase.hasPrefix("cross-") && restartPhase != "cross-undo-confirm" {
                 let profileURL = fixture.appendingPathComponent("cross-target.json")
                 let targetProfile: CloudConnection
                 if fm.fileExists(atPath: profileURL.path) { targetProfile = try JSONDecoder().decode(CloudConnection.self, from: Data(contentsOf: profileURL)) }
@@ -139,7 +291,15 @@ import CryptoKit
                 }
                 let target = CloudFileClient(targetProfile, transport: transport)
                 let crossJournal = fixture.appendingPathComponent("cross-journal")
-                if restartPhase == "cross-prepare" {
+                if restartPhase == "cross-replace-prepare" {
+                    try bytes.write(to: remote.appendingPathComponent("cross-replace.txt"))
+                    try Data("old cross target".utf8).write(to: secondRemote.appendingPathComponent("cross-replace.txt"))
+                    let item = try await client.children(of: nil).first { $0.name == "cross-replace.txt" }!
+                    let existing = try await target.children(of: nil).first { $0.name == item.name }!
+                    _ = try await PendingCrossCloudMove.prepare(item, source: client, target: target, parent: nil, name: item.name,
+                        sourceLocation: "source:/" + item.name, destinationLocation: "target:/" + item.name, replacing: existing, root: crossJournal)
+                    print("PASS cross replacement intent persists both provider versions before mutation")
+                } else if restartPhase == "cross-prepare" {
                     try bytes.write(to: remote.appendingPathComponent("cross-process.txt"))
                     let item = try await client.children(of: nil).first { $0.name == "cross-process.txt" }!
                     _ = try await PendingCrossCloudMove.prepare(item, source: client, target: target, parent: nil,
@@ -147,7 +307,25 @@ import CryptoKit
                     print("PASS process 19 cross-cloud intent before download")
                 } else {
                     let job = try PendingCrossCloudMove.pending(root: crossJournal).first!
-                    if restartPhase == "cross-fail" {
+                    if restartPhase == "cross-replace-fail" {
+                        failUploads = true
+                        do { _ = try await PendingCrossCloudMove.resume(job, source: client, target: target, root: crossJournal); fatalError("replacement ignored failed upload") } catch {}
+                        require(try Data(contentsOf: remote.appendingPathComponent(job.sourceName)) == bytes, "failed replacement retired cloud source")
+                        print("PASS interrupted cross replacement retains source and old-target recovery")
+                    } else if restartPhase == "cross-replace-resume" {
+                        _ = try await PendingCrossCloudMove.resume(job, source: client, target: target, root: crossJournal)
+                        require(try Data(contentsOf: secondRemote.appendingPathComponent(job.name)) == bytes, "cross replacement target mismatch")
+                        require(!fm.fileExists(atPath: remote.appendingPathComponent(job.sourceName).path), "cross replacement source still visible")
+                        print("PASS cross replacement resumes after process loss")
+                    } else if restartPhase == "cross-replace-undo" {
+                        let undo = try await PendingCrossCloudMove.resume(job, source: client, target: target, root: crossJournal)
+                        try JSONEncoder().encode(undo).write(to: fixture.appendingPathComponent("cross-replace-undo.json"), options: .atomic)
+                        _ = try await PersistentOnlineUndo.undo(undo, client: target, sourceClient: client)
+                        require(try Data(contentsOf: remote.appendingPathComponent(job.sourceName)) == bytes, "cross replacement Undo source mismatch")
+                        require(try Data(contentsOf: secondRemote.appendingPathComponent(job.name)) == Data("old cross target".utf8), "cross replacement Undo lost target")
+                        try PendingCrossCloudMove.finish(job, root: crossJournal)
+                        print("PASS cross replacement restart reconciliation restores both originals")
+                    } else if restartPhase == "cross-fail" {
                         failUploads = true
                         do { _ = try await PendingCrossCloudMove.resume(job, source: client, target: target, root: crossJournal); fatalError("cross-process upload failure accepted") } catch {}
                         require(try Data(contentsOf: remote.appendingPathComponent(job.sourceName)) == bytes, "interrupted cross move lost source")
@@ -166,7 +344,20 @@ import CryptoKit
                 }
                 return
             }
-            if restartPhase == "prepare" {
+            if restartPhase == "replacement-undo-confirm" || restartPhase == "cross-undo-confirm" {
+                let cross = restartPhase == "cross-undo-confirm"
+                let file = fixture.appendingPathComponent(cross ? "cross-replace-undo.json" : "replacement-move-undo.json")
+                let undo = try JSONDecoder().decode(CloudUndoPayload.self, from: Data(contentsOf: file))
+                let target: CloudFileClient
+                if cross {
+                    let targetProfile = try JSONDecoder().decode(CloudConnection.self, from: Data(contentsOf: fixture.appendingPathComponent("cross-target.json")))
+                    target = CloudFileClient(targetProfile, transport: transport)
+                } else { target = client }
+                let writes = requests.filter { !["list", "download"].contains($0) }.count
+                _ = try await PersistentOnlineUndo.undo(undo, client: target, sourceClient: cross ? client : nil)
+                require(requests.filter { !["list", "download"].contains($0) }.count == writes, "completed replacement Undo replayed mutation after restart")
+                print("PASS completed replacement Undo reconciles after process loss with zero writes")
+            } else if restartPhase == "prepare" {
                 try fm.createDirectory(at: source.appendingPathComponent("nested"), withIntermediateDirectories: true)
                 try bytes.write(to: source.appendingPathComponent("done.txt"))
                 try bytes.write(to: source.appendingPathComponent("nested/pending.txt"))
@@ -201,6 +392,10 @@ import CryptoKit
                 print("PASS process 4 persisted download intent before network transfer")
             } else if restartPhase == "download-resume" {
                 let job = try PendingCloudDownload.pending(root: journal).first!
+                let freshItem = try await client.restoreReference(job.itemID, path: job.itemPath)
+                let reused = try await PendingCloudDownload.prepare(freshItem, client: client, destination: PendingCloudDownload.destination(job), root: journal)
+                let pendingCount = try PendingCloudDownload.pending(root: journal).count
+                require(reused.id == job.id && pendingCount == 1, "restart with session-local IDs duplicated download journal")
                 let downloaded = try await PendingCloudDownload.resume(job, client: client, root: journal)
                 require(try Data(contentsOf: downloaded.appendingPathComponent("nested/pending.txt")) == bytes, "resumed download differs")
                 print("PASS process 5 downloaded persisted folder intent and saved verified payload")
@@ -305,6 +500,30 @@ import CryptoKit
                 require(try Data(contentsOf: URL(fileURLWithPath: job.moveIntent!.original)) == bytes, "cross-process move Undo lost source")
                 try PendingCloudUpload.finish(job, root: journal)
                 print("PASS process 15 reconciled source retention and restored original via Undo")
+            } else if restartPhase == "replacement-move-prepare" {
+                let seed = local.appendingPathComponent("replacement-process.txt")
+                try Data("previous cloud destination".utf8).write(to: seed)
+                try await client.upload(seed, parent: nil)
+                let existing = try await client.children(of: nil).first { $0.name == seed.lastPathComponent }!
+                try bytes.write(to: seed)
+                _ = try await PendingCloudReplacement.prepare(seed, sourceLocation: seed.path, existing: existing, client: client,
+                    parent: nil, moveOriginal: seed, moveDestination: "cloud:/replacement-process.txt", root: journal)
+                print("PASS persisted replacement move intent before target displacement")
+            } else if restartPhase == "replacement-move-resume" {
+                let job = try PendingCloudReplacement.pending(root: journal).first!
+                _ = try await PendingCloudReplacement.resumeMove(job, client: client, root: journal)
+                require(!fm.fileExists(atPath: job.moveIntent!.original), "replacement move left visible local source")
+                require(try Data(contentsOf: remote.appendingPathComponent(job.upload.name)) == bytes, "replacement move published wrong bytes")
+                print("PASS replacement move resumed after process restart")
+            } else if restartPhase == "replacement-move-undo" {
+                let job = try PendingCloudReplacement.pending(root: journal).first!
+                let undo = try await PendingCloudReplacement.resumeMove(job, client: client, root: journal)
+                try JSONEncoder().encode(undo).write(to: fixture.appendingPathComponent("replacement-move-undo.json"), options: .atomic)
+                _ = try await PersistentOnlineUndo.undo(undo, client: client)
+                require(try Data(contentsOf: URL(fileURLWithPath: job.moveIntent!.original)) == bytes, "replacement move Undo lost local original")
+                require(try Data(contentsOf: remote.appendingPathComponent(job.upload.name)) == Data("previous cloud destination".utf8), "replacement move Undo lost cloud destination")
+                try PendingCloudReplacement.finish(job, root: journal)
+                print("PASS replacement move restart reconciliation and two-sided Undo")
             } else if restartPhase == "early-download-prepare" {
                 let source = local.appendingPathComponent("early-process-download.txt")
                 try bytes.write(to: source)
@@ -312,14 +531,15 @@ import CryptoKit
                 let item = try await client.children(of: nil).first { $0.name == source.lastPathComponent }!
                 let target = fixture.appendingPathComponent("move-download-target")
                 try fm.createDirectory(at: target, withIntermediateDirectories: false)
+                try Data("previous destination".utf8).write(to: target.appendingPathComponent(source.lastPathComponent))
                 _ = try await PendingCloudDownload.prepare(item, client: client, destination: target, move: true, root: journal)
                 print("PASS process 16 persisted cloud-local move before download")
             } else if restartPhase == "early-download-publish" {
                 let job = try PendingCloudDownload.pending(root: journal).first!
                 let payload = try await PendingCloudDownload.resume(job, client: client, root: journal)
                 let target = try PendingCloudDownload.destination(job).appendingPathComponent(job.name)
-                try fm.copyItem(at: payload, to: target)
-                let record = FileUndoRecord(source: payload, destination: target, replacedBackup: nil)
+                let backup = try SafeFileOperations.copyReplacing(source: payload, destination: target, replace: true)
+                let record = FileUndoRecord(source: payload, destination: target, replacedBackup: backup)
                 _ = try await PendingCloudDownload.completeMove(job, client: client, record: record,
                     sourceLocation: "cloud:/" + job.name, root: journal)
                 print("PASS process 17 resumed download, published local copy and retained cloud original")
@@ -329,6 +549,7 @@ import CryptoKit
                     sourceLocation: "cloud:/" + job.name, root: journal)
                 _ = try await PersistentOnlineUndo.undo(undo, client: client)
                 require(try Data(contentsOf: remote.appendingPathComponent(job.name)) == bytes, "download restart Undo lost original")
+                require(try Data(contentsOf: PendingCloudDownload.destination(job).appendingPathComponent(job.name)) == Data("previous destination".utf8), "restart replacement Undo lost previous local target")
                 try PendingCloudDownload.finish(job, root: journal)
                 print("PASS process 18 reconciled published download move and restored cloud original")
             } else { fatalError("Unknown restart phase") }
@@ -673,6 +894,88 @@ import CryptoKit
         print("PASS early cloud-local move intent, retained payload, publication recovery and Undo")
         }
         try await testEarlyMoves()
+        func testDownloadMoveReplacement() async throws {
+            let root = local.appendingPathComponent("replacement-download-journal")
+            let target = local.appendingPathComponent("replacement-download-target")
+            try fm.createDirectory(at: target, withIntermediateDirectories: false)
+            let seed = local.appendingPathComponent("replacement-download.txt")
+            try content.write(to: seed)
+            try await client.upload(seed, parent: nil)
+            let item = try await client.children(of: nil).first { $0.name == seed.lastPathComponent }!
+            let job = try await PendingCloudDownload.prepare(item, client: client, destination: target, move: true, root: root)
+            let payload = try await PendingCloudDownload.resume(job, client: client, root: root)
+            let published = target.appendingPathComponent(item.name)
+            let old = Data("old local destination".utf8)
+            try old.write(to: published)
+            let backup = try SafeFileOperations.copyReplacing(source: payload, destination: published, replace: true)!
+            let record = FileUndoRecord(source: payload, destination: published, replacedBackup: backup)
+            var legacyData = try JSONSerialization.jsonObject(with: JSONEncoder().encode(record)) as! [String: Any]
+            legacyData.removeValue(forKey: "backupSnapshot")
+            legacyData.removeValue(forKey: "backupVerificationRequired")
+            let unverified = try JSONDecoder().decode(FileUndoRecord.self, from: JSONSerialization.data(withJSONObject: legacyData))
+            do {
+                _ = try await PendingCloudDownload.completeMove(job, client: client, record: unverified, sourceLocation: "cloud:/" + item.name, root: root)
+                fatalError("move accepted unverified legacy destination backup")
+            } catch {}
+            require(fm.fileExists(atPath: remote.appendingPathComponent(item.name).path), "missing backup proof retired cloud source")
+            try Data("tampered backup".utf8).write(to: backup)
+            do {
+                _ = try await PendingCloudDownload.completeMove(job, client: client, record: record, sourceLocation: "cloud:/" + item.name, root: root)
+                fatalError("move accepted changed destination backup")
+            } catch {}
+            require(fm.fileExists(atPath: remote.appendingPathComponent(item.name).path), "invalid backup retired cloud source")
+            try old.write(to: backup)
+            let undo = try await PendingCloudDownload.completeMove(job, client: client, record: record, sourceLocation: "cloud:/" + item.name, root: root)
+            require(!fm.fileExists(atPath: remote.appendingPathComponent(item.name).path), "replacement move left visible source")
+            try Data("tampered backup".utf8).write(to: backup)
+            do { _ = try await PersistentOnlineUndo.undo(undo, client: client); fatalError("Undo accepted changed backup") } catch {}
+            require(!fm.fileExists(atPath: remote.appendingPathComponent(item.name).path), "failed preflight restored cloud source")
+            require(try Data(contentsOf: published) == content, "failed Undo displaced current destination")
+            try old.write(to: backup)
+            _ = try await PersistentOnlineUndo.undo(undo, client: client)
+            require(try Data(contentsOf: published) == old, "Undo lost previous local destination")
+            require(try Data(contentsOf: remote.appendingPathComponent(item.name)) == content, "Undo lost cloud original")
+            try PendingCloudDownload.finish(job, root: root)
+            print("PASS cloud-local replacement move, recovery-backup preflight, source retention and full Undo")
+        }
+        try await testDownloadMoveReplacement()
+        func testSameProviderReplacementMove() async throws {
+            let label = "same-provider-replace"
+            try await client.createFolder(label, parent: nil)
+            let parent = try await client.children(of: nil).first { $0.name == label }!
+            let staging = local.appendingPathComponent("same-provider-stage")
+            let seed = staging.appendingPathComponent("Clash")
+            try fm.createDirectory(at: seed.appendingPathComponent("Empty"), withIntermediateDirectories: true)
+            try content.write(to: seed.appendingPathComponent("new.txt"))
+            try await client.uploadTree(seed, parent: nil)
+            let item = try await client.children(of: nil).first { $0.name == "Clash" }!
+            let oldStage = local.appendingPathComponent("same-provider-old/Clash")
+            try fm.createDirectory(at: oldStage, withIntermediateDirectories: true)
+            let old = Data("old folder content".utf8)
+            try old.write(to: oldStage.appendingPathComponent("old.txt"))
+            try await client.uploadTree(oldStage, parent: parent.id)
+            let existing = try await client.children(of: parent.id).first { $0.name == "Clash" }!
+            let root = local.appendingPathComponent("same-provider-replace-journal")
+            let job = try await PendingCrossCloudMove.prepare(item, source: client, target: client, parent: parent.id,
+                name: item.name, sourceLocation: "cloud:/Clash", destinationLocation: "cloud:/" + label + "/Clash", replacing: existing, root: root)
+            let undo = try await PendingCrossCloudMove.resume(job, source: client, target: client, root: root)
+            require(!fm.fileExists(atPath: remote.appendingPathComponent("Clash").path), "same-provider replacement left visible source")
+            require(try RemoteContent.snapshot(remote.appendingPathComponent(label + "/Clash")) == RemoteContent.snapshot(seed), "folder replacement merged or lost empty directory")
+            let backup = remote.appendingPathComponent(undo.previous!.path!.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+            try Data("tampered".utf8).write(to: backup.appendingPathComponent("old.txt"))
+            do { _ = try await PersistentOnlineUndo.undo(undo, client: client, sourceClient: client); fatalError("cross Undo accepted modified old target") } catch {}
+            require(!fm.fileExists(atPath: remote.appendingPathComponent("Clash").path), "preflight failure restored source prematurely")
+            try old.write(to: backup.appendingPathComponent("old.txt"))
+            _ = try await PersistentOnlineUndo.undo(undo, client: client, sourceClient: client)
+            require(try RemoteContent.snapshot(remote.appendingPathComponent("Clash")) == RemoteContent.snapshot(seed), "same-provider Undo lost source folder")
+            require(try RemoteContent.snapshot(remote.appendingPathComponent(label + "/Clash")) == RemoteContent.snapshot(oldStage), "same-provider Undo lost previous target")
+            let writes = requests.filter { !["list", "download"].contains($0) }.count
+            _ = try await PersistentOnlineUndo.undo(undo, client: client, sourceClient: client)
+            require(requests.filter { !["list", "download"].contains($0) }.count == writes, "same-provider completed Undo replayed writes")
+            try PendingCrossCloudMove.finish(job, root: root)
+            print("PASS same-provider folder replacement move, no merging, empty folder, tampered recovery refusal and two-sided Undo")
+        }
+        try await testSameProviderReplacementMove()
         func testCrossMoveRecovery() async throws {
             let journal = local.appendingPathComponent("cross-early-journal")
             let seed = local.appendingPathComponent("cross-early.txt")

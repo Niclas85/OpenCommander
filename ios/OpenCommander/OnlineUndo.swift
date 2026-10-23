@@ -87,16 +87,22 @@ import Foundation
     static func prepare(_ item: OneDriveItem, client: any CommanderOnlineClient, destination: URL,
                         move: Bool = false, root: URL = directory) async throws -> Job {
         let account = try await client.accountIdentity()
-        if let existing = try pending(root: root).first(where: {
-            $0.endpoint == client.clientID && $0.account == account && $0.itemID == item.id && $0.directory == destination.path && ($0.move == true) == move
-        }) { return existing }
+        let itemPath = try client.persistentPath(item.id)
+        if let existing = try pending(root: root).first(where: { saved in
+            saved.endpoint == client.clientID && saved.account == account &&
+                (itemPath.map { saved.itemPath == $0 } ?? (saved.itemID == item.id)) &&
+                saved.name == item.name && saved.directory == destination.path && (saved.move == true) == move
+        }) {
+            _ = try self.destination(existing)
+            return existing
+        }
         let attributes = try FileManager.default.attributesOfItem(atPath: destination.path)
         guard attributes[.type] as? FileAttributeType == .typeDirectory,
               let device = attributes[.systemNumber] as? NSNumber,
               let inode = attributes[.systemFileNumber] as? NSNumber,
               OneDriveClient.validName(item.name) else { throw CloudConnection.failure("cloud_undo_changed") }
         let job = Job(id: UUID(), endpoint: client.clientID, account: account, itemID: item.id,
-            itemPath: try client.persistentPath(item.id), name: item.name, directory: destination.path,
+            itemPath: itemPath, name: item.name, directory: destination.path,
             device: device.uint64Value, inode: inode.uint64Value, version: try await client.remoteSnapshot(item), move: move)
         let container = folder(job, root: root)
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
@@ -151,14 +157,16 @@ import Foundation
         let publication = folder(job, root: root).appendingPathComponent("publication.json")
         if let record {
             guard record.destination.deletingLastPathComponent().standardizedFileURL == destination.standardizedFileURL,
-                  record.replacedBackup == nil else { throw CloudConnection.failure("cloud_undo_changed") }
+                  record.replacedBackup == nil || record.hasVerifiedRecoveryProof else { throw CloudConnection.failure("cloud_undo_changed") }
             try record.verifyUnchangedDestination()
+            try record.verifyRecovery()
             try JSONEncoder().encode(record).write(to: publication, options: .atomic)
         }
         let saved = try JSONDecoder().decode(FileUndoRecord.self, from: Data(contentsOf: publication))
         guard saved.destination.deletingLastPathComponent().standardizedFileURL == destination.standardizedFileURL,
-              saved.replacedBackup == nil else { throw CloudConnection.failure("cloud_undo_changed") }
+              saved.replacedBackup == nil || saved.hasVerifiedRecoveryProof else { throw CloudConnection.failure("cloud_undo_changed") }
         try saved.verifyUnchangedDestination()
+        try saved.verifyRecovery()
         let moveRoot = folder(job, root: root).appendingPathComponent("move")
         let existing = try PendingOnlineMove.pending(root: moveRoot)
         guard existing.count <= 1 else { throw CloudConnection.failure("cloud_undo_changed") }
@@ -407,6 +415,7 @@ import Foundation
         let originalPath: String?
         let originalTag: String
         let originalContent: [String: String]
+        var moveIntent: PendingCloudUpload.MoveIntent? = nil
         var recoveryName: String { ".OpenCommander-Replaced-" + id.uuidString }
     }
     private static var active = Set<UUID>()
@@ -429,7 +438,8 @@ import Foundation
         }
     }
     static func prepare(_ source: URL, sourceLocation: String, existing: OneDriveItem,
-                        client: any CommanderOnlineClient, parent: String?, root: URL = directory) async throws -> Job {
+                        client: any CommanderOnlineClient, parent: String?, moveOriginal: URL? = nil,
+                        moveDestination: String? = nil, root: URL = directory) async throws -> Job {
         let account = try await client.accountIdentity()
         guard source.lastPathComponent == existing.name, let tag = existing.eTag,
               try await client.metadata(existing.id).eTag == tag,
@@ -442,8 +452,14 @@ import Foundation
         defer { if !published { try? FileManager.default.removeItem(at: container) } }
         let upload = try await PendingCloudUpload.prepare(source, source: sourceLocation, client: client, parent: parent,
             account: account, root: container.appendingPathComponent("upload"))
-        let job = Job(id: id, upload: upload, originalID: existing.id, originalPath: try client.persistentPath(existing.id),
+        var job = Job(id: id, upload: upload, originalID: existing.id, originalPath: try client.persistentPath(existing.id),
                       originalTag: tag, originalContent: original)
+        if let moveOriginal {
+            guard let moveDestination, moveOriginal.isFileURL, moveOriginal.path != "/",
+                  try await RemoteContent.snapshotAsync(moveOriginal) == upload.content else { throw CloudConnection.failure("cloud_undo_changed") }
+            let fingerprint = try await Task.detached { try SafeFileOperations.snapshot(moveOriginal) }.value
+            job.moveIntent = .init(original: moveOriginal.path, fingerprint: fingerprint, destination: moveDestination)
+        }
         try JSONEncoder().encode(job).write(to: container.appendingPathComponent("job.json"), options: .atomic)
         try FileManager.default.moveItem(at: container, to: folder(job, root: root))
         published = true
@@ -484,6 +500,28 @@ import Foundation
         return .init(previous: backup, replacement: replacement, parent: parent, name: job.upload.name,
                      previousContent: job.originalContent, replacementContent: job.upload.content)
     }
+    static func resumeMove(_ job: Job, client: any CommanderOnlineClient, root: URL = directory) async throws -> CloudUndoPayload {
+        guard let intent = job.moveIntent, client.clientID == job.upload.endpoint,
+              try await client.accountIdentity() == job.upload.account else { throw CloudConnection.failure("cloud_undo_account") }
+        let moveRoot = folder(job, root: root).appendingPathComponent("move")
+        let pending = try PendingLocalCloudMove.pending(root: moveRoot)
+        guard pending.count <= 1 else { throw CloudConnection.failure("cloud_undo_changed") }
+        if let move = pending.first {
+            guard move.original == intent.original, move.fingerprint == intent.fingerprint,
+                  move.uploaded.endpoint == job.upload.endpoint, move.uploaded.account == job.upload.account,
+                  move.uploaded.kind == "replacement", move.uploaded.current.content == job.upload.content,
+                  move.uploaded.previous?.content == job.originalContent,
+                  move.destinationLocation == intent.destination else { throw CloudConnection.failure("cloud_undo_changed") }
+            return try await PendingLocalCloudMove.resume(move, client: client)
+        }
+        let original = URL(fileURLWithPath: intent.original)
+        guard try await Task.detached(operation: { try SafeFileOperations.snapshot(original) }).value == intent.fingerprint else { throw CloudConnection.failure("cloud_undo_changed") }
+        let result = try await resume(job, client: client, root: root)
+        guard try await Task.detached(operation: { try SafeFileOperations.snapshot(original) }).value == intent.fingerprint else { throw CloudConnection.failure("cloud_undo_changed") }
+        let undo = try PersistentOnlineUndo.replacement(client, record: result, account: job.upload.account)
+        let move = try await PendingLocalCloudMove.prepare(original, uploaded: undo, destinationLocation: intent.destination, root: moveRoot)
+        return try await PendingLocalCloudMove.resume(move, client: client)
+    }
     static func finish(_ job: Job, root: URL = directory) throws {
         try FileManager.default.removeItem(at: folder(job, root: root))
     }
@@ -511,6 +549,8 @@ import Foundation
         let sourceLocation: String
         let destinationLocation: String
         var privateUploadName: String?
+        var replacing: CloudUndoPayload.Object? = nil
+        var replacingTag: String? = nil
     }
     private struct Publication: Codable {
         let jobID: UUID
@@ -538,17 +578,29 @@ import Foundation
     }
     static func prepare(_ item: OneDriveItem, source: any CommanderOnlineClient,
                         target: any CommanderOnlineClient, parent: String?, name: String,
-                        sourceLocation: String, destinationLocation: String, root: URL = directory) async throws -> Job {
+                        sourceLocation: String, destinationLocation: String, replacing: OneDriveItem? = nil,
+                        root: URL = directory) async throws -> Job {
         guard OneDriveClient.validName(name) else { throw CloudConnection.failure("cloud_undo_changed") }
         let id = UUID()
         let privateName = ".OpenCommander-Cross-" + id.uuidString
         guard !(try await target.children(of: parent)).contains(where: { OneDriveConflictNames.key($0.name) == OneDriveConflictNames.key(privateName) }) else { throw CloudConnection.failure("cloud_undo_changed") }
-        let job = Job(id: id, sourceEndpoint: source.clientID, sourceAccount: try await source.accountIdentity(),
+        var job = Job(id: id, sourceEndpoint: source.clientID, sourceAccount: try await source.accountIdentity(),
             sourceID: item.id, sourcePath: try source.persistentPath(item.id), sourceName: item.name,
             version: try await source.remoteSnapshot(item), endpoint: target.clientID, account: try await target.accountIdentity(),
             parent: parent, parentPath: try target.persistentPath(parent), name: name,
             sourceLocation: sourceLocation, destinationLocation: destinationLocation, privateUploadName: privateName)
-        guard job.sourceEndpoint != job.endpoint || job.sourceAccount != job.account else { throw CloudConnection.failure("cloud_undo_changed") }
+        let same = job.sourceEndpoint == job.endpoint && job.sourceAccount == job.account
+        guard !same || replacing != nil else { throw CloudConnection.failure("cloud_undo_changed") }
+        if same { try await target.validateDestination(parent, excluding: item.id) }
+        if let replacing {
+            guard replacing.name == name, let tag = replacing.eTag,
+                  !same || replacing.id != item.id,
+                  try await target.metadata(replacing.id).eTag == tag,
+                  try await target.children(of: parent).contains(where: { $0.id == replacing.id }) else { throw CloudConnection.failure("cloud_undo_changed") }
+            let content = try await CommanderOnlineTools.contentSnapshot(target, item: replacing)
+            job.replacing = try PersistentOnlineUndo.object(target, item: replacing, content: content)
+            job.replacingTag = tag
+        }
         let container = folder(job, root: root)
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         try JSONEncoder().encode(job).write(to: container.appendingPathComponent("job.json"), options: .atomic)
@@ -576,6 +628,7 @@ import Foundation
         guard item.name == job.sourceName, try await source.remoteSnapshot(item) == job.version else { throw CloudConnection.failure("cloud_undo_changed") }
         var parent = job.parent
         if let id = parent { parent = try await target.restoreReference(id, path: job.parentPath).id }
+        if job.replacing != nil { return try await resumeReplacement(job, item: item, source: source, target: target, parent: parent, root: root) }
         let uploadName = job.privateUploadName ?? job.name
         guard job.privateUploadName == nil || uploadName == ".OpenCommander-Cross-" + job.id.uuidString else { throw CloudConnection.failure("cloud_undo_changed") }
         let uploads = try PendingCloudUpload.pending(root: uploadsRoot)
@@ -617,6 +670,50 @@ import Foundation
               try await source.accountIdentity() == job.sourceAccount else { throw CloudConnection.failure("cloud_undo_changed") }
         let move = try await PendingOnlineMove.prepare(source, item: item, content: upload.content, uploaded: receipt,
             sourceLocation: job.sourceLocation, destinationLocation: job.destinationLocation, root: movesRoot)
+        return try await PendingOnlineMove.resume(move, client: source, targetClient: target)
+    }
+    private static func resumeReplacement(_ job: Job, item: OneDriveItem, source: any CommanderOnlineClient,
+                                          target: any CommanderOnlineClient, parent: String?, root: URL) async throws -> CloudUndoPayload {
+        guard let proof = job.replacing, let tag = job.replacingTag else { throw CloudConnection.failure("cloud_undo_changed") }
+        let container = folder(job, root: root), replacementsRoot = container.appendingPathComponent("replacement")
+        let jobs = try PendingCloudReplacement.pending(root: replacementsRoot)
+        guard jobs.count <= 1 else { throw CloudConnection.failure("cloud_undo_changed") }
+        let replacement: PendingCloudReplacement.Job
+        if let saved = jobs.first {
+            guard saved.upload.endpoint == job.endpoint, saved.upload.account == job.account,
+                  saved.upload.name == job.name, saved.originalContent == proof.content,
+                  saved.originalPath == proof.path, saved.originalTag == tag,
+                  saved.upload.parentPath == job.parentPath,
+                  job.parentPath != nil || saved.upload.parent == job.parent,
+                  saved.moveIntent == nil else { throw CloudConnection.failure("cloud_undo_changed") }
+            replacement = saved
+        } else {
+            let existing = try await target.restoreReference(proof.id, path: proof.path)
+            guard existing.name == proof.name, existing.eTag == tag,
+                  try await CommanderOnlineTools.contentSnapshot(target, item: existing) == proof.content else { throw CloudConnection.failure("cloud_undo_changed") }
+            let stage = container.appendingPathComponent("stage", isDirectory: true)
+            try FileManager.default.createDirectory(at: stage, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            let downloadsRoot = container.appendingPathComponent("download")
+            let downloads = try PendingCloudDownload.pending(root: downloadsRoot)
+            guard downloads.count <= 1 else { throw CloudConnection.failure("cloud_undo_changed") }
+            let download: PendingCloudDownload.Job
+            if let saved = downloads.first { download = saved }
+            else { download = try await PendingCloudDownload.prepare(item, client: source, destination: stage, root: downloadsRoot) }
+            guard download.endpoint == job.sourceEndpoint, download.account == job.sourceAccount,
+                  download.version == job.version, download.directory == stage.path else { throw CloudConnection.failure("cloud_undo_changed") }
+            let payload = try await PendingCloudDownload.resume(download, client: source, root: downloadsRoot)
+            let named = stage.appendingPathComponent(job.name)
+            if FileManager.default.fileExists(atPath: named.path) { try FileManager.default.removeItem(at: named) }
+            try FileManager.default.copyItem(at: payload, to: named)
+            replacement = try await PendingCloudReplacement.prepare(named, sourceLocation: job.sourceLocation,
+                existing: existing, client: target, parent: parent, root: replacementsRoot)
+        }
+        let result = try await PendingCloudReplacement.resume(replacement, client: target, root: replacementsRoot)
+        guard try await source.remoteSnapshot(item) == job.version,
+              try await source.accountIdentity() == job.sourceAccount else { throw CloudConnection.failure("cloud_undo_changed") }
+        let undo = try PersistentOnlineUndo.replacement(target, record: result, account: job.account)
+        let move = try await PendingOnlineMove.prepare(source, item: item, content: replacement.upload.content, uploaded: undo,
+            sourceLocation: job.sourceLocation, destinationLocation: job.destinationLocation, root: container.appendingPathComponent("move"))
         return try await PendingOnlineMove.resume(move, client: source, targetClient: target)
     }
     private static func publish(_ job: Job, upload: PendingCloudUpload.Job, target: any CommanderOnlineClient,
@@ -694,7 +791,7 @@ import Foundation
         guard (uploaded != nil) != (local != nil), let tag = item.eTag,
               current.name == item.name, current.eTag == tag,
               try await CommanderOnlineTools.contentSnapshot(client, item: item) == content else { throw CloudConnection.failure("cloud_undo_changed") }
-        if let uploaded { try uploaded.validate(); guard uploaded.kind == "remove", uploaded.current.content == content else { throw CloudConnection.failure("cloud_undo_changed") } }
+        if let uploaded { try uploaded.validate(); guard ["remove", "replacement"].contains(uploaded.kind), uploaded.current.content == content else { throw CloudConnection.failure("cloud_undo_changed") } }
         guard try await client.accountIdentity() == account else { throw CloudConnection.failure("cloud_undo_account") }
         let job = Job(id: UUID(), endpoint: client.clientID, account: account,
             source: try PersistentOnlineUndo.object(client, item: current, content: content), tag: tag,
@@ -715,13 +812,15 @@ import Foundation
             if let uploaded = job.uploaded {
                 try uploaded.validate()
                 let target = try targetClient ?? PersistentOnlineUndo.client(uploaded.endpoint)
-                guard uploaded.kind == "remove", uploaded.current.content == job.source.content,
+                guard ["remove", "replacement"].contains(uploaded.kind), uploaded.current.content == job.source.content,
                       target.clientID == uploaded.endpoint, try await target.accountIdentity() == uploaded.account else { throw CloudConnection.failure("cloud_undo_account") }
                 let current = try await target.restoreReference(uploaded.current.id, path: uploaded.current.path)
+                try await PersistentOnlineUndo.verifyPrevious(uploaded, client: target, current: current)
                 guard current.name == uploaded.current.name,
                       try await CommanderOnlineTools.contentSnapshot(target, item: current) == job.source.content else { throw CloudConnection.failure("cloud_undo_changed") }
             } else if let local {
-                try await Task.detached { try local.verifyUnchangedDestination() }.value
+                guard local.replacedBackup == nil || local.hasVerifiedRecoveryProof else { throw CloudConnection.failure("cloud_undo_changed") }
+                try await Task.detached { try local.verifyUnchangedDestination(); try local.verifyRecovery() }.value
                 guard try await RemoteContent.snapshotAsync(local.destination) == job.source.content else { throw CloudConnection.failure("cloud_undo_changed") }
             } else { throw CloudConnection.failure("cloud_undo_changed") }
         }
@@ -802,7 +901,7 @@ import Foundation
     static func prepare(_ original: URL, uploaded: CloudUndoPayload, destinationLocation: String,
                         root: URL = directory) async throws -> Job {
         try uploaded.validate()
-        guard uploaded.kind == "remove", original.isFileURL, original.path != "/",
+        guard ["remove", "replacement"].contains(uploaded.kind), original.isFileURL, original.path != "/",
               try await RemoteContent.snapshotAsync(original) == uploaded.current.content else { throw CloudConnection.failure("cloud_undo_changed") }
         let attributes = try FileManager.default.attributesOfItem(atPath: original.deletingLastPathComponent().path)
         guard attributes[.type] as? FileAttributeType == .typeDirectory,
@@ -818,7 +917,7 @@ import Foundation
         guard active.insert(job.id).inserted else { throw CloudConnection.failure("cloud_undo_changed") }
         defer { active.remove(job.id) }
         try job.uploaded.validate()
-        guard job.uploaded.kind == "remove", job.original.hasPrefix("/"), job.original != "/",
+        guard ["remove", "replacement"].contains(job.uploaded.kind), job.original.hasPrefix("/"), job.original != "/",
               !job.original.split(separator: "/").contains(".."), client.clientID == job.uploaded.endpoint,
               try await client.accountIdentity() == job.uploaded.account else { throw CloudConnection.failure("cloud_undo_account") }
         let original = URL(fileURLWithPath: job.original), parent = original.deletingLastPathComponent()
@@ -829,6 +928,7 @@ import Foundation
               (attributes[.systemNumber] as? NSNumber)?.uint64Value == job.parentDevice,
               (attributes[.systemFileNumber] as? NSNumber)?.uint64Value == job.parentInode else { throw CloudConnection.failure("cloud_undo_changed") }
         let current = try await client.restoreReference(job.uploaded.current.id, path: job.uploaded.current.path)
+        try await PersistentOnlineUndo.verifyPrevious(job.uploaded, client: client, current: current)
         guard current.name == job.uploaded.current.name,
               try await CommanderOnlineTools.contentSnapshot(client, item: current) == job.uploaded.current.content else { throw CloudConnection.failure("cloud_undo_changed") }
         if !SafeFileOperations.exists(job.recovery) {
@@ -839,6 +939,7 @@ import Foundation
             try FileManager.default.moveItem(at: original, to: job.recovery)
         }
         let retainedFingerprint = try await Task.detached { try SafeFileOperations.snapshot(job.recovery, rootName: original.lastPathComponent) }.value
+        try await PersistentOnlineUndo.verifyPrevious(job.uploaded, client: client, current: current)
         try await pauseMoveAcceptance(job.id)
         guard retainedFingerprint == job.fingerprint, !SafeFileOperations.exists(original),
               try await client.accountIdentity() == job.uploaded.account,
@@ -851,6 +952,13 @@ import Foundation
 }
 
 @MainActor enum PersistentOnlineUndo {
+    static func verifyPrevious(_ payload: CloudUndoPayload, client: any CommanderOnlineClient, current: OneDriveItem) async throws {
+        guard let proof = payload.previous else { return }
+        let previous = try await client.restoreReference(proof.id, path: proof.path)
+        guard previous.name == proof.name, previous.parentReference?.id == current.parentReference?.id,
+              try await CommanderOnlineTools.contentSnapshot(client, item: previous) == proof.content,
+              try await client.accountIdentity() == payload.account else { throw CloudConnection.failure("cloud_undo_changed") }
+    }
     /// Direct cloud deletion retains a verified object, so restore it through
     /// the same persistent relocation protocol as rename (including restart).
     static func cloudRecoveryDelete(_ client: CloudFileClient, item: OneDriveItem) async throws -> CloudUndoPayload {
@@ -915,13 +1023,13 @@ import Foundation
             name: item.name, parent: parent, parentPath: parentPath)
     }
     static func crossMove(_ uploaded: CloudUndoPayload, source: CloudUndoPayload.SourceRestore) throws -> CloudUndoPayload {
-        guard uploaded.kind == "remove" else { throw CloudConnection.failure("cloud_undo_changed") }
+        guard ["remove", "replacement"].contains(uploaded.kind) else { throw CloudConnection.failure("cloud_undo_changed") }
         let payload = CloudUndoPayload(endpoint: uploaded.endpoint, account: uploaded.account, kind: "crossMove",
-            current: uploaded.current, sourceRestore: source)
+            current: uploaded.current, previous: uploaded.previous, sourceRestore: source)
         try payload.validate(); return payload
     }
     static func localMove(_ uploaded: CloudUndoPayload, original: URL, recovery: URL) async throws -> CloudUndoPayload {
-        guard uploaded.kind == "remove", try await RemoteContent.snapshotAsync(recovery) == uploaded.current.content else {
+        guard ["remove", "replacement"].contains(uploaded.kind), try await RemoteContent.snapshotAsync(recovery) == uploaded.current.content else {
             throw CloudConnection.failure("cloud_undo_changed")
         }
         let parent = try FileManager.default.attributesOfItem(atPath: original.deletingLastPathComponent().path)
@@ -930,6 +1038,7 @@ import Foundation
             throw CloudConnection.failure("cloud_undo_changed")
         }
         var payload = CloudUndoPayload(endpoint: uploaded.endpoint, account: uploaded.account, kind: "localMove", current: uploaded.current)
+        payload.previous = uploaded.previous
         payload.localSourceRestore = .init(original: original.path, recovery: recovery.path, parentDevice: device.uint64Value, parentInode: inode.uint64Value)
         try payload.validate(); return payload
     }
@@ -939,14 +1048,45 @@ import Foundation
         payload.localCopyUndo = try JSONEncoder().encode(local)
         try payload.validate(); return payload
     }
+    /// Reconcile process loss after both originals were restored but before
+    /// History saved success. This path only reads; it never adopts ownership
+    /// for another destructive operation based on matching content.
+    private static func replacementAlreadyUndone(_ payload: CloudUndoPayload, client: any CommanderOnlineClient,
+                                                  sourceClient: (any CommanderOnlineClient)?) async throws -> Bool {
+        guard let previous = payload.previous, ["localMove", "crossMove"].contains(payload.kind) else { return false }
+        var parent = payload.current.parent
+        if let id = parent { parent = try await client.restoreReference(id, path: payload.current.parentPath).id }
+        guard let restoredTarget = try await client.children(of: parent).first(where: { $0.name == payload.current.name }),
+              try await CommanderOnlineTools.contentSnapshot(client, item: restoredTarget) == previous.content else { return false }
+        if payload.kind == "localMove", let local = payload.localSourceRestore {
+            let original = URL(fileURLWithPath: local.original)
+            let attributes = try FileManager.default.attributesOfItem(atPath: original.deletingLastPathComponent().path)
+            guard attributes[.type] as? FileAttributeType == .typeDirectory,
+                  (attributes[.systemNumber] as? NSNumber)?.uint64Value == local.parentDevice,
+                  (attributes[.systemFileNumber] as? NSNumber)?.uint64Value == local.parentInode,
+                  SafeFileOperations.exists(original), try await RemoteContent.snapshotAsync(original) == payload.current.content else { return false }
+        } else if let source = payload.sourceRestore {
+            let origin = try sourceClient ?? Self.client(source.endpoint)
+            guard origin.clientID == source.endpoint, try await origin.accountIdentity() == source.account else { throw CloudConnection.failure("cloud_undo_account") }
+            var sourceParent = source.parent
+            if let id = sourceParent { sourceParent = try await origin.restoreReference(id, path: source.parentPath).id }
+            guard let restoredSource = try await origin.children(of: sourceParent).first(where: { $0.name == source.name }),
+                  try await CommanderOnlineTools.contentSnapshot(origin, item: restoredSource) == source.recovery.content else { return false }
+            guard try await origin.accountIdentity() == source.account else { throw CloudConnection.failure("cloud_undo_account") }
+        } else { return false }
+        guard try await client.accountIdentity() == payload.account else { throw CloudConnection.failure("cloud_undo_account") }
+        return true
+    }
     /// Every restart resolves fresh references and verifies account/content
     /// before displacement. No mutation is replayed after an ambiguous failure.
     static func undo(_ payload: CloudUndoPayload, client: any CommanderOnlineClient,
                      sourceClient: (any CommanderOnlineClient)? = nil) async throws -> String? {
         try payload.validate()
         guard client.clientID == payload.endpoint, try await client.accountIdentity() == payload.account else { throw CloudConnection.failure("cloud_undo_account") }
+        if try await replacementAlreadyUndone(payload, client: client, sourceClient: sourceClient) { return nil }
         if payload.kind == "downloadMove", let data = payload.localCopyUndo, let originalName = payload.originalName {
             let local = try JSONDecoder().decode(FileUndoRecord.self, from: data)
+            try await Task.detached { try local.verifyUnchangedDestination(); try local.verifyRecovery() }.value
             // Preflight the local copy before restoring the remote name. The
             // local Undo engine separately rechecks metadata before displacement.
             guard try await RemoteContent.snapshotAsync(local.destination) == payload.current.content else { throw CloudConnection.failure("cloud_undo_changed") }
@@ -975,6 +1115,7 @@ import Foundation
         try Task.checkCancellation()
         if let parent = payload.current.parent { _ = try await client.restoreReference(parent, path: payload.current.parentPath) }
         if payload.kind == "localMove", let local = payload.localSourceRestore {
+            try await verifyPrevious(payload, client: client, current: current)
             let original = URL(fileURLWithPath: local.original), recovery = URL(fileURLWithPath: local.recovery)
             let attributes = try FileManager.default.attributesOfItem(atPath: original.deletingLastPathComponent().path)
             guard attributes[.type] as? FileAttributeType == .typeDirectory,
@@ -1003,11 +1144,18 @@ import Foundation
             guard try await RemoteContent.snapshotAsync(original) == content,
                   try await client.accountIdentity() == payload.account,
                   try await CommanderOnlineTools.contentSnapshot(client, item: current) == content else { throw CloudConnection.failure("cloud_undo_changed") }
-            let proof = try await client.remoteSnapshot(current)
-            try await client.recycleUnchanged(current, snapshot: proof)
+            if let previous = payload.previous {
+                let retained = try await client.restoreReference(previous.id, path: previous.path)
+                _ = try await CommanderOnlineTools.undoReplacement(client, record: .init(previous: retained, replacement: current,
+                    parent: current.parentReference?.id, name: current.name, previousContent: previous.content, replacementContent: content))
+            } else {
+                let proof = try await client.remoteSnapshot(current)
+                try await client.recycleUnchanged(current, snapshot: proof)
+            }
             return local.recovery
         }
         if payload.kind == "crossMove" {
+            try await verifyPrevious(payload, client: client, current: current)
             guard let source = payload.sourceRestore else { throw CloudConnection.failure("cloud_undo_changed") }
             let origin = try sourceClient ?? Self.client(source.endpoint)
             guard origin.clientID == source.endpoint, try await origin.accountIdentity() == source.account else { throw CloudConnection.failure("cloud_undo_account") }
@@ -1028,8 +1176,14 @@ import Foundation
             guard try await origin.accountIdentity() == source.account,
                   try await client.accountIdentity() == payload.account,
                   try await CommanderOnlineTools.contentSnapshot(client, item: current) == payload.current.content else { throw CloudConnection.failure("cloud_undo_changed") }
-            let proof = try await client.remoteSnapshot(current)
-            try await client.recycleUnchanged(current, snapshot: proof)
+            if let previous = payload.previous {
+                let retained = try await client.restoreReference(previous.id, path: previous.path)
+                _ = try await CommanderOnlineTools.undoReplacement(client, record: .init(previous: retained, replacement: current,
+                    parent: current.parentReference?.id, name: current.name, previousContent: previous.content, replacementContent: payload.current.content))
+            } else {
+                let proof = try await client.remoteSnapshot(current)
+                try await client.recycleUnchanged(current, snapshot: proof)
+            }
             return client.moveBackupLocation
         }
         if payload.kind == "replacement" {

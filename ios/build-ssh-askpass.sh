@@ -16,3 +16,14 @@ xcrun lipo -create "$task_temp"/* -output "$task_output"
 if [ "${CODE_SIGNING_ALLOWED:-NO}" = "YES" ]; then
     /usr/bin/codesign --force --sign "${EXPANDED_CODE_SIGN_IDENTITY:--}" --options runtime "$task_output"
 fi
+task_cloud_output="$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/OpenCommanderCloudArguments"
+for task_arch in $task_archs; do
+    xcrun --sdk macosx clang -Os -fobjc-arc -Wall -Wextra -Werror -framework Foundation -isysroot "$task_sdk" \
+        -target "$task_arch-apple-macos13" "$SRCROOT/OpenCommanderMacBridge/CloudArguments.m" -o "$task_temp/cloud-$task_arch"
+done
+set --
+for task_arch in $task_archs; do set -- "$@" "$task_temp/cloud-$task_arch"; done
+xcrun lipo -create "$@" -output "$task_cloud_output"
+if [ "${CODE_SIGNING_ALLOWED:-NO}" = "YES" ]; then
+    /usr/bin/codesign --force --sign "${EXPANDED_CODE_SIGN_IDENTITY:--}" --options runtime "$task_cloud_output"
+fi

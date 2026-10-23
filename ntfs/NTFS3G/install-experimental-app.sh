@@ -18,6 +18,8 @@ if /sbin/mount | grep -E '\(openntfs[^, )]*[, )]' >/dev/null; then
 fi
 test "$(plutil -extract CFBundleIdentifier raw -o - "$task_source/Contents/Info.plist")" = com.github.niklaus85.OpenCommander
 codesign --verify --deep --strict "$task_source"
+test -x "$task_source/Contents/MacOS/OpenCommanderCloudArguments"
+codesign --verify --strict "$task_source/Contents/MacOS/OpenCommanderCloudArguments"
 xcrun swift "$task_root/ntfs/NTFS3G/tests/signature_preflight.swift" \
     "$task_source/Contents/Extensions/OpenCommanderNTFSModule.appex"
 task_backup=$(mktemp -d "$task_root/ntfs/NTFS3G/.build-native/App-before-install.XXXXXX")

@@ -8,6 +8,13 @@ final class TransferQueuePanel: UIViewController {
     private let selector = UISegmentedControl(items: ["1", "2", "3", "4"])
     private let pauseAll = UIButton(type: .system)
     private let resumeAll = UIButton(type: .system)
+    private let removeCompleted = UIButton(type: .system)
+    private let pageControls = UIStackView()
+    private let newerPage = UIButton(type: .system)
+    private let olderPage = UIButton(type: .system)
+    private let pageLabel = UILabel()
+    private var pageIndex = 0
+    private var pageHeight: NSLayoutConstraint!
     private var rendered: [DurableTransferQueue.Job] = []
     private struct Controls {
         let name: UILabel; let compact: UIButton; let pause: UIButton; let resume: UIButton
@@ -15,7 +22,7 @@ final class TransferQueuePanel: UIViewController {
         let route: UILabel; let details: UILabel; let summary: UILabel; let error: UILabel; let timestamp: String; let report: UIButton
     }
     private var controls: [UUID: Controls] = [:]
-    private var hadStoreError = false
+    private var renderedStoreError: String?
     private var durationTimer: Timer?
     var closeRequested: (() -> Void)?
     var heightRequested: ((CGFloat, Bool) -> Void)?
@@ -47,13 +54,28 @@ final class TransferQueuePanel: UIViewController {
         resumeAll.setTitle(L10n.get("transfer_resume_all"), for: .normal)
         pauseAll.accessibilityIdentifier = "TransferPauseAll"
         resumeAll.accessibilityIdentifier = "TransferResumeAll"
+        removeCompleted.setTitle(L10n.get("transfer_remove_completed"), for: .normal)
+        removeCompleted.titleLabel?.numberOfLines = 2
+        removeCompleted.accessibilityIdentifier = "TransferRemoveCompleted"
+        removeCompleted.addAction(UIAction { [weak self] _ in self?.queue.forgetCompleted() }, for: .touchUpInside)
         pauseAll.addAction(UIAction { [weak self] _ in self?.queue.controlAll(.pause) }, for: .touchUpInside)
         resumeAll.addAction(UIAction { [weak self] _ in self?.queue.controlAll(.proceed) }, for: .touchUpInside)
-        let header = UIStackView(arrangedSubviews: [title, concurrency, selector, pauseAll, resumeAll, done]); header.spacing = 12
+        let header = UIStackView(arrangedSubviews: [title, concurrency, selector, pauseAll, resumeAll, removeCompleted, done]); header.spacing = 12
+        newerPage.setTitle(L10n.get("transfer_newer"), for: .normal)
+        olderPage.setTitle(L10n.get("transfer_older"), for: .normal)
+        newerPage.accessibilityIdentifier = "TransferPageNewer"
+        olderPage.accessibilityIdentifier = "TransferPageOlder"
+        pageLabel.accessibilityIdentifier = "TransferPageStatus"
+        newerPage.addAction(UIAction { [weak self] _ in self?.changePage(-1) }, for: .touchUpInside)
+        olderPage.addAction(UIAction { [weak self] _ in self?.changePage(1) }, for: .touchUpInside)
+        [newerPage, pageLabel, olderPage].forEach { pageControls.addArrangedSubview($0) }
+        pageControls.spacing = 12; pageControls.alignment = .center
+        pageControls.translatesAutoresizingMaskIntoConstraints = false
+        pageHeight = pageControls.heightAnchor.constraint(equalToConstant: 0)
         header.translatesAutoresizingMaskIntoConstraints = false
         scroll.translatesAutoresizingMaskIntoConstraints = false
         stack.axis = .vertical; stack.spacing = 8; stack.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(header); view.addSubview(scroll); scroll.addSubview(stack)
+        view.addSubview(header); view.addSubview(pageControls); view.addSubview(scroll); scroll.addSubview(stack)
         NSLayoutConstraint.activate([
             grip.topAnchor.constraint(equalTo: view.topAnchor),
             grip.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -62,7 +84,11 @@ final class TransferQueuePanel: UIViewController {
             header.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
             header.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
             header.topAnchor.constraint(equalTo: grip.bottomAnchor, constant: 4),
-            scroll.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 8),
+            pageControls.topAnchor.constraint(equalTo: header.bottomAnchor),
+            pageControls.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
+            pageControls.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -12),
+            pageHeight,
+            scroll.topAnchor.constraint(equalTo: pageControls.bottomAnchor, constant: 8),
             scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
             scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
             scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -8),
@@ -78,37 +104,47 @@ final class TransferQueuePanel: UIViewController {
             heightRequested?(resizeStart - gesture.translation(in: view.superview).y, gesture.state == .ended)
         }
     }
-    func render(_ jobs: [DurableTransferQueue.Job], limit: Int, error: String?) {
+    private func changePage(_ delta: Int) {
+        pageIndex += delta
+        render(rendered, limit: selector.selectedSegmentIndex + 1, error: renderedStoreError, force: true)
+    }
+    func render(_ jobs: [DurableTransferQueue.Job], limit: Int, error: String?, force: Bool = false) {
         pauseAll.isEnabled = jobs.contains { [.queued, .running].contains($0.state) && $0.requestedControl != "pause" }
         resumeAll.isEnabled = jobs.contains { $0.state == .paused }
+        removeCompleted.isEnabled = jobs.contains { $0.state == .completed }
         loadViewIfNeeded(); selector.selectedSegmentIndex = limit - 1
+        let page = DurableTransferQueue.cardPage(jobs, index: pageIndex)
+        pageIndex = page.index
+        newerPage.isEnabled = page.index > 0; olderPage.isEnabled = page.index + 1 < page.count
+        pageLabel.text = String(format: L10n.get("transfer_page_status"), page.index + 1, page.count, jobs.count)
+        pageControls.isHidden = page.count <= 1; pageHeight.constant = page.count <= 1 ? 0 : 28
         if jobs.contains(where: { $0.state == .running }) {
             if durationTimer == nil {
                 durationTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
                     guard let self else { return }
-                    for job in self.rendered where job.state == .running { self.update(job) }
+                    for job in DurableTransferQueue.cardPage(self.rendered, index: self.pageIndex).jobs where job.state == .running { self.update(job) }
                 }
             }
         } else { durationTimer?.invalidate(); durationTimer = nil }
-        if rendered.map(\.id) == jobs.map(\.id), hadStoreError == (error != nil), !controls.isEmpty {
+        if !force, rendered.map(\.id) == jobs.map(\.id), renderedStoreError == error, !controls.isEmpty {
             rendered = jobs
-            for job in jobs { update(job) }
+            for job in page.jobs { update(job) }
             return
         }
-        rendered = jobs; hadStoreError = error != nil; controls.removeAll()
-        let offset = scroll.contentOffset
+        rendered = jobs; renderedStoreError = error; controls.removeAll()
+        let offset = force ? CGPoint.zero : scroll.contentOffset
         stack.arrangedSubviews.forEach { stack.removeArrangedSubview($0); $0.removeFromSuperview() }
         if error != nil || jobs.isEmpty {
-            let label = UILabel(); label.text = L10n.get(error == nil ? "transfer_empty" : "transfer_store_error")
+            let label = UILabel(); label.text = L10n.get(error ?? "transfer_empty")
             label.numberOfLines = 0; stack.addArrangedSubview(label)
         }
-        for job in jobs.reversed() {
+        for job in page.jobs {
             let card = UIStackView(); card.axis = .vertical; card.spacing = 4
             card.isLayoutMarginsRelativeArrangement = true
             card.layoutMargins = UIEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
             card.backgroundColor = .tertiarySystemBackground; card.layer.cornerRadius = 8
             card.accessibilityIdentifier = "TransferCard-\(job.id)"
-            let name = UILabel(); name.text = URL(fileURLWithPath: job.source).lastPathComponent + " · " + L10n.get("transfer_" + job.state.rawValue)
+            let name = UILabel(); name.text = job.displayName + " · " + L10n.get(job.statusKey)
             name.numberOfLines = 1; name.lineBreakMode = .byTruncatingMiddle; name.font = .systemFont(ofSize: 12)
             name.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
             // A bounded name and progress leave all applicable controls on the same row.
@@ -133,7 +169,7 @@ final class TransferQueuePanel: UIViewController {
             card.addArrangedSubview(row)
             progress.progress = job.state == .completed ? 1 : job.total > 0 ? Float(job.bytes) / Float(job.total) : 0
             let route = UILabel(); route.numberOfLines = 2; route.lineBreakMode = .byTruncatingMiddle; route.font = .systemFont(ofSize: 11)
-            route.text = job.source + " → " + job.destination
+            route.text = job.routeDescription
             route.accessibilityLabel = route.text
             card.addArrangedSubview(route)
             let details = UILabel(); details.font = .systemFont(ofSize: 11); details.numberOfLines = 0
@@ -148,7 +184,7 @@ final class TransferQueuePanel: UIViewController {
             report.addAction(UIAction { [weak self] _ in
                 guard let self, let current = self.rendered.first(where: { $0.id == job.id }) else { return }
                 let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-                let description = "OpenCommander macOS \(version)\nID: \(current.id)\n" + L10n.get(current.statusKey) + "\n" + current.source + " → " + current.destination + "\n\(current.bytes)/\(current.total) Bytes\n" + self.description(current) + "\n" + (current.error ?? "")
+                let description = "OpenCommander macOS \(version)\nID: \(current.id)\n" + L10n.get(current.statusKey) + "\n" + current.source + " → " + current.destination + "\n\(current.bytes)/\(current.total) Bytes\n" + self.description(current) + "\n" + (current.errorMessage ?? "")
                 UIPasteboard.general.setItems([["public.utf8-plain-text": Data(description.utf8)]], options: [.localOnly: true])
             }, for: .touchUpInside)
             card.addArrangedSubview(report)
@@ -157,12 +193,15 @@ final class TransferQueuePanel: UIViewController {
             update(job)
             stack.addArrangedSubview(card)
         }
-        scroll.contentOffset = offset
+        view.layoutIfNeeded()
+        let minimum = -scroll.adjustedContentInset.top
+        let maximum = max(minimum, scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
+        scroll.setContentOffset(CGPoint(x: 0, y: min(maximum, max(minimum, offset.y))), animated: false)
     }
     private func update(_ job: DurableTransferQueue.Job) {
         guard let refs = controls[job.id] else { return }
-        refs.name.text = URL(fileURLWithPath: job.source).lastPathComponent + " · " + L10n.get(job.statusKey) + " · \(Int(job.progressFraction * 100))%"
-        refs.name.accessibilityValue = job.source + " → " + job.destination + "\n" + description(job) + "\n" + (job.error ?? "")
+        refs.name.text = job.displayName + " · " + L10n.get(job.statusKey) + " · \(Int(job.progressFraction * 100))%"
+        refs.name.accessibilityValue = job.routeDescription + "\n" + description(job) + "\n" + (job.errorMessage ?? "")
         refs.compact.setTitle(L10n.get(job.compact ? "transfer_details" : "transfer_compact"), for: .normal)
         refs.pause.isEnabled = [.running, .queued].contains(job.state) && job.requestedControl == nil
         refs.pause.isHidden = ![.running, .queued].contains(job.state)
@@ -170,13 +209,15 @@ final class TransferQueuePanel: UIViewController {
         refs.resume.isHidden = ![.paused, .failed].contains(job.state)
         refs.cancel.isEnabled = ![.completed, .cancelled].contains(job.state) && job.requestedControl != "cancel"
         refs.cancel.isHidden = [.completed, .cancelled].contains(job.state)
-        refs.forget.isHidden = ![.completed, .cancelled].contains(job.state) || (job.engine == "nas-exclusive" && job.state != .completed)
+        refs.forget.isHidden = !job.canForget
         refs.progress.progress = job.progressFraction
-        refs.progress.accessibilityLabel = L10n.get(job.isChecking ? "transfer_checked" : "transfer_copied")
+        refs.progress.accessibilityLabel = L10n.get(job.isDeletion ? "transfer_processed" : job.isChecking ? "transfer_checked" : "transfer_copied")
         refs.route.isHidden = job.compact; refs.details.isHidden = job.compact
+        refs.route.text = job.routeDescription
+        refs.route.accessibilityLabel = job.routeDescription
         refs.report.isHidden = job.compact
-        refs.error.isHidden = job.compact || job.error == nil
-        refs.error.text = job.error.map { L10n.get("transfer_previous_error") + " " + $0 }
+        refs.error.isHidden = job.compact || job.errorMessage == nil
+        refs.error.text = job.errorMessage.map { L10n.get("transfer_previous_error") + " " + $0 }
         if job.engine == "nas-exclusive", job.state != .completed {
             refs.error.isHidden = false
             refs.error.text = L10n.get("transfer_nas_partial") + (refs.error.text.map { "\n" + $0 } ?? "")
@@ -191,10 +232,14 @@ final class TransferQueuePanel: UIViewController {
         let copied = ByteCountFormatter.string(fromByteCount: job.bytes, countStyle: .file) + " / " + ByteCountFormatter.string(fromByteCount: job.total, countStyle: .file)
         let percent = Int(job.progressFraction * 100)
         var text = L10n.get(job.statusKey) + " · \(percent)%\n" + L10n.get(job.isChecking ? "transfer_already_copied" : "transfer_copied") + ": " + copied
+        if job.isDeletion { text = L10n.get(job.statusKey) + "\n" + job.routeDescription }
         if job.isChecking {
             text += "\n" + L10n.get("transfer_checked") + ": " + ByteCountFormatter.string(fromByteCount: job.checkedBytes ?? 0, countStyle: .file) + " / " + ByteCountFormatter.string(fromByteCount: job.checkingTotal ?? 0, countStyle: .file)
         }
         text += "\n" + L10n.get("transfer_active_time") + ": " + CommanderDuration.format(elapsed, german: german)
+        if job.state == .cancelled, let staging = job.staging {
+            text += "\n" + L10n.get(job.isDeletion ? "transfer_delete_retained" : "transfer_partial_location", staging)
+        }
         if let requested = job.controlRequestedAt, job.requestedControl != nil {
             text += "\n" + L10n.get("transfer_control_wait") + ": " + CommanderDuration.format(max(0, Date().timeIntervalSince(requested)), german: german) + "\n" + L10n.get("transfer_control_pending_help")
         }

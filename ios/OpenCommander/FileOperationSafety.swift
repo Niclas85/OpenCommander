@@ -2,6 +2,30 @@ import Foundation
 import CryptoKit
 import Darwin
 
+/// Hold for the entire application lifetime, before reading/writing a profile.
+/// The lock file is never deleted: kernel ownership, not stale PID text, decides
+/// whether an existing profile writer is alive.
+final class CommanderProfileLease {
+    enum Failure: Error, Equatable { case inUse, unavailable }
+    private let descriptor: Int32
+    init(directory: URL) throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
+                                               attributes: [.posixPermissions: 0o700])
+        let path = directory.appendingPathComponent(".opencommander-profile.lock").path
+        let fd = Darwin.open(path, O_RDWR | O_CREAT | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC, 0o600)
+        guard fd >= 0 else { throw Failure.unavailable }
+        var info = stat()
+        guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG,
+              info.st_uid == geteuid(), info.st_nlink == 1 else { close(fd); throw Failure.unavailable }
+        guard flock(fd, LOCK_EX | LOCK_NB) == 0 else {
+            let busy = errno == EWOULDBLOCK || errno == EAGAIN
+            close(fd); throw busy ? Failure.inUse : Failure.unavailable
+        }
+        descriptor = fd
+    }
+    deinit { _ = flock(descriptor, LOCK_UN); close(descriptor) }
+}
+
 /// Classifies the complete underlying error chain; a provider wrapper must not
 /// hide a full disk or a revoked grant. No localized-message matching.
 enum MobileStorageIssue {
@@ -329,7 +353,8 @@ struct CloudUndoPayload: Codable, Equatable {
         if let data = localCopyUndo {
             let record = try JSONDecoder().decode(FileUndoRecord.self, from: data)
             guard data.count <= 16 * 1024 * 1024, record.destination.isFileURL, record.destination.path != "/",
-                  record.replacedBackup == nil, record.quarantinedSource == nil else {
+                  record.quarantinedSource == nil,
+                  record.replacedBackup.map({ $0.isFileURL && $0.path != "/" && record.hasVerifiedRecoveryProof }) != false else {
                 throw NSError(domain: "OpenCommander.Cloud", code: 1, userInfo: [NSLocalizedDescriptionKey: "cloud_undo_changed"])
             }
         }
@@ -397,6 +422,14 @@ enum HistoryPaging {
 
 /// Desktop selection rules mirror the Linux context menu and ZIP toolbar.
 enum DesktopInteractionPolicy {
+    /// Tree identity only: Foundation deliberately shortens /private/tmp to
+    /// /tmp even after resolvingSymlinksInPath, which breaks parent matching.
+    /// Do not use this spelling for a displayed path or a transfer destination.
+    static func treePath(_ url: URL) -> String {
+        guard let pointer = realpath(url.path, nil) else { return url.standardizedFileURL.path }
+        defer { free(pointer) }
+        return String(cString: pointer)
+    }
     static func selection(clicked: String, visible: [String], selected: Set<String>, anchor: String?,
                           extend: Bool, toggle: Bool) -> (keys: Set<String>, anchor: String?) {
         guard let end = visible.firstIndex(of: clicked) else { return (selected, anchor) }
@@ -458,6 +491,161 @@ struct SafeArchiveLimits {
                           userInfo: [NSLocalizedDescriptionKey: L10n.get("extract_unsafe")])
         }
         bytes += size
+    }
+}
+
+/// Metadata only: never extracts archive contents or confuses a selected member
+/// with the size/date of the physical container. Implicit directories are valid.
+struct CommanderArchiveProperties {
+    struct Member {
+        let path: String
+        let directory: Bool
+        let size: Int64
+        let compressed: Int64?
+        let modified: Date?
+    }
+    let size: Int64
+    let compressed: Int64?
+    let modified: Date?
+    let entries: Int?
+    let wallClockTimestamp: Bool
+
+    init(member: String, directory: Bool, members: [Member], wallClockTimestamp: Bool = false) throws {
+        self.wallClockTimestamp = wallClockTimestamp
+        guard members.count <= 100_000 else { throw CocoaError(.fileReadTooLarge) }
+        guard Set(members.map(\.path)).count == members.count else { throw CocoaError(.fileReadCorruptFile) }
+        if directory {
+            let prefix = member.isEmpty ? "" : member.hasSuffix("/") ? member : member + "/"
+            let selected = members.filter { $0.path == prefix || $0.path.hasPrefix(prefix) }
+            guard member.isEmpty || !selected.isEmpty else { throw CocoaError(.fileNoSuchFile) }
+            var total: Int64 = 0
+            for item in selected where !item.directory {
+                let next = total.addingReportingOverflow(item.size)
+                guard item.size >= 0, !next.overflow else { throw CocoaError(.fileReadCorruptFile) }
+                total = next.partialValue
+            }
+            size = total; compressed = nil; modified = selected.first(where: { $0.path == prefix })?.modified
+            entries = selected.count
+        } else {
+            guard !member.isEmpty else { throw CocoaError(.fileNoSuchFile) }
+            let selected = members.filter { $0.path == member }
+            guard selected.count == 1, let item = selected.first, !item.directory, item.size >= 0,
+                  item.compressed == nil || item.compressed! >= 0 else { throw CocoaError(.fileReadCorruptFile) }
+            size = item.size; compressed = item.compressed; modified = item.modified; entries = nil
+        }
+    }
+
+    var extraDescription: String {
+        if let entries {
+            return L10n.get("properties_archive_contents") + ": " + CommanderFileProperties.byteDescription(size)
+                + "\n" + L10n.get("properties_archive_entries") + ": \(entries)"
+        }
+        return L10n.get("properties_compressed") + ": "
+            + (compressed.map(CommanderFileProperties.byteDescription) ?? L10n.get("properties_unknown"))
+            + (wallClockTimestamp ? "\n\n" + L10n.get("properties_zip_timestamp_note") : "")
+    }
+
+    var modifiedDescription: String {
+        guard let modified else { return L10n.get("properties_unknown") }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: L10n.currentLanguage)
+        formatter.dateStyle = .medium; formatter.timeStyle = .medium
+        // ZIPFoundation decodes DOS wall-clock fields through timegm(), not an
+        // actual UTC instant. Applying the viewer timezone a second time is wrong.
+        if wallClockTimestamp { formatter.timeZone = TimeZone(secondsFromGMT: 0) }
+        return formatter.string(from: modified)
+    }
+
+    static func storedZIPColumnDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return formatter.string(from: date)
+    }
+}
+
+/// A fresh, non-recursive snapshot of the selected entry, not a symlink's target.
+/// A failed metadata read remains unknown; it must never become zero or “No”.
+struct CommanderFileProperties {
+    static func byteDescription(_ value: Int64) -> String {
+        if value < 1024 { return "\(value) B" }
+        return ByteCountFormatter.string(fromByteCount: value, countStyle: .file) + " (\(value) B)"
+    }
+    let url: URL
+    let isDirectory: Bool
+    let isSymbolicLink: Bool
+    let size: Int64?
+    let created: Date?
+    let modified: Date?
+    let accessed: Date?
+    let permissions: String?
+    let owner: String?
+    let group: String?
+    let linkTarget: String?
+    let readable: Bool?
+    let writable: Bool?
+    let filesystem: String?
+    let readOnly: Bool?
+    let capacity: Int64?
+    let available: Int64?
+
+    init(at url: URL) {
+        self.url = url
+        var info = stat()
+        let exists = url.withUnsafeFileSystemRepresentation { pointer in
+            pointer.map { lstat($0, &info) == 0 } ?? false
+        }
+        isSymbolicLink = exists && (info.st_mode & S_IFMT) == S_IFLNK
+        isDirectory = exists && (info.st_mode & S_IFMT) == S_IFDIR
+        size = exists && !isDirectory ? Int64(info.st_size) : nil
+        func date(_ value: timespec) -> Date? {
+            guard exists, value.tv_sec != 0 || value.tv_nsec != 0 else { return nil }
+            return Date(timeIntervalSince1970: Double(value.tv_sec) + Double(value.tv_nsec) / 1_000_000_000)
+        }
+        created = date(info.st_birthtimespec)
+        modified = date(info.st_mtimespec)
+        accessed = date(info.st_atimespec)
+        permissions = exists ? String(format: "%04o", info.st_mode & 0o7777) : nil
+        let attributes = exists ? try? FileManager.default.attributesOfItem(atPath: url.path) : nil
+        owner = exists ? attributes?[.ownerAccountName] as? String ?? String(info.st_uid) : nil
+        group = exists ? attributes?[.groupOwnerAccountName] as? String ?? String(info.st_gid) : nil
+        linkTarget = isSymbolicLink ? try? FileManager.default.destinationOfSymbolicLink(atPath: url.path) : nil
+        // access() follows links, so don't mislabel target access as link access.
+        readable = exists && !isSymbolicLink ? url.withUnsafeFileSystemRepresentation { $0.map { access($0, R_OK) == 0 } } : nil
+        writable = exists && !isSymbolicLink ? url.withUnsafeFileSystemRepresentation { $0.map { access($0, W_OK) == 0 } } : nil
+        let volumeURL = isSymbolicLink ? url.deletingLastPathComponent() : url
+        let volume = exists ? try? volumeURL.resourceValues(forKeys: [.volumeTotalCapacityKey,
+            .volumeAvailableCapacityKey, .volumeIsReadOnlyKey]) : nil
+        readOnly = volume?.volumeIsReadOnly
+        capacity = volume?.volumeTotalCapacity.map(Int64.init)
+        available = volume?.volumeAvailableCapacity.map(Int64.init)
+        var volumeInfo = statfs()
+        let hasVolume = exists && volumeURL.withUnsafeFileSystemRepresentation { pointer in
+            pointer.map { statfs($0, &volumeInfo) == 0 } ?? false
+        }
+        filesystem = hasVolume ? withUnsafeBytes(of: &volumeInfo.f_fstypename) { bytes in
+            String(cString: bytes.baseAddress!.assumingMemoryBound(to: CChar.self))
+        } : nil
+    }
+
+    var extraDescription: String {
+        let unknown = L10n.get("properties_unknown")
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: L10n.currentLanguage)
+        formatter.dateStyle = .medium; formatter.timeStyle = .medium
+        func boolean(_ value: Bool?) -> String { value.map { L10n.get($0 ? "properties_yes" : "properties_no") } ?? unknown }
+        func bytes(_ value: Int64?) -> String { value.map(Self.byteDescription) ?? unknown }
+        var rows: [(String, String)] = [
+            ("properties_uri", url.absoluteString),
+            ("properties_accessed", accessed.map(formatter.string) ?? unknown),
+            ("properties_owner", owner ?? unknown), ("properties_group", group ?? unknown),
+            ("properties_readable", boolean(readable)), ("properties_writable", boolean(writable)),
+            ("properties_filesystem", filesystem ?? unknown), ("properties_readonly", boolean(readOnly)),
+            ("properties_capacity", bytes(capacity)), ("properties_available", bytes(available))]
+        if isSymbolicLink { rows.append(("properties_link_target", linkTarget ?? unknown)) }
+        return rows.map { L10n.get($0.0) + ": " + $0.1 }.joined(separator: "\n") + "\n\n" + L10n.get("properties_provider_note")
     }
 }
 
@@ -584,9 +772,37 @@ final class FileOperationCancellation {
 
 /// File operations kept separate from UIKit so failure paths can be tested with fixtures.
 enum SafeFileOperations {
+    static func clipboardSourcesAvailable(_ urls: [URL]) -> Bool {
+        !urls.isEmpty && urls.allSatisfy { $0.isFileURL && exists($0) }
+    }
     static func exists(_ url: URL) -> Bool {
         // Includes dangling symlinks: these are still occupied destination names.
         (try? FileManager.default.attributesOfItem(atPath: url.path)) != nil
+    }
+
+    /// Same-directory rename, including case-only changes on case-insensitive
+    /// volumes. Never use an overwriting POSIX rename or a two-hop temporary
+    /// name: the latter leaves the original name lost across process failure.
+    static func renameEntry(_ source: URL, to destination: URL) throws {
+        guard source.isFileURL, destination.isFileURL,
+              source.deletingLastPathComponent().standardizedFileURL == destination.deletingLastPathComponent().standardizedFileURL,
+              !["", ".", ".."].contains(destination.lastPathComponent) else { throw CocoaError(.fileWriteInvalidFileName) }
+        if source.path == destination.path { return }
+        let fm = FileManager.default
+        // Two distinct hard links can share an inode. Their existing spelling
+        // must still be a conflict, not mistaken for a case-only alias.
+        if try fm.contentsOfDirectory(atPath: destination.deletingLastPathComponent().path).contains(destination.lastPathComponent) {
+            throw CocoaError(.fileWriteFileExists)
+        }
+#if os(macOS) || targetEnvironment(macCatalyst)
+        // APFS permits an atomic case-only rename with RENAME_EXCL while
+        // refusing a target introduced after the directory preflight.
+        guard renamex_np(source.path, destination.path, UInt32(RENAME_EXCL)) == 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+#else
+        try fm.moveItem(at: source, to: destination)
+#endif
     }
 
     static func conflict(_ url: URL) -> NSError {
@@ -768,6 +984,14 @@ enum SafeFileOperations {
 /// Store stable error identity, not an OS sentence in the system language.
 /// Render using the current app language, including after restarting/switching language.
 struct HistoryFailure: Codable, Equatable {
+    /// Present coded OS errors in the app's selected language, rather than
+    /// leaking the host OS language or private configuration paths into alerts.
+    static func presentation(_ error: Error) -> String {
+        let value = error as NSError
+        if [NSCocoaErrorDomain, NSPOSIXErrorDomain].contains(value.domain) { return HistoryFailure(error).message }
+        if ["OpenCommander.Remote", "OpenCommander.Cloud"].contains(value.domain) { return L10n.get(value.localizedDescription) }
+        return error.localizedDescription
+    }
     let domain: String
     let code: Int
     init(_ error: Error) {
@@ -819,6 +1043,8 @@ final class FileUndoRecord: Codable {
     private var nasRestoreStage: String? = nil
     private var nasMoveRestoreStage: String? = nil
     private(set) var completed = false
+    private(set) var renameBatchID: UUID? = nil
+    private(set) var renameEntryID: UUID? = nil
     var lastError: String?
     var lastFailure: HistoryFailure?
     var historyErrorMessage: String? {
@@ -832,19 +1058,21 @@ final class FileUndoRecord: Codable {
         lastError = nil
     }
 
-    init(source: URL, destination: URL, replacedBackup: URL?, quarantinedSource: URL? = nil, createdDirectory: Bool = false) {
+    init(source: URL, destination: URL, replacedBackup: URL?, quarantinedSource: URL? = nil, createdDirectory: Bool = false,
+         expectedRenameSnapshot: Data? = nil, renameBatchID: UUID? = nil, renameEntryID: UUID? = nil) {
         createdAt = Date()
         self.source = source
         self.destination = destination
         self.replacedBackup = replacedBackup
         self.quarantinedSource = quarantinedSource
         self.createdDirectory = createdDirectory ? true : nil
+        self.renameBatchID = renameBatchID; self.renameEntryID = renameEntryID
         backupVerificationRequired = replacedBackup != nil
         backupSnapshot = replacedBackup.flatMap { try? SafeFileOperations.snapshot($0, contentOnly: true) }
         quarantineSnapshot = quarantinedSource.flatMap { try? SafeFileOperations.snapshot($0) }
         // A read failure disables undo; it must never roll back an already completed move.
         providerIdentity = SafeFileOperations.providerLocation(destination)
-        snapshot = try? SafeFileOperations.snapshot(destination, providerIdentity: providerIdentity == true)
+        snapshot = expectedRenameSnapshot ?? (try? SafeFileOperations.snapshot(destination, providerIdentity: providerIdentity == true))
     }
 
     func verifyUnchangedDestination(checkCancellation: () throws -> Void = {}) throws {
@@ -855,10 +1083,17 @@ final class FileUndoRecord: Codable {
         }
     }
 
-    func undo(move: Bool, checkCancellation: () throws -> Void = {}) throws {
-        if completed { return }
-        try checkCancellation()
-        let fm = FileManager.default
+    var hasVerifiedRecoveryProof: Bool { backupVerificationRequired == true && backupSnapshot != nil }
+    func matchesRenameProof(_ proof: Data) -> Bool {
+        snapshot == proof && replacedBackup == nil && quarantinedSource == nil && createdDirectory != true &&
+            !completed && !destinationReverted && restorePublished != true
+    }
+    func sameRenameIntent(as other: FileUndoRecord) -> Bool {
+        renameBatchID == other.renameBatchID && renameEntryID == other.renameEntryID &&
+            source == other.source && destination == other.destination && snapshot == other.snapshot
+    }
+
+    func verifyRecovery(checkCancellation: () throws -> Void = {}) throws {
         // Check recovery before displacing the current version. A missing cloud
         // backup must leave the visible destination completely untouched.
         if let backup = replacedBackup {
@@ -866,6 +1101,13 @@ final class FileUndoRecord: Codable {
             let current = try SafeFileOperations.snapshot(backup, contentOnly: true, checkCancellation: checkCancellation)
             if let backupSnapshot, current != backupSnapshot { throw SafeFileOperations.conflict(backup) }
         }
+    }
+
+    func undo(move: Bool, checkCancellation: () throws -> Void = {}, didRestore: (() throws -> Void)? = nil) throws {
+        if completed { try didRestore?(); return }
+        try checkCancellation()
+        let fm = FileManager.default
+        try verifyRecovery(checkCancellation: checkCancellation)
         if !destinationReverted {
             try verifyUnchangedDestination(checkCancellation: checkCancellation)
             try checkCancellation()
@@ -896,6 +1138,10 @@ final class FileUndoRecord: Codable {
                 destinationReverted = true
             } else {
             if move {
+                if quarantinedSource == nil, replacedBackup == nil,
+                   source.deletingLastPathComponent().standardizedFileURL == destination.deletingLastPathComponent().standardizedFileURL {
+                    try SafeFileOperations.renameEntry(destination, to: source)
+                } else {
                 guard !SafeFileOperations.exists(source) else { throw SafeFileOperations.conflict(source) }
                 if let original = quarantinedSource {
                     guard let quarantineSnapshot, try SafeFileOperations.snapshot(original, checkCancellation: checkCancellation) == quarantineSnapshot else { throw SafeFileOperations.conflict(original) }
@@ -909,6 +1155,7 @@ final class FileUndoRecord: Codable {
                         throw error
                     }
                 } else { try fm.moveItem(at: destination, to: source) }
+                }
             } else {
                 // Retain the current version even if an external writer raced the snapshot.
                 let recovery = destination.deletingLastPathComponent()
@@ -948,6 +1195,7 @@ final class FileUndoRecord: Codable {
                 checkCancellation: checkCancellation) == SafeFileOperations.snapshot(backup, contentOnly: true,
                 checkCancellation: checkCancellation) else { throw SafeFileOperations.conflict(destination) }
         }
+        try didRestore?()
         completed = true
     }
 }
