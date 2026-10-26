@@ -41,6 +41,79 @@ private final class OwnedDocumentPreviewController: QLPreviewController {
     deinit { releaseDownload?() }
 }
 
+#if targetEnvironment(macCatalyst)
+private final class BoundedTextPreviewController: UIViewController {
+    var releaseDownload: (() -> Void)?
+    deinit { releaseDownload?() }
+    private let fileURL: URL
+    init(url: URL, name: String) {
+        fileURL = url
+        super.init(nibName: nil, bundle: nil)
+        title = name
+        modalPresentationStyle = .formSheet
+        preferredContentSize = CGSize(width: 800, height: 600)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override var canBecomeFirstResponder: Bool { true }
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        becomeFirstResponder()
+    }
+    override var keyCommands: [UIKeyCommand]? {
+        [UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(closePreview))]
+    }
+    @objc private func closePreview() { dismiss(animated: true) }
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .systemBackground
+        let heading = UILabel()
+        heading.text = title
+        heading.font = .preferredFont(forTextStyle: .headline)
+        let status = UILabel()
+        status.numberOfLines = 0
+        status.text = L10n.get("file_opening")
+        status.accessibilityIdentifier = "TextPreviewStatus"
+        let content = UITextView()
+        content.isEditable = false
+        content.font = .monospacedSystemFont(ofSize: 14, weight: .regular)
+        content.accessibilityIdentifier = "TextPreviewContent"
+        let close = UIButton(type: .system)
+        close.setTitle(L10n.get("settings_done"), for: .normal)
+        close.accessibilityIdentifier = "TextPreviewClose"
+        close.addTarget(self, action: #selector(closePreview), for: .touchUpInside)
+        let stack = UIStackView(arrangedSubviews: [heading, status, content, close])
+        stack.axis = .vertical
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
+            stack.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -20),
+            stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            stack.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20)
+        ])
+        let url = fileURL
+        // Keep provider/archive leases alive even if the dialog closes while
+        // a background read is still in progress.
+        let lease = releaseDownload
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let result = Result { try BoundedTextPreviewLoader.load(at: url) }
+            _ = lease
+            DispatchQueue.main.async { [weak self] in
+                guard self != nil else { return }
+                switch result {
+                case .success(.text(let text, let truncated)):
+                    content.text = text
+                    status.text = truncated ? L10n.get("text_preview_truncated") : L10n.get("text_preview_readonly")
+                case .success(.unsupported): status.text = L10n.get("text_preview_unsupported")
+                case .failure(let error): status.text = HistoryFailure.presentation(error)
+                }
+            }
+        }
+    }
+}
+#endif
+
 private final class ImageViewerViewController: UIViewController {
     var releaseDownload: (() -> Void)?
     deinit { releaseDownload?() }
@@ -339,20 +412,45 @@ private final class ImageViewerViewController: UIViewController {
         let maximumPixelSize = max(UIScreen.main.bounds.width, UIScreen.main.bounds.height) * scale * 2
 
         if entry.mimeType() == "image/svg+xml", entry.isPhysical() {
-            let request = QLThumbnailGenerator.Request(fileAt: entry.url,
-                size: CGSize(width: min(2048, maximumPixelSize), height: min(2048, maximumPixelSize)), scale: 1, representationTypes: .thumbnail)
-            vectorPreviewRequest = request
-            QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { [weak self] representation, error in
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let files = PreviewTemporaryFiles()
+                let snapshot = Result { try ImagePreviewLoader.vectorSnapshot(at: entry.url,
+                    coordinator: coordinator, temporaryRoot: files.retainCreatedRoot) }
                 DispatchQueue.main.async {
                     guard let self, self.loadGeneration == generation else { return }
-                    self.vectorPreviewRequest = nil; self.readCoordinator = nil
-                    self.loadingIndicator.stopAnimating()
-                    if let representation { self.imageView.image = representation.uiImage }
-                    else {
-                        self.errorLabel.text = error?.localizedDescription ?? L10n.get("preview_unavailable")
+                    do {
+                        let request = QLThumbnailGenerator.Request(fileAt: try snapshot.get(),
+                            size: CGSize(width: min(2048, maximumPixelSize), height: min(2048, maximumPixelSize)), scale: 1, representationTypes: .thumbnail)
+                        self.vectorPreviewRequest = request
+                        QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { [weak self, files] representation, error in
+                            withExtendedLifetime(files) {
+                                DispatchQueue.main.async {
+                                    guard let self, self.loadGeneration == generation else { return }
+                                    self.vectorPreviewRequest = nil; self.readCoordinator = nil
+                                    self.loadingIndicator.stopAnimating()
+                                    if let representation { self.imageView.image = representation.uiImage }
+                                    else {
+                                        self.errorLabel.text = error?.localizedDescription ?? L10n.get("preview_unavailable")
+                                        self.errorLabel.isHidden = false; self.retryButton.isHidden = false
+                                    }
+                                }
+                            }
+                        }
+                    } catch {
+                        self.readCoordinator = nil; self.loadingIndicator.stopAnimating()
+                        self.errorLabel.text = (error as? ImagePreviewLoader.PreviewError) == .tooLarge
+                            ? L10n.get("image_too_large") : String(format: L10n.get("image_read_error"), error.localizedDescription)
                         self.errorLabel.isHidden = false; self.retryButton.isHidden = false
                     }
                 }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in
+                guard let self, self.loadGeneration == generation, self.readCoordinator != nil else { return }
+                self.loadGeneration += 1; self.readCoordinator?.cancel(); self.readCoordinator = nil
+                if let request = self.vectorPreviewRequest { QLThumbnailGenerator.shared.cancel(request) }
+                self.vectorPreviewRequest = nil; self.loadingIndicator.stopAnimating()
+                self.errorLabel.text = L10n.get("preview_timeout")
+                self.errorLabel.isHidden = false; self.retryButton.isHidden = false
             }
             return
         }
@@ -372,7 +470,7 @@ private final class ImageViewerViewController: UIViewController {
                         return .playback(try prepared.get(), files)
                     }
                     let image = try ImagePreviewLoader.load(at: entry.url,
-                        maximumPixelSize: Int(maximumPixelSize), coordinator: coordinator) {
+                        maximumPixelSize: Int(maximumPixelSize), coordinator: coordinator, preflightSource: entry.isPhysical()) {
                         try entry.materializedURLForOpening(sourceURL: $0, temporaryRoot: files.retainCreatedRoot)
                     }
                     return .image(UIImage(cgImage: image))
@@ -406,8 +504,12 @@ private final class ImageViewerViewController: UIViewController {
                     }
                     player.play()
                 case .failure(let error):
-                    if error is ImagePreviewLoader.PreviewError {
-                        self.errorLabel.text = L10n.get("image_invalid")
+                    if let previewError = error as? ImagePreviewLoader.PreviewError {
+                        switch previewError {
+                        case .invalidImage: self.errorLabel.text = L10n.get("image_invalid")
+                        case .tooLarge: self.errorLabel.text = L10n.get("image_too_large")
+                        case .unsupportedFile: self.errorLabel.text = L10n.get("image_unsupported_file")
+                        }
                     } else if (error as NSError).domain == "NSFileProviderErrorDomain" {
                         self.errorLabel.text = String(format: L10n.get("image_provider_error"), (error as NSError).code)
                     } else {
@@ -428,6 +530,53 @@ private final class ImageViewerViewController: UIViewController {
 
 
 #if targetEnvironment(macCatalyst)
+private final class SettingsLanguagePickerController: UITableViewController {
+    let choices = ViewController.languageChoices
+    var selected: ((String) -> Void)?
+    var closed: (() -> Void)?
+    private var row: Int
+    init(code: String) {
+        row = ViewController.languageChoices.firstIndex { $0.1 == code } ?? 0
+        super.init(style: .plain)
+        title = L10n.get("language")
+        preferredContentSize = CGSize(width: 300, height: 400)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override var canBecomeFirstResponder: Bool { true }
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        tableView.accessibilityIdentifier = "SettingsLanguageChoices"
+        navigationItem.leftBarButtonItem = UIBarButtonItem(title: L10n.get("cancel"), style: .plain, target: self, action: #selector(close))
+    }
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated); becomeFirstResponder(); focusRow()
+    }
+    override var keyCommands: [UIKeyCommand]? {
+        [(UIKeyCommand.inputEscape, #selector(close)), (UIKeyCommand.inputUpArrow, #selector(previousLanguage)),
+         (UIKeyCommand.inputDownArrow, #selector(nextLanguage)), ("\r", #selector(choose)), (" ", #selector(choose))].map { input, action in
+            let command = UIKeyCommand(input: input, modifierFlags: [], action: action)
+            command.wantsPriorityOverSystemBehavior = true; return command
+        }
+    }
+    private func focusRow() { tableView.selectRow(at: IndexPath(row: row, section: 0), animated: false, scrollPosition: .middle) }
+    @objc private func previousLanguage() { row = (row + choices.count - 1) % choices.count; focusRow() }
+    @objc private func nextLanguage() { row = (row + 1) % choices.count; focusRow() }
+    @objc private func choose() {
+        let code = choices[row].1, callback = selected, completion = closed
+        dismiss(animated: true) { callback?(code); completion?() }
+    }
+    @objc private func close() { let completion = closed; dismiss(animated: true) { completion?() } }
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { choices.count }
+    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = UITableViewCell(style: .default, reuseIdentifier: nil)
+        cell.textLabel?.text = choices[indexPath.row].0
+        cell.accessibilityIdentifier = "LanguageChoice-" + choices[indexPath.row].1
+        cell.accessoryType = choices[indexPath.row].1 == (UserDefaults.standard.string(forKey: "language") ?? "") ? .checkmark : .none
+        return cell
+    }
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) { row = indexPath.row; choose() }
+}
+
 private final class DesktopLocationSettingsViewController: UITableViewController {
     var entries: [DesktopLocationPreference]
     var changed: ([DesktopLocationPreference]) -> Void
@@ -441,6 +590,8 @@ private final class DesktopLocationSettingsViewController: UITableViewController
     var cloudRequested: ((CloudConnection) -> Void)?
     var closeRequested: ((() -> Void)?) -> Void = { _ in }
     var locationDetails: [String: String] = [:]
+    private var keyboardSelection: IndexPath?
+    private weak var languageDropdown: UIButton?
 
     init(entries: [DesktopLocationPreference], changed: @escaping ([DesktopLocationPreference]) -> Void,
          chooseFolder: @escaping (@escaping (URL?) -> Void) -> Void) {
@@ -455,8 +606,93 @@ private final class DesktopLocationSettingsViewController: UITableViewController
         becomeFirstResponder()
     }
     override var keyCommands: [UIKeyCommand]? {
+        func key(_ input: String, _ modifiers: UIKeyModifierFlags = [], _ action: Selector) -> UIKeyCommand {
+            let command = UIKeyCommand(input: input, modifierFlags: modifiers, action: action)
+            command.wantsPriorityOverSystemBehavior = true
+            return command
+        }
         guard presentedViewController == nil, navigationController?.presentedViewController == nil else { return [] }
-        return [UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(close))]
+        return [key(UIKeyCommand.inputEscape, [], #selector(close)),
+                key("\t", [], #selector(nextSetting)), key("\t", .shift, #selector(previousSetting)),
+                key(UIKeyCommand.inputDownArrow, [], #selector(nextSetting)),
+                key(UIKeyCommand.inputUpArrow, [], #selector(previousSetting)),
+                key("\r", [], #selector(activateSetting)), key(" ", [], #selector(toggleSetting)),
+                key(UIKeyCommand.inputUpArrow, .alternate, #selector(moveSettingUp)),
+                key(UIKeyCommand.inputDownArrow, .alternate, #selector(moveSettingDown)),
+                key("n", .command, #selector(addLocation))]
+    }
+    @objc private func showLanguageChoices() {
+        guard presentedViewController == nil else { return }
+        let picker = SettingsLanguagePickerController(code: UserDefaults.standard.string(forKey: "language") ?? "")
+        picker.selected = { [weak self] in self?.selectLanguage($0) }
+        picker.closed = { [weak self] in self?.becomeFirstResponder() }
+        let navigation = UINavigationController(rootViewController: picker)
+        navigation.preferredContentSize = picker.preferredContentSize
+        navigation.modalPresentationStyle = .popover
+        navigation.popoverPresentationController?.sourceView = languageDropdown ?? view
+        navigation.popoverPresentationController?.sourceRect = languageDropdown?.bounds ?? .zero
+        present(navigation, animated: true)
+    }
+    private var keyboardRows: [IndexPath] {
+        (0..<6).map { IndexPath(row: $0, section: 0) } + entries.indices.map { IndexPath(row: $0, section: 1) }
+    }
+    private func focusSetting(_ index: IndexPath) {
+        guard keyboardRows.contains(index) else { return }
+        keyboardSelection = index
+        tableView.selectRow(at: index, animated: false, scrollPosition: .middle)
+        for cell in tableView.visibleCells { decorateKeyboardFocus(cell, at: tableView.indexPath(for: cell)) }
+        if index.section == 1 { tableView.accessibilityValue = entries[index.row].name }
+        else { tableView.accessibilityValue = [L10n.get("language"), L10n.get("dark"), L10n.get("folder_default_title"), L10n.get("legal_short"), "OneDrive online", L10n.get("more_apps")][index.row] }
+        becomeFirstResponder()
+    }
+    private func decorateKeyboardFocus(_ cell: UITableViewCell, at index: IndexPath?) {
+        let focused = keyboardSelection != nil && index == keyboardSelection
+        cell.layer.borderWidth = focused ? 2 : 0
+        cell.layer.borderColor = UIColor.systemBlue.cgColor
+        cell.layer.cornerRadius = focused ? 6 : 0
+    }
+    private func advanceSetting(_ delta: Int) {
+        let rows = keyboardRows
+        guard !rows.isEmpty else { return }
+        let next = keyboardSelection.flatMap { rows.firstIndex(of: $0) }.map { ($0 + delta + rows.count) % rows.count }
+            ?? (delta > 0 ? 0 : rows.count - 1)
+        focusSetting(rows[next])
+    }
+    @objc private func nextSetting() { advanceSetting(1) }
+    @objc private func previousSetting() { advanceSetting(-1) }
+    @objc private func activateSetting() {
+        guard let index = keyboardSelection, keyboardRows.contains(index) else { focusSetting(IndexPath(row: 0, section: 0)); return }
+        if index.section == 0 && index.row == 0 {
+            showLanguageChoices()
+        } else if index.section == 0 && index.row == 1 { toggleSetting() }
+        else { tableView(tableView, didSelectRowAt: index) }
+    }
+    @objc private func toggleSetting() {
+        guard let index = keyboardSelection, keyboardRows.contains(index) else { nextSetting(); return }
+        if index.section == 1 {
+            entries[index.row].enabled.toggle(); entries[index.row].visibilityConfigured = true
+            save(); focusSetting(index)
+        } else if index.row == 1 {
+            darkMode.toggle(); themeChanged?()
+            overrideUserInterfaceStyle = darkMode ? .dark : .light
+            navigationController?.overrideUserInterfaceStyle = darkMode ? .dark : .light
+            tableView.reloadData(); focusSetting(index)
+        } else { activateSetting() }
+    }
+    private func moveSetting(_ delta: Int) {
+        guard let index = keyboardSelection, index.section == 1,
+              entries.indices.contains(index.row + delta) else { return }
+        let entry = entries.remove(at: index.row); entries.insert(entry, at: index.row + delta)
+        save(); focusSetting(IndexPath(row: index.row + delta, section: 1))
+    }
+    @objc private func moveSettingUp() { moveSetting(-1) }
+    @objc private func moveSettingDown() { moveSetting(1) }
+    private func selectLanguage(_ code: String) {
+        languageChanged?(code)
+        title = L10n.get("location_settings")
+        navigationItem.leftBarButtonItem?.title = L10n.get("settings_done")
+        navigationItem.rightBarButtonItem?.title = L10n.get("location_add")
+        tableView.reloadData()
     }
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -486,7 +722,7 @@ private final class DesktopLocationSettingsViewController: UITableViewController
         section == 0 ? 6 : entries.count
     }
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-        section == 1 ? L10n.get("location_settings_help") : nil
+        section == 1 ? L10n.get("location_settings_help") + "\n\n" + L10n.get("settings_keyboard_help") : nil
     }
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         section == 1 ? L10n.get("location_settings") : nil
@@ -494,6 +730,7 @@ private final class DesktopLocationSettingsViewController: UITableViewController
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         if indexPath.section == 0 {
             let cell = UITableViewCell(style: .default, reuseIdentifier: nil)
+            decorateKeyboardFocus(cell, at: indexPath)
             if indexPath.row == 1 {
                 cell.textLabel?.text = L10n.get("dark")
                 let toggle = UISwitch()
@@ -527,22 +764,13 @@ private final class DesktopLocationSettingsViewController: UITableViewController
             cell.textLabel?.text = L10n.get("language")
             cell.selectionStyle = .none
             let dropdown = UIButton(type: .system)
+            languageDropdown = dropdown
             let selected = UserDefaults.standard.string(forKey: "language") ?? ""
             let choices = ViewController.languageChoices
             dropdown.setTitle((choices.first { $0.1 == selected }?.0 ?? L10n.get("language_system")) + " ▾", for: .normal)
             dropdown.accessibilityIdentifier = "SettingsLanguageDropdown"
             dropdown.accessibilityLabel = L10n.get("language")
-            dropdown.showsMenuAsPrimaryAction = true
-            dropdown.menu = UIMenu(children: choices.map { name, code in
-                UIAction(title: name, state: code == selected ? .on : .off) { [weak self] _ in
-                    guard let self else { return }
-                    self.languageChanged?(code)
-                    self.title = L10n.get("location_settings")
-                    self.navigationItem.leftBarButtonItem?.title = L10n.get("settings_done")
-                    self.navigationItem.rightBarButtonItem?.title = L10n.get("location_add")
-                    self.tableView.reloadData()
-                }
-            })
+            dropdown.addTarget(self, action: #selector(showLanguageChoices), for: .touchUpInside)
             dropdown.sizeToFit()
             cell.accessoryView = dropdown
             cell.editingAccessoryView = dropdown
@@ -550,6 +778,7 @@ private final class DesktopLocationSettingsViewController: UITableViewController
         }
         let entry = entries[indexPath.row]
         let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
+        decorateKeyboardFocus(cell, at: indexPath)
         cell.showsReorderControl = true
         cell.textLabel?.text = entry.name
         cell.detailTextLabel?.text = locationDetails[entry.path] ?? entry.path
@@ -570,6 +799,7 @@ private final class DesktopLocationSettingsViewController: UITableViewController
         return cell
     }
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        focusSetting(indexPath)
         if indexPath.section == 0 {
             if indexPath.row == 5 {
                 DesktopBridge.shared?.openFile(CommanderHandbook.moreAppsURL, application: nil) { _, _ in }
@@ -593,6 +823,7 @@ private final class DesktopLocationSettingsViewController: UITableViewController
                   !name.isEmpty, let index = self.entries.firstIndex(where: { $0.path == entry.path }) else { return }
             self.entries[index].name = name; self.save()
         })
+        alert.preferredAction = alert.actions.first
         if entry.custom {
             alert.addAction(UIAlertAction(title: L10n.get("location_remove"), style: .destructive) { [weak self] _ in
                 self?.entries.removeAll { $0.path == entry.path }; self?.save()
@@ -944,6 +1175,10 @@ class ViewController: UIViewController {
     weak var activePane: CommanderPane? {
         didSet {
 #if targetEnvironment(macCatalyst)
+            if transferPanel?.isFirstResponder == true {
+                transferPanel?.resignFirstResponder()
+                activePane?.fileList?.becomeFirstResponder()
+            }
             leftPane?.updateActiveAppearance()
             rightPane?.updateActiveAppearance()
 #endif
@@ -1046,6 +1281,15 @@ class ViewController: UIViewController {
     private var operationProgressTimer: Timer?
     private var operationStartedAt: Date?
     private var operationProgressMessage = ""
+#if targetEnvironment(macCatalyst)
+    // A foreground provider operation keeps its browser and target context
+    // mounted. Unrelated panes may navigate, but never replace that owner.
+    private weak var operationNavigationOwner: OneDriveBrowser?
+    var allowsOperationNavigation: Bool { operationInProgress && operationNavigationOwner != nil }
+    func canNavigate(_ pane: CommanderPane) -> Bool {
+        !operationInProgress || (allowsOperationNavigation && pane.onlineBrowser !== operationNavigationOwner)
+    }
+#endif
     var progressBar: UIProgressView!
     private let progressActivity = UIActivityIndicatorView(style: .medium)
     var globalStatus: UILabel!
@@ -1566,8 +1810,14 @@ class ViewController: UIViewController {
     override var keyCommands: [UIKeyCommand]? {
 #if targetEnvironment(macCatalyst)
         if cloudWizard != nil || settingsPanel != nil || helpPanel != nil { return [] }
+        if transferPanel?.isFirstResponder == true { return [] }
 #endif
-        if operationInProgress || presentedViewController != nil { return [] }
+        if presentedViewController != nil { return [] }
+#if targetEnvironment(macCatalyst)
+        if operationInProgress && !allowsOperationNavigation { return [] }
+#else
+        if operationInProgress { return [] }
+#endif
         // Do not intercept Return, Delete, Cmd-C/V or Space while the user
         // edits a destination path (or a text field in a presented dialog).
         func editingText(in view: UIView) -> Bool {
@@ -1588,6 +1838,21 @@ class ViewController: UIViewController {
             result.wantsPriorityOverSystemBehavior = true
             return result
         }
+#if targetEnvironment(macCatalyst)
+        if operationInProgress {
+            return [
+                key(L10n.get("go_to_folder"), "l", command, #selector(showGoToFolderDialog)),
+                key(L10n.get("go_to_folder"), "g", [command, .shift], #selector(showGoToFolderDialog)),
+                key(L10n.get("back"), "[", command, #selector(navigateBack)),
+                key(L10n.get("forward"), "]", command, #selector(navigateForward)),
+                key(L10n.get("parent_folder"), UIKeyCommand.inputUpArrow, command, #selector(navigateUp)),
+                key(L10n.get("refresh"), "r", command, #selector(refreshActivePane)),
+                key(L10n.get("switch_pane"), "\t", [], #selector(switchActivePane)),
+                key(L10n.get("location_settings"), ",", command, #selector(showLocationSettings)),
+                key(L10n.get("help"), UIKeyCommand.f1, [], #selector(showHelpDialog))
+            ]
+        }
+#endif
         var commands = [
             key(L10n.get("copy"), "c", command, #selector(copySelectionToClipboard)),
             key(L10n.get("cut"), "x", command, #selector(cutSelectionToClipboard)),
@@ -1614,6 +1879,7 @@ class ViewController: UIViewController {
             key(L10n.get("open"), "\r", [], #selector(openSelectedEntry)),
             key(L10n.get("help"), UIKeyCommand.f1, [], #selector(showHelpDialog)),
             key(L10n.get("location_settings"), ",", command, #selector(showLocationSettings)),
+            key(L10n.get("transfer_queue"), "t", [command, .shift], #selector(focusTransferQueue)),
             key(L10n.get("duplicate"), "d", command, #selector(duplicateSelection)),
             key(L10n.get("file_info"), "i", command, #selector(showFileInfo)),
             key(L10n.get("move_to_trash"), UIKeyCommand.inputDelete, command, #selector(moveSelectionToTrash)),
@@ -2053,6 +2319,13 @@ extension ViewController {
         prepareDocument(entry, coordinatePhysicalFile: true, temporaryRoot: archiveFiles.retainCreatedRoot) { [weak self] url in
             guard let self else { return }
 #if targetEnvironment(macCatalyst)
+            if BoundedTextPreviewLoader.isCandidate(url) {
+                let preview = BoundedTextPreviewController(url: url, name: entry.name())
+                preview.releaseDownload = { _ = lifetime; _ = archiveFiles }
+                self.present(preview, animated: true)
+                self.updateGlobalStatus(L10n.get("preview"))
+                return
+            }
             if DesktopBridge.shared?.previewFile(url, closed: { _ = lifetime; _ = archiveFiles }) == true {
                 self.updateGlobalStatus(L10n.get("preview"))
                 return
@@ -2277,8 +2550,10 @@ extension ViewController {
         globalStatus.text = msg
     }
 
-    func showProgress(_ message: String, progress: Int, cancellable: Bool = false, indeterminate: Bool = false, onCancel: (() -> Void)? = nil) {
+    func showProgress(_ message: String, progress: Int, cancellable: Bool = false, indeterminate: Bool = false,
+                      navigationOwner: UIViewController? = nil, onCancel: (() -> Void)? = nil) {
 #if targetEnvironment(macCatalyst)
+        operationNavigationOwner = navigationOwner as? OneDriveBrowser
         transferQueue?.setForegroundOperationActive(true)
 #endif
         operationProgressTimer?.invalidate()
@@ -2292,11 +2567,19 @@ extension ViewController {
         operationCancellation.reset()
         view.subviews.forEach {
 #if targetEnvironment(macCatalyst)
+            if allowsOperationNavigation { return }
             if $0 === settingsPanel?.view || $0 === transferPanel?.view || $0 === helpPanel?.view || $0 === cloudWizard?.view { return }
 #endif
             $0.isUserInteractionEnabled = false
         }
 #if targetEnvironment(macCatalyst)
+        if allowsOperationNavigation {
+            desktopActionToolbar?.isUserInteractionEnabled = false
+            historyPanel?.isUserInteractionEnabled = false
+            for pane in [leftPane, rightPane].compactMap({ $0 }) {
+                pane.setNavigationInteractionEnabled(canNavigate(pane))
+            }
+        }
         operationSettingsButton?.removeFromSuperview()
         let settingsAccess = miniButton(label: L10n.get("location_settings"))
         settingsAccess.accessibilityIdentifier = "TransferSettingsButton"
@@ -2354,6 +2637,10 @@ extension ViewController {
 
     func finishProgress(_ message: String) {
 #if targetEnvironment(macCatalyst)
+        operationNavigationOwner = nil
+        desktopActionToolbar?.isUserInteractionEnabled = true
+        historyPanel?.isUserInteractionEnabled = true
+        for pane in [leftPane, rightPane].compactMap({ $0 }) { pane.setNavigationInteractionEnabled(true) }
         transferQueue?.setForegroundOperationActive(false)
 #endif
         operationProgressTimer?.invalidate(); operationProgressTimer = nil; operationStartedAt = nil
@@ -2414,6 +2701,7 @@ extension ViewController {
     }
     
     @objc func confirmDeleteSelection() {
+        guard !operationInProgress else { return }
 #if targetEnvironment(macCatalyst)
         if let browser = activePane?.onlineBrowser { browser.deleteOnlineSelection(); return }
 #endif
@@ -2445,6 +2733,7 @@ extension ViewController {
     }
     
     func executeDeleteOperation(panes: [CommanderPane], sources: [FileEntry], toTrash: Bool, completion: @escaping (Bool) -> Void = { _ in }) {
+        guard !operationInProgress else { completion(false); return }
 #if targetEnvironment(macCatalyst)
         if let queue = transferQueue, queue.conflicts(writing: sources.map(\.url)) {
             sources.forEach { queue.enqueueDeletion(source: $0.url, toTrash: toTrash) }
@@ -2726,6 +3015,7 @@ extension ViewController {
 
     func runFileOperation(sources: [FileEntry], sourcePane: CommanderPane?, targetDirectory: FileEntry,
                           move: Bool, allowQueuedExecution: Bool = true, completion: @escaping () -> Void = {}) {
+        guard !operationInProgress else { completion(); return }
 #if targetEnvironment(macCatalyst)
         if sourcePane?.onlineNavigation != nil || [leftPane, rightPane].contains(where: {
             $0?.onlineNavigation != nil && $0?.currentDirectory === targetDirectory
@@ -2948,6 +3238,11 @@ extension ViewController {
                     return
                 }
 #endif
+#if targetEnvironment(macCatalyst)
+                // Reject encrypted or unsupported ZIP members even if the ZIP
+                // library would omit them from its iterator as if absent.
+                _ = try CommanderNativeArchive.members(archiveURL, checkCancellation: self.operationCancellation.check)
+#endif
                 guard let archive = Archive(url: archiveURL, accessMode: .read) else { throw CocoaError(.fileReadCorruptFile) }
                 var limits = SafeArchiveLimits()
                 var entries: [Entry] = []
@@ -3007,7 +3302,7 @@ extension ViewController {
             DispatchQueue.main.async {
                 if !records.isEmpty { self.operationHistory.append(.copy(files: records)) }
                 self.refreshAllPanes(clearSelectionIn: [])
-                self.finishProgress(failure?.localizedDescription ?? L10n.get("extract_complete"))
+                self.finishProgress(failure.map(CommanderArchiveFailure.presentation) ?? L10n.get("extract_complete"))
             }
         }
     }
@@ -3398,7 +3693,7 @@ extension ViewController {
             CommanderHandbook.Chapter(id: "anfang", title: german ? "Erste Schritte und Bedienung" : "Getting started and controls", text: L10n.get("help_message") + "\n\n" + L10n.get("help_desktop_parity") + "\n\n" + L10n.get("help_external_drop")),
             .init(id: "tastatur", title: L10n.get("keyboard_shortcuts"), text: macKeyboardShortcutsHelp() + "\n\n" + L10n.get("commander_help") + "\n\nEscape — " + L10n.get("filter_clear")),
             .init(id: "cloud", title: german ? "Cloud und Server" : "Cloud and servers", text: L10n.get("help_cloud_macos") + "\n\n" + L10n.get("help_remote_macos")),
-            .init(id: "uebertragungen", title: L10n.get("transfer_queue"), text: L10n.get("help_transfer_queue")),
+            .init(id: "uebertragungen", title: L10n.get("transfer_queue"), text: L10n.get("help_transfer_queue") + "\n\n" + L10n.get("transfer_keyboard_help")),
             .init(id: "probleme", title: german ? "Dateizugriff, Vorschau und NTFS" : "File access, preview and NTFS", text: L10n.get("help_access_macos") + "\n\n" + L10n.get("help_open_macos") + "\n\n" + L10n.get("help_ntfs_safety"))]
         let panel = CommanderHelpPanel(chapters: CommanderHandbook.complete(chapters, german: german))
         helpPanel = panel; addChild(panel)
@@ -3446,7 +3741,8 @@ extension ViewController {
             "⌘C — \(L10n.get("copy"))    ⌘X — \(L10n.get("cut"))    ⌘V — \(L10n.get("paste"))",
             "⌘A — \(L10n.get("select_all"))    ⌘Z — \(L10n.get("undo"))",
             "⌘O / ⌘↓ — \(L10n.get("open"))    \(L10n.get("space_key")) / ⌘Y — \(L10n.get("preview"))",
-            "Return — \(L10n.get("rename_button"))    ⌘D — \(L10n.get("duplicate"))",
+            "Return — \(L10n.get("open"))    F2 — \(L10n.get("rename_button"))    ⌘D — \(L10n.get("duplicate"))",
+            "⌘, — \(L10n.get("location_settings"))    ⇧⌘T — \(L10n.get("transfer_queue"))",
             "⌘I — \(L10n.get("file_info"))    ⌘⌫ — \(L10n.get("move_to_trash"))",
             "⌘[ / ⌘] — \(L10n.get("back")) / \(L10n.get("forward"))    ⌘↑ — \(L10n.get("parent_folder"))",
             "⇧⌘G — \(L10n.get("go_to_folder"))    ⌘K — \(L10n.get("connect_to_server"))",
@@ -3999,6 +4295,11 @@ extension ViewController: UIDocumentPickerDelegate {
         rebuildApp(status: status)
     }
 
+    @objc private func focusTransferQueue() {
+        showTransferQueue()
+        transferPanel?.focusKeyboard()
+    }
+
     @objc private func showTransferQueue() {
         if let transferPanel { view.bringSubviewToFront(transferPanel.view); return }
         guard let transferQueue, let dock = transferDock else { return }
@@ -4020,6 +4321,7 @@ extension ViewController: UIDocumentPickerDelegate {
             panel.willMove(toParent: nil); panel.view.removeFromSuperview(); panel.removeFromParent()
             self.transferPanel = nil
             self.transferDock?.isHidden = true
+            self.activePane?.fileList?.becomeFirstResponder()
         }
         panel.render(transferJobs, limit: transferParallelism, error: transferStoreError)
     }
@@ -4211,8 +4513,9 @@ extension ViewController: UIDocumentPickerDelegate {
         }
     }
     private func openOnlineBrowser(remote: RemoteConnection?, cloud: CloudConnection? = nil, restored: OnlinePaneSession? = nil) {
-        guard !operationInProgress, presentedViewController == nil else { return }
+        guard (!operationInProgress || allowsOperationNavigation), presentedViewController == nil else { return }
         guard let pane = activePane ?? leftPane else { return }
+        guard canNavigate(pane) else { return }
         activePane = pane
         if pane.onlineNavigation != nil { pane.closeOnline() }
         let browser = OneDriveBrowser(remote: remote, cloud: cloud)
@@ -4416,6 +4719,7 @@ extension ViewController: UIDocumentPickerDelegate {
 
     private func openLocation(_ url: URL, in pane: CommanderPane, persistPath: Bool = true) {
 #if targetEnvironment(macCatalyst)
+        guard canNavigate(pane) else { return }
         guard HostFileSystem.isDirectory(url) else {
             updateGlobalStatus(L10n.get("path_not_found"))
             return
@@ -4611,6 +4915,7 @@ extension ViewController: UIDocumentPickerDelegate {
     }
 
     @objc func pasteClipboard() {
+        guard !operationInProgress else { return }
         // A cut intent belongs to the exact clipboard revision created by this
         // app. Copying in Finder (or any other app) must never reuse old paths
         // or accidentally turn an external copy into a move.
@@ -4796,6 +5101,7 @@ extension ViewController: UIDocumentPickerDelegate {
     }
 
     @objc func duplicateSelection() {
+        guard !operationInProgress else { return }
 #if targetEnvironment(macCatalyst)
         if let browser = activePane?.onlineBrowser { browser.duplicateOnlineSelection(); return }
 #endif
@@ -5020,6 +5326,7 @@ extension ViewController: UIDocumentPickerDelegate {
     }
 
     @objc func createFolder() {
+        guard !operationInProgress else { return }
 #if targetEnvironment(macCatalyst)
         if let browser = activePane?.onlineBrowser { browser.createOnlineFolder(); return }
 #endif

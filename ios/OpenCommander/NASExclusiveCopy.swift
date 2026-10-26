@@ -347,7 +347,8 @@ enum NASExclusiveCopy {
         return Data(bytes.prefix(count))
     }
     static func resume(_ stage: URL, control: () -> Control = { .proceed },
-                       progress: (Int64) -> Void = { _ in }, fault: (Checkpoint) throws -> Void = { _ in }) throws -> State {
+                       progress: (Int64) -> Void = { _ in }, fileProgress: (Int, Int) -> Void = { _, _ in },
+                       fault: (Checkpoint) throws -> Void = { _ in }) throws -> State {
         let stageInfo = try directory(stage)
         guard privateDirectory(stageInfo, at: stage) else { throw Failure.invalidJournal }
         let lock = open(stage.appendingPathComponent("lock").path, O_RDWR | O_CREAT | O_NOFOLLOW, 0o600)
@@ -356,7 +357,7 @@ enum NASExclusiveCopy {
         guard flock(lock, LOCK_EX | LOCK_NB) == 0 else { throw Failure.conflict }
         defer { _ = flock(lock, LOCK_UN) }
         var journal = try readJournal(stage)
-        return try transfer(stage, stageInfo: stageInfo, journal: &journal, control: control, progress: progress, fault: fault)
+        return try transfer(stage, stageInfo: stageInfo, journal: &journal, control: control, progress: progress, fileProgress: fileProgress, fault: fault)
     }
     private static func readJournal(_ stage: URL) throws -> Journal {
         let stageInfo = try directory(stage)
@@ -379,7 +380,11 @@ enum NASExclusiveCopy {
         return journal
     }
     private static func transfer(_ stage: URL, stageInfo: stat, journal: inout Journal,
-                                 control: () -> Control, progress: (Int64) -> Void, fault: (Checkpoint) throws -> Void) throws -> State {
+                                 control: () -> Control, progress: (Int64) -> Void, fileProgress: (Int, Int) -> Void,
+                                 fault: (Checkpoint) throws -> Void) throws -> State {
+        let fileCount = journal.entries.filter { !$0.directory }.count
+        var finishedFiles = journal.entries.filter { !$0.directory && $0.complete }.count
+        fileProgress(finishedFiles, fileCount)
         let originalSource = URL(fileURLWithPath: journal.source), target = URL(fileURLWithPath: journal.target)
         var source = originalSource
         if journal.move == true, journal.moveProof != nil, SafeFileOperations.exists(quarantine(journal)) {
@@ -511,6 +516,10 @@ enum NASExclusiveCopy {
             guard try hash(fd) == entry.digest, try sourceDigest(origin) == entry.digest else { throw Failure.changedSource }
             journal.entries[index].complete = true; total += entry.size
             try save(journal, stage)
+            if !entry.complete {
+                finishedFiles += 1
+                fileProgress(finishedFiles, fileCount)
+            }
         }
         // A pathname may have been replaced while its descriptor was open.
         // Re-open each target without following links; also reject extra items.

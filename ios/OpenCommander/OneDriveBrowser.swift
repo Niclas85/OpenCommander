@@ -192,7 +192,8 @@ private final class OneDriveCell: UITableViewCell {
     }
     private var recoveryOffered = false
     private func offerUploadRecovery() {
-        guard !recoveryOffered, authenticated, let client, presentedViewController == nil, view.window != nil else { return }
+        guard !recoveryOffered, authenticated, let client, presentedViewController == nil,
+              view.window != nil, commander?.operationInProgress != true else { return }
         do {
             let jobs = try PendingCloudUpload.pending().filter { $0.endpoint == client.clientID }
             let downloads = try PendingCloudDownload.pending().filter { $0.endpoint == client.clientID }
@@ -690,19 +691,34 @@ private final class OneDriveCell: UITableViewCell {
     }
     private func openOnline(_ item: OneDriveItem, externally: Bool) {
         guard !item.isFolder else { return }
-        run { [weak self] in
+        run(activityKey: "file_opening", retryRead: { [weak self] in self?.openOnline(item, externally: externally) }) { [weak self] in
             guard let self, let client = self.client else { return }
-            let url = try await client.download(item)
+            var limits = OnlinePreviewLimits.forName(item.name)
+#if DEBUG
+            if Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander.MacUITests",
+               let root = AppDelegate.macUITestRoot,
+               ProcessInfo.processInfo.arguments.contains("--mac-parity-preview-timeout"),
+               !FileManager.default.fileExists(atPath: root.appendingPathComponent("PreviewTimeoutObserved.txt").path) {
+                try Data("bounded native preview timeout".utf8).write(to: root.appendingPathComponent("PreviewTimeoutObserved.txt"))
+                limits = .init(maximumBytes: limits.maximumBytes, timeout: 0.3, stallTimeout: 0.1)
+            }
+#endif
+            let url = try await client.downloadPreview(item, limits: limits)
+            var handedOff = false
+            defer { if !handedOff { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) } }
+            try Task.checkCancellation()
             let entry = FileEntry(url: url, parent: nil)
             let media = ["image/", "video/", "audio/"].contains { entry.mimeType().hasPrefix($0) }
             if externally && !media {
                 // External edits must target a user-saved copy, never an
                 // untracked temporary download that may vanish on restart.
                 self.cleanExport(); self.exportedURL = url; self.openAfterExport = true
+                handedOff = true
                 let picker = UIDocumentPickerViewController(forExporting: [url], asCopy: true)
                 picker.delegate = self; self.present(picker, animated: true)
             } else if let commander = self.commander {
                 let epoch = self.generation
+                handedOff = true
                 commander.previewFile(entry, releaseDownload: { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) },
                     deletionTitle: self.deleteTitle,
                     deleteEntry: { [weak self] _, completed in
@@ -719,7 +735,7 @@ private final class OneDriveCell: UITableViewCell {
                             try await self.load()
                         }
                     })
-            } else { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+            }
         }
     }
     func copyOnlineSelection(move: Bool) {
@@ -787,6 +803,8 @@ private final class OneDriveCell: UITableViewCell {
             header?.backgroundColor = theme.columnHeaderBackground; header?.textColor = accent
         }
         pathLabel.textColor = theme.secondaryText; pathLabel.backgroundColor = theme.pathBackground
+        readErrorLabel.textColor = theme.primaryText
+        readRetryButton.setTitle(L10n.get("directory_retry"), for: .normal)
         pathLabel.layer.borderColor = theme.pathBorder.cgColor; countLabel.textColor = theme.secondaryText
         treeView.backgroundColor = theme.treeBackground; treeView.separatorColor = theme.columnBorder
         tableView.backgroundColor = theme.fileBackground; tableView.separatorColor = theme.columnBorder
@@ -794,7 +812,7 @@ private final class OneDriveCell: UITableViewCell {
         backButton.accessibilityLabel = L10n.get("back"); forwardButton.accessibilityLabel = L10n.get("forward")
         upButton.accessibilityLabel = text("Übergeordneter Ordner", "Parent folder")
         closeButton?.accessibilityLabel = text("Zurück zum lokalen Ordner", "Return to local folder")
-        loadingIndicator.accessibilityLabel = L10n.get("directory_loading")
+        loadingIndicator.accessibilityLabel = L10n.get(activeActivityKey ?? "directory_loading")
         actionButton.setTitle(text("Aktionen", "Actions"), for: .normal)
         navigationItem.leftBarButtonItem?.title = text("Schließen", "Close")
         navigationItem.rightBarButtonItem?.title = text("Aktionen", "Actions")
@@ -821,6 +839,10 @@ private final class OneDriveCell: UITableViewCell {
     private var work: Task<Void, Never>?
     private var busy = false
     private var authenticated = false
+    private let readErrorBox = UIStackView()
+    private let readErrorLabel = UILabel()
+    private let readRetryButton = UIButton(type: .system)
+    private var retryReadAction: (() -> Void)?
     private var exportedURL: URL?
     private let message = UILabel()
     private let listingWarning = UILabel()
@@ -882,6 +904,9 @@ private final class OneDriveCell: UITableViewCell {
                 UIAction(title: L10n.get("directory_copy_path")) { [weak self] _ in UIPasteboard.general.string = self?.onlineLocation() }
             ])
         }
+#if DEBUG
+        if installPreviewTestClient() { installListingObserver(); reload(); return }
+#endif
         if let cloudProfile {
             client = CloudFileClient.browserClient(cloudProfile)
             installListingObserver(); reload(); return
@@ -904,6 +929,65 @@ private final class OneDriveCell: UITableViewCell {
                 "Direct online access without a synchronized folder.\n\nNot connected. Choose Actions → Configure Microsoft app. Signing in on the website alone does not connect OpenCommander.")
         }
     }
+#if DEBUG
+    /// Isolated UI fixture only: no real account, configuration or network.
+    private func installPreviewTestClient() -> Bool {
+        guard Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander.MacUITests",
+              ProcessInfo.processInfo.arguments.contains("--mac-parity-online-preview"),
+              let root = AppDelegate.macUITestRoot else { return false }
+        let bytes = Data("Synthetic cloud preview: Grüße 日本語 👋\n".utf8)
+        let profile = CloudConnection(name: "Preview fixture", kind: "drive", remote: "fixture", configPath: root.appendingPathComponent("unused.conf").path)
+        var pending: [String: Task<Void, Never>] = [:]
+        let simulateOutage = ProcessInfo.processInfo.arguments.contains("--mac-parity-online-offline")
+        let largeMedia = ProcessInfo.processInfo.arguments.contains("--mac-parity-online-large")
+        var listRequests = 0
+        client = CloudFileClient(profile, transport: { id, _, operation, path, _, local, complete in
+            if operation == "download" {
+                try? Data("synthetic download requested".utf8).write(to: root.appendingPathComponent("PreviewAnyDownload.txt"))
+            }
+            if operation == "list", path.isEmpty {
+                listRequests += 1
+                try? Data(String(listRequests).utf8).write(to: root.appendingPathComponent("PreviewListRequests.txt"), options: .atomic)
+                if FileManager.default.fileExists(atPath: root.appendingPathComponent("PreviewQuota.txt").path) {
+                    complete(nil, CloudProviderErrors.temporary("cloud_google_quota", cooldown: 10)); return
+                }
+                if simulateOutage && FileManager.default.fileExists(atPath: root.appendingPathComponent("PreviewOffline.txt").path) {
+                    complete(nil, CloudConnection.failure("cloud_request_failed")); return
+                }
+                let item: [String: Any] = ["Name": "Proof.txt", "Path": "Proof.txt", "Size": bytes.count,
+                    "IsDir": false, "ModTime": "2026-10-25T09:00:00Z", "ID": "proof"]
+                var entries = [item]
+                if largeMedia {
+                    entries += [("Huge.png", Int64(128 * 1024 * 1024 + 1)), ("Huge.mp4", Int64(2) * 1024 * 1024 * 1024 + 1)].map { name, size in
+                        ["Name": name, "Path": name, "Size": size, "IsDir": false, "ID": name] as [String: Any]
+                    }
+                }
+                complete(try? JSONSerialization.data(withJSONObject: entries), nil)
+            } else if operation == "download", path == "Proof.txt", let local,
+                      local.lastPathComponent == "Proof.txt",
+                      local.deletingLastPathComponent().lastPathComponent.hasPrefix("OpenCommander-Remote-") {
+                try? Data(local.path.utf8).write(to: root.appendingPathComponent("PreviewDownloadPath.txt"), options: .atomic)
+                pending[id] = Task { @MainActor in
+                    defer { pending.removeValue(forKey: id) }
+                    do {
+                        try await Task.sleep(nanoseconds: 5_000_000_000)
+                        // Only this DEBUG fixture backend can hold its own
+                        // response while native acceptance navigates elsewhere.
+                        let hold = root.appendingPathComponent("HoldPreviewDownload.txt")
+                        let deadline = Date().addingTimeInterval(60)
+                        while FileManager.default.fileExists(atPath: hold.path), Date() < deadline {
+                            try await Task.sleep(nanoseconds: 100_000_000)
+                        }
+                        try Task.checkCancellation()
+                        try bytes.write(to: local, options: .atomic)
+                        complete(Data(), nil)
+                    } catch { complete(nil, error as NSError) }
+                }
+            } else { complete(nil, CloudConnection.failure("cloud_invalid")) }
+        }, cancel: { id in Task { @MainActor in pending[id]?.cancel() } })
+        return true
+    }
+#endif
     private func installListingObserver() {
         if let listingObserver { NotificationCenter.default.removeObserver(listingObserver) }
         listingObserver = NotificationCenter.default.addObserver(forName: OneDriveClient.listingChanged, object: nil, queue: .main) { [weak self] note in
@@ -912,6 +996,7 @@ private final class OneDriveCell: UITableViewCell {
             MainActor.assumeIsolated {
             guard let self, note.object as? String == self.client?.clientID else { return }
             if note.userInfo?["accountChanged"] as? Bool == true {
+                self.readErrorBox.isHidden = true; self.retryReadAction = nil
                 if !self.signingIn { self.work?.cancel() }
                 self.generation = UUID(); self.readEpoch = UUID(); self.listingRetry?.cancel()
                 self.folders = []; self.desiredFolders = []; self.items = []; self.selectedIDs = []
@@ -982,6 +1067,19 @@ private final class OneDriveCell: UITableViewCell {
         listingWarning.textColor = .systemOrange; listingWarning.isHidden = true
         listingWarning.accessibilityIdentifier = "OnlineCachedListingWarning"
         shell.addArrangedSubview(listingWarning)
+        readErrorBox.axis = .vertical; readErrorBox.spacing = 6; readErrorBox.isHidden = true
+        readErrorLabel.numberOfLines = 0; readErrorLabel.font = .systemFont(ofSize: 12)
+        readErrorLabel.textColor = theme.primaryText
+        readErrorLabel.accessibilityIdentifier = "OnlineReadError-\(paneTitle)"
+        readRetryButton.setTitle(L10n.get("directory_retry"), for: .normal)
+        readRetryButton.accessibilityIdentifier = "OnlineReadRetry-\(paneTitle)"
+        readRetryButton.addAction(UIAction { [weak self] _ in
+            guard let self, !self.busy, self.commander?.operationInProgress != true else { return }
+            self.onActivate?(); self.view.endEditing(true)
+            if let retry = self.retryReadAction { retry() } else { self.reload() }
+        }, for: .touchUpInside)
+        readErrorBox.addArrangedSubview(readErrorLabel); readErrorBox.addArrangedSubview(readRetryButton)
+        shell.addArrangedSubview(readErrorBox)
         let columns = UIStackView(); columns.axis = .horizontal; columns.spacing = 6
         func column(_ title: String) -> UIStackView {
             let stack = UIStackView(); stack.axis = .vertical
@@ -1062,10 +1160,10 @@ private final class OneDriveCell: UITableViewCell {
         let expected = readEpoch
         let retry = DispatchWorkItem { [weak self] in
             guard let self, self.readEpoch == expected, self.viewIfLoaded?.window != nil else { return }
-            if self.busy || self.commander?.operationInProgress == true || self.presentedViewController != nil {
+            if self.busy || (self.commander?.operationInProgress == true && self.commander?.allowsOperationNavigation != true) || self.presentedViewController != nil {
                 self.scheduleListingRefresh(after: 1); return
             }
-            self.run { [weak self] in guard let self else { return }; try await self.load(path: self.desiredFolders) }
+            self.run(readOnly: true) { [weak self] in guard let self else { return }; try await self.load(path: self.desiredFolders) }
         }
         listingRetry = retry
         DispatchQueue.main.asyncAfter(deadline: .now() + max(0.1, delay), execute: retry)
@@ -1075,7 +1173,9 @@ private final class OneDriveCell: UITableViewCell {
         backButton.isEnabled = !busy && !backHistory.isEmpty
         forwardButton.isEnabled = !busy && !forwardHistory.isEmpty
         upButton.isEnabled = !busy && !folders.isEmpty
-        countLabel.text = busy ? L10n.get("directory_loading") : "\(selectedIDs.count)/\(visibleItems.count)"
+        let activity = L10n.get(activeActivityKey ?? "directory_loading")
+        countLabel.text = busy ? activity : "\(selectedIDs.count)/\(visibleItems.count)"
+        loadingIndicator.accessibilityLabel = activity
         if busy { loadingIndicator.startAnimating() } else { loadingIndicator.stopAnimating() }
     }
     private func applyListingOrder() {
@@ -1118,6 +1218,7 @@ private final class OneDriveCell: UITableViewCell {
         treeView.reloadData()
     }
     private func resetAccountView() {
+        readErrorBox.isHidden = true; retryReadAction = nil
         authenticated = false; items = []; folders = []; visibleItems = []
         selectedIDs = []; generation = UUID(); treeChildren = [:]; expanded = ["root"]
         if Self.clipboard?.selection.browser === self { Self.clipboard = nil }
@@ -1127,7 +1228,7 @@ private final class OneDriveCell: UITableViewCell {
     private func navigate(_ path: [OneDriveItem], history: Int = 0) {
         guard !busy, authenticated else { return }
         onActivate?()
-        run { [weak self] in
+        run(readOnly: true, retryRead: { [weak self] in self?.navigate(path, history: history) }) { [weak self] in
             guard let self else { return }; let old = self.folders
             try await self.load(path: path)
             if history == -1 { self.backHistory.removeLast(); self.forwardHistory.append(old) }
@@ -1145,6 +1246,7 @@ private final class OneDriveCell: UITableViewCell {
         if let onClose { onClose() } else { dismiss(animated: true) }
     }
     private var completionNotice: String?
+    private var activeActivityKey: String?
     private func observeTransfer(_ client: (any CommanderOnlineClient)?) {
         let progress: (String, Int64, Int64) -> Void = { [weak self] phase, done, total in
             guard let self, total > 0 else { return }
@@ -1167,21 +1269,33 @@ private final class OneDriveCell: UITableViewCell {
         record(L10n.get("remote_recovery"), source: source, destination: backup)
         completionNotice = L10n.get("remote_recovery_notice") + "\n" + backup
     }
-    private func run(transfer: Bool = false, historyAction: String? = nil, progressTitle: String? = nil, _ action: @escaping () async throws -> Void) {
-        guard !busy, commander?.operationInProgress != true else { return }
+    private func run(transfer: Bool = false, historyAction: String? = nil, progressTitle: String? = nil,
+                     activityKey: String? = nil, readOnly: Bool = false, retryRead: (() -> Void)? = nil,
+                     _ action: @escaping () async throws -> Void) {
+        guard !busy, commander?.operationInProgress != true ||
+            (readOnly && activityKey == nil && commander?.allowsOperationNavigation == true) else { return }
+        readErrorBox.isHidden = true
+        let inlineReadError = readOnly || activityKey == "file_opening"
+        retryReadAction = inlineReadError ? retryRead : nil
         busy = true; completionNotice = nil; activeOperationPaths = nil
+        activeActivityKey = activityKey
+        let showsProgress = transfer || activityKey != nil
         updateNavigation()
-        if transfer {
+        if showsProgress {
             observeTransfer(client)
-            commander?.showProgress(progressTitle ?? locationTitle + ": " + text("Übertragung läuft…", "transferring…"), progress: 0, cancellable: true, indeterminate: true, onCancel: { [weak self] in self?.work?.cancel() })
+            let title = progressTitle ?? locationTitle + ": " + (activityKey.map { L10n.get($0) } ?? text("Übertragung läuft…", "transferring…"))
+            commander?.showProgress(title, progress: 0, cancellable: true, indeterminate: true,
+                navigationOwner: self, onCancel: { [weak self] in self?.work?.cancel() })
         }
         work = Task { [weak self] in
             guard let self else { return }
             var status = self.locationTitle + ": " + self.text("fertig", "complete")
             defer {
-                self.busy = false; self.refreshControl?.endRefreshing(); self.updateNavigation(); self.onStateChanged?()
-                if transfer { self.commander?.finishProgress(status); self.commander?.refreshAllPanes(clearSelectionIn: []) }
-                if transfer { self.stopObservingTransfer(self.client) }
+                self.busy = false; self.activeActivityKey = nil
+                self.refreshControl?.endRefreshing(); self.updateNavigation()
+                if showsProgress { self.commander?.finishProgress(status); self.stopObservingTransfer(self.client) }
+                if transfer { self.commander?.refreshAllPanes(clearSelectionIn: []) }
+                self.onStateChanged?()
                 self.activeOperationPaths = nil
                 self.offerUploadRecovery()
             }
@@ -1190,9 +1304,19 @@ private final class OneDriveCell: UITableViewCell {
                 status = self.text("Abgebrochen; abgeschlossene Schritte bleiben erhalten.", "Cancelled; completed steps are retained.") + (self.completionNotice.map { "\n" + $0 } ?? "")
                 if let historyAction { self.record(L10n.get(historyAction), source: self.activeOperationPaths?.source ?? self.onlineLocation(), destination: self.activeOperationPaths?.destination ?? self.onlineLocation(), error: CancellationError()) }
             }
+            catch where Task.isCancelled {
+                status = self.text("Abgebrochen; abgeschlossene Schritte bleiben erhalten.", "Cancelled; completed steps are retained.")
+                    + (self.completionNotice.map { "\n" + $0 } ?? "")
+                if let historyAction { self.record(L10n.get(historyAction), source: self.activeOperationPaths?.source ?? self.onlineLocation(), destination: self.activeOperationPaths?.destination ?? self.onlineLocation(), error: CancellationError()) }
+            }
             catch {
                 let description = HistoryFailure.presentation(error)
-                status = description + (self.completionNotice.map { "\n" + $0 } ?? ""); self.error(status)
+                status = description + (self.completionNotice.map { "\n" + $0 } ?? "")
+                if inlineReadError {
+                    self.readErrorLabel.text = description + (self.items.isEmpty ? "" : "\n" + L10n.get("online_read_failed_retained"))
+                    self.readErrorBox.isHidden = false
+                    self.message.text = nil
+                } else { self.error(status) }
                 if let historyAction { self.record(L10n.get(historyAction), source: self.activeOperationPaths?.source ?? self.onlineLocation(), destination: self.activeOperationPaths?.destination ?? self.onlineLocation(), error: error) }
             }
         }
@@ -1281,12 +1405,21 @@ private final class OneDriveCell: UITableViewCell {
     @objc private func reload() {
         guard client != nil else { refreshControl?.endRefreshing(); return }
         recoveryOffered = false
-        run { [weak self] in try await self?.load() }
+        run(readOnly: true) { [weak self] in try await self?.load() }
     }
     @objc private func actions() {
         onActivate?()
         guard !busy else { return }
         let menu = UIAlertController(title: locationTitle, message: text("Dateien und Ordner direkt in OpenCommander. Vorschau, Kopieren, Verschieben und Drag-and-drop verwenden die normalen Bedienelemente.", "Files and folders directly in OpenCommander. Preview, copy, move and drag-and-drop use the regular controls."), preferredStyle: .actionSheet)
+        if commander?.operationInProgress == true {
+            menu.addAction(UIAlertAction(title: L10n.get("refresh"), style: .default) { [weak self] _ in self?.reload() })
+            menu.addAction(UIAlertAction(title: L10n.get("cancel"), style: .cancel))
+            if let popover = menu.popoverPresentationController {
+                popover.sourceView = actionButton; popover.sourceRect = actionButton.bounds
+            }
+            present(menu, animated: true)
+            return
+        }
         if isOneDrive {
         menu.addAction(UIAlertAction(title: text("Mit Microsoft verbinden", "Connect to Microsoft"), style: .default) { [weak self] _ in self?.connect() })
         menu.addAction(UIAlertAction(title: text("Microsoft-App einrichten", "Configure Microsoft app"), style: .default) { [weak self] _ in self?.configure() })

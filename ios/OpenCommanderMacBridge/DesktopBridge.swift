@@ -243,6 +243,9 @@ final class DesktopBridge: NSObject, DesktopBridgeProtocol {
     private var fileDropView: NativeFileDropView?
     private var fileDropHandlers: [String: (CGPoint, [URL], Int, Bool) -> Bool] = [:]
     private var fileDropObserver: NSObjectProtocol?
+#if DEBUG
+    private var acceptanceGeometryApplied = false
+#endif
     func registerFileDropTarget(_ identifier: String, handler: @escaping (CGPoint, [URL], Int, Bool) -> Bool) {
         fileDropHandlers[identifier] = handler
         if fileDropObserver == nil {
@@ -253,7 +256,25 @@ final class DesktopBridge: NSObject, DesktopBridgeProtocol {
         DispatchQueue.main.async { [weak self] in self?.installFileDropTarget() }
     }
     private func installFileDropTarget() {
-            guard let content = NSApp.windows.first(where: { $0.title == "OpenCommander" })?.contentView else { return }
+            guard let window = NSApp.windows.first(where: { $0.title == "OpenCommander" }), let content = window.contentView else { return }
+            // This host uses the legacy UIKit window lifecycle, so windowScene
+            // can be nil. Enforce the actual AppKit minimum as well.
+            window.minSize = NSSize(width: 900, height: 600)
+#if DEBUG
+            if !acceptanceGeometryApplied, Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander.MacUITests",
+               let root = ProcessInfo.processInfo.environment["OPENCOMMANDER_MAC_UI_ROOT"],
+               URL(fileURLWithPath: root).resolvingSymlinksInPath().path.hasPrefix("/tmp/OpenCommander-MacUITest-"),
+               FileManager.default.fileExists(atPath: root + "/Left"), FileManager.default.fileExists(atPath: root + "/Right") {
+                let arguments = ProcessInfo.processInfo.arguments
+                let size: NSSize? = arguments.contains("--mac-parity-window-compact") ? NSSize(width: 900, height: 600)
+                    : arguments.contains("--mac-parity-window-wide") ? NSSize(width: 1366, height: 768) : nil
+                if let size, let screen = window.screen ?? NSScreen.main {
+                    acceptanceGeometryApplied = true
+                    window.setFrame(NSRect(x: screen.visibleFrame.minX + 20, y: screen.visibleFrame.maxY - size.height - 20,
+                                           width: size.width, height: size.height), display: true)
+                }
+            }
+#endif
             if fileDropView?.superview !== content {
                 fileDropView?.removeFromSuperview()
                 let overlay = NativeFileDropView(frame: content.bounds)

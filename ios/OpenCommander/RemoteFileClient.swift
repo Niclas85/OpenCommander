@@ -100,7 +100,30 @@ import CryptoKit
             }
         }, onCancel: { cancel(requestID) })
     }
-    private func measuredDownload(_ path: String, local: URL, size: Int64, phase: String, operation: String = "download") async throws {
+    private func measuredDownload(_ path: String, local: URL, size: Int64, phase: String, operation: String = "download", limits: OnlinePreviewLimits? = nil) async throws {
+        if let limits {
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask { @MainActor in _ = try await self.perform(operation, path, local: local) }
+                group.addTask { @MainActor in
+                    var previous: Int64 = 0
+                    var activity = ProcessInfo.processInfo.systemUptime
+                    while true {
+                        try Task.checkCancellation()
+                        let count = (try? local.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
+                        try limits.validate(count)
+                        if count != previous { previous = count; activity = ProcessInfo.processInfo.systemUptime }
+                        if ProcessInfo.processInfo.systemUptime - activity > limits.stallTimeout {
+                            throw OneDriveFailure.message(L10n.get("preview_timeout"))
+                        }
+                        self.transferProgress?(phase, size < 0 ? count : min(count, max(0, size - 1)), max(0, size))
+                        try await Task.sleep(nanoseconds: 100_000_000)
+                    }
+                }
+                defer { group.cancelAll() }
+                _ = try await group.next()
+            }
+            return
+        }
         transferProgress?(phase, 0, max(0, size))
         let monitor = Task { @MainActor [weak self] in
             while !Task.isCancelled {
@@ -259,8 +282,16 @@ import CryptoKit
         try await visit(url, parent: parent, depth: 0)
     }
     func download(_ item: OneDriveItem) async throws -> URL {
+        try await download(item, limits: nil)
+    }
+    func downloadPreview(_ item: OneDriveItem, limits: OnlinePreviewLimits) async throws -> URL {
+        try limits.validate(item.size)
+        return try await limits.run { try await self.download(item, limits: limits) }
+    }
+    private func download(_ item: OneDriveItem, limits: OnlinePreviewLimits?) async throws -> URL {
         guard !item.isFolder, nameValidator(item.name) else { throw RemoteConnection.failure("remote_invalid") }
         let current = try await metadata(item.id)
+        try limits?.validate(current.size)
         guard current.name == item.name, !current.isFolder else { throw RemoteConnection.failure("remote_changed") }
         let exporting = current.size == nil && allowsNativeExport
         guard exporting || (current.size ?? -1) >= 0 else { throw RemoteConnection.failure("remote_unknown_size") }
@@ -269,10 +300,11 @@ import CryptoKit
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: false)
         let file = container.appendingPathComponent(item.name)
         do {
-            try await measuredDownload(path(item.id), local: file, size: knownSize, phase: "remote_download_phase", operation: exporting ? "export" : "download")
+            try await measuredDownload(path(item.id), local: file, size: knownSize, phase: "remote_download_phase", operation: exporting ? "export" : "download", limits: limits)
             try Task.checkCancellation()
             let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
             let size = (attributes[.size] as? NSNumber)?.int64Value ?? -1
+            try limits?.validate(size)
             guard attributes[.type] as? FileAttributeType == .typeRegular,
                   exporting ? (size >= 0 && size <= Self.maximumNativeExportBytes) : size == knownSize,
                   current.eTag != nil, try await metadata(item.id).eTag == current.eTag else { throw RemoteConnection.failure("remote_changed") }

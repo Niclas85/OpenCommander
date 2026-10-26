@@ -107,6 +107,7 @@ enum DurableTreeTransfer {
     }
     static func resume(_ staging: URL, control: () -> DurableFileCopy.Control = { .proceed },
                        progress: (Int64, Int64) -> Void = { _, _ in },
+                       fileProgress: (Int, Int) -> Void = { _, _ in },
                        activity: @escaping (DurableFileCopy.Activity) -> Void = { _ in },
                        publish: (URL, URL) throws -> Void = { from, to in
                            guard renamex_np(from.path, to.path, UInt32(RENAME_EXCL)) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
@@ -150,6 +151,9 @@ enum DurableTreeTransfer {
             journal.targetDevice = currentTargetDevice
         } else { guard currentTargetDevice == journal.targetDevice else { throw DurableFileCopy.Failure.unsafePath } }
         if let expected = journal.sourceVolume { guard try VolumeIdentity.matches(expected, at: source.deletingLastPathComponent()) else { throw DurableFileCopy.Failure.changedSource } }
+        let fileCount = journal.entries.filter { $0.kind != FileAttributeType.typeDirectory.rawValue }.count
+        var finishedFiles = journal.entries.filter { $0.kind != FileAttributeType.typeDirectory.rawValue && $0.output != nil }.count
+        fileProgress(finishedFiles, fileCount)
         func result(_ state: DurableFileCopy.State, _ bytes: Int64) -> Result {
             Result(state: state, bytes: bytes, total: total, backup: journal.previousFingerprint == nil ? nil : backup, quarantine: journal.move ? quarantine : nil)
         }
@@ -262,6 +266,11 @@ enum DurableTreeTransfer {
                         try fm.moveItem(at: child, to: staging.appendingPathComponent("archives").appendingPathComponent(child.lastPathComponent))
                     }
                     journal.entries[index].stage = nil; try save(journal, at: staging)
+                }
+                if entry.kind != FileAttributeType.typeDirectory.rawValue, entry.output == nil,
+                   journal.entries[index].output != nil {
+                    finishedFiles += 1
+                    fileProgress(finishedFiles, fileCount)
                 }
                 progress(transferredBytes(), total)
             }

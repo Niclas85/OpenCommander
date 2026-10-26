@@ -339,6 +339,75 @@ final class MockMicrosoft: URLProtocol {
         try await checkDownload(before: "fresh-v2", after: "metadata-v3", contentBefore: "content-v2", contentAfter: nil, succeeds: false)
         print("PASS fresh download snapshots, stale-list recovery, metadata-only changes and concurrent-content protection")
 
+        do {
+            let limits = OnlinePreviewLimits(maximumBytes: 2, timeout: 2, stallTimeout: 1)
+            var metadataReads = 0, downloads = 0
+            var reportedSize = 3
+            var staged: URL?
+            MockMicrosoft.handler = { request in
+                if request.url!.host == "login.microsoftonline.com" {
+                    return (200, #"{"access_token":"fixture-access","refresh_token":"fixture-refresh","expires_in":3600}"#)
+                }
+                metadataReads += 1
+                return (200, "{\"id\":\"budget\",\"name\":\"Budget.png\",\"size\":\(reportedSize),\"eTag\":\"same\",\"@microsoft.graph.downloadUrl\":\"https://download.example/test\"}")
+            }
+            let reader = OneDriveClient(clientID: id, session: session, store: MemoryTokens(), downloadFile: { url in
+                downloads += 1
+                let file = fixture.appendingPathComponent("preview-budget-" + UUID().uuidString)
+                staged = file; try Data("abc".utf8).write(to: file)
+                return (file, HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: nil)!)
+            })
+            let known = OneDriveItem(id: "budget", name: "Budget.png", size: 3, folder: nil, lastModifiedDateTime: nil, eTag: nil)
+            do { _ = try await reader.downloadPreview(known, limits: limits); fatalError("Known oversized preview accepted") } catch {}
+            check(metadataReads == 0 && downloads == 0, "Known preview size refused before network")
+            let stale = OneDriveItem(id: "budget", name: "Budget.png", size: 1, folder: nil, lastModifiedDateTime: nil, eTag: nil)
+            do { _ = try await reader.downloadPreview(stale, limits: limits); fatalError("Fresh oversized metadata accepted") } catch {}
+            check(metadataReads == 1 && downloads == 0, "Fresh metadata rechecked before bytes")
+            reportedSize = 1
+            do { _ = try await reader.downloadPreview(stale, limits: limits); fatalError("Oversized response accepted") } catch {}
+            check(downloads == 1 && staged != nil && !FileManager.default.fileExists(atPath: staged!.path), "Oversized response staging removed")
+            var transportCancelled = false
+            let slow = OneDriveClient(clientID: id, session: session, store: MemoryTokens(), downloadFile: { _ in
+                do { try await Task.sleep(nanoseconds: 5_000_000_000) }
+                catch { transportCancelled = true; throw error }
+                fatalError("Preview timeout did not cancel transport")
+            })
+            do {
+                _ = try await slow.downloadPreview(stale, limits: .init(maximumBytes: 2, timeout: 0.03, stallTimeout: 1))
+                fatalError("Stalled preview accepted")
+            } catch {}
+            check(transportCancelled, "Overall preview deadline cancels in-flight download")
+            check(OnlinePreviewLimits.forName("X.PNG").maximumBytes == 128 * 1024 * 1024, "Raster budget case insensitive")
+            check(OnlinePreviewLimits.forName("Movie.mp4").maximumBytes == 2 * 1024 * 1024 * 1024, "Media budget2GiB")
+            print("PASS preview budgets: preflight, fresh metadata, oversized response cleanup and cancellable overall deadline")
+        }
+
+        // Exercise the real URLSession download path and per-task delegate,
+        // not the injected downloadFile closure used by the policy fixtures.
+        for (body, limit, succeeds) in [("abc", Int64(3), true), ("abcdef", Int64(4), false)] {
+            MockMicrosoft.headers = [:]
+            MockMicrosoft.handler = { request in
+                if request.url!.host == "login.microsoftonline.com" {
+                    return (200, #"{"access_token":"fixture-access","refresh_token":"fixture-refresh","expires_in":3600}"#)
+                }
+                if request.url!.host == "download.example" {
+                    check(request.value(forHTTPHeaderField: "Authorization") == nil, "Preview download URL must not receive Graph bearer")
+                    return (200, body)
+                }
+                return (200, #"{"id":"native-budget","name":"Budget.png","size":3,"eTag":"same","@microsoft.graph.downloadUrl":"https://download.example/body"}"#)
+            }
+            let nativeReader = OneDriveClient(clientID: id, session: session, store: MemoryTokens())
+            let selected = OneDriveItem(id: "native-budget", name: "Budget.png", size: 3, folder: nil, lastModifiedDateTime: nil, eTag: nil)
+            do {
+                let downloaded = try await nativeReader.downloadPreview(selected, limits: .init(maximumBytes: limit, timeout: 3, stallTimeout: 1))
+                defer { try? FileManager.default.removeItem(at: downloaded.deletingLastPathComponent()) }
+                check(succeeds, "URLSession over-budget body must not publish")
+                let actual = try Data(contentsOf: downloaded)
+                check(actual == Data("abc".utf8), "Real URLSession delegate preserves exact successful bytes")
+            } catch { if succeeds { throw error } }
+        }
+        print("PASS real URLSession preview download/delegate: exact success, over-budget refusal and no bearer forwarding via isolated HTTPS URLProtocol")
+
         MockMicrosoft.handler = { request in
             check(request.url!.query == nil, "Default metadata requested for download annotation")
             let metadata: [String: Any] = ["id": file.id, "name": file.name, "eTag": "fresh", "size": 3,

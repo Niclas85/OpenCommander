@@ -100,7 +100,7 @@ protocol OneDriveTokenStore {
     func write(_ token: String?, clientID: String) throws
 }
 
-private final class OneDriveRedirectGuard: NSObject, URLSessionTaskDelegate {
+private class OneDriveRedirectGuard: NSObject, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask,
                     willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest,
@@ -172,6 +172,7 @@ struct OneDriveKeychain: OneDriveTokenStore {
     func uploadTree(_ url: URL, parent: String?) async throws
     func resumePendingUpload(_ url: URL, parent: String?) async throws -> Bool
     func download(_ item: OneDriveItem) async throws -> URL
+    func downloadPreview(_ item: OneDriveItem, limits: OnlinePreviewLimits) async throws -> URL
     func downloadTree(_ item: OneDriveItem) async throws -> URL
     func remoteSnapshot(_ item: OneDriveItem) async throws -> [String: String]
     func recycleUnchanged(_ item: OneDriveItem, snapshot: [String: String]) async throws
@@ -181,6 +182,14 @@ struct OneDriveKeychain: OneDriveTokenStore {
     func disconnect() throws
 }
 extension CommanderOnlineClient {
+    func downloadPreview(_ item: OneDriveItem, limits: OnlinePreviewLimits) async throws -> URL {
+        try limits.validate(item.size)
+        return try await limits.run {
+            let url = try await self.download(item)
+            do { try limits.validate(Int64(try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? -1)); return url }
+            catch { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()); throw error }
+        }
+    }
     func resumePendingUpload(_ url: URL, parent: String?) async throws -> Bool { false }
     func accountIdentity() async throws -> String { clientID + ":" + (try await metadata(nil)).id }
     func persistentPath(_ id: String?) throws -> String? { nil }
@@ -203,12 +212,73 @@ struct OnlineBrowserListing {
     var retryAfter: TimeInterval? = nil
 }
 
+/// Preview-only budgets never restrict normal copy, move or export operations.
+struct OnlinePreviewLimits: Sendable {
+    let maximumBytes: Int64
+    let timeout: TimeInterval
+    let stallTimeout: TimeInterval
+    static func forName(_ name: String) -> Self {
+        let images: Set<String> = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "tif", "tiff", "svg", "heic", "avif"]
+        let image = images.contains(URL(fileURLWithPath: name).pathExtension.lowercased())
+        return Self(maximumBytes: Int64(image ? 128 : 2048) * 1024 * 1024,
+                    timeout: image ? 180 : 900, stallTimeout: 30)
+    }
+    func validate(_ size: Int64?) throws {
+        if let size, size > maximumBytes {
+            throw OneDriveFailure.message(String(format: L10n.get("preview_size_limit"), maximumBytes / (1024 * 1024)))
+        }
+    }
+    @MainActor func run(_ operation: @escaping @MainActor () async throws -> URL) async throws -> URL {
+        try Task.checkCancellation()
+        var produced: URL?
+        do { return try await withThrowingTaskGroup(of: URL.self) { group in
+            group.addTask { @MainActor in
+                let url = try await operation()
+                produced = url
+                guard !Task.isCancelled else {
+                    try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+                    throw CancellationError()
+                }
+                return url
+            }
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(max(0.001, self.timeout) * 1_000_000_000))
+                throw OneDriveFailure.message(L10n.get("preview_timeout"))
+            }
+            defer { group.cancelAll() }
+            guard let result = try await group.next() else { throw CancellationError() }
+            return result
+        } } catch {
+            // Also covers a completed download that lost the race to timeout.
+            if let produced { try? FileManager.default.removeItem(at: produced.deletingLastPathComponent()) }
+            throw error
+        }
+    }
+}
+
+private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSessionDownloadDelegate, @unchecked Sendable {
+    let limits: OnlinePreviewLimits
+    private let lock = NSLock()
+    private var exceeded = false
+    init(_ limits: OnlinePreviewLimits) { self.limits = limits }
+    var exceededLimit: Bool { lock.lock(); defer { lock.unlock() }; return exceeded }
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {}
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        if totalBytesWritten > limits.maximumBytes || totalBytesExpectedToWrite > limits.maximumBytes {
+            lock.lock(); exceeded = true; lock.unlock()
+            downloadTask.cancel()
+        }
+    }
+}
+
 @MainActor final class OneDriveClient: CommanderOnlineClient {
     static let listingChanged = Notification.Name("OpenCommander.OneDriveListingChanged")
     let clientID: String
     private let session: URLSession
     private let store: OneDriveTokenStore
     private let downloadFile: (URL) async throws -> (URL, URLResponse)
+    private let downloadPreviewFile: (URL, OnlinePreviewLimits) async throws -> (URL, URLResponse)
     private let retrySleep: (TimeInterval) async throws -> Void
     private var accessToken: String?
     private var expiresAt = Date.distantPast
@@ -260,6 +330,17 @@ struct OnlineBrowserListing {
         }
         let transport = self.session
         self.downloadFile = downloadFile ?? { try await transport.download(from: $0) }
+        self.downloadPreviewFile = { url, limits in
+            // Preserve dependency injection; its result is still size-checked.
+            if let downloadFile { return try await downloadFile(url) }
+            let delegate = OneDrivePreviewDownloadGuard(limits)
+            var request = URLRequest(url: url); request.timeoutInterval = limits.stallTimeout
+            do { return try await transport.download(for: request, delegate: delegate) }
+            catch {
+                if delegate.exceededLimit { try limits.validate(limits.maximumBytes + 1) }
+                throw error
+            }
+        }
     }
     nonisolated static func allowedRedirect(from source: URL?, to destination: URL?) -> Bool {
         guard let source, let destination, destination.scheme == "https",
@@ -765,6 +846,13 @@ struct OnlineBrowserListing {
         catch { try? FileManager.default.removeItem(at: container); throw error }
     }
     func download(_ item: OneDriveItem) async throws -> URL {
+        try await download(item, limits: nil)
+    }
+    func downloadPreview(_ item: OneDriveItem, limits: OnlinePreviewLimits) async throws -> URL {
+        try limits.validate(item.size)
+        return try await limits.run { try await self.download(item, limits: limits) }
+    }
+    private func download(_ item: OneDriveItem, limits: OnlinePreviewLimits?) async throws -> URL {
         guard !item.isFolder, Self.validName(item.name) else { throw OneDriveFailure.message("Select an individual file to download.") }
         // Graph metadata yields a short-lived preauthenticated URL. Never forward the bearer token to it.
         // downloadUrl is an instance annotation, not an ordinary selectable
@@ -774,6 +862,7 @@ struct OnlineBrowserListing {
         // The list/clipboard may predate upload processing or later edits. A
         // read copies the current version, not the stale selection's eTag.
         let current = try JSONDecoder().decode(OneDriveItem.self, from: data)
+        try limits?.validate(current.size)
         guard current.id == item.id, !current.isFolder, current.name == item.name,
               let version = current.cTag ?? current.eTag else {
             throw OneDriveFailure.message("OneDrive could not confirm the current file name/version. Refresh the folder and retry. Source retained.")
@@ -782,8 +871,12 @@ struct OnlineBrowserListing {
               let url = URL(string: address), url.scheme == "https", url.user == nil, url.password == nil else {
             throw OneDriveFailure.message("OneDrive did not provide a secure download address.")
         }
-        let (temporary, response) = try await downloadFile(url)
+        let (temporary, response): (URL, URLResponse)
+        if let limits { (temporary, response) = try await downloadPreviewFile(url, limits) }
+        else { (temporary, response) = try await downloadFile(url) }
         defer { try? FileManager.default.removeItem(at: temporary) }
+        try Task.checkCancellation()
+        try limits?.validate(Int64(try temporary.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? -1))
         guard let http = response as? HTTPURLResponse, http.statusCode == 200, http.url?.scheme == "https" else {
             throw OneDriveFailure.message("OneDrive download failed.")
         }

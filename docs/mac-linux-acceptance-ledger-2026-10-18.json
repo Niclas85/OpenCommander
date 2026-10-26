@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "date": "2026-10-18",
-  "last_updated": "2026-10-23",
+  "last_updated": "2026-10-26",
   "reference": "origin/codex/linux-desktop@e3b2981ad5a88551be81b86b6c6453e26e2e2ff5",
   "reference_inventory": "linux/docs/testplan/testfaelle.json",
   "complete": false,
@@ -18,9 +18,10 @@
       "id": "START-01",
       "group": "Installation, Start und Integration",
       "title": "Portables Paket starten",
-      "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "status": "native_verified",
+      "actual": "24-Oct bounded Mac portable variant: isolated UI app copied into 'Portable App/OpenCommander.app' beneath an owned temporary fixture. Signature verified; Info version1.3; both pane paths/listings usable. Native F5 copied Proof.txt with 100% completed card, independent cmp matched exact76-byte source/destination. First click only activated the window; selection was explicitly checked before successful copy. This is a local portable GUI case, not public clean-machine NTFS installation certification.",
       "evidence": [
+        "docs/mac-regression-continuation-2026-10-24.md",
         "docs/mac-acceptance-2026-10-17.md",
         "ios/tests/MacAcceptanceTests/fixture.swift"
       ]
@@ -77,8 +78,9 @@
       "group": "Installation, Start und Integration",
       "title": "Startargumente und Sonderzeichen",
       "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "actual": "24-Oct native typed-path sequence passed: literal Unicode/shell punctuation folder and encoded local file URL reach Proof.txt; invalid web/remote-host/relative inputs preserve current listing and the other pane and report status. XCTest typeText initially omitted the colon, independently caught by exact input assertion; explicit colon key resolved this automation defect. Separate real cold LaunchServices encoded URL handoff also passed. Complete start-argument matrix remains unsigned, so status stays partial.",
       "evidence": [
+        "docs/mac-regression-continuation-2026-10-24.md",
         "docs/mac-acceptance-2026-10-17.md",
         "ios/tests/MacAcceptanceTests/fixture.swift"
       ]
@@ -100,8 +102,9 @@
       "group": "Installation, Start und Integration",
       "title": "Versionswechsel mit bestehendem Profil",
       "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "actual": "24-Oct isolated native XCTest copied exact bytes, retained its genuine completed queue/history record, added one own paused job while closed, relaunched and verified both History Undo/time and enabled Resume together, source/destination equality and no paused output. Passed15.283s. An actual old-binary-to-new-binary profile migration and complete second-instance handoff matrix remain separate; status stays partial.",
       "evidence": [
+        "docs/mac-regression-continuation-2026-10-24.md",
         "docs/mac-acceptance-2026-10-17.md",
         "ios/tests/MacAcceptanceTests/fixture.swift"
       ]
@@ -334,9 +337,10 @@
       "id": "PLACE-08",
       "group": "Orte, Symbole und Reihenfolge",
       "title": "Favorit bearbeiten, ausblenden, entfernen",
-      "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "status": "native_verified",
+      "actual": "24-Oct isolated native favourite sequence passed23.487s: rename via actual dialog, hide/show with real switch clicks, renamed visible entry retained after app restart, remove shortcut only, wait for asynchronous bar refresh, restart remains removed. Independent exact sentinel bytes verified before and after restart; underlying folder/file preserved. Fixture imports only bounded owned local paths, never personal favourites or accounts.",
       "evidence": [
+        "docs/mac-regression-continuation-2026-10-24.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log",
         "docs/mac-acceptance-2026-10-18.md"
       ]
@@ -370,8 +374,9 @@
       "group": "Dateiaktionen und Konflikte",
       "title": "Drag-and-drop folgt Toggle",
       "status": "partial",
-      "actual": "Actual guarded mouse gestures on current isolated candidate: Copy toggle retains exact source/destination; Move toggle moves exact Unicode file and native Undo restores it; Option overrides Move with copy; Finder Command-drag overrides Copy with move and native Undo restores exact Finder source. Native cards and persisted job.move independently checked. First covered-endpoint attempt refused before events. Bound-window screenshot excludes system drag ghost, so full visible-preview expectation/exhaustive prerequisites remain partial; not arbitrary external app/provider coverage.",
+      "actual": "Actual guarded mouse gestures: Copy retains exact source/destination; Move moves exact Unicode file and native Undo restores it; Option overrides Move with copy; Finder Command overrides Copy with move and Undo restores exact source. Build22 adds fresh native copy/move toggle plus readonly-target refusal,32.991s, exact bytes/absence checks and untouched readonly target. Production pointer diagnosis independently found Codex foreground; normal LaunchServices app activation enabled actual Search/Close clicks. No file-action patch was needed for that focus problem. Full system ghost/exhaustive external app/provider matrix remains partial.",
       "evidence": [
+        "docs/mac-preview-budgets-and-mouse-2026-10-25.md",
         "docs/mac-regression-continuation-2026-10-23.md",
         "docs/mac-drag-modifiers-2026-10-19.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
@@ -420,8 +425,9 @@
       "group": "Dateiaktionen und Konflikte",
       "title": "Online-Namenskonflikt",
       "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "actual": "25-Oct actual installed Build22 Dropbox/UI conflict: own new51-byte local a.txt copied with F5 into existing owned QA folder containing different a.txt. Native conflict proposed a (2).txt; Keep Both completed. Separate actual cloud previews showed exact new synthetic text in a (2).txt and unchanged prior ABCD newline in a.txt. Local SHA256 unchanged; no overwrite/delete/share. Own QA copy retained. Core OneDrive26/Cloud87 cover conflict/version handling; fresh per-provider original matrix remains partial, not inferred from Dropbox alone.",
       "evidence": [
+        "docs/mac-preview-budgets-and-mouse-2026-10-25.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
         "docs/mac-finder-command-2026-10-17.md"
       ]
@@ -492,8 +498,9 @@
       "group": "Warteschlange, Parallelität und Bedienbarkeit",
       "title": "Fortschritt vollständig",
       "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "actual": "26-Oct direct Linux audit found missing count/speed/ETA and premature100% in Mac cards. Build25 adds optional persisted leaf-file counters to regular/tree/NAS paths, bounded monotonic new-byte rate and unknown ETA on pause/verification/stall, and caps unpublished copy progress99%. Queue35/tree7 core groups passed with exact payloads, count persistence, resumed/zero-file NAS-adapter fixture and stale-rate refusal. Native paused card visibly passed99%,3/4 files, exact long duration and unknown speed/ETA. Full large/many-small native provider/slow-source phase matrix remains partial, not implied by the bounded fixture.",
       "evidence": [
+        "docs/mac-transfer-metrics-parity-2026-10-26.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
         "docs/mac-acceptance-2026-10-18.md"
@@ -504,8 +511,9 @@
       "group": "Warteschlange, Parallelität und Bedienbarkeit",
       "title": "Zeitformate und Grenzwerte",
       "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "actual": "26-Oct matched Linux human_duration component format, not rounded decimal units. Original13 Python boundary vectors and both Swift language outputs passed for0/59.9/60/3599/3600/7385/86399/86400/90061/172800,negative,inf,nan; huge finite input safely formatted. Monotonic rate/ETA test rejects zero-time, pause, saved-byte inflation, verification and three-second stalls. Native card displayed1 day1 h1 min1 s with unknown paused speed/ETA. Other boundary values have function-level rather than individually rendered GUI evidence; no blanket GUI matrix pass.",
       "evidence": [
+        "docs/mac-transfer-metrics-parity-2026-10-26.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
         "docs/mac-acceptance-2026-10-18.md"
@@ -558,8 +566,10 @@
       "group": "Warteschlange, Parallelität und Bedienbarkeit",
       "title": "GUI während langsamer Kopie",
       "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "actual": "Installed25 still has the documented foreground-cloud navigation limitation. Subsequent26 development pins the owning provider pane, permits other-pane local/list-only navigation, and keeps mutations/recovery/account actions gated. Native actual synthetic cloud copy while changing the other pane PASSED: original target exact, no redirected output, source retained, History Undo correct. Preview cancel/retry also passed. Another held-preview navigation test FAILED at Command-L dialog assertion; later steps not executed.31-test debug build compiles but no full26 native suite/install accepted. Owner-pane navigation and independent concurrent mutations remain incomplete; JOB-06 not signed off.",
       "evidence": [
+        "docs/mac-cloud-navigation-development-2026-10-26.md",
+        "docs/mac-transfer-metrics-parity-2026-10-26.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
         "docs/mac-acceptance-2026-10-18.md"
@@ -610,8 +620,10 @@
       "group": "Warteschlange, Parallelität und Bedienbarkeit",
       "title": "Einzelnen Vorgang minimieren",
       "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "actual": "24-Oct: isolated native XCTest with two explicitly paused jobs passed independent compact/details controls, both Resume buttons, app termination/relaunch and per-card persistence. No destination created or source modified. Existing queue regressions cover compact/parallelism persistence. The complete two-running-slow-jobs timing sequence remains partial, not inferred from this paused-job case.",
       "evidence": [
+        "docs/mac-regression-continuation-2026-10-24.md",
+        "ios/OpenCommanderUITests/AppReviewVideoTests.swift",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
         "docs/mac-acceptance-2026-10-18.md"
@@ -622,8 +634,9 @@
       "group": "Warteschlange, Parallelität und Bedienbarkeit",
       "title": "Viele Karten und globale Ansicht",
       "status": "partial",
-      "actual": "20 restored paused cards displayed; Resume all completed all 20 files with exact 64KiB bytes. Every compact/detail/hide control not independently reexecuted.",
+      "actual": "20 restored paused cards displayed; Resume all completed all 20 files with exact 64KiB bytes. Additional25-Oct native Build23 test passed:66 persisted cards (65 completed with real owned output files, one paused), navigate older page, Remove all completed clamps pagination, preserves paused card and every output byte, refreshes externally added file in pane, persists only paused job across relaunch. Earlier independent per-card compact state persists. Full concurrency/scale/control matrix still partial.",
       "evidence": [
+        "docs/mac-preview-budgets-and-mouse-2026-10-25.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-transfer-queue.log",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-durable-copy.log",
         "docs/mac-acceptance-2026-10-18.md"
@@ -997,8 +1010,9 @@
       "group": "Cloud-Anmeldung und Profilverwaltung",
       "title": "Verbindungen nach Neustart",
       "status": "partial",
-      "actual": "Native real Drive QA connection using existing authorized private configuration remains usable after regular app quit/fresh process, no new login prompt; named Sub folder and b.txt restored from stable navigation names. This does not certify new OAuth token acquisition/rotation or all provider credentials; original broader account matrix remains partial.",
+      "actual": "Native real Drive QA connection using existing authorized private configuration remains usable after regular app quit/fresh process, no new login prompt; named Sub folder and b.txt restored from stable navigation names. Repeated 25-Oct on installed Build18: own QA a.txt preview exact synthetic text, then Sub/b.txt restored in fresh process with changed session-local IDs and no login. Installed Build19 repeated Drive restoration and also verified Dropbox own QA a.txt preview, regular quit/fresh-process exact QA folder/Sub/a.txt restoration with new IDs and no login. This does not certify new OAuth token acquisition/rotation or all provider credentials; original broader account matrix remains partial.",
       "evidence": [
+        "docs/mac-cloud-preview-continuation-2026-10-25.md",
         "docs/mac-late-cloud-listing-2026-10-19.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-oauth.log",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log",
@@ -1079,8 +1093,9 @@
       "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
       "title": "Netzausfall und Wiederkehr",
       "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "actual": "Build22 synthetic native initial outage displays nonmodal pane error and pointer Retry; clearing only the owned outage flag restores Proof.txt without login or downloading,9.611s. Native preview timeout cleans staging and pointer Retry produces exact text with empty mutation history,18.784s. Cloud87/OneDrive25 core groups cover transport cancellation/recovery. Real per-provider host-network interruption and external control views remain unexecuted; no personal account/network was changed.",
       "evidence": [
+        "docs/mac-preview-budgets-and-mouse-2026-10-25.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log"
       ]
@@ -1101,8 +1116,9 @@
       "group": "Cloud-Dateien, Live-Zugriff und Freigaben",
       "title": "Rate-Limit und temporäre Fehler",
       "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "actual": "Build22 native synthetic quota case passed21.859s: previous Proof.txt list remains with actual dated cache/quota warning; repeated refresh within cooldown sends no extra transport request; navigating to local root prevents the scheduled retry (observed beyond its10s deadline via12s inverted counter expectation). Own fixture counters, no real provider configuration or host network changes. Cloud87 and OneDrive25 regressions additionally cover bounded retries/cooldowns and cancellation. Full original per-provider/account prerequisite matrix remains partial.",
       "evidence": [
+        "docs/mac-preview-budgets-and-mouse-2026-10-25.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-client.log",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-onedrive.log"
       ]
@@ -1453,8 +1469,10 @@
       "group": "Vorschau, Thumbnails und Medien",
       "title": "Größen- und Zeitlimits",
       "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "actual": "Build22 adds preview-only preflight/fresh/actual size budgets (images128MiB, other online previews2GiB), overall deadlines180/900s, OneDrive download-delegate byte checks and30s inactivity protection; cloud/server staging growth/stall monitored every100ms with exact-transport cancellation/cleanup. Native image129MiB and video2GiB+1 metadata refused before any download,12.241s. Thumbnail admission requires known cached input <=32MiB. SVG uses bounded immutable owned snapshot and30s UI deadline; native oversize/refusal then valid Retry/render/source-integrity passed11.231s. Native delayed cloud timeout/cleanup/retry passed18.784s. Physical metadata preflight precedes coordination/provider hydration, while large archive containers do not block small prepared members. Core14 image/25 OneDrive/87 cloud groups pass. Not a hard decoder allocation or byte-perfect staging disk quota, not a preceding archive extraction limit or every real-provider matrix. Original full case remains partial.",
       "evidence": [
+        "docs/mac-preview-budgets-and-mouse-2026-10-25.md",
+        "docs/mac-image-limits-continuation-2026-10-25.md",
         "docs/mac-linux-parity-2026-10-16.md",
         "docs/mac-acceptance-2026-10-18.md"
       ]
@@ -1464,8 +1482,10 @@
       "group": "Vorschau, Thumbnails und Medien",
       "title": "Text und Binärvorschau",
       "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "actual": "Build18 adds native read-only bounded UTF-8 preview (2 MiB), background loading, split-character handling and explicit unsupported-binary feedback. Real Mac Unicode, over-limit, binary, Escape/button closing and exact unchanged-source checks passed 31.552s; standalone FIFO, invalid encoding, exact limit and access failure regressions passed. Live Google own QA a.txt preview passed on installed Build18. Build19 adds accurate cancellable online-opening progress; native delayed synthetic download cancel/cleanup/retry, exact Unicode preview, viewer cleanup, reenabled actions and empty history passed24.520s. Installed Build19 live Drive b.txt and Dropbox a.txt previews showed their current synthetic contents and German read-only message; toolbar reenabled after Escape. Original all-provider native prerequisite sequence remains incomplete; no full MEDIA-10 pass is asserted.",
       "evidence": [
+        "docs/mac-cloud-preview-continuation-2026-10-25.md",
+        "docs/mac-text-preview-continuation-2026-10-25.md",
         "docs/mac-linux-parity-2026-10-16.md",
         "docs/mac-acceptance-2026-10-18.md"
       ]
@@ -1545,9 +1565,10 @@
       "id": "ARCH-05",
       "group": "Archive und sichere Extraktion",
       "title": "Traversal und absolute Pfade",
-      "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "status": "native_verified",
+      "actual": "25-Oct bounded native TAR listing and explicit extraction sequence passed: ../ traversal, an absolute path pointing only to an owned outside-target sentinel, symlink, hardlink, duplicate and case-collision. Every attempt refused; exact sentinel and archive bytes unchanged, destination remained only original DropHere. FIFO/device/over4GiB also covered in same nine-fixture sequence. Shared ZIP/native preflight regression passes. This states actual TAR GUI evidence, not an exhaustive malicious-file matrix for every archive format.",
       "evidence": [
+        "docs/mac-archive-continuation-2026-10-25.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-file-drop.log"
       ]
@@ -1557,8 +1578,9 @@
       "group": "Archive und sichere Extraktion",
       "title": "Archivbomben und Sonderdateien",
       "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "actual": "25-Oct native TAR browsing/extraction refused declared size above4GiB, FIFO and device members without publication or sentinel/source mutation. Regression additionally verifies exact100000-entry admission/100001 refusal without payload allocation and existing preview/decompression/cancel limits. Complete native100001-member and exact128MiB preview boundary matrices remain unsigned; partial retained.",
       "evidence": [
+        "docs/mac-archive-continuation-2026-10-25.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-file-drop.log"
       ]
@@ -1567,9 +1589,10 @@
       "id": "ARCH-07",
       "group": "Archive und sichere Extraktion",
       "title": "Kaputt, leer und verschlüsselt",
-      "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "status": "native_verified",
+      "actual": "25-Oct actual native ZIP sequence passed15.799s: empty ZIP shows empty state without Retry error; truncated ZIP shows localized actionable unsupported/damaged/encrypted explanation; independently verified real ZipCrypto fixture refuses extraction and states password archives unsupported, no password fields, no output and exact original bytes preserved. Fixed silent omission of encrypted ZIP members by full native header preflight before listing/extract/materialization/properties. Other format-specific encryption variants are not implied.",
       "evidence": [
+        "docs/mac-archive-continuation-2026-10-25.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-safety.log",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-file-drop.log"
       ]
@@ -1627,9 +1650,10 @@
       "id": "TOOLS-04",
       "group": "Suche, Vergleich und Mehrfach-Umbenennen",
       "title": "Vergleich online und Abbruch",
-      "status": "partial",
-      "actual": "Confirmed/fixed cancellation race where provider successfully returned an empty listing after cancellation: deterministic before-fix failure, final cloud/restart suite passes. Native real Google Drive own 12-byte QA root both panes: busy/download warning, cancellation during provider processing publishes no rows; retry completes with exactly two content-equal file rows. Mixed ZIP/cloud comparison safely refused from either active side. Deliberate interruption inside file-byte download and other provider matrix remain unexecuted; not inferred from scan-cancel evidence.",
+      "status": "native_verified",
+      "actual": "Bounded native sequence completed25-Oct on installed signed Build20: own12-byte Google Drive QA folder vs own Dropbox QA folder in the two panes. Download warning observed; Cancel during actual provider processing yielded German cancellation, zero result rows and an enabled Start button. Retry completed with exactly Equal Sub/b.txt and Different a.txt. Read-only operations only; original root/iCloud panes restored. Native delayed synthetic transport also proves cancel inside a five-second byte download: no equality/results, temporary container removed, unchanged local bytes and successful equal-file retry. Local post-read cancel discards completed comparison/search/rename-preview results. This bounded case does not certify every provider, fresh credentials or physical network interruption.",
       "evidence": [
+        "docs/mac-tool-cancellation-continuation-2026-10-25.md",
         "docs/mac-online-tools-cancellation-2026-10-19.md",
         "ntfs/NTFS3G/.build-native/parity-20261019-online-tools-cancel-final.log",
         "ntfs/NTFS3G/.build-native/parity-20261019-online-tools-context-build.log",
@@ -1654,8 +1678,9 @@
       "group": "Suche, Vergleich und Mehrfach-Umbenennen",
       "title": "Umbenennungs-Konflikte",
       "status": "partial",
-      "actual": "Native corrected two-file previews Same.txt, B.txt and ../escape respectively refuse duplicate, occupied and invalid targets with explicit German explanations, disabled Apply and unchanged sources. Unit collisions/invalid/stale cases pass. Full cyclic-plan/native/provider sequence remains partial, not inferred.",
+      "actual": "Native corrected two-file previews Same.txt, B.txt and ../escape respectively refuse duplicate, occupied and invalid targets with explicit German explanations, disabled Apply and unchanged sources. Unit collisions/invalid/stale cases pass. 25-Oct explicit cyclic counter preview and supplied two-sided cyclic plan both refuse with zero rename callbacks and exact bytes preserved for both sources (19 tools PASS groups). Native late-cancelled rename preview leaves Apply disabled and source unchanged, normal retry works. Full cyclic-plan/native/provider sequence remains partial, not inferred.",
       "evidence": [
+        "docs/mac-tool-cancellation-continuation-2026-10-25.md",
         "docs/mac-tools-native-2026-10-19.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-commander-tools.log",
         "docs/mac-acceptance-2026-10-17.md"
@@ -1758,8 +1783,9 @@
       "group": "Eigenschaften, Einstellungen und Ergonomie",
       "title": "Tastaturbefehle und Fokus",
       "status": "partial",
-      "actual": "Command-L Unicode/path/refusal checks already documented. Native19-Oct filter Cmd-A/X/V/Backspace and F5/Space leave selected file and36-job queue intact. Native tools Escape fixed: search/compare/multi-rename/information idle close; immediate active large-search Escape gives cancelled/zero results, second closes. Final23-Oct settings Cmd-comma, helpF1 and information/search Escape work; F5 behind panels/focused search creates no job. Exact source/sentinel independent verifier passes. Complete shortcut/focus matrix remains open.",
+      "actual": "Command-L Unicode/path/refusal checks already documented. Native19-Oct filter Cmd-A/X/V/Backspace and F5/Space leave selected file and36-job queue intact. Native tools Escape fixed: search/compare/multi-rename/information idle close; immediate active large-search Escape gives cancelled/zero results, second closes. Final23-Oct settings Cmd-comma, helpF1 and information/search Escape work; F5 behind panels/focused search creates no job. Additional25-Oct Build23 native Cmd-C, Tab pane switch, Cmd-V exact local copy, Cmd-F defaults to right pane; path-field Cmd-A/C/X/V/Delete edit text only with both selected files byte-exact; Cmd-Y preview and Escape close pass. Complete shortcut/focus/provider/scale matrix remains open.",
       "evidence": [
+        "docs/mac-preview-budgets-and-mouse-2026-10-25.md",
         "docs/mac-keyboard-dialogs-2026-10-23.md",
         "docs/mac-continuation-2026-10-18.md",
         "docs/mac-acceptance-2026-10-18.md",
@@ -1771,8 +1797,11 @@
       "group": "Eigenschaften, Einstellungen und Ergonomie",
       "title": "Skalierung und kleine Fenster",
       "status": "partial",
-      "actual": "Related evidence listed below; the complete original native step/prerequisite sequence has not been individually signed off. Do not infer a manual pass from aggregate test totals.",
+      "actual": "26-Oct Build25 focused native test PASSED whole actual900x600 and1366x768 iterations: toolbar/path hit and containment, shared keyboard/mouse language dropdown, Escape, Deutsch selection and German queue controls. Earlier24 wide failure recording identified a Documents-access OS prompt, not a Preview layout defect. Later fresh25 run required no agent permission change. Retina compact screenshot inspected; arbitrary full display/scale/provider matrix remains partial.",
       "evidence": [
+        "docs/mac-transfer-metrics-parity-2026-10-26.md",
+        "docs/mac-window-resumption-2026-10-26.md",
+        "docs/mac-keyboard-window-completion-2026-10-25.md",
         "docs/mac-acceptance-2026-10-18.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log"
       ]
@@ -1782,8 +1811,11 @@
       "group": "Eigenschaften, Einstellungen und Ergonomie",
       "title": "Tastatur und sichtbarer Fokus",
       "status": "partial",
-      "actual": "23-Oct native keyboard opens settings/help/search/information; Escape closes corrected controllers. Escape first dismisses language menu, next closes settings; parent file shortcuts suppressed while settings/help open.19-Oct active search cancellation and focused query Escape verified. Full keyboard-only location editing/reordering, queue control, Tab focus visibility and scale/provider prerequisites remain unproven.",
+      "actual": "23-Oct native settings/help/search/information and Escape evidence retained.25-Oct corrected actual settings Tab leak into background.26-Oct full Build25 native29-test suite passed settings Tab/Return/Space/Option-arrow favourites, persistence, queue Cmd-Shift-T focus, F5 background suppression, Details, explicit resume, card-only removal and exact bytes. Pointer return to own file/Cmd-F, then queue refocus also passed. Whole900/1366 window language picker keyboard/mouse/Escape sequences passed. No current system-dialog blocker in successful25 run; arbitrary full scale/provider/shortcut matrix is still not claimed.",
       "evidence": [
+        "docs/mac-transfer-metrics-parity-2026-10-26.md",
+        "docs/mac-window-resumption-2026-10-26.md",
+        "docs/mac-keyboard-window-completion-2026-10-25.md",
         "docs/mac-keyboard-dialogs-2026-10-23.md",
         "docs/mac-acceptance-2026-10-18.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-storage.log"
@@ -1841,8 +1873,10 @@
       "group": "Sicherheit, Leistung und Dauerbetrieb",
       "title": "20.000 Dateien anzeigen",
       "status": "partial",
-      "actual": "Native 20,000-entry list rendered, last-name filter found Row-19999; clearing restored 20,000 and sorting showed correct ascending/descending starts. Post-optimization warm observations: filtered result within 3.5s, filter clear 739ms. Not a controlled cold-cache or universal latency benchmark.",
+      "actual": "Native 20,000-entry list and earlier Row-19999 filtering verified. 24-Oct fresh isolated XCTest passed complete 20,000 listing, sort, last-name Entry-19999 filter, absent first entry while filtered, clear, up and warm reopening with other pane unchanged (25.421s overall). Attached cold/warm input-plus-observation sequences 2.708s/3.016s, not subsecond latency certification. Initial full recursive AX snapshots timed out and are retained as failures; typed firstMatch control queries passed without hiding any product accessibility elements. CPU/RSS snapshot measured the XCTest hierarchy traversal, not a pure listing benchmark; case remains partial.",
       "evidence": [
+        "docs/mac-regression-continuation-2026-10-24.md",
+        "ios/OpenCommanderUITests/AppReviewVideoTests.swift",
         "docs/mac-acceptance-2026-10-18.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-handbook.log",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-runtime.log",
@@ -1891,8 +1925,9 @@
       "group": "Sicherheit, Leistung und Dauerbetrieb",
       "title": "Automatisierte Regression",
       "status": "partial",
-      "actual": "Fresh stable-source batch of 15 native regression scripts, Swift safety with no external zstd in PATH and real loopback FTP/FTPS/SFTP-key/SFTP-password passed. Final Catalyst clone/normal signed builds additionally verified. Compiler source-change infrastructure failure retained separately. Not complete manual inventory.",
+      "actual": "Prior stable-source native regression batch and real loopback FTP/FTPS/SFTP retained.26-Oct Build25 full native29-case suite passed with0 failures in588.011s. Queue35, tree7, Swift safety41 and isolated NTFS22 regression groups passed; current signed/notarized/stapled25 was installed with23 backup, installed distribution gate and fresh installed-driver NTFS22 passed. Linux formatting13 reference vectors executed directly; full Linux pytest environment absent. Aggregate suites do not equal the full158 original manual/provider/device matrix.",
       "evidence": [
+        "docs/mac-transfer-metrics-parity-2026-10-26.md",
         "docs/mac-acceptance-2026-10-18.md",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-handbook.log",
         "ntfs/NTFS3G/.build-native/acceptance-20261018-cloud-runtime.log",

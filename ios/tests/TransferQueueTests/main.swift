@@ -383,6 +383,7 @@ waitFor({ jobs.count == 3 && jobs.allSatisfy { $0.state == .completed } })
 require(maximumRunning == 2, "parallel scheduling or limit failed")
 require(Set(jobs.map(\.destination)).count == 3, "pending filename collision")
 for job in jobs { let data = try Data(contentsOf: URL(fileURLWithPath: job.destination)); require(data == bytes, "copy mismatch") }
+require(jobs.allSatisfy { $0.filesDone == 1 && $0.filesTotal == 1 }, "regular-file queue counters missing")
 print("PASS persisted queue, two independent copies, pending-name allocation and parallel limit")
 let id = jobs[0].id
 require(jobs.allSatisfy(\.compact), "new jobs must start as single compact rows")
@@ -395,6 +396,7 @@ reopened.changed = { snapshot, limit, error in require(error == nil, "reopen fai
 reopened.refresh()
 waitFor({ recovered.count == 3 })
 require(recoveredLimit == 4 && recovered.first(where: { $0.id == id })?.compact == false, "card/limit persistence")
+require(recovered.allSatisfy { $0.filesDone == 1 && $0.filesTotal == 1 }, "file counters lost across queue restart")
 var a = DurableTransferQueue.Job(source: "/a/source", destination: "/b/photo.jpg")
 let b = DurableTransferQueue.Job(source: "/b/photo.jpg", destination: "/c/result")
 require(DurableTransferQueue.overlaps(a, b), "write/read overlap missed")
@@ -437,6 +439,65 @@ require(checking.statusKey == "transfer_cancelling", "pending cancellation not e
 checking.state = .completed
 require(checking.progressFraction == 1 && checking.statusKey == "transfer_completed" && !checking.isChecking, "completed status retains pending/verification caption")
 print("PASS independent verification percentage, stable copied bytes and truthful pending pause/cancel status")
+var metered = DurableTransferQueue.Job(source: "/source", destination: "/target")
+metered.state = .running; metered.workPhase = .copying; metered.total = 10000
+metered.activeSince = Date(timeIntervalSinceReferenceDate: 100)
+metered.bytes = 5000 // Saved bytes are a baseline, never new throughput.
+var meter = TransferRateEstimator()
+require(meter.observe(metered, uptime: 10) == nil, "resume invented a throughput before a fresh sample")
+metered.bytes = 6000
+let measured = meter.observe(metered, uptime: 11)
+require(measured?.bytesPerSecond == 1000 && measured?.remaining == 4, "rate or remaining time includes resumed bytes")
+require(meter.observe(metered, uptime: 14) == nil, "stalled transfer retains a fixed ETA")
+metered.state = .paused
+require(meter.observe(metered, uptime: 15) == nil, "paused transfer reports live speed")
+metered.state = .running; metered.activeSince = Date(timeIntervalSinceReferenceDate: 200)
+require(meter.observe(metered, uptime: 20) == nil, "resume uses stale timing samples")
+metered.bytes = 7000
+require(meter.observe(metered, uptime: 21)?.bytesPerSecond == 1000, "fresh resumed rate incorrect")
+metered.workPhase = .verifying
+require(meter.observe(metered, uptime: 22) == nil, "verification is falsely reported as copy throughput")
+metered.workPhase = .copying
+require(meter.observe(metered, uptime: 23) == nil, "copy restart includes verification duration")
+metered.bytes = 8000
+require(meter.observe(metered, uptime: 24)?.bytesPerSecond == 1000, "new copying phase rate")
+metered.bytes = 100
+require(meter.observe(metered, uptime: 25) == nil, "regressing checkpoint reports unsafe negative speed")
+metered.bytes = 1100
+require(meter.observe(metered, uptime: 26)?.bytesPerSecond == 1000, "rate cannot recover after checkpoint reset")
+require(meter.observe(metered, uptime: .nan) == nil, "invalid monotonic time accepted")
+metered.bytes = metered.total
+require(metered.progressFraction < 1 && Int(metered.progressFraction * 100) == 99, "100 percent before publication")
+metered.state = .paused
+require(metered.progressFraction < 1, "paused unpublished file reports100%")
+metered.state = .completed
+require(metered.progressFraction == 1, "confirmed completion not100%")
+print("PASS live monotonic rate and ETA exclude saved bytes, pause, verification, stalls and clock/checkpoint resets;100% only after completion")
+do {
+    // Exercise the production non-exclusive-rename adapter on an owned local
+    // filesystem. This is a callback/counter regression, not live SMB evidence.
+    let nasSource = root.appendingPathComponent("CounterSource")
+    try FileManager.default.createDirectory(at: nasSource.appendingPathComponent("EmptyFolder"), withIntermediateDirectories: true)
+    let payload = Data(repeating: 71, count: 2 * 1024 * 1024)
+    try payload.write(to: nasSource.appendingPathComponent("Payload.bin"))
+    try Data().write(to: nasSource.appendingPathComponent("Zero.bin"))
+    let target = root.appendingPathComponent("CounterDestination")
+    let staging = try NASExclusiveCopy.create(source: nasSource, target: target, journalParent: root)
+    var copied: Int64 = 0
+    var counts: [(Int, Int)] = []
+    let paused = try NASExclusiveCopy.resume(staging, control: { copied >= 1024 * 1024 ? .pause : .proceed },
+        progress: { copied = $0 }, fileProgress: { counts.append(($0, $1)) })
+    require(paused == .paused, "NAS counter fixture did not pause")
+    let resumed = try NASExclusiveCopy.resume(staging, fileProgress: { counts.append(($0, $1)) })
+    require(resumed == .completed && counts.last?.0 == 2 && counts.allSatisfy { $0.1 == 2 && $0.0 <= 2 }, "NAS counter resume/zero-file mismatch")
+    require(zip(counts, counts.dropFirst()).allSatisfy { $0.0.0 <= $0.1.0 }, "NAS counters regressed or double counted")
+    let received = try Data(contentsOf: target.appendingPathComponent("Payload.bin"))
+    require(received == payload, "NAS counter callback changed bytes")
+    let replay = try NASExclusiveCopy.resume(staging, fileProgress: { counts.append(($0, $1)) })
+    require(replay == .completed, "completed NAS replay failed")
+    require(counts.last?.0 == 2, "completed NAS replay lost counters")
+    print("PASS NAS adapter file counts across pause/resume/replay including zero-byte file and empty directory (local fixture)")
+}
 var guarded = DurableTransferQueue.Job(source: "/a/source", destination: "/b/photo (2).jpg", move: false)
 guarded.state = .running
 require(DurableTransferQueue.pathConflicts(requested: "/a", writing: true, job: guarded), "parent removal can invalidate active read")

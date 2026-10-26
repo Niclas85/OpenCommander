@@ -269,6 +269,7 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     var onlineNavigation: UINavigationController?
     private weak var paneShell: UIStackView?
     var onlineBrowser: OneDriveBrowser? { onlineNavigation?.viewControllers.first as? OneDriveBrowser }
+    func setNavigationInteractionEnabled(_ enabled: Bool) { paneShell?.isUserInteractionEnabled = enabled }
 
     func showOnline(_ navigation: UINavigationController) {
         onlineNavigation = navigation
@@ -346,6 +347,7 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
     
     func setRoot(_ root: FileEntry, recordHistory: Bool = true) {
 #if targetEnvironment(macCatalyst)
+        guard viewController?.canNavigate(self) != false else { return }
         closeOnline()
 #endif
         if recordHistory, let current = currentDirectory, current.key() != root.key() {
@@ -901,7 +903,9 @@ class CommanderPane: NSObject, UITableViewDataSource, UITableViewDelegate, UITex
             let message = HostFileSystem.cloudClientName(for: currentDirectory.url).map {
                 String(format: L10n.get(HostFileSystem.isDisabledProvider(error as NSError)
                     ? "cloud_domain_disabled" : "cloud_unavailable"), $0) + "\n" + diagnostic
-            } ?? String(format: L10n.get("directory_error"), failure.message + "\n" + diagnostic)
+            } ?? String(format: L10n.get("directory_error"),
+                        (currentDirectory.isZipArchive() || currentDirectory.zipPath != nil
+                            ? CommanderArchiveFailure.presentation(error) : failure.message) + "\n" + diagnostic)
 #else
             let message = L10n.get(MobileStorageIssue.key(for: error))
 #endif
@@ -1871,7 +1875,7 @@ class FileCell: UITableViewCell {
         let key = "\(entry.key())|\(entry.modified())|\(entry.size())"
         representedKey = key
         let mime = entry.mimeType()
-        if entry.zipPath == nil && !entry.isDirectoryLike() && (mime.hasPrefix("image/") || mime.hasPrefix("video/")) {
+        if entry.zipPath == nil && !entry.isDirectoryLike() && entry.thumbnailInputSize.map(ThumbnailInputPolicy.permits(size:)) == true && (mime.hasPrefix("image/") || mime.hasPrefix("video/")) {
             if let cached = Self.thumbnails.object(forKey: key as NSString) {
                 thumbnailView.image = cached; iconView.isHidden = true
             } else {

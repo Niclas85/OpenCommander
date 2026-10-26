@@ -297,6 +297,7 @@ import CryptoKit
     func upload(_ url: URL, parent: String?) async throws { try await core.upload(url, parent: parent) }
     func uploadTree(_ url: URL, parent: String?) async throws { try await core.uploadTree(url, parent: parent) }
     func download(_ item: OneDriveItem) async throws -> URL { try await core.download(item) }
+    func downloadPreview(_ item: OneDriveItem, limits: OnlinePreviewLimits) async throws -> URL { try await core.downloadPreview(item, limits: limits) }
     func downloadTree(_ item: OneDriveItem) async throws -> URL { try await core.downloadTree(item) }
     func remoteSnapshot(_ item: OneDriveItem) async throws -> [String: String] { try await core.remoteSnapshot(item) }
     func recycleUnchanged(_ item: OneDriveItem, snapshot: [String: String]) async throws { try await core.recycleUnchanged(item, snapshot: snapshot) }

@@ -26,6 +26,9 @@ final class DurableTransferQueue {
         var state: State = .queued
         var bytes: Int64 = 0
         var total: Int64 = 0
+        // Optional for pre-existing queues; unknown is distinct from zero.
+        var filesDone: Int?
+        var filesTotal: Int?
         var created = Date()
         var compact = true
         var error: String?
@@ -74,7 +77,10 @@ final class DurableTransferQueue {
             if state == .completed { return 1 }
             let done = isChecking ? checkedBytes ?? 0 : bytes
             let expected = isChecking ? checkingTotal ?? 0 : total
-            return expected > 0 ? Float(max(0, min(done, expected))) / Float(expected) : 0
+            let fraction = expected > 0 ? Float(max(0, min(done, expected))) / Float(expected) : 0
+            // Finishing the last data block is not successful publication.
+            // Verification is a separately labelled meter and may reach100%.
+            return isChecking ? fraction : min(0.99, fraction)
         }
         var statusKey: String {
             if state == .queued, deletionProofPending == true { return "transfer_delete_preparing" }
@@ -485,6 +491,13 @@ final class DurableTransferQueue {
                     self.emitProgressIfDue()
                 }
             }
+            let fileProgress: (Int, Int) -> Void = { done, total in
+                self.serial.async {
+                    guard let index = self.jobs.firstIndex(where: { $0.id == job.id }) else { return }
+                    self.jobs[index].filesDone = done; self.jobs[index].filesTotal = total
+                    self.emitProgressIfDue()
+                }
+            }
             let state: DurableFileCopy.State, bytes: Int64, backup: String?, quarantine: String?
             var lastActivityUpdate = Date.distantPast
             var lastPhase: DurableFileCopy.WorkPhase?
@@ -509,15 +522,17 @@ final class DurableTransferQueue {
                 report(planned.bytes, planned.total)
                 let outcome = try NASExclusiveCopy.resume(staging!, control: {
                     switch signal.get() { case .proceed: return .proceed; case .pause: return .pause; case .cancel: return .cancel }
-                }, progress: { report($0, planned.total) })
+                }, progress: { report($0, planned.total) }, fileProgress: fileProgress)
                 let result = try NASExclusiveCopy.summary(staging!)
                 state = outcome == .completed ? .completed : outcome == .cancelled ? .cancelled : .paused
                 bytes = result.bytes; backup = result.backup?.path; quarantine = result.quarantine?.path
             } else if tree {
-                let result = try DurableTreeTransfer.resume(staging!, control: signal.get, progress: report, activity: activity)
+                let result = try DurableTreeTransfer.resume(staging!, control: signal.get, progress: report, fileProgress: fileProgress, activity: activity)
                 state = result.state; bytes = result.bytes; backup = result.backup?.path; quarantine = result.quarantine?.path
             } else {
+                fileProgress(0, 1)
                 let result = try DurableFileCopy.resume(staging!, control: signal.get, progress: report, activity: activity)
+                if result.state == .completed { fileProgress(1, 1) }
                 state = result.state; bytes = result.bytes; backup = nil; quarantine = nil
             }
             serial.async {
@@ -785,6 +800,37 @@ final class DurableTransferQueue {
     private func emitProgressIfDue() {
         guard Date().timeIntervalSince(lastProgress) >= 0.25 else { return }
         lastProgress = Date(); emit()
+    }
+}
+
+/// Presentation-only, monotonic rolling throughput. Never persisted or used to
+/// decide whether data is valid, a job may resume, or publication succeeded.
+struct TransferRateEstimator {
+    struct Estimate { let bytesPerSecond: Double; let remaining: TimeInterval? }
+    private var samples: [(time: TimeInterval, bytes: Int64)] = []
+    private var generation: Date?
+    private var lastIncrease: TimeInterval?
+    mutating func observe(_ job: DurableTransferQueue.Job, uptime: TimeInterval) -> Estimate? {
+        guard uptime.isFinite, job.state == .running, job.workPhase == .copying,
+              !job.isDeletion, job.requestedControl == nil, job.bytes >= 0, job.total >= job.bytes else {
+            samples.removeAll(); generation = nil; lastIncrease = nil; return nil
+        }
+        if generation != job.activeSince || samples.last.map({ uptime <= $0.time || job.bytes < $0.bytes }) == true {
+            samples.removeAll(); lastIncrease = nil
+        }
+        generation = job.activeSince
+        if let last = samples.last, job.bytes > last.bytes { lastIncrease = uptime }
+        samples.append((uptime, job.bytes))
+        // Keep one sample just outside the five-second window for a stable
+        // slope, with bounded storage even when the UI refreshes very often.
+        while samples.count > 2 && samples[1].time < uptime - 5 { samples.removeFirst() }
+        if samples.count > 128 { samples.removeFirst(samples.count - 128) }
+        guard let first = samples.first, let lastIncrease, uptime - lastIncrease < 3,
+              uptime - first.time >= 0.25, job.bytes > first.bytes else { return nil }
+        let rate = Double(job.bytes - first.bytes) / (uptime - first.time)
+        guard rate.isFinite, rate > 0 else { return nil }
+        let remaining = job.total > job.bytes ? Double(job.total - job.bytes) / rate : nil
+        return Estimate(bytesPerSecond: rate, remaining: remaining.flatMap { $0.isFinite ? $0 : nil })
     }
 }
 #endif

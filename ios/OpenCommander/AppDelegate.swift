@@ -198,6 +198,28 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             defaults.set(root.path, forKey: "acceptance_history_root")
         }
         let preserveState = FileManager.default.fileExists(atPath: root.appendingPathComponent("PreserveAppState.txt").path)
+        // Import only bounded, local fixture favourites into the isolated test
+        // app's own defaults. A runner's defaults suite is not the Catalyst
+        // application's preference domain. Never accept account/bookmark data.
+        if defaults.string(forKey: "acceptance_locations_root") != root.path,
+           let bytes = try? Data(contentsOf: root.appendingPathComponent("AcceptanceLocations.json")),
+           bytes.count <= 16 * 1024,
+           let locations = try? JSONDecoder().decode([DesktopLocationPreference].self, from: bytes),
+           !locations.isEmpty, locations.count <= 16,
+           Set(locations.map(\.path)).count == locations.count,
+           locations.allSatisfy({ location in
+               guard let resolved = realpath(location.path, nil) else { return false }
+               defer { free(resolved) }
+               let physicalPath = String(cString: resolved)
+               var directory: ObjCBool = false
+               return location.custom && location.bookmark == nil &&
+                   physicalPath.hasPrefix(String(cString: physical) + "/") &&
+                   FileManager.default.fileExists(atPath: physicalPath, isDirectory: &directory) && directory.boolValue
+           }) {
+            DesktopLocationPreferences.save(locations)
+            defaults.set(root.path, forKey: "acceptance_locations_root")
+            try? Data("imported\n".utf8).write(to: root.appendingPathComponent("AcceptanceLocationsImported.txt"), options: .atomic)
+        }
         let initializeState = !preserveState || defaults.string(forKey: "acceptance_state_root") != root.path
         if initializeState { defaults.set("en", forKey: "language") }
         for key in ["onboarding_shown", "mac_folder_default_prompt_v1", "mac_full_disk_access_onboarding_shown"] { defaults.set(true, forKey: key) }

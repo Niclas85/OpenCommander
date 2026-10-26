@@ -14,6 +14,15 @@ let fm = FileManager.default
 let fixture = fm.temporaryDirectory.appendingPathComponent("OpenCommander-SafetyTests-\(UUID().uuidString)")
 try fm.createDirectory(at: fixture, withIntermediateDirectories: false)
 defer { try? fm.removeItem(at: fixture) }
+let displayDocuments = fixture.appendingPathComponent("Documents")
+let displayChild = displayDocuments.appendingPathComponent("Grüße 日本語/file.txt")
+let displaySibling = fixture.appendingPathComponent("Documents-other/file.txt")
+precondition(FilePathPresentation.path(for: displayDocuments, documents: displayDocuments, virtualDocumentsRoot: false) == displayDocuments.path)
+precondition(FilePathPresentation.path(for: displayChild, documents: displayDocuments, virtualDocumentsRoot: false) == displayChild.path)
+precondition(FilePathPresentation.path(for: displayDocuments, documents: displayDocuments, virtualDocumentsRoot: true) == "/Documents")
+precondition(FilePathPresentation.path(for: displayChild, documents: displayDocuments, virtualDocumentsRoot: true) == "/Documents/Grüße 日本語/file.txt")
+precondition(FilePathPresentation.path(for: displaySibling, documents: displayDocuments, virtualDocumentsRoot: true) == displaySibling.path)
+print("PASS native host paths stay absolute; iOS virtual Documents root/Unicode children preserve component boundaries")
 func check(_ condition: @autoclosure () throws -> Bool, _ message: String) throws {
     if try !condition() { fatalError("FAIL: " + message) }
 }
@@ -413,6 +422,12 @@ mustFail("ZIP byte limit") {
     try limits.include(path: "extra", size: 1, symbolicLink: false)
 }
 print("PASS: ZIP traversal, duplicate, symlink and expanded-size safety limits")
+var countLimits = SafeArchiveLimits()
+for index in 0..<SafeArchiveLimits.maximumEntries {
+    try countLimits.include(path: "entry-\(index)", size: 0, symbolicLink: false)
+}
+mustFail("ZIP 100001st entry") { try countLimits.include(path: "over-limit", size: 0, symbolicLink: false) }
+print("PASS: exact ZIP entry boundary accepts100000 and refuses100001 without materializing payloads")
 let permissionsTarget = try write("permission-guard.txt", "unchanged content")
 try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: permissionsTarget.path)
 let permissionsRecord = FileUndoRecord(source: source, destination: permissionsTarget, replacedBackup: nil)
@@ -497,6 +512,12 @@ for (domain, code, key) in [(NSCocoaErrorDomain, 513, "history_error_permission"
 }
 for language in ["de", "en"] {
     L10n.currentLanguage = language
+    let corruptArchive = NSError(domain: NSCocoaErrorDomain, code: NSFileReadCorruptFileError,
+        userInfo: [NSLocalizedDescriptionKey: "English failure /private/SYNTHETIC-SECRET/archive"])
+    try check(CommanderArchiveFailure.presentation(corruptArchive) == L10n.get("archive_unreadable"), "Archive failures use app language and explain unsupported encryption")
+    try check(CommanderArchiveFailure.presentation(CocoaError(.fileReadNoPermission)) == L10n.get("history_error_permission"), "Archive permission failures stay distinct from corruption")
+    try check(CommanderArchiveFailure.presentation(CocoaError(.userCancelled)) == L10n.get("history_error_cancelled"), "Archive cancellation stays distinct")
+    try check(CommanderArchiveFailure.presentation(NSError(domain: "OpenCommander.ZIP", code: 1)) == L10n.get("extract_unsafe"), "Archive safety refusal preserves the specific bounds/path explanation")
     let full = NSError(domain: NSCocoaErrorDomain, code: 640,
         userInfo: [NSLocalizedDescriptionKey: "Can't save /private/SYNTHETIC-SECRET/lease because the disk is full"])
     try check(HistoryFailure.presentation(full) == L10n.get("history_error_space"), "cloud alert must follow selected app language")
@@ -513,12 +534,22 @@ let legacyError = try JSONDecoder().decode(FileUndoRecord.self, from: JSONSerial
 try check(legacyError.historyErrorMessage == L10n.get("history_error_legacy"), "Old records remain readable and use German explanation")
 L10n.currentLanguage = historyLanguage
 print("PASS: history errors follow app language, stable codes, persistence and legacy compatibility")
-try check(CommanderDuration.format(12, german: true) == "12 Sek.", "Explicit German seconds")
-try check(CommanderDuration.format(120, german: true) == "2.0 Min.", "Explicit German minutes")
-try check(CommanderDuration.format(7200, german: false) == "2.0 hours", "Explicit hours")
-try check(CommanderDuration.format(172800, german: false) == "2.0 days", "Explicit days")
-try check(CommanderDuration.format(.infinity, german: false) == "—", "Invalid duration safely displayed")
-print("PASS: elapsed-time units and invalid-duration handling")
+// Exact vectors from linux/tests/test_formatting.py, including the transitions
+// which the old decimal-unit display rounded into ambiguous labels.
+let durationVectors: [(TimeInterval, String)] = [
+    (0, "0 s"), (59.9, "59 s"), (60, "1 min 0 s"), (3599, "59 min 59 s"),
+    (3600, "1 h 0 min 0 s"), (7385, "2 h 3 min 5 s"),
+    (90061, "1 Tag 1 h 1 min 1 s"), (172800, "2 Tage 0 h 0 min 0 s"),
+    (-10, "0 s"), (.infinity, "—"), (.nan, "—"),
+    (86399, "23 h 59 min 59 s"), (86400, "1 Tag 0 h 0 min 0 s")
+]
+for (seconds, expected) in durationVectors {
+    try check(CommanderDuration.format(seconds, german: true) == expected, "Linux duration boundary \(seconds)")
+    let english = expected.replacingOccurrences(of: "Tage", with: "days").replacingOccurrences(of: "Tag", with: "day")
+    try check(CommanderDuration.format(seconds, german: false) == english, "English duration boundary \(seconds)")
+}
+try check(CommanderDuration.format(.greatestFiniteMagnitude, german: false).hasSuffix(" s"), "Huge finite duration must not overflow")
+print("PASS: exact Linux duration boundaries, German/English days, fractional/negative/nonfinite and huge finite values")
 
 let cancelUndoFile = try write("cancel-undo.bin", String(repeating: "x", count: 200_000))
 let cancelUndoRecord = FileUndoRecord(source: source, destination: cancelUndoFile, replacedBackup: nil)
@@ -669,6 +700,15 @@ for (name, entries) in [
     try check(!SafeFileOperations.exists(output), "Unsafe archive is rejected before output creation")
 }
 print("PASS: native archive traversal, absolute paths, links, special files and duplicate/case-collision refusal")
+let protectedZIP = fixture.appendingPathComponent("Protected.zip")
+let protectedZIPBytes = Data(base64Encoded: "UEsDBAoACQAAAGBHWV3JozvvRgAAADoAAAAKABwAU2VjcmV0LnR4dFVUCQADw7bdasO23Wp1eAsAAQT1AQAABAAAAADEiX+SqhbmYihCCim0CiNdRijEbb5bIgv+Q6uvxuP+3SNz08AocHvyWlvqhURgm2wcG3H18pvCWonP+T1l0lyiEAqf8w6TUEsHCMmjO+9GAAAAOgAAAFBLAQIeAwoACQAAAGBHWV3JozvvRgAAADoAAAAKABgAAAAAAAEAAACkgQAAAABTZWNyZXQudHh0VVQFAAPDtt1qdXgLAAEE9QEAAAQAAAAAUEsFBgAAAAABAAEAUAAAAJoAAAAAAA==")!
+try protectedZIPBytes.write(to: protectedZIP)
+mustFail("encrypted ZIP preflight must not silently omit its member") { _ = try CommanderNativeArchive.members(protectedZIP) }
+let protectedOutput = fixture.appendingPathComponent("protected-output")
+mustFail("encrypted ZIP extraction refused before creating output") { try CommanderNativeArchive.extract(protectedZIP, to: protectedOutput) }
+try check(!SafeFileOperations.exists(protectedOutput), "Encrypted ZIP publishes no partial directory")
+try check(try Data(contentsOf: protectedZIP) == protectedZIPBytes, "Encrypted ZIP unchanged")
+print("PASS: real ZipCrypto ZIP rejected in preflight/extraction without password prompts, output or source mutation")
 
 // RAR5 stored fixture from libarchive v3.7.2, also used by the Linux parity tests.
 // https://raw.githubusercontent.com/libarchive/libarchive/v3.7.2/libarchive/test/test_read_format_rar5_stored.rar.uu

@@ -214,13 +214,36 @@ final class CommanderToolsController: UIViewController, UITableViewDataSource, U
                     plan = try CommanderTools.renamePlan(self.selected, rule: rule)
                     rows = plan.map { Row(title: $0.source.lastPathComponent + " → " + $0.destination.lastPathComponent, detail: $0.source.deletingLastPathComponent().path, url: nil) }
                 }
+                try self.pauseToolResultsAcceptance()
                 DispatchQueue.main.async {
                     guard !self.closed else { return }
+                    // Cancel may arrive after the worker's final filesystem
+                    // read but before this main-thread publication. Never
+                    // publish equality, search results or an applicable plan
+                    // from that cancelled read-only run.
+                    do { try self.cancellation.check() }
+                    catch { self.failed(error); return }
                     self.plan = plan; self.rows = rows; self.setBusy(false); self.table.reloadData()
                     self.status.text = "\(rows.count) " + self.text("Einträge", "entries") + (warnings.isEmpty ? "" : "\n⚠ " + warnings.prefix(5).joined(separator: "\n") + "\n" + self.text("Ergebnis unvollständig.", "Incomplete result."))
                 }
             } catch { self.failed(error) }
         }
+    }
+    private func pauseToolResultsAcceptance() throws {
+#if DEBUG && targetEnvironment(macCatalyst)
+        guard Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander.MacUITests",
+              let root = AppDelegate.macUITestRoot else { return }
+        let flag = root.appendingPathComponent("PauseToolResultsAfterRead")
+        guard FileManager.default.fileExists(atPath: flag.path) else { return }
+        try Data("read finished; publication pending".utf8).write(to: root.appendingPathComponent("ToolResultsReady.txt"), options: .atomic)
+        let deadline = Date().addingTimeInterval(20)
+        // Deliberately hold the already-computed result until the test releases
+        // it, so cancellation is checked at publication, not just during I/O.
+        while FileManager.default.fileExists(atPath: flag.path) {
+            guard Date() < deadline else { throw CocoaError(.userCancelled) }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+#endif
     }
     @objc private func apply() {
         if let onlineApply, !busy, !rows.isEmpty {
@@ -270,6 +293,10 @@ final class CommanderToolsController: UIViewController, UITableViewDataSource, U
     }
     private func failed(_ error: Error) {
         DispatchQueue.main.async {
+            // Inspect the stored owning task, not Task.isCancelled for this
+            // plain dispatch callback. Keep actor-owned task state on main;
+            // local filesystem workers also call this method off-main.
+            let cancelled = error is CancellationError || self.cancellation.isCancelled || self.onlineTask?.isCancelled == true
             self.plan = []; self.rows = []; self.table.reloadData(); self.setBusy(false)
             if let partial = error as? CommanderTools.RenameFailure {
                 self.onRename?(partial.remaining)
@@ -279,7 +306,7 @@ final class CommanderToolsController: UIViewController, UITableViewDataSource, U
                 return
             }
             let ns = error as NSError
-            self.status.text = "⚠ " + (error is CancellationError ? self.text("Abgebrochen. Abgeschlossene Schritte bleiben erhalten.", "Cancelled. Completed steps remain.") : ns.domain == "OpenCommander.Tools" ? ns.localizedDescription : ["OpenCommander.Remote", "OpenCommander.Cloud"].contains(ns.domain) ? L10n.get(ns.localizedDescription) : HistoryFailure(error).message)
+            self.status.text = "⚠ " + (cancelled ? self.text("Abgebrochen. Abgeschlossene Schritte bleiben erhalten.", "Cancelled. Completed steps remain.") : ns.domain == "OpenCommander.Tools" ? ns.localizedDescription : ["OpenCommander.Remote", "OpenCommander.Cloud"].contains(ns.domain) ? L10n.get(ns.localizedDescription) : HistoryFailure(error).message)
         }
     }
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { rows.count }
@@ -290,6 +317,11 @@ final class CommanderToolsController: UIViewController, UITableViewDataSource, U
         cell.detailTextLabel?.numberOfLines = 0
         cell.detailTextLabel?.lineBreakMode = .byCharWrapping
         cell.accessibilityIdentifier = "CommanderToolResult-\(indexPath.row)"
+        // Catalyst does not reliably combine subtitle labels into the cell's
+        // accessible name. Keep the full result path available to VoiceOver
+        // and keyboard/UI automation, not only visually in the subtitle.
+        cell.isAccessibilityElement = true
+        cell.accessibilityLabel = row.title + "\n" + row.detail
         if row.url != nil { cell.accessoryType = .disclosureIndicator }
         return cell
     }

@@ -23,13 +23,84 @@ final class TransferQueuePanel: UIViewController {
     }
     private var controls: [UUID: Controls] = [:]
     private var renderedStoreError: String?
+    private var keyboardJob: UUID?
     private var durationTimer: Timer?
+    private var rateEstimators: [UUID: TransferRateEstimator] = [:]
+    private var rateEstimates: [UUID: TransferRateEstimator.Estimate] = [:]
     var closeRequested: (() -> Void)?
     var heightRequested: ((CGFloat, Bool) -> Void)?
     private var resizeStart: CGFloat = 0
     init(queue: DurableTransferQueue) { self.queue = queue; super.init(nibName: nil, bundle: nil) }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     deinit { durationTimer?.invalidate() }
+    override var canBecomeFirstResponder: Bool { true }
+    override var keyCommands: [UIKeyCommand]? {
+        func key(_ input: String, _ modifiers: UIKeyModifierFlags = [], _ action: Selector) -> UIKeyCommand {
+            let command = UIKeyCommand(input: input, modifierFlags: modifiers, action: action)
+            command.wantsPriorityOverSystemBehavior = true
+            return command
+        }
+        return [key(UIKeyCommand.inputEscape, [], #selector(closeFromKeyboard)),
+                key("\t", [], #selector(nextJob)), key("\t", .shift, #selector(previousJob)),
+                key(UIKeyCommand.inputDownArrow, [], #selector(nextJob)), key(UIKeyCommand.inputUpArrow, [], #selector(previousJob)),
+                key(" ", [], #selector(detailsFromKeyboard)), key("\r", [], #selector(detailsFromKeyboard)),
+                key("p", [], #selector(pauseFromKeyboard)), key("r", [], #selector(resumeFromKeyboard)),
+                key("c", [], #selector(cancelFromKeyboard)), key(UIKeyCommand.inputDelete, [], #selector(forgetFromKeyboard)),
+                key("p", .shift, #selector(pauseAllFromKeyboard)), key("r", .shift, #selector(resumeAllFromKeyboard)),
+                key(UIKeyCommand.inputDelete, [.command, .shift], #selector(removeCompletedFromKeyboard))]
+    }
+    func focusKeyboard() {
+        loadViewIfNeeded()
+        becomeFirstResponder()
+        if keyboardJob == nil { selectKeyboardJob(DurableTransferQueue.cardPage(rendered, index: pageIndex).jobs.first?.id) }
+    }
+    private func selectKeyboardJob(_ id: UUID?) {
+        keyboardJob = id
+        if let id {
+            let pages = DurableTransferQueue.cardPage(rendered, index: 0).count
+            if let index = (0..<pages).first(where: { DurableTransferQueue.cardPage(rendered, index: $0).jobs.contains { $0.id == id } }), index != pageIndex {
+                pageIndex = index
+                render(rendered, limit: selector.selectedSegmentIndex + 1, error: renderedStoreError, force: true)
+            }
+        }
+        decorateKeyboardJob()
+        if let id, let card = stack.arrangedSubviews.first(where: { $0.accessibilityIdentifier == "TransferCard-\(id)" }) {
+            view.layoutIfNeeded()
+            scroll.scrollRectToVisible(card.convert(card.bounds, to: stack), animated: false)
+        }
+        becomeFirstResponder()
+    }
+    private func decorateKeyboardJob() {
+        for card in stack.arrangedSubviews {
+            card.layer.borderWidth = keyboardJob.map { card.accessibilityIdentifier == "TransferCard-\($0)" } == true ? 2 : 0
+            card.layer.borderColor = UIColor.systemBlue.cgColor
+        }
+        view.accessibilityValue = keyboardJob.flatMap { id in rendered.first { $0.id == id }?.destination }
+    }
+    private func advanceJob(_ delta: Int) {
+        let jobs = Array(rendered.reversed())
+        guard !jobs.isEmpty else { return }
+        let index = keyboardJob.flatMap { id in jobs.firstIndex { $0.id == id } }
+            .map { ($0 + delta + jobs.count) % jobs.count } ?? (delta > 0 ? 0 : jobs.count - 1)
+        selectKeyboardJob(jobs[index].id)
+    }
+    private func keyboardAction(_ control: (Controls) -> UIButton) {
+        guard let id = keyboardJob, let refs = controls[id] else { return }
+        let button = control(refs)
+        guard button.isEnabled, !button.isHidden else { return }
+        button.sendActions(for: .touchUpInside)
+    }
+    @objc private func nextJob() { advanceJob(1) }
+    @objc private func previousJob() { advanceJob(-1) }
+    @objc private func closeFromKeyboard() { closeRequested?() }
+    @objc private func detailsFromKeyboard() { keyboardAction { $0.compact } }
+    @objc private func pauseFromKeyboard() { keyboardAction { $0.pause } }
+    @objc private func resumeFromKeyboard() { keyboardAction { $0.resume } }
+    @objc private func cancelFromKeyboard() { keyboardAction { $0.cancel } }
+    @objc private func forgetFromKeyboard() { keyboardAction { $0.forget } }
+    @objc private func pauseAllFromKeyboard() { if pauseAll.isEnabled { queue.controlAll(.pause) } }
+    @objc private func resumeAllFromKeyboard() { if resumeAll.isEnabled { queue.controlAll(.proceed) } }
+    @objc private func removeCompletedFromKeyboard() { if removeCompleted.isEnabled { queue.forgetCompleted() } }
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .secondarySystemBackground
@@ -42,6 +113,7 @@ final class TransferQueuePanel: UIViewController {
         grip.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(resizePanel(_:))))
         view.addSubview(grip)
         let title = UILabel(); title.text = L10n.get("transfer_queue")
+        title.accessibilityHint = L10n.get("transfer_keyboard_help")
         title.font = .boldSystemFont(ofSize: 16)
         let concurrency = UILabel(); concurrency.text = L10n.get("transfer_parallel")
         selector.accessibilityIdentifier = "TransferParallelism"
@@ -113,6 +185,10 @@ final class TransferQueuePanel: UIViewController {
         resumeAll.isEnabled = jobs.contains { $0.state == .paused }
         removeCompleted.isEnabled = jobs.contains { $0.state == .completed }
         loadViewIfNeeded(); selector.selectedSegmentIndex = limit - 1
+        let ids = Set(jobs.map(\.id))
+        rateEstimators = rateEstimators.filter { ids.contains($0.key) }
+        rateEstimates = rateEstimates.filter { ids.contains($0.key) }
+        if let id = keyboardJob, !jobs.contains(where: { $0.id == id }) { keyboardJob = nil }
         let page = DurableTransferQueue.cardPage(jobs, index: pageIndex)
         pageIndex = page.index
         newerPage.isEnabled = page.index > 0; olderPage.isEnabled = page.index + 1 < page.count
@@ -129,6 +205,7 @@ final class TransferQueuePanel: UIViewController {
         if !force, rendered.map(\.id) == jobs.map(\.id), renderedStoreError == error, !controls.isEmpty {
             rendered = jobs
             for job in page.jobs { update(job) }
+            decorateKeyboardJob()
             return
         }
         rendered = jobs; renderedStoreError = error; controls.removeAll()
@@ -194,12 +271,16 @@ final class TransferQueuePanel: UIViewController {
             stack.addArrangedSubview(card)
         }
         view.layoutIfNeeded()
+        decorateKeyboardJob()
         let minimum = -scroll.adjustedContentInset.top
         let maximum = max(minimum, scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
         scroll.setContentOffset(CGPoint(x: 0, y: min(maximum, max(minimum, offset.y))), animated: false)
     }
     private func update(_ job: DurableTransferQueue.Job) {
         guard let refs = controls[job.id] else { return }
+        var estimator = rateEstimators[job.id] ?? TransferRateEstimator()
+        rateEstimates[job.id] = estimator.observe(job, uptime: ProcessInfo.processInfo.systemUptime)
+        rateEstimators[job.id] = estimator
         refs.name.text = job.displayName + " · " + L10n.get(job.statusKey) + " · \(Int(job.progressFraction * 100))%"
         refs.name.accessibilityValue = job.routeDescription + "\n" + description(job) + "\n" + (job.errorMessage ?? "")
         refs.compact.setTitle(L10n.get(job.compact ? "transfer_details" : "transfer_compact"), for: .normal)
@@ -237,6 +318,20 @@ final class TransferQueuePanel: UIViewController {
             text += "\n" + L10n.get("transfer_checked") + ": " + ByteCountFormatter.string(fromByteCount: job.checkedBytes ?? 0, countStyle: .file) + " / " + ByteCountFormatter.string(fromByteCount: job.checkingTotal ?? 0, countStyle: .file)
         }
         text += "\n" + L10n.get("transfer_active_time") + ": " + CommanderDuration.format(elapsed, german: german)
+        if !job.isDeletion {
+            let files: String
+            if let total = job.filesTotal, let done = job.filesDone, total >= 0, done >= 0, done <= total {
+                files = "\(done) / \(total)"
+            } else { files = "—" }
+            let estimate = rateEstimates[job.id]
+            let speed = estimate.map {
+                ByteCountFormatter.string(fromByteCount: Int64(min(Double(Int64.max / 2), $0.bytesPerSecond)), countStyle: .file) + "/s"
+            } ?? "—"
+            let remaining = estimate?.remaining.map { CommanderDuration.format($0, german: german) } ?? "—"
+            text += "\n" + L10n.get("transfer_files") + ": " + files
+            text += " · " + L10n.get("transfer_speed") + ": " + speed
+            text += " · " + L10n.get("transfer_remaining") + ": " + remaining
+        }
         if job.state == .cancelled, let staging = job.staging {
             text += "\n" + L10n.get(job.isDeletion ? "transfer_delete_retained" : "transfer_partial_location", staging)
         }

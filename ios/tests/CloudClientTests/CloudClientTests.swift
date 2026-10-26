@@ -122,6 +122,46 @@ import Darwin
         let client = CloudFileClient(profile, transport: transport)
         func require(_ value: Bool, _ text: String) { if !value { fatalError(text) } }
         if restartPhase == nil {
+            let source = remote.appendingPathComponent("PreviewBudget.png")
+            let bytes = Data("abc".utf8); try bytes.write(to: source)
+            let budgetClient = CloudFileClient(profile, transport: transport)
+            let item = try await budgetClient.children().first { $0.name == source.lastPathComponent }!
+            let beforeDownloads = requests.filter { $0 == "download" }.count
+            do {
+                _ = try await budgetClient.downloadPreview(item, limits: .init(maximumBytes: 2, timeout: 2, stallTimeout: 1))
+                fatalError("Cloud oversized preview accepted")
+            } catch {}
+            require(requests.filter { $0 == "download" }.count == beforeDownloads, "Oversized preview must not download")
+            let exact = try await budgetClient.downloadPreview(item, limits: .init(maximumBytes: 3, timeout: 2, stallTimeout: 1))
+            require(try Data(contentsOf: exact) == bytes, "Exact-limit preview")
+            try fm.removeItem(at: exact.deletingLastPathComponent())
+            for grows in [false, true] {
+                var waiting: [String: (Data?, NSError?) -> Void] = [:]
+                var output: URL?
+                var cancellations = 0
+                let delayed = CloudFileClient(profile, transport: { id, data, operation, path, destination, localURL, callback in
+                    if operation == "download" {
+                        output = localURL; waiting[id] = callback
+                        if grows { try! Data(repeating: 65, count: 8192).write(to: localURL!) }
+                    } else { transport(id, data, operation, path, destination, localURL, callback) }
+                }, cancel: { id in
+                    cancellations += 1
+                    if let callback = waiting.removeValue(forKey: id) { callback(nil, CancellationError() as NSError) }
+                })
+                let selected = try await delayed.children().first { $0.name == source.lastPathComponent }!
+                do {
+                    _ = try await delayed.downloadPreview(selected, limits: .init(maximumBytes: 3, timeout: 2, stallTimeout: 0.03))
+                    fatalError("Cloud stalled/growing preview accepted")
+                } catch {}
+                require(cancellations == 1 && waiting.isEmpty, "Preview cancels exact transport once")
+                require(output != nil && !fm.fileExists(atPath: output!.deletingLastPathComponent().path), "Preview staging root cleaned")
+                require(try Data(contentsOf: source) == bytes, "Preview source unchanged")
+            }
+            try fm.removeItem(at: source)
+            requests.removeAll()
+            print("PASS cloud preview budgets: preflight/no bytes, exact boundary, in-flight growth/stall cancellation and owned staging cleanup")
+        }
+        if restartPhase == nil {
             let cancelledListing = RecoverableSessionClient(client, resume: { _, _ in false })
             cancelledListing.toolsListing = { _ in
                 // Simulate a provider completing an empty response concurrently

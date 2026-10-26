@@ -114,6 +114,23 @@ check(fm.fileExists(atPath: another.path), "Cancelled rename preserves source")
 print("PASS rename preview, counters, undo, collisions, invalid names, literal tokens, stale previews and cancellation")
 
 cancel.reset()
+let cycleRoot = root.appendingPathComponent("rename-cycle")
+try fm.createDirectory(at: cycleRoot, withIntermediateDirectories: false)
+let cycleA = try file(cycleRoot, "1.txt", "first cycle source")
+let cycleB = try file(cycleRoot, "2.txt", "second cycle source")
+let cycleBeforeA = try Data(contentsOf: cycleA), cycleBeforeB = try Data(contentsOf: cycleB)
+refuses { _ = try CommanderTools.renamePlan([cycleB, cycleA], rule: .init(pattern: "[C].txt", start: 1, digits: 1)) }
+let cyclicPlan: [CommanderTools.Rename] = [
+    .init(source: cycleA, destination: cycleB, identity: try CommanderTools.identity(cycleA)),
+    .init(source: cycleB, destination: cycleA, identity: try CommanderTools.identity(cycleB))
+]
+var cyclicWrites = 0
+refuses { _ = try CommanderTools.rename(cyclicPlan, cancel: cancel, move: { _, _ in cyclicWrites += 1 }) }
+let cycleAfterA = try Data(contentsOf: cycleA), cycleAfterB = try Data(contentsOf: cycleB)
+check(cyclicWrites == 0 && cycleBeforeA == cycleAfterA && cycleBeforeB == cycleAfterB,
+      "Cyclic preview/application must refuse before any rename and preserve both exact sources")
+print("PASS cyclic rename preview and supplied two-sided plan refused with zero writes and exact source preservation")
+
 let partialA = try file(a, "partial-a.txt", "first original")
 let partialB = try file(a, "partial-b.txt", "second original")
 let partialPlan = try CommanderTools.renamePlan([partialA, partialB], rule: .init(pattern: "partial-result-[C][E]"))

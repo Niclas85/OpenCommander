@@ -17,6 +17,8 @@ class FileEntry: Hashable, Equatable {
     private var listingSize: Int64?
     private var listingModified: Int64?
     private var listingDirectory: Bool?
+    // Thumbnail requests must not turn a failed/unknown size into zero bytes.
+    var thumbnailInputSize: Int64? { listingSize }
     private let entryName: String
     private let archiveName: Bool
     private let volumeRoot: Bool
@@ -145,17 +147,12 @@ class FileEntry: Hashable, Equatable {
 
     func displayPath() -> String {
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        // Device URLs may use either /var or /private/var for the same container.
-        let documentsPath = documents.resolvingSymlinksInPath().path
-        let resolvedPath = url.resolvingSymlinksInPath().path
-        let physicalPath: String
-        if resolvedPath == documentsPath {
-            physicalPath = "/Documents"
-        } else if resolvedPath.hasPrefix(documentsPath + "/") {
-            physicalPath = "/Documents" + String(resolvedPath.dropFirst(documentsPath.count))
-        } else {
-            physicalPath = url.path
-        }
+#if targetEnvironment(macCatalyst)
+        let virtualDocumentsRoot = false
+#else
+        let virtualDocumentsRoot = true
+#endif
+        let physicalPath = FilePathPresentation.path(for: url, documents: documents, virtualDocumentsRoot: virtualDocumentsRoot)
         if let zipPath = zipPath {
             return physicalPath + "!/" + zipPath
         }
@@ -253,6 +250,7 @@ class FileEntry: Hashable, Equatable {
             temporaryRoot?(root)
             return root.appendingPathComponent(zipPath)
         }
+        _ = try CommanderNativeArchive.members(sourceURL)
 #endif
         guard !zipDirectory, let archive = Archive(url: sourceURL, accessMode: .read),
               let item = archive.first(where: { $0.path == zipPath }) else {
@@ -291,6 +289,11 @@ class FileEntry: Hashable, Equatable {
         let deadline = ProcessInfo.processInfo.systemUptime + 10
         func zipMembers() throws -> [CommanderArchiveProperties.Member] {
             var members: [CommanderArchiveProperties.Member] = []
+#if targetEnvironment(macCatalyst)
+            _ = try CommanderNativeArchive.members(url, checkCancellation: {
+                guard ProcessInfo.processInfo.systemUptime < deadline else { throw CocoaError(.userCancelled) }
+            })
+#endif
             let archive = try Archive(url: url, accessMode: .read, pathEncoding: nil)
             for item in archive {
                 guard members.count < 100_000, ProcessInfo.processInfo.systemUptime < deadline,
@@ -328,6 +331,10 @@ class FileEntry: Hashable, Equatable {
         if url.pathExtension.lowercased() != "zip" {
             members = try CommanderNativeArchive.members(url).map { ($0.path, $0.directory, $0.size, $0.modified, false) }
         } else {
+            // ZIPFoundation silently skips some unsupported/encrypted entries.
+            // Validate the complete native header set before presenting a
+            // misleading empty/partial listing or offering an export.
+            _ = try CommanderNativeArchive.members(url)
             let archive = try Archive(url: url, accessMode: .read, pathEncoding: nil)
             members = archive.map { ($0.path, $0.type == .directory, Int64($0.uncompressedSize), Int64((($0.fileAttributes[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0) * 1000), $0.type == .symlink) }
         }

@@ -2,6 +2,18 @@ import Foundation
 import CryptoKit
 import Darwin
 
+enum FilePathPresentation {
+    static func path(for url: URL, documents: URL, virtualDocumentsRoot: Bool) -> String {
+        guard virtualDocumentsRoot else { return url.path }
+        // iOS may spell the same sandbox container through /var or /private/var.
+        let root = documents.resolvingSymlinksInPath().path
+        let resolved = url.resolvingSymlinksInPath().path
+        if resolved == root { return "/Documents" }
+        if resolved.hasPrefix(root + "/") { return "/Documents" + String(resolved.dropFirst(root.count)) }
+        return url.path
+    }
+}
+
 /// Hold for the entire application lifetime, before reading/writing a profile.
 /// The lock file is never deleted: kernel ownership, not stale PID text, decides
 /// whether an existing profile writer is alive.
@@ -61,12 +73,26 @@ enum CommanderDropPolicy {
 
 enum CommanderDuration {
     static func format(_ seconds: TimeInterval, german: Bool) -> String {
-        guard seconds.isFinite, seconds >= 0 else { return "—" }
-        let units: [(TimeInterval, String)] = german
-            ? [(86400, "Tage"), (3600, "Std."), (60, "Min."), (1, "Sek.")]
-            : [(86400, "days"), (3600, "hours"), (60, "min"), (1, "sec")]
-        let unit = units.first { seconds >= $0.0 } ?? units.last!
-        return String(format: seconds >= 60 ? "%.1f %@" : "%.0f %@", seconds / unit.0, unit.1)
+        guard seconds.isFinite else { return "—" }
+        // Match Linux human_duration: truncate fractional seconds and retain
+        // every smaller unit, rather than rounding 59m59s to "60.0 min".
+        // Keep the day count as Double so even a corrupt huge finite timestamp
+        // cannot trap on conversion to Int; all smaller components are bounded.
+        let whole = floor(max(0, seconds))
+        let days = floor(whole / 86400)
+        let remainder = whole.truncatingRemainder(dividingBy: 86400)
+        let hours = Int(remainder / 3600)
+        let minutes = Int(remainder.truncatingRemainder(dividingBy: 3600) / 60)
+        let seconds = Int(remainder.truncatingRemainder(dividingBy: 60))
+        var parts = [String]()
+        if days > 0 {
+            let count = String(format: "%.0f", locale: Locale(identifier: "en_US_POSIX"), days)
+            parts.append(count + " " + (german ? (days == 1 ? "Tag" : "Tage") : (days == 1 ? "day" : "days")))
+        }
+        if hours > 0 || days > 0 { parts.append("\(hours) h") }
+        if minutes > 0 || hours > 0 || days > 0 { parts.append("\(minutes) min") }
+        parts.append("\(seconds) s")
+        return parts.joined(separator: " ")
     }
 }
 
@@ -978,6 +1004,21 @@ enum SafeFileOperations {
             }
             throw error
         }
+    }
+}
+
+/// Archive parsing errors need an actionable explanation in the app language.
+/// Do not imply that an unsupported encrypted archive has a password wizard.
+enum CommanderArchiveFailure {
+    static func presentation(_ error: Error) -> String {
+        let failure = HistoryFailure(error)
+        if failure.domain == NSCocoaErrorDomain && [4, 260, 257, 513, 640, 3072].contains(failure.code) {
+            return failure.message
+        }
+        if failure.domain == NSPOSIXErrorDomain { return failure.message }
+        if failure.domain == "OpenCommander.ZIP" && failure.code == 1 { return L10n.get("extract_unsafe") }
+        if failure.domain == "OpenCommander.FileSafety" { return HistoryFailure.presentation(error) }
+        return L10n.get("archive_unreadable")
     }
 }
 

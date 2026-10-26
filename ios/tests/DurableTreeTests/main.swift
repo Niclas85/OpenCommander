@@ -19,8 +19,11 @@ let paused = try DurableTreeTransfer.resume(stage, control: { transferred >= 102
 require(paused.state == .paused, "tree did not pause")
 require(!SafeFileOperations.exists(destination), "partial tree published")
 var activities: [DurableFileCopy.Activity] = []
-let completed = try DurableTreeTransfer.resume(stage, activity: { activities.append($0) })
+var fileCounts: [(Int, Int)] = []
+let completed = try DurableTreeTransfer.resume(stage, fileProgress: { fileCounts.append(($0, $1)) }, activity: { activities.append($0) })
 require(completed.state == .completed, "tree resume failed")
+require(fileCounts.last?.0 == 3 && fileCounts.allSatisfy { $0.1 == 3 && $0.0 >= 0 && $0.0 <= 3 }, "tree file counts exclude directories and include symlinks")
+require(zip(fileCounts, fileCounts.dropFirst()).allSatisfy { $0.0.0 <= $0.1.0 }, "resumed tree counts regressed or double counted saved files")
 let content = try Data(contentsOf: destination.appendingPathComponent("Unterordner/Grüsse.bin"))
 require(content == bytes, "tree contents wrong")
 let link = try fm.destinationOfSymbolicLink(atPath: destination.appendingPathComponent("link").path)
