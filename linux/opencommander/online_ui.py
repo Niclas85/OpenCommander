@@ -311,6 +311,7 @@ class OnlineDialog(QDialog):
         self.state = ''
         self.auth_option_name = ''
         self.icloud_sms_requested_at = None
+        self.connected_profile_id = None
         self.cloud_auth = False
         self.browser_url = None
         self.browser_requested.connect(self.browser_ready)
@@ -363,7 +364,9 @@ class OnlineDialog(QDialog):
             self.provider.addItem(provider_icon(kind), label, kind)
         layout.addWidget(self.provider)
         self.provider.currentIndexChanged.connect(self.provider_changed)
-        self.icloud_web_button = QPushButton('iCloud Drive im Browser öffnen' if self.de else 'Open iCloud Drive in browser')
+        self.icloud_web_button = QPushButton('iCloud.com ansehen (keine App-Verbindung)' if self.de else 'View iCloud.com (does not connect the app)')
+        self.icloud_web_button.setFlat(True)
+        self.icloud_web_button.setAutoDefault(False)
         self.icloud_web_button.clicked.connect(self.open_icloud_web)
         layout.addWidget(self.icloud_web_button)
         self.icloud_web_hint = QLabel('Webansicht: Hier erfolgt die Anmeldung auf iCloud.com. '
@@ -457,6 +460,7 @@ class OnlineDialog(QDialog):
                 self.auth_field_label.hide()
                 self.provider.setEnabled(True)
                 self.profile = None
+                self.connected_profile_id = None
                 self.editing_profile = None
                 self.server_form.identifier = None
                 self.server_form.existing_secret = False
@@ -468,10 +472,14 @@ class OnlineDialog(QDialog):
         layout.addWidget(restart)
         self.provider_changed()
 
-    def reload(self):
+    def reload(self, select_id=None):
+        current = self.saved.currentData()
+        selected = select_id or (current or {}).get('id')
         self.saved.clear()
         for profile in self.main.online_profiles:
             self.saved.addItem(provider_icon(profile.get('kind')), profile['name'], profile)
+            if profile['id'] == selected:
+                self.saved.setCurrentIndex(self.saved.count() - 1)
 
     def work(self, callback, after, finished=None):
         if self.pending:
@@ -526,6 +534,9 @@ class OnlineDialog(QDialog):
 
     def next(self):
         if self.pending:
+            return
+        if not self.state and self.connected_profile_id:
+            self.open_saved()
             return
         editing = getattr(self, 'editing_profile', None)
         if not self.state and editing and editing['kind'] not in server.SERVER_KINDS and self.provider.currentData() == editing['kind']:
@@ -783,6 +794,7 @@ class OnlineDialog(QDialog):
     def provider_changed(self, *args):
         if self.state or self.pending:
             return
+        self.connected_profile_id = None
         kind = self.provider.currentData()
         self.icloud_web_button.setVisible(kind == 'iclouddrive')
         self.icloud_web_hint.setVisible(kind == 'iclouddrive')
@@ -885,9 +897,11 @@ class OnlineDialog(QDialog):
             # Re-authentication updates the existing shortcut, never duplicates it.
             self.main.online_profiles = list({row['id']: row for row in self.main.online_profiles}.values())
             self.main.save_online_profiles()
-            self.reload()
-            self.status.setText('Ort gespeichert. Oben öffnen. / Location saved. Open it above.')
-            self.next_button.setText('Ort einrichten / Configure location')
+            self.connected_profile_id = self.profile['id']
+            self.reload(select_id=self.profile['id'])
+            self.status.setText('Verbindung gespeichert. Beim nächsten Start den Ort links öffnen; keine neue Anmeldung nötig, solange die Sitzung gültig ist.' if self.de else
+                                'Connection saved. Open this location on the left after restarting; no new sign-in is needed while the session is valid.')
+            self.next_button.setText('Gespeicherten Ort öffnen' if self.de else 'Open saved location')
             self.help.clear()
             self.answer.clear()
             self.answer.hide()
@@ -896,7 +910,7 @@ class OnlineDialog(QDialog):
                 def opened(path):
                     pane.navigate(path)
                     self.main.update_places()
-                    self.status.setText('Verbunden: ' + profile['name'] if self.de else 'Connected: ' + profile['name'])
+                    self.status.setText('Verbunden und gespeichert: ' + profile['name'] if self.de else 'Connected and saved: ' + profile['name'])
                 self.work(lambda: mount_profile(self.main, profile, self.cancel), opened)
             return
         option = value.get('Option') or {}
@@ -994,6 +1008,7 @@ class OnlineDialog(QDialog):
         if not profile or self.pending:
             return
         self.state = ''
+        self.connected_profile_id = None
         self.provider.setCurrentIndex(self.provider.findData(profile['kind']))
         self.provider_changed()
         self.name.setText(profile['name'])
@@ -1028,6 +1043,7 @@ class OnlineDialog(QDialog):
         profile = self.saved.currentData()
         if not profile or self.pending:
             return
+        self.connected_profile_id = None
         if remote_location(mount_path(self.main.state_dir, profile['id'])):
             self.status.setText('Vor erneuter Anmeldung bitte Trennen wählen. / Disconnect before signing in again.')
             return

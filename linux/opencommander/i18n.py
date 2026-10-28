@@ -1,7 +1,7 @@
 TEXT = {
 'en': {
  'mkdir':'New folder', 'copy':'Copy', 'move':'Move', 'rename':'Rename', 'trash':'Remove', 'zip':'Create ZIP',
- 'extract':'Extract', 'undo':'Undo', 'history':'History', 'new_folder':'New folder',
+ 'extract':'Extract', 'undo':'Undo', 'history':'History', 'new_folder':'New folder', 'new_file':'New text file', 'new_file_default':'New document.txt', 'archive':'Archive',
  'open':'Open', 'preview':'Preview', 'refresh':'Refresh', 'hidden':'Hidden files',
  'dark':'Dark', 'light':'Light', 'help':'Help', 'folder':'Choose folder', 'root':'Filesystem',
  'home':'Home', 'downloads':'Downloads', 'tree':'Folders', 'files':'Files', 'name':'Name',
@@ -24,7 +24,7 @@ TEXT = {
 },
 'de': {
  'mkdir':'Neuer Ordner', 'copy':'Kopieren', 'move':'Verschieben', 'rename':'Umbenennen', 'trash':'Entfernen', 'zip':'ZIP erstellen',
- 'extract':'Entpacken', 'undo':'Rückgängig', 'history':'Historie', 'new_folder':'Neuer Ordner',
+ 'extract':'Entpacken', 'undo':'Rückgängig', 'history':'Historie', 'new_folder':'Neuer Ordner', 'new_file':'Neue Textdatei', 'new_file_default':'Neues Dokument.txt', 'archive':'Archiv',
  'open':'Öffnen', 'preview':'Vorschau', 'refresh':'Aktualisieren', 'hidden':'Versteckte Dateien',
  'dark':'Dunkel', 'light':'Hell', 'help':'Hilfe', 'folder':'Ordner wählen', 'root':'Dateisystem',
  'home':'Persönlicher Ordner', 'downloads':'Downloads', 'tree':'Ordner', 'files':'Dateien', 'name':'Name',

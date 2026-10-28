@@ -72,6 +72,16 @@ class EntryModel(QAbstractTableModel):
         self.folder_icon = QIcon(style.standardIcon(QStyle.SP_DirIcon).pixmap(24, 24))
         self.file_icon = QIcon(style.standardIcon(QStyle.SP_FileIcon).pixmap(24, 24))
         self.link_icon = QIcon(style.standardIcon(QStyle.SP_FileLinkIcon).pixmap(24, 24))
+        archive_pixmap = QPixmap(24, 24)
+        archive_pixmap.fill(Qt.transparent)
+        painter = QPainter(archive_pixmap)
+        painter.setPen(QPen(QColor('#775018'), 1))
+        painter.setBrush(QColor('#e9b55c'))
+        painter.drawRoundedRect(3, 3, 18, 18, 3, 3)
+        for y in range(5, 20, 3):
+            painter.fillRect(10 if y % 2 else 12, y, 3, 2, QColor('#775018'))
+        painter.end()
+        self.archive_icon = QIcon.fromTheme('package-x-generic', QIcon(archive_pixmap))
 
     def rowCount(self, parent=QModelIndex()):
         return 0 if parent.isValid() else len(self.entries)
@@ -119,7 +129,7 @@ class EntryModel(QAbstractTableModel):
             if item.directory:
                 return QColor('#88baff' if dark else '#185bb5')
             suffix = Path(item.name).suffix.lower()
-            if suffix in ('.zip', '.tar', '.gz', '.7z', '.rar'):
+            if is_archive(item.name):
                 return QColor('#f1c36d' if dark else '#885400')
             if suffix in ('.png', '.jpg', '.jpeg', '.svg', '.mp4', '.mp3', '.webp'):
                 return QColor('#cfadff' if dark else '#753bb0')
@@ -127,7 +137,7 @@ class EntryModel(QAbstractTableModel):
             thumbnail = self.pane.main.thumbnails.get(item, self, index.row())
             if thumbnail is not None:
                 return thumbnail
-            return self.link_icon if item.link else self.folder_icon if item.directory else self.file_icon
+            return self.link_icon if item.link else self.folder_icon if item.directory else self.archive_icon if is_archive(item.name) else self.file_icon
         if role == Qt.TextAlignmentRole and column == 1:
             return int(Qt.AlignRight | Qt.AlignVCenter)
         if role == Qt.ToolTipRole:
@@ -144,7 +154,7 @@ class EntryModel(QAbstractTableModel):
                 value = '—' if item.directory else human_size(item.size)
             elif column == 2:
                 kind = self.pane.main.tr_key('link' if item.link else 'directory' if item.directory else 'file')
-                value = kind if item.directory or item.link else Path(item.name).suffix.removeprefix('.').upper() or kind
+                value = kind if item.directory or item.link else (self.pane.main.tr_key('archive') + ' · ' + Path(item.name).suffix.removeprefix('.').upper()) if is_archive(item.name) else Path(item.name).suffix.removeprefix('.').upper() or kind
             else:
                 try:
                     value = datetime.fromtimestamp(item.modified).strftime('%d.%m.%Y %H:%M') if item.modified else '—'
@@ -283,7 +293,9 @@ class FileTable(QTableView):
             self.clearSelection()
             menu = QMenu(self)
             if not self.pane.archive:
-                menu.addAction(self.pane.main.actions['new_folder'])
+                new = menu.addMenu('Neu' if self.pane.main.language == 'de' else 'New')
+                new.addAction(self.pane.main.actions['new_folder'])
+                new.addAction(self.pane.main.actions['new_file'])
                 paste = menu.addAction('Einfügen' if self.pane.main.language == 'de' else 'Paste')
                 mime = QApplication.clipboard().mimeData()
                 paste.setEnabled(bool(mime and (mime.hasUrls() or mime.hasFormat('x-special/gnome-copied-files'))))
@@ -819,6 +831,7 @@ class MainWindow(QMainWindow):
             'rename': (self.rename_selected, 'F2'), 'trash': (self.trash_selected, 'Delete'),
             'zip': (self.zip_selected, ''), 'extract': (self.extract_selected, ''),
             'undo': (self.undo, 'Ctrl+Z'), 'new_folder': (self.new_folder, 'Ctrl+Shift+N'),
+            'new_file': (self.new_file, 'Ctrl+Alt+N'),
             'open_with': (self.open_with_selected, ''),
             'open': (self.open_selected, 'Ctrl+O'), 'preview': (self.preview_selected, 'Ctrl+Y'),
             'refresh': (self.refresh_all, 'Ctrl+R'), 'hidden': (self.toggle_hidden, 'Ctrl+H'),
@@ -840,6 +853,15 @@ class MainWindow(QMainWindow):
         self.actions['hidden'].setCheckable(True)
         self.actions['hidden'].setChecked(self.hidden)
         for key in ('search', 'rename', 'new_folder', 'trash', 'zip', 'extract', 'preview', 'undo', 'history', 'help'):
+            if key == 'new_folder':
+                button = QPushButton('Neu' if self.language == 'de' else 'New')
+                new_menu = QMenu(button)
+                new_menu.addAction(self.actions['new_folder'])
+                new_menu.addAction(self.actions['new_file'])
+                button.setMenu(new_menu)
+                self.toolbar.addWidget(button)
+                self.new_menu_button = button
+                continue
             self.toolbar.addAction(self.actions[key])
             self.toolbar.widgetForAction(self.actions[key]).setProperty('actionKind', key)
         tools_button = QPushButton('Werkzeuge' if self.language == 'de' else 'Tools')
@@ -1133,6 +1155,7 @@ class MainWindow(QMainWindow):
                       'copying': ('Kopieren', 'Copying'), 'moving': ('Verschieben', 'Moving'),
                       'uploading': ('Schreiben abschließen / Upload', 'Finishing writes / upload'),
                       'verifying': ('Prüfen und abschließen', 'Verifying and finalizing'),
+                      'publishing': ('Zielordner übernehmen', 'Publishing destination'),
                       'resuming': ('Gespeicherten Stand prüfen · kein erneutes Kopieren', 'Checking saved progress · not copying again'),
                       'checking_partial': ('Angefangene Datei prüfen', 'Checking partial file'),
                       'cleanup': ('Quelle bereinigen', 'Cleaning up source'),
@@ -1254,6 +1277,19 @@ class MainWindow(QMainWindow):
             self.status.setText(self.tr_key('no_selection'))
             return
         paths = tuple(Path(path) for path in paths)
+        try:
+            existing = self.engine.transfers.matching(paths, directory, move)
+        except Exception as error:
+            self.status.setText(str(error))
+            return
+        if existing:
+            self.transfers_paused = False
+            self.run_operation(None, after, transfer_id=existing['id'])
+            self.transfers.toggle.setChecked(True)
+            self.transfers.scroll.ensureWidgetVisible(self.transfers.cards[existing['id']])
+            self.status.setText('Vorhandener Kopier-/Verschiebeauftrag ausgewählt; gespeicherten Stand fortsetzen.' if self.language == 'de' else
+                                'Existing transfer selected; continuing saved progress.')
+            return
         mode = self.conflict_mode(paths, directory)
         if mode:
             from .transfer_store import guards_for
@@ -1349,6 +1385,15 @@ class MainWindow(QMainWindow):
         name, accepted = QInputDialog.getText(self, self.tr_key('new_folder'), self.tr_key('name_prompt'))
         if accepted:
             self.run_operation(lambda: self.engine.mkdir(directory, name))
+
+    def new_file(self):
+        if self.closing or (self.busy and not self.operation_running) or self.active.archive:
+            return
+        directory = self.active.directory
+        name, accepted = QInputDialog.getText(self, self.tr_key('new_file'), self.tr_key('name_prompt'),
+                                             text=self.tr_key('new_file_default'))
+        if accepted:
+            self.run_operation(lambda: self.engine.new_file(directory, name))
 
     def run_trash(self, paths, finished=None):
         from .transfers_ui import resources
@@ -1671,6 +1716,7 @@ class MainWindow(QMainWindow):
     def retranslate(self):
         self.location_settings_button.setText('Einstellungen / Orte' if self.language == 'de' else 'Settings / Locations')
         self.tools_button.setText('Werkzeuge' if self.language == 'de' else 'Tools')
+        self.new_menu_button.setText('Neu' if self.language == 'de' else 'New')
         for key, action in self.actions.items():
             action.setText(self.tr_key(key))
             action.setToolTip(self.tr_key(key) + (f' ({action.shortcut().toString()})' if not action.shortcut().isEmpty() else ''))

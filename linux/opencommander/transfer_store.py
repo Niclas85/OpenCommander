@@ -71,6 +71,13 @@ class TransferStore:
             row = db.execute('SELECT data FROM jobs WHERE id=?', (identifier,)).fetchone()
             return json.loads(row[0]) if row else None
 
+    def matching(self, paths, directory, move=False):
+        """Reuse the durable job instead of queueing a copy behind itself."""
+        sources = sorted(set(os.path.abspath(path) for path in paths))
+        directory = os.path.abspath(directory)
+        return next((job for job in self.jobs() if sorted(set(job['sources'])) == sources and
+                     job['directory'] == directory and bool(job.get('move')) == bool(move)), None)
+
     def checkpoint(self, identifier, root, relative, data):
         with self.lock, self.connection() as db:
             db.execute('INSERT OR REPLACE INTO files VALUES (?, ?, ?, ?)',

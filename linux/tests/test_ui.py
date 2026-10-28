@@ -60,6 +60,86 @@ def test_toolbar_copy_and_undo(window, app):
     assert not (right.directory / 'Grüße.txt').exists()
 
 
+def test_repeating_copy_action_resumes_failed_job_instead_of_waiting_behind_itself(window, app, monkeypatch):
+    import errno
+    from opencommander.operations import FileEngine
+    source,target=window.panes
+    source.table.selectRow(0);window.activate(source)
+    original=FileEngine.publish
+    attempted=[]
+    def fail_once(engine,*args,**kwargs):
+        attempted.append(1)
+        if len(attempted)==1:raise OSError(errno.EINVAL,'publication rejected')
+        return original(engine,*args,**kwargs)
+    monkeypatch.setattr(FileEngine,'publish',fail_once)
+    done=QSignalSpy(window.operation_finished)
+    window.actions['copy'].trigger();wait(app,lambda:done.count()==1)
+    assert done.at(0)[0] is not None
+    jobs=window.engine.transfers.jobs();assert len(jobs)==1
+    identifier=jobs[0]['id'];payload=Path(jobs[0]['roots'][0]['staging'])/'payload'
+    inode=payload.stat().st_ino
+    wait(app,lambda:source.proxy.rowCount()==1)
+    source.table.selectRow(0);window.actions['copy'].trigger()
+    wait(app,lambda:done.count()==2)
+    assert done.at(1)[0] is None and not window.engine.transfers.jobs()
+    assert list(window.transfers.cards)==[identifier]
+    card=window.transfers.cards[identifier]
+    assert card.state=='complete' and card.progress.value()==100
+    assert (target.directory/'Grüße.txt').stat().st_ino==inode
+    assert not (target.directory/'Grüße (2).txt').exists()
+
+
+def test_repeating_active_copy_action_does_not_queue_duplicate(window, app, monkeypatch):
+    import threading
+    from opencommander.operations import FileEngine
+    entered=threading.Event();release=threading.Event()
+    original=FileEngine.copy_file
+    def hold(engine,source,target):
+        entered.set();assert release.wait(5)
+        return original(engine,source,target)
+    monkeypatch.setattr(FileEngine,'copy_file',hold)
+    window.active.table.selectRow(0)
+    window.actions['copy'].trigger();wait(app,entered.is_set)
+    try:
+        window.actions['copy'].trigger()
+        assert len(window.transfers.cards)==1 and len(window.engine.transfers.jobs())==1
+        assert not window.operation_queue
+    finally:release.set()
+    wait(app,lambda:not window.busy)
+    assert next(iter(window.transfers.cards.values())).state=='complete'
+
+
+def test_waiting_copy_names_blocking_job_and_runs_after_its_cancel(window, app):
+    source,target=window.panes
+    original=source.directory/'Grüße.txt'
+    old=window.state_dir/'earlier-source'/original.name
+    old.parent.mkdir();old.write_text('previous job')
+    job=window.engine.transfers.create([old],target.directory,'keep')
+    job.update(status='blocked',error='Test: disconnected drive');window.engine.transfers.save(job)
+    blocked=window.transfers.add(job)
+    window.transfer(paths=[original],directory=target.directory)
+    waiting=next(c for c in window.transfers.cards.values() if c is not blocked)
+    assert waiting.state=='waiting' and job['id'][:8] in waiting.title.text()
+    assert 'Wartet auf:' in waiting.details.text()
+    blocked.cancel.click()
+    wait(app,lambda:not window.busy and not window.operation_queue)
+    assert waiting.state=='complete' and waiting.progress.value()==100
+    assert (target.directory/original.name).read_bytes()==original.read_bytes()
+
+
+def test_copy_action_resumes_matching_paused_job_after_global_pause(window, app):
+    source,target=window.panes
+    file=source.directory/'Grüße.txt'
+    job=window.engine.transfers.create([file],target.directory,'keep')
+    job['status']='paused';window.engine.transfers.save(job)
+    window.transfers.add(job);window.transfers_paused=True
+    source.table.selectRow(0);window.actions['copy'].trigger()
+    wait(app,lambda:not window.busy and not window.engine.transfers.jobs())
+    assert list(window.transfers.cards)==[job['id']]
+    assert window.transfers.cards[job['id']].state=='complete'
+    assert (target.directory/file.name).read_bytes()==file.read_bytes()
+
+
 @pytest.mark.parametrize('surface', ['title', 'selected_label', 'path_edit', 'filter', 'tree', 'header', 'margin'])
 def test_click_any_pane_surface_activates_it_without_stealing_editor_focus(window, app, surface):
     left, right = window.panes
@@ -982,27 +1062,88 @@ def test_browser_signal_runs_on_gui_and_ignores_cancelled_flow(window, monkeypat
     dialog.close()
 
 
-def test_saved_connection_survives_restart_and_opens_from_sidebar(window, app, monkeypatch):
+@pytest.mark.parametrize('kind',['drive','onedrive','dropbox','iclouddrive','sftp','ftp','ftps'])
+def test_saved_connection_survives_restart_and_opens_from_sidebar(window, app, monkeypatch, kind):
     from PySide6.QtWidgets import QPushButton
     from opencommander import online_ui
-    profile = dict(id='oc_persistentfixture', name='Saved Cloud Fixture', kind='onedrive')
+    import configparser,json,secrets
+    profile = dict(id='oc_persistentfixture', name='Saved Connection Fixture', kind=kind)
+    config=online_ui.private_config(window.state_dir)
+    parser=configparser.ConfigParser(interpolation=None)
+    section={'type':'ftp' if kind=='ftps' else kind}
+    if kind in ('drive','onedrive','dropbox'):
+        section['token']=json.dumps({'access_token':secrets.token_urlsafe(20),'refresh_token':secrets.token_urlsafe(20)})
+        if kind=='onedrive':section.update(drive_id='fixture-drive',drive_type='personal')
+    elif kind=='iclouddrive':
+        import base64
+        section.update(apple_id='test@example.invalid',password=base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),
+                       trust_token=secrets.token_urlsafe(20),cookies=secrets.token_urlsafe(20))
+    parser[profile['id']]=section
+    with config.open('w') as stream:parser.write(stream)
+    before_config=config.read_bytes()
     window.online_profiles = [profile]
     window.save_online_profiles()
     restarted = MainWindow(window.state_dir, window.panes[0].directory, window.panes[1].directory)
     restarted.show()
     try:
         assert restarted.online_profiles == [profile]
+        if kind in ('drive','onedrive','dropbox','iclouddrive'):
+            from opencommander.cloud_config import validate
+            validate(config,profile['id'])
         button = next(button for button in restarted.findChildren(QPushButton, 'place') if button.text() == profile['name'])
         calls = []
         target = window.panes[1].directory
         monkeypatch.setattr(online_ui, 'mount_profile', lambda main, selected, cancel: calls.append(selected) or target)
+        monkeypatch.setattr(online_ui,'command_json',lambda *a,**kw:pytest.fail('Opening a saved connection must not start a new login'))
         button.click()
         wait(app, lambda: not restarted.tasks)
         wait(app, lambda: restarted.active.directory == target)
         assert calls == [profile]
+        assert config.read_bytes()==before_config
     finally:
         restarted.close()
         wait(app, lambda: not restarted.isVisible(), timeout=20)
+
+
+@pytest.mark.parametrize('kind',['drive','onedrive','dropbox','iclouddrive'])
+def test_completed_cloud_login_selects_saved_place_and_next_opens_without_another_login(window, app, monkeypatch, kind):
+    from opencommander import online_ui
+    window.online_profiles=[dict(id='oc_existing',name='Existing',kind='onedrive')]
+    window.online_locations();dialog=window.online_dialog
+    dialog.provider.setCurrentIndex(dialog.provider.findData(kind))
+    dialog.profile=dict(id='oc_newfixture',name='New Connection',kind=kind)
+    dialog.cloud_auth=True
+    mounts=[]
+    monkeypatch.setattr(online_ui,'mount_profile',lambda main,p,c:mounts.append(dict(p)) or window.panes[1].directory)
+    dialog.question({'State':''})
+    wait(app,lambda:not dialog.pending)
+    assert mounts==[dialog.profile] and dialog.saved.currentData()==dialog.profile
+    assert 'gespeichert' in dialog.status.text()
+    assert dialog.next_button.text()=='Gespeicherten Ort öffnen'
+    opened=[]
+    monkeypatch.setattr(window,'open_online_profile',lambda p:opened.append(dict(p)))
+    monkeypatch.setattr(online_ui,'command_json',lambda *a,**kw:pytest.fail('Completed connection must not reauthenticate'))
+    dialog.next_button.click()
+    assert opened==[dialog.profile] and len(window.online_profiles)==2
+    # The saved-location selector remains authoritative when changing accounts.
+    dialog.saved.setCurrentIndex(0);dialog.next_button.click()
+    assert opened[-1]['id']=='oc_existing'
+    dialog.close()
+
+
+def test_icloud_web_view_is_explicitly_separate_and_never_saves_authentication(window, app, monkeypatch):
+    window.online_locations();dialog=window.online_dialog
+    dialog.provider.setCurrentIndex(dialog.provider.findData('iclouddrive'))
+    assert 'keine App-Verbindung' in dialog.icloud_web_button.text()
+    assert dialog.icloud_web_button.isFlat() and not dialog.icloud_web_button.autoDefault()
+    assert dialog.next_button.text()=='Mit Apple-ID verbinden'
+    urls=[]
+    monkeypatch.setattr(dialog,'open_browser_url',lambda url:urls.append(url) or True)
+    before=list(window.online_profiles)
+    dialog.icloud_web_button.click()
+    assert urls==['https://www.icloud.com/iclouddrive/']
+    assert not dialog.pending and window.online_profiles==before
+    dialog.close()
 
 
 def test_darkmode_checkbox_is_visible_and_persisted(window, app):
@@ -1285,10 +1426,58 @@ def test_blank_space_context_menu_activates_pane_and_offers_folder_actions(windo
     assert not pane.table.indexAt(point).isValid()
     pane.table.context_menu(point)
     assert window.active is pane
-    assert window.actions['new_folder'] in actions
+    new=next(action.menu() for action in actions if action.text() in ('Neu','New'))
+    assert window.actions['new_folder'] in new.actions()
+    assert window.actions['new_file'] in new.actions()
     assert any(action.text() in ('Einfügen','Paste') for action in actions)
     assert any(action.text()==window.tr_key('refresh') for action in actions)
     assert window.actions['trash'] not in actions
+
+
+def test_new_text_file_menu_action_creates_file_and_supports_undo(window, app, monkeypatch):
+    from PySide6.QtWidgets import QInputDialog
+    assert window.actions['new_file'] in window.new_menu_button.menu().actions()
+    monkeypatch.setattr(QInputDialog,'getText',lambda *a,**kw:('Notizen.txt',True))
+    done=QSignalSpy(window.operation_finished)
+    window.actions['new_file'].trigger()
+    wait(app,lambda:done.count()==1)
+    assert done.at(0)[0] is None
+    target=window.active.directory/'Notizen.txt'
+    assert target.read_bytes()==b''
+    window.actions['undo'].trigger()
+    wait(app,lambda:done.count()==2)
+    assert not target.exists()
+
+
+def test_zip_has_archive_icon_type_and_opens_in_pane(window, app):
+    import zipfile
+    pane=window.panes[0]
+    path=pane.directory/'Daten.ZIP'
+    with zipfile.ZipFile(path,'w') as archive:archive.writestr('inside.txt','test')
+    pane.refresh();wait(app,lambda:any(row.name==path.name for row in pane.model.entries))
+    row=next(i for i,e in enumerate(pane.model.entries) if e.name==path.name)
+    assert pane.model.data(pane.model.index(row,2)).startswith('Archiv')
+    assert pane.model.data(pane.model.index(row,0),Qt.DecorationRole).cacheKey()==pane.model.archive_icon.cacheKey()
+    pane.table.selectRow(pane.proxy.mapFromSource(pane.model.index(row,0)).row())
+    window.activate(pane);window.open_selected()
+    wait(app,lambda:pane.archive==path and any(e.name=='inside.txt' for e in pane.model.entries))
+
+
+def test_transfer_verification_shows_its_own_progress_instead_of_stuck_99(window, app):
+    job=window.engine.transfers.create([window.panes[0].directory/'Grüße.txt'],window.panes[1].directory,'keep')
+    card=window.transfers.add(job)
+    card.state='running'
+    card.metrics=dict(phase='verifying',name='Grüße.txt',bytes_done=1024,bytes_total=1024,
+                      files_done=1,files_total=1,verify_bytes_checked=512)
+    card.render()
+    assert card.progress.value()==50 and '50%' in card.title.text()
+    assert '99%' not in card.title.text() and 'Prüfen' in card.title.text()
+    card.metrics=dict(card.metrics,verify_bytes_checked=1024);card.render()
+    assert card.progress.value()==100
+    card.metrics=dict(card.metrics,phase='publishing');card.render()
+    assert card.progress.maximum()==0 and 'übernehmen' in card.title.text()
+    window.engine.transfers.delete(job['id']);card.state='cancelled'
+    window.transfers.clear_completed()
 
 
 @pytest.mark.parametrize('format,suffix', [('ustar','.tar'),('7zip','.7z')])

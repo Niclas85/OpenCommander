@@ -21,6 +21,32 @@ def run(engine, job):
     return engine.transfer(job['sources'], job['directory'], False, job['conflict'], job['id'])
 
 
+def test_rejected_publication_resumes_complete_staging_without_recopy(fixture,monkeypatch):
+    import errno
+    engine,source,target=fixture
+    folder=source/'project';folder.mkdir();(folder/'large.zip').write_bytes(b'a'*3*1024**2)
+    job=engine.transfers.create([folder],target,'keep',guards_for([folder,target]))
+    def reject(*args):raise OSError(errno.EINVAL,'unsupported no-replace rename')
+    monkeypatch.setattr(engine,'publish',reject)
+    with pytest.raises(OSError):run(engine,job)
+    saved=engine.transfers.get(job['id'])
+    assert saved['roots'][0]['status']=='publishing'
+    stage=Path(saved['roots'][0]['staging'])
+    inode=(stage/'payload/large.zip').stat().st_ino
+    resumed=FileEngine(engine.state_dir)
+    reports=[];writes=[]
+    resumed.metrics_report=lambda value:reports.append(dict(value))
+    resumed.progress=lambda *args:writes.append(args)
+    run(resumed,saved)
+    assert not writes and not resumed.transfers.jobs()
+    assert (target/'project/large.zip').stat().st_ino==inode
+    assert (target/'project/large.zip').read_bytes()==b'a'*3*1024**2
+    assert folder.is_dir() and not stage.exists()
+    assert any(r['phase']=='publishing' for r in reports)
+    assert max(r.get('verify_bytes_checked',0) for r in reports)==3*1024**2
+    assert reports[-1]['phase']=='complete' and reports[-1]['bytes_done']==3*1024**2
+
+
 def pause_after_block(engine, name=None):
     def progress(count, current):
         if name is None or current == name:

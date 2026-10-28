@@ -49,10 +49,16 @@ def rename_new(source: Path, target: Path):
         number = ctypes.get_errno()
         if number in (errno.EINVAL, errno.ENOSYS, errno.EOPNOTSUPP):
             from .provider_mounts import same_mount
-            if same_mount(source, target):
+            from .transfer_store import mount_identity
+            source_mount, target_mount = mount_identity(source.parent), mount_identity(target.parent)
+            local_compatibility = bool(source_mount and source_mount == target_mount and
+                                       source_mount['filesystem'] in ('fuseblk', 'exfat', 'vfat'))
+            if same_mount(source, target) or local_compatibility:
                 # rclone/FUSE cannot implement RENAME_NOREPLACE. Known rclone
                 # and configured online mounts use provider-style guarded rename.
-                # Like FTP/SFTP on Mac, it has no cross-client atomicity guarantee.
+                # NTFS-3G and some removable-volume drivers reject this flag too.
+                # The fallback checks conflicts, including dangling links, but
+                # has no cross-client atomicity guarantee.
                 try:
                     target.lstat()
                 except FileNotFoundError:
@@ -71,7 +77,7 @@ def remove_tree(path: Path):
         path.unlink()
 
 
-def fingerprint(path: Path, check=None) -> str:
+def fingerprint(path: Path, check=None, progress=None) -> str:
     digest = hashlib.sha256()
 
     def field(value):
@@ -99,6 +105,8 @@ def fingerprint(path: Path, check=None) -> str:
                     if check:
                         check()
                     content.update(block)
+                    if progress:
+                        progress(len(block), item.name)
             digest.update(content.digest())
         else:
             raise SafetyError(f'Unsupported file: {item}')
@@ -109,9 +117,9 @@ def fingerprint(path: Path, check=None) -> str:
     return digest.hexdigest()
 
 
-def safe_snapshot(path, check=None):
+def safe_snapshot(path, check=None, progress=None):
     try:
-        return fingerprint(path, check) if check else fingerprint(path)
+        return fingerprint(path, check, progress) if progress else fingerprint(path, check) if check else fingerprint(path)
     except Cancelled:
         raise
     except (OSError, SafetyError):
@@ -211,7 +219,11 @@ class FileEngine:
 
     def record(self, operation, source, destination, kind, backup=None, cancellable=False):
         check = self.check_cancel if cancellable else None
-        snapshot = safe_snapshot(destination, check) if check else safe_snapshot(destination)
+        def verification_progress(size, name):
+            self.transfer_metrics['verify_bytes_checked'] = self.transfer_metrics.get('verify_bytes_checked', 0) + size
+            self.report_transfer('verifying', name)
+        progress = verification_progress if cancellable and self.transfer_metrics is not None else None
+        snapshot = safe_snapshot(destination, check, progress) if progress else safe_snapshot(destination, check) if check else safe_snapshot(destination)
         from .provider_mounts import managed, provider_mount
         if managed(destination) or provider_mount(destination) is not None:
             # FUSE may refresh attributes on the first read following a rename.
@@ -475,6 +487,19 @@ class FileEngine:
         operation = self.begin('mkdir')
         try:
             target.mkdir()
+            self.record(operation, target, target, 'copy')
+        finally:
+            self.finish(operation)
+
+    def new_file(self, directory, name):
+        if not name or name in ('.', '..') or '/' in name or '\0' in name:
+            raise SafetyError('Invalid name')
+        target = Path(directory) / name
+        operation = self.begin('new_file')
+        try:
+            # Exclusive creation never truncates an existing file or link.
+            with target.open('xb'):
+                pass
             self.record(operation, target, target, 'copy')
         finally:
             self.finish(operation)

@@ -2,6 +2,31 @@
 
 ## Unveröffentlicht – öffentliche Cloud-Anmeldung vorbereiten
 
+- Wiederholtes Kopieren/Verschieben derselben Quellen ins gleiche Ziel verwendet
+  den noch vorhandenen Auftrag weiter (auch nach Fehler oder Pause), statt einen
+  zweiten Auftrag anzulegen, der auf den ersten wartet. Ein laufender Auftrag
+  wird dadurch nicht doppelt gestartet. Blockierende Aufträge mit Namen und ID
+  in Titel/Details der wartenden Kopie benennen.
+- Paket-Smoke-Test startet jetzt die tatsächliche Kopieraktion der Oberfläche
+  und prüft Warteschlange, Worker-Abschluss, Zielinhalt, leeren gespeicherten
+  Auftrag und 100%-Anzeige zusätzlich zu den bisherigen Backend-Prüfungen.
+- NTFS-3G/FUSE, exFAT und FAT: Wenn RENAME_NOREPLACE nicht unterstützt wird,
+  auf demselben Laufwerk nach Konfliktprüfung umbenennen. Vorhandene Ziele und
+  auch defekte Links nicht absichtlich überschreiben; wie bei Online-Zielen
+  ist diese Ersatzfunktion gegenüber anderen Clients nicht atomar.
+- Nach abgelehntem abschließendem Umbenennen den vollständig kopierten
+  Zwischenstand fortsetzen: nur wenn Ziel und verdrängtes Original fehlen.
+  Fertige Dateien prüfen und behalten; mehrdeutige Zustände bleiben gesperrt.
+  Abschlussprüfung mit eigenen geprüften Bytes/Prozent statt stillstehender 99%.
+- „Neu“-Menü in Werkzeugleiste und Leerbereich-Kontextmenü mit Ordner und
+  Textdatei. Textdatei exklusiv anlegen, ohne bestehende Dateien zu leeren;
+  Rückgängig wird unterstützt. ZIP und andere Archive mit eigenem Symbol,
+  einheitlicher Farbe und „Archiv“ im Typ anzeigen.
+- Nach erfolgreicher Cloud-Anmeldung den gerade gespeicherten Ort auswählen
+  und „Gespeicherten Ort öffnen“ anbieten. Wiederholter Klick öffnet den Ort,
+  statt eine weitere Anmeldung/Verknüpfung anzulegen. Auswahl auch beim Neuladen
+  des Assistenten behalten. iCloud-Webansicht als untergeordneten Website-Zugang
+  mit „keine App-Verbindung“ kennzeichnen.
 - iCloud-Bestätigung mit erreichbaren „SMS-Code anfordern“ / „SMS-Code erneut
   senden“-Schaltflächen. Vorhandene Anmeldesitzung weiterverwenden statt erneut
   das Passwort abzufragen; kurze Wartezeit und gesperrte Mehrfachklicks.

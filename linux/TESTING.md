@@ -1,5 +1,82 @@
 # Unveröffentlicht – gemeinsame Cloud-Anmeldung vorbereiten
 
+## Kopieren über Oberfläche und Warteschlange: 0.3.25rc13
+
+16 gezielte GUI-Prüfungen bestanden: echte Kopieraktion, Zwischenablage,
+parallele Aufträge, Pause/Schließen/Wiederaufnahme und Warteschlangen-Konflikte.
+Neue Fälle prüfen: dieselbe Kopieraktion nach abgelehnter Übernahme setzt den
+gespeicherten Auftrag mit derselben ID und demselben Datei-Inode fort und endet
+bei 100%; wiederholter Start eines laufenden Auftrags erzeugt keine Dublette;
+globale Pause verhindert den ausdrücklich erneut gestarteten Auftrag nicht;
+ein wartender Auftrag benennt seinen Blockierer und läuft nach dessen Abbruch.
+
+Der Paket-Smoke-Test prüft nun ebenfalls die echte QAction → Warteschlange →
+Worker → Zielinhalt → vollständige Karte mit 100%. Quellen/Profil/Ziele für
+diesen Pakettest sind ausschließlich eigene lokale Testverzeichnisse.
+Der Quellcode-Smoke-Test mit diesem Ablauf ist bestanden.
+
+Realer GUI-Lauf am 28.10.2026: den vollständigen Ordner
+`/media/niklaus/SanDisk/Muehle-Projekt-2026-10-25-aoxygC` über die tatsächliche
+Kopier-QAction in ein eigenes Testziel unter `/media/niklaus/data/Continue`
+übertragen. Eigenes Profil; Produktionsaufträge unverändert. 5 Dateien und
+5.714.096.943 Bytes übernommen. Die erste Probe überschritt das zu knapp
+gewählte 90-Sekunden-Testlimit; die zweite wurde nach 600 Sekunden während
+der Inhaltsprüfung vom Testtreiber gespeichert pausiert, nicht wegen eines
+Dateikopierfehlers. Danach denselben Auftrag über die Kopieraktion fortgesetzt:
+gleiche Auftrags-ID, keine weitere Kopie, vollständige Inhalts-/Historienprüfung,
+Abschlusssignal ohne Fehler, Karte `complete` und 100%, Warteschlange leer.
+Diese Fortsetzung dauerte 487,8 Sekunden. Damit ist auch der lange GUI-Ablauf
+mit Wiederaufnahme abgenommen; kurze Testlimits sind keine Laufwerksgarantie.
+Nur die eigenen Testziele anschließend entfernt. Originalquelle und bereits
+vorhandenes Benutzerziel erhalten. Das gebaute rc13-Paket hat den erweiterten
+GUI-Smoke-Test und die Paketprüfung ebenfalls bestanden.
+
+## NTFS-Abschluss, Archive und neue Textdateien: 0.3.25rc12
+
+Am 28.10.2026 der betroffene Kopierauftrag lesend untersucht: 5 Dateien mit
+5.714.096.943 Bytes im privaten Ziel-Zwischenordner vollständig vorhanden;
+abschließendes Umbenennen auf NTFS-3G schlägt mit EINVAL fehl. Endziel fehlt.
+Kein erneutes Kopieren und keine Löschung für diese Diagnose.
+
+84 Prüfungen der Dateioperationen, Wiederaufnahme und Archive bestanden.
+Neue Fälle: NTFS-EINVAL-Ersatzfunktion, belegtes Ziel inklusive defektem Link,
+exklusive Textdatei mit Rückgängig, Wiederaufnahme nach abgelehnter Übernahme
+ohne Daten neu zu schreiben, Fortschritt der vollständigen Abschlussprüfung.
+Mehrdeutige Veröffentlichung bleibt blockiert. Ein eigener kleiner Testordner
+auf dem realen NTFS-Ziellaufwerk bestätigt Übernahme und Konfliktschutz.
+Nur dieser selbst angelegte Testordner wurde dabei bereinigt.
+
+Nach regulärem Schließen der alten App den konkreten Auftrag
+`91a122bb75e8487d85a3a5eccedeea4d` fortgesetzt: alle 5 Dateien mit
+5.714.096.943 Bytes aus dem bestehenden Zwischenstand geprüft, übernommen
+und abschließend geprüft. Kein neuer Datenblock geschrieben; Zwischenordner
+entfernt, endgültiger Zielordner vorhanden, Quelle unverändert erhalten.
+Rückgängig-/Fehlerhistorie gespeichert. Andere Aufträge dabei nicht verändert.
+
+8 gezielte GUI-Prüfungen bestanden: Archivzugriff einschließlich ZIP-Symbol/-Typ,
+„Neu“ im Leerbereich, Textdatei über Menü anlegen und rückgängig machen,
+Abschlussprüfung mit eigenen Prozenten und sichtbare Übernahmephase.
+Keine vollständige Suite nach jeder einzelnen Anpassung.
+
+## Gespeicherte Verbindungen und eindeutiges Öffnen: 0.3.25rc11
+
+12 gezielte GUI-Prüfungen bestanden. Neustart aus demselben Profil für Google
+Drive, OneDrive, Dropbox, iCloud, SFTP, FTP und FTPS: Name/Typ bleiben erhalten,
+vorhandene synthetische Zugangsdaten unverändert und Öffnen startet keinen
+Anmeldeaufruf. Mount-Aufruf dabei ersetzt, kein echter Server-Zugang behauptet.
+Vier Cloud-Abschlussfälle wählen den gerade gespeicherten Ort und öffnen ihn
+bei weiterem Klick ohne neue Anmeldung oder doppelte Verknüpfung. Die aktuelle
+Auswahl bleibt beim Öffnen maßgeblich. iCloud-Website-Klick startet ausdrücklich
+keine Dateiverbindung und speichert keinen Ort.
+
+Reale, begrenzte Leseprüfungen am 13.10.2026 mit den gespeicherten Konten:
+OneDrive (20 Stammordner, 0,8 s), Dropbox (3, 0,4 s), iCloud Drive (6, 0,4 s)
+und Google Drive (18, 2,2 s) erfolgreich ohne neue Anmeldung. Nur Ordnerlisten,
+keine Testdateien angelegt oder verändert. iCloud hat inzwischen Cookies und
+Trust-Token sowie einen gespeicherten Ort. Google-Dienst aktiv. Das bestätigt
+den aktuellen Zugriff; kein Dauerlauf und keine Garantie gegen Sitzungsauslauf.
+Keine vollständige Suite für diese Änderung.
+
 ## iCloud-SMS anfordern und erneut senden: 0.3.25rc10
 
 16 gezielte iCloud-GUI-Prüfungen bestanden. Neue Fälle prüfen die erste SMS-

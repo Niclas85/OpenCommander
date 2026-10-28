@@ -385,7 +385,7 @@ def transfer(engine, identifier):
             if root['status'] in ('done', 'renamed', 'cleanup'):
                 size, files = root['size'], root['files']
                 credited_roots.add(index)
-            elif root['status'] in ('copying', 'published'):
+            elif root['status'] in ('copying', 'publishing', 'published'):
                 size, files = completed.get(index, (0, 0))
                 engine.transfer_metrics['resume_files_total'] += files
                 engine.transfer_metrics['resume_bytes_total'] += size
@@ -404,6 +404,15 @@ def transfer(engine, identifier):
             source = Path(root['source'])
             if root['status'] == 'done':
                 continue
+            if root['status'] == 'publishing':
+                # A rejected no-replace rename leaves the complete payload in
+                # staging. Retry only this unambiguous, unpublished case. The
+                # normal copy path verifies completed checkpoints without writes.
+                stage = staging_for(job, root)
+                if (not exists(Path(root['target'])) and exists(stage / 'payload') and
+                        not exists(stage / 'previous') and not root.get('backup')):
+                    root['status'] = 'copying'
+                    store.save(job)
             if root['status'] in ('publishing', 'renaming', 'source-moving'):
                 raise SafetyError(f'Unterbrochene Veröffentlichung prüfen / Inspect interrupted publication: {root["target"]}\n{root["staging"]}')
             if root['status'] == 'pending':
@@ -455,6 +464,7 @@ def transfer(engine, identifier):
                     engine.deferred_copy_checks = None
                     engine.resuming_copy = None
                 engine.check_cancel()
+                engine.report_transfer('publishing', source.name)
                 root['status'] = 'publishing'
                 store.save(job)
                 backup = engine.publish(stage / 'payload', target, job['conflict'] == 'replace' and source != target)

@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+import time
 
 from PySide6.QtCore import QLockFile, QTimer
 from PySide6.QtWidgets import QApplication
@@ -114,18 +115,61 @@ def main():
         task = Task(lambda: online_image(entry, QSize(96, 64), threading.Event()))
         task.signals.result.connect(lambda value, error: smoke_download.__setitem__(0, not error and not value.isNull()))
         window.start_background(task)
+        # Exercise the actual view action, durable queue, worker completion,
+        # refresh and 100% card, not only FileEngine in a separate fixture.
+        gui_source, gui_target = copy_root / 'gui-source', copy_root / 'gui-target'
+        gui_source.mkdir(); gui_target.mkdir()
+        project = gui_source / 'GUI-Kopiertest'
+        project.mkdir()
+        (project / 'data.bin').write_bytes(b'g' * 2 * 1024**2)
+        (project / 'Grüße.txt').write_text('GUI copy fixture')
+        window.panes[0].navigate(gui_source)
+        window.panes[1].navigate(gui_target)
+        smoke_copy = dict(done=False, error=None, deadline=time.monotonic()+20)
+        def copied(value):
+            try:
+                if value:
+                    raise RuntimeError(str(value))
+                assert (gui_target / project.name / 'data.bin').read_bytes() == (project / 'data.bin').read_bytes()
+                assert (gui_target / project.name / 'Grüße.txt').read_text() == 'GUI copy fixture'
+                card = next(iter(window.transfers.cards.values()))
+                assert card.state == 'complete' and card.progress.value() == 100
+                assert not window.engine.transfers.jobs()
+            except Exception as error:
+                smoke_copy['error'] = str(error) or type(error).__name__
+            smoke_copy['done'] = True
+        window.operation_finished.connect(copied)
+        def start_gui_copy():
+            if time.monotonic() >= smoke_copy['deadline']:
+                smoke_copy.update(done=True, error='GUI listing timeout')
+                return
+            pane = window.panes[0]
+            if not any(entry.path == project for entry in pane.model.entries):
+                QTimer.singleShot(20, start_gui_copy)
+                return
+            row = next(i for i, entry in enumerate(pane.model.entries) if entry.path == project)
+            pane.table.selectRow(pane.proxy.mapFromSource(pane.model.index(row, 0)).row())
+            window.activate(pane)
+            window.actions['copy'].trigger()
+        QTimer.singleShot(0, start_gui_copy)
     if args.screenshot or args.smoke_test:
         def finish():
+            if args.smoke_test and not smoke_copy['done'] and time.monotonic() < smoke_copy['deadline']:
+                QTimer.singleShot(100, finish)
+                return
             if args.screenshot:
                 args.screenshot.parent.mkdir(parents=True, exist_ok=True)
                 if not window.grab().save(str(args.screenshot)):
                     exit_status[0] = 1
             if args.smoke_test:
-                if window.preview_dialog.current_image.isNull() or not smoke_download[0]:
+                if not smoke_copy['done'] or smoke_copy['error']:
+                    exit_status[0] = 1
+                    print('FAIL: GUI copy/queue completion:', smoke_copy['error'] or 'timeout')
+                elif window.preview_dialog.current_image.isNull() or not smoke_download[0]:
                     exit_status[0] = 1
                     print('FAIL: media preview did not load')
                 else:
-                    print('PASS: Linux desktop, JPEG viewer, online-image download, TAR/7z, external Drive menu and persisted copy pause/resume')
+                    print('PASS: Linux desktop, GUI Copy action/queue/100% completion, JPEG viewer, online-image download, TAR/7z, external Drive menu and persisted copy pause/resume')
                 window.close()
         QTimer.singleShot(2000, finish)
     result = app.exec()

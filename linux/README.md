@@ -273,8 +273,15 @@ Eine Anmeldung bei Benutzerkonten wird nicht ohne Benutzereingabe durchgeführt.
 Client-ID-/Secret-Fragen entfallen. Nach erfolgreicher Anmeldung und Laufwerkswahl
 wird der Ordner automatisch im aktiven Bereich geöffnet. **Erneut anmelden**
 aktualisiert abgelaufene Verbindungen; vorher einen aktiven Mount trennen.
+Nach erfolgreicher Einrichtung bleibt genau dieser gespeicherte Ort im
+Assistenten ausgewählt. **Gespeicherten Ort öffnen** öffnet ihn erneut, ohne
+eine neue Anmeldung oder eine weitere Verknüpfung anzulegen. Nach einem
+Neustart den vorhandenen Ort links anklicken; **Neue Anmeldung beginnen**
+wird dafür nicht benötigt. Die App speichert Cloud-Tokens und Apple-Sitzungen
+im privaten Profil. Bei Server-Passwörtern bleibt die Wahl „im Schlüsselbund
+speichern“ maßgeblich; eine reine Sitzungsanmeldung fragt das Passwort erneut ab.
 
-**iCloud Drive im Browser öffnen** öffnet Apples iCloud-Webansicht mit der
+**iCloud.com ansehen (keine App-Verbindung)** öffnet Apples iCloud-Webansicht mit der
 Anmeldung auf iCloud.com. Diese Website-Anmeldung richtet keine Dateiverbindung
 in OpenCommander ein und speichert keinen verbundenen Ort in der App.
 **iCloud: Mit Apple-ID verbinden** benötigt das reguläre Apple-Passwort und 2FA
@@ -492,7 +499,8 @@ Linux verwendet vorhandene Treiber und Zugriffsrechte. NTFS kann geschrieben
 werden, wenn das Laufwerk mit einem schreibfähigen Linux-Treiber (beispielsweise
 ntfs3 oder ntfs-3g) schreibbar eingebunden ist und die Benutzerrechte es erlauben.
 OpenCommander bindet ein schreibgeschütztes NTFS-Laufwerk nicht automatisch
-schreibbar um; ein NTFS-Schreibtest gehört nicht zum unten dokumentierten Testumfang. Die experimentelle macOS-
+schreibbar um. Ein eigener kleiner Testordner auf NTFS-3G wurde für die
+Übernahme einer Kopie und Konfliktschutz geprüft (siehe TESTING.md). Die experimentelle macOS-
 NTFS-Erweiterung wird nicht portiert, installiert oder aktiviert. Quick Look und vollständige Parität
 mit allen Mac-Funktionen gehören nicht zu dieser ersten Linuxversion.
 
@@ -561,7 +569,28 @@ Libarchive und die Python-Anbindung sind im portablen Paket enthalten. Grenzen:
 100.000 Einträge, insgesamt 4 GiB unkomprimiert, Vorschau 128 MiB; keine
 Links/Spezialdateien oder Pfade außerhalb des Zielordners. Kein Passwort-Assistent
 für verschlüsselte Archive; je nach Format/Variante wird eine Fehlermeldung angezeigt.
-Rechtsklick in eine leere Ordnerfläche bietet Neuer Ordner, Einfügen und Aktualisieren.
+Rechtsklick in eine leere Ordnerfläche bietet **Neu → Ordner / Textdatei**,
+Einfügen und Aktualisieren. Dasselbe Neu-Menü ist in der Werkzeugleiste verfügbar.
+**Strg+Alt+N** öffnet den Namensdialog für eine neue leere Textdatei. Vorhandene
+Dateien werden nicht geleert; Rückgängig bleibt möglich. Archive tragen ein
+eigenes Symbol und „Archiv“ im Dateityp.
+
+Bei erneutem Kopieren derselben Quellen ins gleiche Ziel wird ein vorhandener
+unfertiger Auftrag ausgewählt und fortgesetzt. Ein zweiter Klick startet keine
+zweite Kopie hinter dem laufenden Auftrag. Wartet eine Kopie auf einen anderen
+Auftrag, zeigen Titel und Details dessen Namen/ID. Den früheren Auftrag
+fortsetzen oder mit Abbrechen seinen unveröffentlichten Zwischenstand entfernen;
+danach kann die wartende Kopie laufen. Nach einem abgeschlossenen Auftrag kann
+eine weitere Kopie wie gewohnt gestartet werden.
+
+Die Abschlussprüfung zeigt separat geprüfte Bytes und Prozent. Die Phase
+„Zielordner übernehmen“ benennt den fertigen Zwischenstand in den Zielnamen um.
+Scheitert das bei einem NTFS-/FAT-Treiber an der nicht unterstützten
+No-Replace-Funktion, wird auf demselben Laufwerk nach Konfliktprüfung umbenannt.
+Diese Ersatzfunktion ist gegenüber gleichzeitig arbeitenden anderen Clients
+nicht atomar. Nach einem früheren Fehler kann **Fortsetzen** den vollständig
+kopierten Zwischenstand prüfen und übernehmen, sofern der Zustand eindeutig
+ist; fertige Dateien werden dabei nicht neu kopiert.
 
 Online-Videos und Audio werden vor der Wiedergabe lokal zwischengespeichert,
 damit Wiedergabe und Springen in der Zeitleiste nicht von einzelnen langsamen

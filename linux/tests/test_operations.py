@@ -23,6 +23,39 @@ def write(path, value='fixture content'):
     return path
 
 
+@pytest.mark.parametrize('conflict',[False,True])
+def test_ntfs_unsupported_no_replace_uses_guarded_rename_without_overwrite(fixture,monkeypatch,conflict):
+    from opencommander import transfer_store
+    engine,left,right=fixture
+    source=left/'folder';source.mkdir();(source/'data').write_text('original')
+    target=left/'renamed'
+    if conflict:target.symlink_to(left/'missing')
+    class Rename:
+        def __call__(self,*args):
+            ops.ctypes.set_errno(errno.EINVAL);return -1
+    class Lib:renameat2=Rename()
+    monkeypatch.setattr(ops.ctypes,'CDLL',lambda *a,**kw:Lib())
+    monkeypatch.setattr(transfer_store,'mount_identity',lambda p:dict(root=str(left),filesystem='fuseblk',device='fixture'))
+    if conflict:
+        with pytest.raises(FileExistsError):ops.rename_new(source,target)
+        assert source.is_dir() and target.is_symlink()
+    else:
+        ops.rename_new(source,target)
+        assert not source.exists() and (target/'data').read_text()=='original'
+
+
+def test_new_text_file_does_not_truncate_existing_files_and_can_be_undone(fixture):
+    engine,left,right=fixture
+    engine.new_file(left,'Notizen.txt')
+    assert (left/'Notizen.txt').read_bytes()==b''
+    with pytest.raises(FileExistsError):engine.new_file(left,'Notizen.txt')
+    engine.undo()
+    assert not (left/'Notizen.txt').exists()
+    (left/'Notizen.txt').write_text('keep')
+    with pytest.raises(FileExistsError):engine.new_file(left,'Notizen.txt')
+    assert (left/'Notizen.txt').read_text()=='keep'
+
+
 def test_copy_unicode_and_persistent_undo(fixture):
     engine, left, right = fixture
     source = write(left / 'Grüße 日本語.txt')

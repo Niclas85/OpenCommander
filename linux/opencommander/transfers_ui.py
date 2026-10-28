@@ -69,6 +69,7 @@ class TransferCard(QFrame):
         self.pause_requested_at = None
         self.previous_elapsed = job.get('elapsed', 0)
         self.error = job.get('error') or ''
+        self.blocked_by = ()
         self.reserved = resources(job)
         self.task = self.engine = None
         self.pending_metrics = None
@@ -142,7 +143,7 @@ class TransferCard(QFrame):
         language = self.manager.window.language
         # Settled cards need no repeated text/layout work. Active elapsed time
         # only changes once per second; fresh metrics still render at 250 ms.
-        render_key = (language, self.manager.window.closing, self.state, self.error,
+        render_key = (language, self.manager.window.closing, self.state, self.error, self.blocked_by,
                       self.minimize.isChecked(), self.metrics, self.previous_elapsed,
                       int(time.monotonic() - self.started) if self.started else None)
         if getattr(self, '_render_key', None) == render_key:
@@ -200,6 +201,7 @@ class TransferCard(QFrame):
                       'resuming': ('Gespeicherten Stand prüfen · kein erneutes Kopieren', 'Checking saved progress · not copying again'),
                       'checking_partial': ('Angefangene Datei prüfen', 'Checking partial file'),
                       'verifying': ('Prüfen und abschließen', 'Verifying and finalizing'),
+                      'publishing': ('Zielordner übernehmen', 'Publishing destination'),
                       'uploading': ('Schreiben abschließen / Upload', 'Finishing writes / upload'),
                       'cleanup': ('Quelle bereinigen', 'Cleaning up source')}
             label = phases.get(phase, (kind, kind))[0 if de else 1]
@@ -212,6 +214,18 @@ class TransferCard(QFrame):
             details = (f'{label} · {percent}% · {human_size(count)} / {human_size(total)} · '
                            f'{value["files_done"]} / {value["files_total"]} {"Dateien" if de else "files"}\n'
                            f'{"Zeit insgesamt (aktiv)" if de else "Total active time"} {clock(elapsed)} · {human_size(rate)}/s{eta}\n{value["name"]}')
+            if phase == 'verifying':
+                checked = min(total, value.get('verify_bytes_checked', 0))
+                check_percent = int(checked * 100 / total) if total else 0
+                self.progress.setValue(check_percent)
+                details = f'{label} · {check_percent}% · {human_size(checked)} / {human_size(total)}\n{value["name"]}'
+                if minimized:
+                    self.title.setText(f'{kind} · {name} · {state} · {label} {check_percent}%')
+            elif phase == 'publishing':
+                if self.state == 'running':
+                    self.progress.setRange(0, 0)
+                if minimized:
+                    self.title.setText(f'{kind} · {name} · {state} · {label}')
             if phase == 'resuming' and value.get('resume_files_total'):
                 checked = value.get('resume_bytes_checked', 0)
                 check_total = value.get('resume_bytes_total', 0)
@@ -248,6 +262,13 @@ class TransferCard(QFrame):
             details += '\n' + self.error
         elif self.job.get('last_error'):
             details += '\n' + ('Letzter Fehler vor Fortsetzung: ' if de else 'Last error before resume: ') + self.job['last_error']
+        if self.state == 'waiting' and self.blocked_by:
+            blockers = ', '.join(self.blocked_by)
+            details += ('\nWartet auf: ' if de else '\nWaiting for: ') + blockers
+            details += ('\nDiesen früheren Auftrag fortsetzen oder seinen Zwischenstand mit Abbrechen entfernen.' if de else
+                        '\nResume the earlier job or cancel it to discard its partial staging.')
+            if minimized:
+                self.title.setText(f'{kind} · {name} · {state} · {blockers}')
         self.details.setText(details)
         self.title.setToolTip(self.route.text() + '\n' + details)
         self.progress.setToolTip(details)
@@ -406,7 +427,9 @@ class TransferOverview(QWidget):
             card = self.cards[identifier]
             prior = [c for c in self.cards.values() if c is not card and c.state not in ('complete', 'cancelled')
                      and (c.job['created'] < card.job['created'] or c.job['id'] in self.active)]
-            if any(conflicts(card.reserved, c.reserved) for c in prior):
+            blockers = [c for c in prior if conflicts(card.reserved, c.reserved)]
+            card.blocked_by = tuple(', '.join(Path(p).name for p in c.job['sources']) + ' [' + c.job['id'][:8] + ']' for c in blockers)
+            if blockers:
                 card.state = 'waiting'
                 continue
             w.operation_queue.remove((callback, after, identifier))
