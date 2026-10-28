@@ -8,23 +8,13 @@ import subprocess
 from PySide6.QtCore import QUrl
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QMessageBox
-
-
-def host_environment():
-    env = os.environ.copy()
-    if 'LD_LIBRARY_PATH_ORIG' in env:
-        env['LD_LIBRARY_PATH'] = env.pop('LD_LIBRARY_PATH_ORIG')
-    else:
-        env.pop('LD_LIBRARY_PATH', None)
-    env.pop('QT_PLUGIN_PATH', None)
-    env.pop('QT_QPA_PLATFORM_PLUGIN_PATH', None)
-    return env
+from .platform_support import host_environment
 
 
 def folder_argument(value):
     if value.startswith('file:'):
         url = QUrl(value)
-        if not url.isLocalFile() or url.host() not in ('', 'localhost'):
+        if not url.isLocalFile() or (os.name != 'nt' and url.host() not in ('', 'localhost')):
             raise ValueError('Only local folder URLs are supported.')
         value = url.toLocalFile()
     elif '://' in value:
@@ -86,6 +76,9 @@ def listen(window, name):
 
 
 def ask_default(window):
+    if os.name == 'nt':
+        from .windows_shell import ask_default as windows_default
+        return windows_default(window)
     settings = window.settings
     if settings.value('default_manager_prompted', False, type=bool):
         return

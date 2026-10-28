@@ -1,4 +1,5 @@
 import time
+import os
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,11 @@ def app():
     return QApplication.instance() or QApplication([])
 
 
-def wait(app, predicate, timeout=5):
+def wait(app, predicate, timeout=None):
+    # Cold helper startup and filesystem scans on hosted Windows runners can
+    # exceed five seconds. Explicit interaction deadlines keep their own limits.
+    if timeout is None:
+        timeout = 20 if os.name == 'nt' else 5
     until = time.monotonic() + timeout
     while time.monotonic() < until:
         app.processEvents()
@@ -466,7 +471,7 @@ def test_audio_opens_in_media_viewer_and_stops_on_close(window, app):
         output.writeframes(b'\x00\x00' * 8000)
     window.open_entry(Entry(path.name, path, False))
     viewer = window.preview_dialog
-    wait(app, lambda: viewer.player.source().toLocalFile() == str(path))
+    wait(app, lambda: Path(viewer.player.source().toLocalFile()) == path)
     assert viewer.play.isEnabled()
     wait(app, lambda: viewer.player.duration() > 0)
     viewer.shutdown()
@@ -533,6 +538,9 @@ def test_mouse_gesture_starts_drag_and_transfers(window, app, move, target_kind)
         wait(app, lambda: right.proxy.rowCount() == 1)
     if target_kind == 'tree':
         index = right.tree_model.index(str(destination))
+        # Keep this synthetic drop target independent of host drive enumeration
+        # and asynchronous expansion/scrolling of the full filesystem tree.
+        right.tree.setRootIndex(right.tree_model.index(str(right.directory)))
         right.tree.expand(right.tree_model.index(str(right.directory)))
         right.tree.scrollTo(index)
         wait(app, lambda: right.tree.visualRect(index).isValid())
@@ -641,7 +649,7 @@ def test_drag_folder_into_its_child_is_rejected_before_transfer(window, app):
     child = source / 'Child'
     child.mkdir(parents=True)
     left.refresh(); right.navigate(child)
-    wait(app, lambda: left.proxy.rowCount() == 1)
+    wait(app, lambda: left.proxy.rowCount() == 1 and left.model.entries[0].path == source)
     from PySide6.QtCore import QPoint
     point = right.table.viewport().mapToGlobal(QPoint(20, 150))
     viewport, drag = begin_file_drag(window, app)
@@ -1208,13 +1216,13 @@ def test_copy_progress_has_totals_and_keeps_summary(window, app):
     window.activate(left)
     window.transfer(False)
     wait(app, lambda: not window.busy)
-    details = window.transfer_details.text()
+    details = next(iter(window.transfers.cards.values())).details.text()
     assert '100%' in details
     assert '1 / 1' in details
     assert '/s' in details
     assert 'Zeit ' in details or 'Time ' in details
     assert ' s' in details
-    assert window.transfer_details.isVisible()
+    assert next(iter(window.transfers.cards.values())).title.isVisible()
     assert (right.directory / 'Grüße.txt').exists()
 
 
@@ -1593,6 +1601,36 @@ def test_cloud_share_dialog_async_progress_result_and_cancel(window, app, monkey
     assert cancelled.url.text() == ''
 
 
+@pytest.mark.parametrize('succeeds', [True, False])
+def test_connect_dialogs_close_only_after_successful_saved_connection(window, app, monkeypatch, tmp_path, succeeds):
+    from opencommander import online_ui
+    import opencommander.ui as ui
+    root = tmp_path / 'connected'; root.mkdir()
+    profile = dict(id='oc_dialog_fixture', kind='sftp', name='Fixture server')
+    window.online_profiles = [profile]
+    window.connections()
+    wait(app, lambda: not window.connections_dialog.pending)
+    window.online_locations()
+    dialog = window.online_dialog
+    dialog.reload()
+    dialog.saved.setCurrentIndex(dialog.saved.findData(profile))
+    monkeypatch.setattr(ui, 'remote_location', lambda _: False)
+    def connect(*_):
+        if not succeeds:
+            raise RuntimeError('Synthetic connection failure')
+        return root
+    monkeypatch.setattr(online_ui, 'mount_profile', connect)
+    dialog.open_saved()
+    wait(app, lambda: not window.opening_online)
+    if succeeds:
+        assert window.active.directory == root
+        assert not dialog.isVisible() and not window.connections_dialog.isVisible()
+        assert not window.connections_dialog.timer.isActive()
+    else:
+        assert dialog.isVisible() and window.connections_dialog.isVisible()
+        assert 'Synthetic connection failure' in window.status.text()
+
+
 def test_saved_online_place_opens_directly_without_settings(window, app, monkeypatch):
     from opencommander import online_ui
     import opencommander.ui as ui
@@ -1686,6 +1724,8 @@ def test_onedrive_context_menu_opens_for_remote_file_and_folder(window, app, mon
 
 def test_sidebar_shows_unmounted_drive_mounts_and_opens_without_dialog(window, app, monkeypatch):
     from opencommander import integrations
+    wait(app, lambda: not window.integration_scanning)
+    window.integration_timer.stop()  # Keep the fake device independent of real host scans.
     mount = window.state_dir.parent / 'USB-test'
     mount.mkdir()
     device = dict(id='fixture-volume', name='Reise USB', path=None, mounted=False, kind='Drive', eject=False, unmount=False)
@@ -1800,7 +1840,13 @@ def test_cloud_list_retains_files_on_transient_error_and_stops_retry_after_navig
         return reply
     monkeypatch.setattr(online_ui, 'list_cloud', cloud_list)
     scheduled = []
-    monkeypatch.setattr(QTimer, 'singleShot', lambda delay, *args: scheduled.append((delay, args[-1])))
+    real_single_shot = QTimer.singleShot
+    def schedule_retry(delay, *args):
+        if delay in (10000, 20000):
+            scheduled.append((delay, args[-1]))
+        else:
+            real_single_shot(delay, *args)
+    monkeypatch.setattr(QTimer, 'singleShot', schedule_retry)
     pane.navigate(root)
     wait(app, lambda: pane.proxy.rowCount() == 1 and not pane.loading_bar.isVisible())
     pane.refresh()
@@ -2235,6 +2281,9 @@ def test_transfer_resource_checks_never_probe_provider_paths(tmp_path, monkeypat
     remote = tmp_path / 'provider'
     remote.mkdir()
     monkeypatch.setattr(fs, 'remote_location', lambda path: remote == Path(path) or remote in Path(path).parents)
+    if os.name == 'nt':
+        from opencommander import provider_mounts
+        monkeypatch.setattr(provider_mounts, '_roots', {remote})
     probe = Path.is_symlink
     def local_only(path):
         assert not fs.remote_location(path), 'GUI must not stat a provider'
@@ -2776,7 +2825,8 @@ def test_transfer_details_copy_includes_saved_error_and_route(window):
     text = QApplication.clipboard().text()
     assert job['id'] in text and job['sources'][0] in text
     assert job['directory'] in text and job['last_error'] in text
-    assert 'OpenCommander Linux' in text
+    from opencommander.platform_support import PLATFORM_NAME
+    assert 'OpenCommander ' + PLATFORM_NAME in text
     card.minimize.setChecked(True)
     assert card.copy_details.isHidden()
     window.engine.transfers.delete(job['id'])
@@ -3068,7 +3118,9 @@ def test_publisher_native_oauth_saves_private_token_and_avoids_second_login(wind
     section=parser[dialog.profile['id']]
     assert section['client_id']==data['client_id'] and section['client_secret']==''
     assert section['oc_oauth_flow']=='pkce' and json.loads(section['token'])==obtained
-    assert dialog.config.stat().st_mode & 0o777 == 0o600
+    import os
+    if os.name != 'nt':
+        assert dialog.config.stat().st_mode & 0o777 == 0o600
     assert obtained['access_token'] not in str(window.settings.value('online_profiles'))
     dialog.state='';dialog.close()
 

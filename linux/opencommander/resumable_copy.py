@@ -14,8 +14,9 @@ import tempfile
 import time
 
 from .operations import (Cancelled, SafetyError, exists, selected_roots,
-                         validate_target, unique_path, rename_new, safe_snapshot)
+                         validate_target, unique_path, rename_new, safe_snapshot, recorded_snapshot)
 from .transfer_store import mount_identity
+from .platform_support import is_link, canonical_path
 
 
 def signature(info):
@@ -23,6 +24,9 @@ def signature(info):
 
 
 def open_regular(path, flags):
+    if os.name == 'nt':
+        from .windows_native import open_regular as windows_open
+        return windows_open(path, flags)
     fd = os.open(path, flags | os.O_NOFOLLOW)
     if not stat.S_ISREG(os.fstat(fd).st_mode):
         os.close(fd)
@@ -100,12 +104,12 @@ def copy_file(engine, source, target):
             if not target.is_symlink() or os.readlink(target) != link:
                 raise SafetyError(f'Zwischenstand geändert / Partial copy changed: {target}')
         else:
-            os.symlink(link, target)
+            os.symlink(link, target, target_is_directory=bool(getattr(info, 'st_file_attributes', 0) & 16))
     elif stat.S_ISDIR(info.st_mode):
         if sorted(child.name for child in source.iterdir()) != saved['children']:
             raise SafetyError(f'Quellordner geändert / Source folder changed: {source}')
         if exists(target):
-            if target.is_symlink() or not target.is_dir() or any(child.name not in saved['children'] for child in target.iterdir()):
+            if is_link(target) or not target.is_dir() or any(child.name not in saved['children'] for child in target.iterdir()):
                 raise SafetyError(f'Zwischenordner geändert / Partial folder changed: {target}')
         else:
             target.mkdir()
@@ -120,7 +124,16 @@ def copy_file(engine, source, target):
             offset = 0
             with os.fdopen(open_regular(source, os.O_RDONLY), 'rb') as inp:
                 if exists(target):
+                    from .provider_mounts import portable
+                    if portable(target):
+                        # A paused upload can still have rclone's synthetic
+                        # timestamp cached. Refresh before opening the read-only
+                        # verification handle so both metadata checks describe
+                        # the device object, not two different cache generations.
+                        from .windows_devices import settle
+                        settle(target)
                     with os.fdopen(open_regular(target, os.O_RDONLY), 'rb') as previous:
+                        partial_info = os.fstat(previous.fileno())
                         while True:
                             engine.check_cancel()
                             block = previous.read(1024 * 1024)
@@ -136,7 +149,7 @@ def copy_file(engine, source, target):
                     # writing, since cloud mounts may upload on writable close.
                     fd = None
                     if offset < info.st_size:
-                        from .provider_mounts import rclone_mount
+                        from .provider_mounts import rclone_mount, portable
                         engine.check_cancel()
                         if rclone_mount(target) is not None:
                             # Cache-off rclone accepts an append descriptor but
@@ -145,7 +158,22 @@ def copy_file(engine, source, target):
                             # Finished files above remain read-only. Be conservative
                             # for external mounts whose cache mode can change.
                             inp.seek(0)
-                            fd = open_regular(target, os.O_WRONLY | os.O_TRUNC)
+                            if portable(target):
+                                # The device bridge rejects replacement PUTs.
+                                # This is exclusively our incomplete staging
+                                # file, whose entire prefix was just compared to
+                                # the source. Recreate it with exclusive creation
+                                # rather than asking WPD to overwrite an object.
+                                current_partial = target.lstat()
+                                if (not stat.S_ISREG(current_partial.st_mode) or current_partial.st_size != offset or
+                                        (current_partial.st_dev, current_partial.st_ino, current_partial.st_mtime_ns) !=
+                                        (partial_info.st_dev, partial_info.st_ino, partial_info.st_mtime_ns)):
+                                    raise SafetyError(f'Zwischenstand geändert / Partial copy changed: {target}')
+                                target.unlink()
+                                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+                                             getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_BINARY', 0), 0o600)
+                            else:
+                                fd = open_regular(target, os.O_WRONLY | os.O_TRUNC)
                             digest = hashlib.sha256()
                             offset = 0
                             engine.compatibility_warnings.add(
@@ -157,7 +185,7 @@ def copy_file(engine, source, target):
                                 os.close(fd)
                                 raise SafetyError(f'Zwischenstand geändert / Partial copy changed: {target}')
                 else:
-                    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_BINARY', 0), 0o600)
                 engine.bytes_done += offset
                 engine.transfer_metrics['bytes_resumed'] += offset
                 if fd is not None:
@@ -210,7 +238,7 @@ def staging_for(job, root):
     stage = Path(root['staging'])
     if stage.parent != Path(job['directory']) or not stage.name.startswith('.OpenCommanderTransfer-'):
         raise SafetyError(f'Invalid copy staging: {stage}')
-    if exists(stage) and (stage.is_symlink() or not stage.is_dir()):
+    if exists(stage) and (is_link(stage) or not stage.is_dir()):
         raise SafetyError(f'Copy staging changed: {stage}')
     return stage
 
@@ -271,10 +299,10 @@ def finish_move(engine, job, index, root, operation):
             engine.save()
         engine.transfers.save(job)
     backup = Path(root['source_backup'])
-    if backup.parent.parent != source.parent or not backup.parent.name.startswith('.OpenCommanderMove-') or backup.name != source.name or backup.parent.is_symlink():
+    if backup.parent.parent != source.parent or not backup.parent.name.startswith('.OpenCommanderMove-') or backup.name != source.name or is_link(backup.parent):
         raise SafetyError('Ungültiger Verschiebe-Zwischenstand / Invalid move recovery path')
     # A restart must verify the only published original before continuing cleanup.
-    if safe_snapshot(target, engine.check_cancel) != record['snapshot'] or record['snapshot'] is None:
+    if recorded_snapshot(record, target, engine.check_cancel) != record['snapshot'] or record['snapshot'] is None:
         raise SafetyError('Ziel geändert; Quellkopie bleibt erhalten / Changed target; source backup retained')
     engine.report_transfer('cleanup', source.name)
     if exists(backup):
@@ -352,7 +380,7 @@ def transfer(engine, identifier):
         directory = Path(job['directory'])
         if not directory.is_dir():
             raise NotADirectoryError(str(directory))
-        if directory.resolve() == engine.state_dir.resolve() or engine.state_dir.resolve() in directory.resolve().parents:
+        if canonical_path(directory) == canonical_path(engine.state_dir) or canonical_path(engine.state_dir) in canonical_path(directory).parents:
             raise SafetyError('The recovery profile cannot be a destination')
         if job['roots'] is None:
             sources = selected_roots(job['sources'])
@@ -426,9 +454,9 @@ def transfer(engine, identifier):
                 target = unique_path(directory, source.name) if job['conflict'] == 'keep' or source == preferred else preferred
                 if job.get('legacy_staging'):
                     stage = Path(job['legacy_staging'])
-                    if stage.parent != directory or not stage.name.startswith('.OpenCommanderTransfer-') or stage.is_symlink() or not stage.is_dir():
+                    if stage.parent != directory or not stage.name.startswith('.OpenCommanderTransfer-') or is_link(stage) or not stage.is_dir():
                         raise SafetyError('Invalid legacy copy staging')
-                    if exists(stage / 'previous') or not exists(stage / 'payload') or stage.joinpath('payload').is_symlink():
+                    if exists(stage / 'previous') or not exists(stage / 'payload') or is_link(stage / 'payload'):
                         raise SafetyError('Legacy staging requires inspection; original or payload not identifiable')
                 else:
                     stage = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=directory))

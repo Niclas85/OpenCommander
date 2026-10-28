@@ -1,5 +1,17 @@
 # Unveröffentlicht – gemeinsame Cloud-Anmeldung vorbereiten
 
+## Zusammenführung mit parallelem Desktop-Stand am 28.10.2026
+
+Die Linux-Kopierkorrekturen mit dem inzwischen auf GitHub fortgeschrittenen
+Stand `e3b2981` zusammengeführt. Gemeinsame Windows-Plattforminitialisierung,
+Google-Assistent, gerätespezifisches Öffnen und Cloud-Snapshotformat 2 bleiben
+erhalten; die Fortschrittsrückmeldung beim Hashen gilt auch im gemeinsamen Code.
+264 Prüfungen für Dateioperationen, Wiederaufnahme, Oberfläche und Cloud-Anmeldung
+unter Linux bestanden. Erweiterter GUI-Smoke-Test mit JSON-Bericht ebenfalls
+erfolgreich (`ok` und `gui_copy` wahr). Python-Syntaxprüfung für gemeinsamen Code
+und Windows-Dateien bestanden. Kein erneuter Windows-Live-Lauf auf diesem
+Linux-Rechner; die vorhandenen Windows-Abnahmen bleiben separat dokumentiert.
+
 ## Kopieren über Oberfläche und Warteschlange: 0.3.25rc13
 
 16 gezielte GUI-Prüfungen bestanden: echte Kopieraktion, Zwischenablage,

@@ -16,6 +16,9 @@ from .cloud_listing import CloudError, provider_error
 
 
 def evicted_target(path):
+    if os.name == 'nt':
+        from .windows_mounts import evicted_target as windows_evicted
+        return windows_evicted(path)
     from .external_cloud import discover
     from .provider_mounts import rclone_mount
     path = Path(os.path.abspath(path))

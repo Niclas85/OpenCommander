@@ -27,6 +27,9 @@ def remote_for(profile, relative):
 
 
 def discover(proc=Path('/proc'), home=None):
+    if os.name == 'nt':
+        from .windows_mounts import discover as windows_discover
+        return windows_discover()
     from .provider_mounts import rclone_mount
     result = []
     home = Path(home or Path.home())

@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import stat
 import zipfile
+from types import SimpleNamespace
 
 import pytest
 from opencommander import operations as ops
@@ -123,6 +124,68 @@ def test_same_size_edit_even_with_original_mtime_stops_undo(fixture):
     with pytest.raises(SafetyError):
         engine.undo()
     assert target.read_text() == 'two'
+
+
+@pytest.mark.parametrize('change', ['inode', 'content', 'metadata', 'mount'])
+def test_provider_undo_after_directory_cache_refresh(fixture, monkeypatch, change):
+    from opencommander import provider_mounts
+    engine, left, right = fixture
+    monkeypatch.setattr(provider_mounts, '_roots', {right})
+    source = write(left / 'existing.txt', 'one')
+    engine.transfer([source], right)
+    target = right / source.name
+    original = target.stat()
+    real_lstat = Path.lstat
+    def refreshed_inode(path, *args, **kwargs):
+        info = real_lstat(path, *args, **kwargs)
+        if path == target:
+            values = {name: getattr(info, name) for name in dir(info) if name.startswith('st_')}
+            values['st_ino'] += 1000
+            return SimpleNamespace(**values)
+        return info
+    monkeypatch.setattr(Path, 'lstat', refreshed_inode)
+    if change == 'content':
+        target.write_text('two')
+        os.utime(target, ns=(original.st_atime_ns, original.st_mtime_ns))
+    elif change == 'metadata':
+        os.utime(target, ns=(original.st_atime_ns, original.st_mtime_ns + 10**9))
+    elif change == 'mount':
+        provider_mounts._roots.clear()
+    restarted = FileEngine(engine.state_dir)
+    if change == 'inode':
+        restarted.undo()
+        assert not target.exists()
+        assert source.read_text() == 'one'
+        assert any(p.read_text() == 'one' for p in right.glob('.OpenCommanderUndo-*/*'))
+    else:
+        with pytest.raises(SafetyError):
+            restarted.undo()
+        assert target.read_text() == ('two' if change == 'content' else 'one')
+
+
+def test_legacy_provider_snapshot_keeps_original_identity_guard(fixture, monkeypatch):
+    from opencommander import provider_mounts
+    engine, left, right = fixture
+    monkeypatch.setattr(provider_mounts, '_roots', {right})
+    source = write(left / 'legacy.txt')
+    engine.transfer([source], right)
+    target = right / source.name
+    record = engine.history[-1]['records'][0]
+    record.pop('snapshot_version')
+    record['snapshot'] = ops.fingerprint(target)
+    engine.save()
+    real_lstat = Path.lstat
+    def refreshed_inode(path, *args, **kwargs):
+        info = real_lstat(path, *args, **kwargs)
+        if path == target:
+            values = {name: getattr(info, name) for name in dir(info) if name.startswith('st_')}
+            values['st_ino'] += 1000
+            return SimpleNamespace(**values)
+        return info
+    monkeypatch.setattr(Path, 'lstat', refreshed_inode)
+    with pytest.raises(SafetyError):
+        FileEngine(engine.state_dir).undo()
+    assert target.read_bytes() == source.read_bytes()
 
 
 def test_new_folder_child_stops_undo(fixture):

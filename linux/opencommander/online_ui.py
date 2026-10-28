@@ -13,6 +13,7 @@ import weakref
 import time
 import uuid
 import re
+import queue
 from datetime import datetime
 from pathlib import Path
 from PySide6.QtCore import Qt, Signal, Slot, QUrl, QTimer
@@ -55,6 +56,9 @@ def private_config(state):
     path = Path(state) / 'online' / 'rclone.conf'
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(path.parent, 0o700)
+    if os.name == 'nt':
+        from .windows_native import protect_private_directory
+        protect_private_directory(path.parent)
     descriptor = os.open(path, os.O_CREAT | os.O_WRONLY, 0o600)
     os.close(descriptor)
     os.chmod(path, 0o600)
@@ -125,23 +129,54 @@ def command_json(config, arguments, cancel, result=None, timeout=180, browser_ca
     command = [executable, '--config', str(config), *arguments]
     with subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE, text=True, env=env) as process:
+        # Windows communicate(timeout) does not expose partial stderr. Drain both
+        # pipes ourselves so the browser URL arrives while OAuth is still waiting.
+        output_parts, error_parts, read_errors = [], [], []
+        messages = queue.SimpleQueue()
+        def read_output():
+            try:
+                output_parts.append(process.stdout.read())
+            except Exception as error:
+                read_errors.append(error)
+        def read_errors_stream():
+            try:
+                for line in process.stderr:
+                    error_parts.append(line)
+                    messages.put(line)
+            except Exception as error:
+                read_errors.append(error)
+        readers = [threading.Thread(target=read_output, daemon=True),
+                   threading.Thread(target=read_errors_stream, daemon=True)]
+        for reader in readers:
+            reader.start()
+        def deliver_browser():
+            nonlocal browser_sent
+            while not messages.empty():
+                line = messages.get()
+                if browser_callback is not None and not browser_sent:
+                    url = oauth_browser_url(line)
+                    if url:
+                        browser_sent = True
+                        browser_callback(url)
         deadline = time.monotonic() + timeout
         try:
             while True:
+                deliver_browser()
                 if cancel.is_set():
                     raise RuntimeError('Abgebrochen / Cancelled')
                 if time.monotonic() > deadline:
-                    raise RuntimeError('Online-Anmeldung: Zeitüberschreitung / Authentication timed out')
+                    raise RuntimeError('Browser-Anmeldung abgelaufen. „Neue Anmeldung beginnen“ wählen und nur den neu geöffneten Browser-Tab verwenden. '
+                                       'Die alte Rückleitungsadresse ist nicht mehr erreichbar. / Authentication timed out. Start a new sign-in and use the new browser tab.')
                 try:
-                    output, error_output = process.communicate(timeout=0.1)
+                    process.wait(timeout=0.1)
                     break
-                except subprocess.TimeoutExpired as waiting:
-                    if browser_callback is not None and not browser_sent:
-                        url = oauth_browser_url(waiting.stderr)
-                        if url:
-                            browser_sent = True
-                            browser_callback(url)
+                except subprocess.TimeoutExpired:
                     continue
+            for reader in readers:
+                reader.join()
+            if read_errors:
+                raise read_errors[0]
+            output, error_output = ''.join(output_parts), ''.join(error_parts)
             if process.returncode:
                 # rclone errors can echo configuration/token fragments; never expose them.
                 from .cloud_config import config_login_error
@@ -154,7 +189,9 @@ def command_json(config, arguments, cancel, result=None, timeout=180, browser_ca
         finally:
             if process.poll() is None:
                 process.kill()
-                process.communicate()
+                process.wait()
+            for reader in readers:
+                reader.join()
             os.chmod(config, 0o600)
 
 
@@ -200,6 +237,15 @@ def list_cloud(main, profile, directory, cancel, timeout=30):
 def ssh_fingerprints(host, port):
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9.:-]*', host) or not 1 <= int(port) <= 65535:
         raise ValueError('Ungültiger SSH-Server / Invalid SSH host')
+    if os.name == 'nt':
+        from .windows_native import invoke
+        try:
+            result = invoke('ssh-fingerprints', dict(host=host, port=int(port)))
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f'SSH {host}:{port}: Zeitüberschreitung bei der Serveridentität. '
+                               'Server, Port und Firewall prüfen. / SSH identity discovery timed out. '
+                               'Check server, port and firewall; password authentication has not started.') from None
+        return result['fingerprints'], result['keys'].encode('utf-8')
     result = subprocess.run(['ssh-keyscan', '-T', '5', '-p', str(port), host],
                              capture_output=True, timeout=20, env=host_environment())
     if not result.stdout:
@@ -269,6 +315,9 @@ def _mount_profile(main, profile, cancel):
         raise RuntimeError('FTPS benötigt explizites TLS und gültige Zertifikate / FTPS requires verified TLS')
     if profile['kind'] == 'sftp' and section.get('known_hosts_file') != str(Path.home() / '.ssh/known_hosts'):
         raise RuntimeError('SSH benötigt geprüfte Hostschlüssel / SSH requires verified host keys')
+    if os.name == 'nt':
+        from .windows_mounts import mount_profile as windows_mount
+        return windows_mount(main, profile, cancel)
     mount = mount_path(main.state_dir, profile['id'])
     if remote_location(mount):
         from .provider_mounts import register
@@ -401,6 +450,10 @@ class OnlineDialog(QDialog):
                            'Server passwords: session only or optional Linux keyring; SSH keys stay in their file.\n'
                            'SSH uses ~/.ssh/known_hosts and rejects unknown/changed host keys.')
         self.note.setWordWrap(True)
+        if os.name == 'nt':
+            self.note.setText(self.note.text().replace('rclone/FUSE', 'rclone/WinFsp')
+                              .replace('Linux-Schlüsselbund', 'Windows-Anmeldeinformationen')
+                              .replace('Linux keyring', 'Windows Credential Manager'))
         layout.addWidget(self.note)
         safety = QLabel('Online-Aktionen prüfen vorhandene Ziele, sind aber keine atomaren Transaktionen mit anderen Clients. '
                         'Uploads werden ohne verzögerte Schreibwarteschlange ausgeführt. Entfernen nutzt Wiederherstellungskopien.' if self.de else
@@ -467,6 +520,8 @@ class OnlineDialog(QDialog):
                 self.server_form.secret.clear()
                 self.server_form.secret.setPlaceholderText('')
                 self.answer.clear()
+                self.answer.hide()
+                self.status.clear()
                 self.provider_changed()
         restart.clicked.connect(reset)
         layout.addWidget(restart)
@@ -517,7 +572,8 @@ class OnlineDialog(QDialog):
             for field in (self.google_custom, self.google_client_id, self.google_client_secret, self.google_guide):
                 field.setEnabled(True)
             self.status.setText(str(error) if error else '')
-            if error and self.profile and self.profile['kind'] == 'iclouddrive' and self.state:
+            expired = error and ('Authentication timed out' in str(error) or 'Sign-in timed out' in str(error))
+            if error and self.profile and self.state and (self.profile['kind'] == 'iclouddrive' or expired):
                 # Fatal backend sign-in failures cannot resume an advanced-option
                 # state as though it were another password question.
                 self.state = ''
@@ -538,6 +594,20 @@ class OnlineDialog(QDialog):
         if not self.state and self.connected_profile_id:
             self.open_saved()
             return
+        if self.state and self.profile and self.profile['kind'] == 'drive' and self.auth_option_name == 'config_shared_client_id':
+            if self.answer.currentData() == 'false':
+                # rclone asks for a client after No. Generic automatic defaults
+                # would submit empty values and return to the same warning.
+                self.state = ''
+                self.auth_option_name = ''
+                self.provider.setEnabled(True)
+                self.answer.hide()
+                self.google_custom.setChecked(True)
+                self.provider_changed()
+                self.status.setText('Google-Client-ID und Client-Secret eingeben. Die Anleitung oben erklärt die Einrichtung.' if self.de else
+                                    'Enter your Google client ID and client secret. Use the guide above to set them up.')
+                self.google_client_id.setFocus()
+                return
         editing = getattr(self, 'editing_profile', None)
         if not self.state and editing and editing['kind'] not in server.SERVER_KINDS and self.provider.currentData() == editing['kind']:
             self.reconnect_saved()
@@ -561,6 +631,10 @@ class OnlineDialog(QDialog):
                 arguments += ['known_hosts_file', str(Path.home() / '.ssh/known_hosts')]
             client_id = self.google_client_id.text().strip() if kind == 'drive' else ''
             client_secret = self.google_client_secret.text() if kind == 'drive' else ''
+            if kind == 'drive' and self.google_custom.isChecked() and (not client_id or not client_secret):
+                self.status.setText('Google-Client-ID und Client-Secret eingeben, bevor die Browser-Anmeldung startet.' if self.de else
+                                    'Enter the Google client ID and client secret before starting browser sign-in.')
+                return
             if kind == 'drive':
                 from .public_oauth import select_client
                 client_id, client_secret = select_client(client_id, client_secret)
@@ -620,7 +694,6 @@ class OnlineDialog(QDialog):
         if extra['secret_required'] and not secret and not use_existing:
             self.status.setText('Passwort/Passphrase eingeben / Enter password or passphrase')
             return
-        self.server_form.secret.clear()
         def save_and_open():
             def save():
                 if self.cancel.is_set():
@@ -638,6 +711,7 @@ class OnlineDialog(QDialog):
                 profile['remember_secret'] = remember
                 return password
             def saved(password):
+                self.server_form.secret.clear()
                 if not hasattr(self.main, 'server_secrets'):
                     self.main.server_secrets = {}
                 self.main.server_secrets[profile['id']] = password
@@ -651,7 +725,7 @@ class OnlineDialog(QDialog):
                 self.server_form.secret.setPlaceholderText('Leer = gespeicherte Anmeldung verwenden' if remember else '')
                 pane = self.main.active
                 self.work(lambda: mount_profile(self.main, profile, self.cancel),
-                          lambda path: (pane.navigate(path), self.main.update_places(),
+                          lambda path: (self.main.connection_opened(path, pane),
                                         self.status.setText('Verbunden: ' + profile['name'])))
             self.work(save, saved)
         if kind != 'sftp':
@@ -871,11 +945,11 @@ class OnlineDialog(QDialog):
     def question(self, value):
         if value.get('_oc_native_authenticated'):
             self.native_authenticated = True
-        if value.get('Error') and not value.get('State'):
+        if value.get('Error') and (not value.get('State') or not value.get('Option')):
             from .cloud_config import login_error
             self.status.setText(login_error('iclouddrive', value['Error']) if self.profile['kind'] == 'iclouddrive' else
-                                'Anmeldung nicht abgeschlossen. Bitte erneut anmelden. / Sign-in did not complete; try again.')
-            if self.profile['kind'] == 'iclouddrive':
+                                'Anmeldung nicht abgeschlossen. „Neue Anmeldung beginnen“ wählen und den neuen Browser-Tab verwenden. / Start a new sign-in and use the new browser tab.')
+            if self.profile['kind'] in ('drive', 'onedrive', 'dropbox', 'iclouddrive'):
                 self.state = ''
                 self.auth_option_name = ''
                 self.auth_field_label.hide()
@@ -908,8 +982,7 @@ class OnlineDialog(QDialog):
             if self.cloud_auth:
                 profile, pane = dict(self.profile), self.main.active
                 def opened(path):
-                    pane.navigate(path)
-                    self.main.update_places()
+                    self.main.connection_opened(path, pane)
                     self.status.setText('Verbunden und gespeichert: ' + profile['name'] if self.de else 'Connected and saved: ' + profile['name'])
                 self.work(lambda: mount_profile(self.main, profile, self.cancel), opened)
             return
@@ -994,6 +1067,16 @@ class OnlineDialog(QDialog):
             if preferred is not None:
                 self.answer.setCurrentIndex(preferred)
         self.next_button.setText(('Verbinden und öffnen' if self.de else 'Connect and open') if is_drive else ('Weiter' if self.de else 'Next'))
+        if self.profile['kind'] == 'drive' and self.auth_option_name == 'config_shared_client_id':
+            self.help.setText('Vor dem Öffnen des Browsers den Anmeldeweg wählen. Google stellt die gemeinsame rclone-Anwendung im Jahr 2026 ein. '
+                              'Mit ihr lässt sich die Browser-Anmeldung noch versuchen; für dauerhaften Zugriff eine eigene Google-Anwendung einrichten.' if self.de else
+                              'Choose a sign-in method before the browser opens. Google is retiring rclone’s shared application during 2026. '
+                              'You can try browser sign-in with it, or set up your own Google application for continued access.')
+            self.answer.clear()
+            self.answer.setEditable(False)
+            self.answer.addItem('Eigene Google-Anwendung einrichten' if self.de else 'Set up my own Google application', 'false')
+            self.answer.addItem('Browser-Anmeldung mit gemeinsamer Anwendung versuchen' if self.de else 'Try browser sign-in with the shared application', 'true')
+            self.next_button.setText('Ausgewählten Anmeldeweg starten' if self.de else 'Start selected sign-in method')
         if self.profile['kind'] == 'iclouddrive':
             buttons = {'apple_id': ('Weiter zum Passwort', 'Continue to password'),
                        'password': ('Anmeldung prüfen', 'Check sign-in'),
@@ -1136,6 +1219,9 @@ class OnlineDialog(QDialog):
                 pane.navigate(Path.home())
         self.main.busy = True
         def unmount():
+            if os.name == 'nt':
+                from .windows_mounts import unmount as windows_unmount
+                return windows_unmount(root)
             binary = shutil.which('fusermount3') or shutil.which('fusermount')
             if not binary:
                 raise RuntimeError('FUSE fehlt / FUSE unavailable')

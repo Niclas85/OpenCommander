@@ -45,6 +45,10 @@ class ServerForm(QWidget):
         form.addRow(self.secret_label, self.secret)
         self.remember = QCheckBox('Passwort/Passphrase im Linux-Schlüsselbund speichern' if de else
                                  'Save password/passphrase in Linux keyring')
+        from .platform_support import WINDOWS
+        if WINDOWS:
+            self.remember.setText('Passwort/Passphrase in Windows-Anmeldeinformationen speichern' if de else
+                                  'Save password/passphrase in Windows Credential Manager')
         form.addRow(self.remember)
         self.directory = QLineEdit()
         self.directory.setPlaceholderText('Leer = Benutzerordner; z. B. /volume1/Daten' if de else

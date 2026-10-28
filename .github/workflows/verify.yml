@@ -8,6 +8,24 @@ permissions:
   contents: read
 
 jobs:
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - run: ./windows/build.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: OpenCommander-windows-x64
+          path: |
+            windows/artifacts/OpenCommander-windows-x64.zip
+            windows/artifacts/SHA256SUMS
+            windows/build/pytest.xml
+
   android:
     runs-on: ubuntu-latest
     steps:
@@ -46,13 +64,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install Qt and archive runtime libraries
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libxcb-cursor0 libarchive13t64 ffmpeg
       - run: python -m venv linux/.venv
       - run: linux/.venv/bin/python -m pip install -r linux/requirements-dev.txt
-      - run: QT_QPA_PLATFORM=offscreen linux/.venv/bin/python -m pytest linux/tests -q
+      - name: Install checksum-verified rclone test runtime
+        run: linux/.venv/bin/python linux/tests/install_runtime.py >> "$GITHUB_PATH"
+      - run: QT_QPA_PLATFORM=offscreen linux/.venv/bin/python -m pytest linux/tests -q --junitxml=linux/build/pytest.xml
       - run: ./linux/build.sh
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: OpenCommander-linux-x86_64
           path: |
             linux/artifacts/OpenCommander-linux-x86_64.tar.gz
             linux/artifacts/SHA256SUMS
+            linux/build/pytest.xml

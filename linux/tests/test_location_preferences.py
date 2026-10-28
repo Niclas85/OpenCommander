@@ -1,5 +1,6 @@
 import json
 import unittest
+from pathlib import Path
 from opencommander.location_preferences import load_preferences, configured_locations
 
 
@@ -14,7 +15,7 @@ class LocationPreferencesTests(unittest.TestCase):
             dict(path='/mnt/drive', name='Drive', enabled=False),
             dict(path='/offline/folder', name='My shortcut', enabled=True, custom=True)]))
         self.assertEqual(configured_locations([('Home', '/home/test'), ('Drive', '/mnt/drive')], preferences),
-                         [('Home renamed', '/home/test'), ('My shortcut', '/offline/folder')])
+                         [('Home renamed', str(Path('/home/test'))), ('My shortcut', str(Path('/offline/folder')))])
 
     def test_roundtrip_and_deduplication(self):
         preferences = load_preferences(json.dumps([dict(path='/a', name='A', custom=True),

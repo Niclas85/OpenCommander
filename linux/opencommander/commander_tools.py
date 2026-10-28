@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from .filesystem import listing
 from .operations import SafetyError, Cancelled, exists, rename_new
+from .platform_support import is_link
 
 
 def check(cancel):
@@ -24,7 +25,7 @@ def search_directory(value):
 
 def scan(root, hidden, cancel, progress=lambda *args: None, limit=100000):
     root = Path(root)
-    if root.is_symlink() or not root.is_dir():
+    if is_link(root) or not root.is_dir():
         raise SafetyError('Kein Ordner oder symbolischer Link / Not a directory or symbolic link')
     result, warnings, queue = {}, [], [root]
     while queue:
@@ -133,6 +134,8 @@ def rename_plan(paths, pattern='[N][E]', find='', replacement='', start=1, digit
         name = re.sub(r'\[([NEC])\]', lambda match: values[match[1]], pattern)
         if find:
             name = name.replace(find, replacement)
+        from .platform_support import validate_component
+        validate_component(name)
         if not name or name in ('.', '..') or any(c in name for c in '/\0:') or len(os.fsencode(name)) > 255:
             raise SafetyError(f'Ungültiger Name / Invalid name: {name}')
         destination = path.parent / name

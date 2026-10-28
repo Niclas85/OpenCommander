@@ -11,7 +11,7 @@ from opencommander.online_ui import private_config, ssh_fingerprints, save_hostk
 
 def test_settings_validate_and_disable_remote_shell(tmp_path):
     section, profile = server.settings('sftp', 'nas.example.org', 22, 'alice', 'password')
-    assert section['known_hosts_file'].endswith('/.ssh/known_hosts')
+    assert Path(section['known_hosts_file']).parts[-2:] == ('.ssh', 'known_hosts')
     assert section['shell_type'] == 'none'
     assert profile['secret_required']
     section, _ = server.settings('ftps', 'nas.example.org', 21, 'alice', 'password')
@@ -34,7 +34,8 @@ def test_reconfigure_removes_old_secrets_without_affecting_cloud(tmp_path):
     assert 'pass' not in parser['oc_server']
     assert 'key_file_pass' not in parser['oc_server']
     assert parser['oc_cloud']['token'] == 'fixture'
-    assert path.stat().st_mode & 0o777 == 0o600
+    from desktop_test_support import assert_private_file
+    assert_private_file(path)
 
 
 def test_secret_is_only_in_stdin_and_child_environment(tmp_path, monkeypatch):
@@ -61,8 +62,9 @@ def test_key_permissions_and_encrypted_openssh_agent(tmp_path):
     assert section['key_use_agent'] == 'true'
     assert section['key_file'] == str(key)
     key.chmod(0o644)
-    with pytest.raises(ValueError, match='600'):
-        server.settings('sftp', 'localhost', 22, 'alice', 'key', str(key))
+    if os.name != 'nt':
+        with pytest.raises(ValueError, match='600'):
+            server.settings('sftp', 'localhost', 22, 'alice', 'key', str(key))
     with pytest.raises(ValueError, match='Privaten'):
         (tmp_path / 'key.pub').chmod(0o600)
         server.settings('sftp', 'localhost', 22, 'alice', 'key', str(key) + '.pub')
@@ -144,7 +146,7 @@ def test_real_local_sftp_password_key_and_encrypted_key(tmp_path):
             profile = dict(id='oc_test', **extra)
             server.write_config(config, profile['id'], section)
             main.server_secrets[profile['id']] = secret
-            if extra['agent_key']:
+            if extra['agent_key'] and os.name != 'nt':
                 agent = subprocess.run(['ssh-agent', '-s'], capture_output=True, text=True, check=True)
                 import re
                 agent_pid = int(re.search(r'SSH_AGENT_PID=(\d+)', agent.stdout).group(1))
@@ -163,7 +165,7 @@ def test_real_local_sftp_password_key_and_encrypted_key(tmp_path):
                                          capture_output=True, env=denied, timeout=15)
                 assert refused.returncode != 0
             finally:
-                if extra['agent_key']:
+                if extra['agent_key'] and os.name != 'nt':
                     if previous_sock is None:
                         os.environ.pop('SSH_AUTH_SOCK', None)
                     else:

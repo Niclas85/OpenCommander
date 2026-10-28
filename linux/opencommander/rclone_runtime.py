@@ -8,17 +8,28 @@ import subprocess
 import tempfile
 import urllib.request
 import zipfile
+import sys
 from pathlib import Path
-from .desktop import host_environment
+from .platform_support import host_environment
 
 
 def runtime_root():
+    if os.name == 'nt':
+        from .platform_support import data_directory
+        return data_directory() / 'runtime'
     base = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local/share'))
     return base / 'opencommander/runtime'
 
 
 def binary():
-    local = runtime_root() / 'rclone'
+    if os.name == 'nt' and getattr(sys, 'frozen', False):
+        application = Path(sys.executable).parent
+        if Path(sys.executable).name.casefold() == 'opencommanderhelper.exe' and application.name == 'helpers':
+            application = application.parent
+        bundled = application / 'tools/rclone.exe'
+        if bundled.is_file():
+            return str(bundled)
+    local = runtime_root() / ('rclone.exe' if os.name == 'nt' else 'rclone')
     return str(local) if local.is_file() and os.access(local, os.X_OK) else shutil.which('rclone')
 
 
@@ -53,14 +64,16 @@ def fetch(url, cancel, destination=None):
 
 
 def install(cancel):
-    arch = {'x86_64': 'amd64', 'aarch64': 'arm64'}.get(platform.machine())
+    arch = {'x86_64': 'amd64', 'amd64': 'amd64', 'aarch64': 'arm64', 'arm64': 'arm64'}.get(platform.machine().lower())
     if not arch:
         raise RuntimeError('Unsupported runtime architecture')
     version = fetch('https://downloads.rclone.org/version.txt', cancel).decode().strip()
     if not re.fullmatch(r'rclone v\d+\.\d+\.\d+', version):
         raise RuntimeError('Invalid rclone release version')
     version = version.split()[1]
-    name = f'rclone-{version}-linux-{arch}'
+    system = 'windows' if os.name == 'nt' else 'linux'
+    executable_name = 'rclone.exe' if os.name == 'nt' else 'rclone'
+    name = f'rclone-{version}-{system}-{arch}'
     base = f'https://downloads.rclone.org/{version}/'
     checksums = fetch(base + 'SHA256SUMS', cancel).decode()
     expected = next((line.split()[0] for line in checksums.splitlines()
@@ -78,8 +91,8 @@ def install(cancel):
         if actual.lower() != expected.lower():
             raise RuntimeError('rclone checksum mismatch; installation stopped')
         with zipfile.ZipFile(archive) as package:
-            executable = Path(temp) / 'rclone'
-            executable.write_bytes(package.read(name + '/rclone'))
+            executable = Path(temp) / executable_name
+            executable.write_bytes(package.read(name + '/' + executable_name))
             license_text = package.read(name + '/README.txt')
         executable.chmod(0o700)
         # Validate before atomically replacing only the private executable.
@@ -88,5 +101,5 @@ def install(cancel):
         if cancel.is_set():
             raise RuntimeError('Abgebrochen / Cancelled')
         (root / 'rclone-README.txt').write_bytes(license_text)
-        os.replace(executable, root / 'rclone')
-    return str(root / 'rclone')
+        os.replace(executable, root / executable_name)
+    return str(root / executable_name)

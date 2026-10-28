@@ -1,4 +1,5 @@
 import io
+import os
 import hashlib
 import threading
 import zipfile
@@ -19,16 +20,19 @@ def test_browser_login_is_automatic_but_credentials_are_not():
 
 
 def test_private_runtime_download_checks_checksum(tmp_path, monkeypatch):
+    system = 'windows' if os.name == 'nt' else 'linux'
+    name = f'rclone-v1.75.2-{system}-amd64'
+    executable = 'rclone.exe' if os.name == 'nt' else 'rclone'
     payload = io.BytesIO()
     with zipfile.ZipFile(payload, 'w') as archive:
-        archive.writestr('rclone-v1.75.2-linux-amd64/rclone', b'fixture executable')
-        archive.writestr('rclone-v1.75.2-linux-amd64/README.txt', b'fixture license')
+        archive.writestr(name + '/' + executable, b'fixture executable')
+        archive.writestr(name + '/README.txt', b'fixture license')
     data = payload.getvalue()
     def fetch(url, cancel, destination=None):
         if url.endswith('version.txt'):
             return b'rclone v1.75.2\n'
         if url.endswith('SHA256SUMS'):
-            return (hashlib.sha256(data).hexdigest() + '  rclone-v1.75.2-linux-amd64.zip\n').encode()
+            return (hashlib.sha256(data).hexdigest() + '  ' + name + '.zip\n').encode()
         destination.write(data)
     monkeypatch.setattr(rclone_runtime, 'runtime_root', lambda: tmp_path / 'runtime')
     monkeypatch.setattr(rclone_runtime.platform, 'machine', lambda: 'x86_64')
@@ -36,18 +40,20 @@ def test_private_runtime_download_checks_checksum(tmp_path, monkeypatch):
     monkeypatch.setattr(rclone_runtime.subprocess, 'run', lambda *a, **kw: SimpleNamespace(returncode=0))
     path = Path(rclone_runtime.install(threading.Event()))
     assert path.read_bytes() == b'fixture executable'
-    assert path.stat().st_mode & 0o777 == 0o700
+    if os.name != 'nt':
+        assert path.stat().st_mode & 0o777 == 0o700
     assert (path.parent / 'rclone-README.txt').read_text() == 'fixture license'
 
 
 def test_bad_checksum_never_replaces_existing_runtime(tmp_path, monkeypatch):
     root = tmp_path / 'runtime'; root.mkdir()
-    existing = root / 'rclone'; existing.write_bytes(b'previous executable')
+    existing = root / ('rclone.exe' if os.name == 'nt' else 'rclone'); existing.write_bytes(b'previous executable')
     def fetch(url, cancel, destination=None):
         if url.endswith('version.txt'):
             return b'rclone v1.75.2'
         if url.endswith('SHA256SUMS'):
-            return ('0' * 64 + '  rclone-v1.75.2-linux-amd64.zip').encode()
+            system = 'windows' if os.name == 'nt' else 'linux'
+            return ('0' * 64 + f'  rclone-v1.75.2-{system}-amd64.zip').encode()
         destination.write(b'corrupt archive')
     monkeypatch.setattr(rclone_runtime, 'runtime_root', lambda: root)
     monkeypatch.setattr(rclone_runtime.platform, 'machine', lambda: 'x86_64')

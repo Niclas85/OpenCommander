@@ -27,6 +27,9 @@ def resources(job):
     from .filesystem import remote_location
     def normalized(value):
         path = Path(os.path.abspath(value))
+        if os.name == 'nt':
+            from .platform_support import canonical_path
+            return canonical_path(path)
         prefix = Path(path.anchor)
         parts = path.parts[1:]
         for index, part in enumerate(parts):
@@ -277,7 +280,8 @@ class TransferCard(QFrame):
     def copy_report(self):
         from . import __version__
         details = self.render()
-        QApplication.clipboard().setText(f'OpenCommander Linux {__version__}\n'
+        from .platform_support import PLATFORM_NAME
+        QApplication.clipboard().setText(f'OpenCommander {PLATFORM_NAME} {__version__}\n'
             f'ID: {self.job["id"]}\n{self.title.text()}\n{self.route.text()}\n{details}')
         self.manager.window.status.setText('Details kopiert (mit Dateipfaden).' if self.manager.window.language == 'de' else
                                            'Details copied (including file paths).')

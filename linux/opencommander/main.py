@@ -4,23 +4,26 @@ from pathlib import Path
 import sys
 import tempfile
 import time
+import json
 
 from PySide6.QtCore import QLockFile, QTimer
 from PySide6.QtWidgets import QApplication
 from .ui import MainWindow
 from . import __version__
+from .platform_support import PLATFORM_NAME, data_directory
 from .desktop import ask_default, folder_argument, socket_name, forward, listen
 
 
 def main():
-    parser = argparse.ArgumentParser(description='OpenCommander for Linux')
+    parser = argparse.ArgumentParser(description='OpenCommander for ' + PLATFORM_NAME)
     parser.add_argument('folder', nargs='?', help='Folder path or file:// URL to open')
-    parser.add_argument('--version', action='version', version='OpenCommander Linux ' + __version__)
+    parser.add_argument('--version', action='version', version='OpenCommander ' + PLATFORM_NAME + ' ' + __version__)
     parser.add_argument('--left', type=Path)
     parser.add_argument('--right', type=Path)
     parser.add_argument('--state-dir', type=Path)
     parser.add_argument('--screenshot', type=Path)
     parser.add_argument('--smoke-test', action='store_true')
+    parser.add_argument('--smoke-report', type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.folder:
         try:
@@ -35,7 +38,7 @@ def main():
         args.right = args.right or root / 'right'
         for directory in (args.left, args.right):
             directory.mkdir(parents=True, exist_ok=True)
-    state = args.state_dir or Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'opencommander'
+    state = args.state_dir or data_directory()
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
     if os.environ.get("WAYLAND_DISPLAY"):
         os.environ.setdefault("QT_QPA_PLATFORM", "wayland;xcb")
@@ -153,8 +156,9 @@ def main():
             window.actions['copy'].trigger()
         QTimer.singleShot(0, start_gui_copy)
     if args.screenshot or args.smoke_test:
+        smoke_deadline = time.monotonic() + 20
         def finish():
-            if args.smoke_test and not smoke_copy['done'] and time.monotonic() < smoke_copy['deadline']:
+            if args.smoke_test and (not smoke_copy['done'] or not smoke_download[0]) and time.monotonic() < smoke_deadline:
                 QTimer.singleShot(100, finish)
                 return
             if args.screenshot:
@@ -169,7 +173,11 @@ def main():
                     exit_status[0] = 1
                     print('FAIL: media preview did not load')
                 else:
-                    print('PASS: Linux desktop, GUI Copy action/queue/100% completion, JPEG viewer, online-image download, TAR/7z, external Drive menu and persisted copy pause/resume')
+                    print('PASS: ' + PLATFORM_NAME + ' desktop, GUI Copy action/queue/100% completion, JPEG viewer, online-image download, TAR/7z, external Drive menu and persisted copy pause/resume')
+                if args.smoke_report:
+                    args.smoke_report.write_text(json.dumps(dict(ok=exit_status[0] == 0, platform=PLATFORM_NAME,
+                        image=not window.preview_dialog.current_image.isNull(), download=smoke_download[0],
+                        gui_copy=smoke_copy['done'] and not smoke_copy['error'])), encoding='utf-8')
                 window.close()
         QTimer.singleShot(2000, finish)
     result = app.exec()

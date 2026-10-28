@@ -9,6 +9,7 @@ from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, build_opener, urlopen
 import pytest
+from desktop_test_support import assert_private_file
 from opencommander import native_oauth, online_ui, public_oauth
 
 
@@ -28,7 +29,7 @@ def test_public_native_build_rejects_secrets_and_preserves_existing_clients(kind
     source, output = tmp_path/'publisher.json', tmp_path/'assets/native.json'
     source.write_text(json.dumps(client)); public_oauth.prepare_native(kind, source, output)
     assert json.loads(output.read_text()) == client
-    assert output.stat().st_mode & 0o777 == 0o600
+    assert_private_file(output)
     for field in ('client_secret', 'refresh_token', 'password'):
         with pytest.raises(ValueError): public_oauth.normalized_native(kind, dict(client, **{field: secrets.token_urlsafe(16)}))
     monkeypatch.setattr(public_oauth, 'native_client', lambda k: client)

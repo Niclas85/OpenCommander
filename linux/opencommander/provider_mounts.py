@@ -4,10 +4,19 @@ import re
 from pathlib import Path
 
 _roots = set()
+_portable_roots = set()
 
 
-def register(path):
-    _roots.add(Path(os.path.abspath(path)))
+def register(path, *, portable=False):
+    root = Path(os.path.abspath(path))
+    _roots.add(root)
+    if portable:
+        _portable_roots.add(root)
+
+
+def portable(path):
+    path = Path(os.path.abspath(path))
+    return next((root for root in _portable_roots & _roots if root == path or root in path.parents), None)
 
 
 def managed(path):
@@ -25,12 +34,17 @@ def same_mount(a, b):
 
 def rclone_mount(path):
     """Recognize an external rclone mount without contacting its provider."""
+    if os.name == 'nt':
+        path = Path(os.path.abspath(path))
+        return next(((root, str(root)) for root in _roots if root == path or root in path.parents), None)
     mount = _closest_mount(path)
     return mount[:2] if mount and mount[2] == 'fuse.rclone' else None
 
 
 def provider_mount(path):
     """GVFS shares are separate providers even within one FUSE mount."""
+    if os.name == 'nt':
+        return rclone_mount(path)
     mount = _closest_mount(path)
     if not mount:
         return None

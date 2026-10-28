@@ -1,5 +1,6 @@
 """Desktop integration through the host's GIO/GVFS services."""
 from pathlib import Path
+import os
 import json
 import subprocess
 import time
@@ -18,6 +19,9 @@ def validate_uri(value):
 
 
 def invoke(action='list', identifier='', cancel=None):
+    if os.name == 'nt':
+        from .windows_native import invoke as windows_invoke
+        return windows_invoke(action, identifier, cancel)
     if cancel is not None:
         return invoke_cancellable(action, identifier, cancel)
     result = subprocess.run(['/usr/bin/python3', str(Path(__file__).with_name('gio_bridge.py'))],

@@ -8,6 +8,18 @@ from opencommander import cloud_config, online_ui, rclone_runtime
 
 
 @pytest.mark.parametrize('error,expected', [
+    ('403 shared client_id is retired; quota rateLimitExceeded', 'Herausgeber'),
+    ('401 invalid_grant', 'Erneut anmelden'),
+    ('403 userRateLimitExceeded quota', 'Später'),
+])
+def test_google_failure_explains_action_without_echoing_private_reply(error, expected):
+    private = 'synthetic-private-token-should-not-appear'
+    message = cloud_config.login_error('drive', error + '\n' + private)
+    assert expected in message
+    assert private not in message
+
+
+@pytest.mark.parametrize('error,expected', [
     ('SRP complete: HTTP error 401 Unauthorized', '401'),
     ('Missing PCS cookies from the request', 'Webzugriff'),
     ('password: base64 decode failed when revealing password - is it obscured?', 'Passwort'),
@@ -38,7 +50,8 @@ def test_actual_icloud_password_question_stores_encoded_value(tmp_path, length):
     parser.read(config)
     assert parser['oc_fixture']['password'] != secret
     assert cloud_config.obscured(parser['oc_fixture']['password'])
-    assert config.stat().st_mode & 0o777 == 0o600
+    from desktop_test_support import assert_private_file
+    assert_private_file(config)
 
 
 def test_incomplete_onedrive_requires_login_and_drive_selection(tmp_path):

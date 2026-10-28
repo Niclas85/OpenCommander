@@ -145,7 +145,8 @@ def test_own_google_client_is_private_preserves_other_profiles_and_invalidates_o
     assert saved['oc_drive']['client_id'] == client and saved['oc_drive']['client_secret'] == secret
     assert 'token' not in saved['oc_drive'] and saved['oc_drive']['root_folder_id'] == 'folder-id'
     assert saved['oc_other']['token'] == 'UNRELATED_FIXTURE'
-    assert stat.S_IMODE(config.stat().st_mode) == 0o600
+    from desktop_test_support import assert_private_file
+    assert_private_file(config)
     with pytest.raises(ValueError):
         online_ui.save_drive_client(config, 'oc_other', client, secret)
     with pytest.raises(ValueError):
@@ -167,6 +168,18 @@ def test_mutation_invalidates_old_list_and_cooldown(monkeypatch):
     listing.invalidate()
     assert not listing.read('dropbox', [], threading.Event())
     assert not responses
+
+
+def test_sequential_refreshes_are_not_coalesced_when_clock_ticks_match(monkeypatch):
+    listing = CloudListings()
+    monkeypatch.setattr(cloud_listing.time, 'monotonic', lambda: 123.0)
+    calls = []
+    def query(*args):
+        calls.append(1)
+        return [{'Name': str(len(calls))}]
+    monkeypatch.setattr(cloud_listing, 'query', query)
+    assert listing.read('drive', [], threading.Event())[0]['Name'] == '1'
+    assert listing.read('drive', [], threading.Event())[0]['Name'] == '2'
 
 
 def test_inflight_listing_before_deletion_cannot_restore_removed_file(monkeypatch):

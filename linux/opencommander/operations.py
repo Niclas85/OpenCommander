@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+from .platform_support import is_link, canonical_path, native_path
 import shutil
 import stat
 import tempfile
@@ -35,12 +36,33 @@ class CleanupError(SafetyError):
     """The destination is complete and must not be rolled back."""
 
 
+class SequentialZipOutput:
+    """Write ZIP data descriptors without probing a provider's seek support.
+
+    Cache-off device mounts accept seek(0) on a new file, then reject backward
+    seeks after a write. ZipFile's initial probe would wrongly mark them seekable.
+    Omitting tell/seek explicitly selects its supported streaming ZIP format.
+    """
+    def __init__(self, stream):
+        self.stream = stream
+
+    def write(self, data):
+        return self.stream.write(data)
+
+    def flush(self):
+        self.stream.flush()
+
+
 def exists(path: Path) -> bool:
     return os.path.lexists(path)
 
 
 def rename_new(source: Path, target: Path):
     """Linux atomic no-replace rename, including dangling symlink conflicts."""
+    if os.name == 'nt':
+        # MoveFileEx without REPLACE_EXISTING: Windows os.rename never replaces.
+        os.rename(native_path(source), native_path(target))
+        return
     libc = ctypes.CDLL(None, use_errno=True)
     rename = libc.renameat2
     rename.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
@@ -77,7 +99,7 @@ def remove_tree(path: Path):
         path.unlink()
 
 
-def fingerprint(path: Path, check=None, progress=None) -> str:
+def fingerprint(path: Path, check=None, progress=None, *, ignore_inode=False) -> str:
     digest = hashlib.sha256()
 
     def field(value):
@@ -89,9 +111,11 @@ def fingerprint(path: Path, check=None, progress=None) -> str:
             check()
         info = item.lstat()
         field(item.name)
-        for value in (info.st_dev, info.st_ino, info.st_mode, info.st_mtime_ns):
+        values = (info.st_dev, info.st_mode, info.st_mtime_ns) if ignore_inode else (
+            info.st_dev, info.st_ino, info.st_mode, info.st_mtime_ns)
+        for value in values:
             field(value)
-        if stat.S_ISLNK(info.st_mode):
+        if stat.S_ISLNK(info.st_mode) or (os.name == 'nt' and item.is_junction()):
             field(os.readlink(item))
         elif stat.S_ISDIR(info.st_mode):
             children = sorted(item.iterdir(), key=lambda p: p.name)
@@ -117,13 +141,30 @@ def fingerprint(path: Path, check=None, progress=None) -> str:
     return digest.hexdigest()
 
 
-def safe_snapshot(path, check=None, progress=None):
+def safe_snapshot(path, check=None, progress=None, *, ignore_inode=False):
     try:
-        return fingerprint(path, check, progress) if progress else fingerprint(path, check) if check else fingerprint(path)
+        if progress:
+            return fingerprint(path, check, progress, ignore_inode=ignore_inode)
+        if ignore_inode:
+            return fingerprint(path, check, ignore_inode=True)
+        return fingerprint(path, check) if check else fingerprint(path)
     except Cancelled:
         raise
     except (OSError, SafetyError):
         return None  # A failed verification never invalidates a completed transfer.
+
+
+def recorded_snapshot(record, path, check=None):
+    """Apply the saved proof format consistently to undo and move cleanup."""
+    version = record.get('snapshot_version', 1)
+    if version == 2:
+        from .provider_mounts import managed, provider_mount
+        if not managed(path) and provider_mount(path) is None:
+            raise SafetyError(f'Verification stopped: provider mount is unavailable.\n{path}')
+        return safe_snapshot(path, check, ignore_inode=True)
+    if version == 1:
+        return safe_snapshot(path, check)
+    raise SafetyError('Verification stopped: unsupported snapshot format.')
 
 
 def unique_path(directory: Path, name: str) -> Path:
@@ -144,7 +185,7 @@ def selected_roots(paths):
 
 def validate_target(source, directory):
     if source.is_dir() and not source.is_symlink():
-        origin, target = source.resolve(), directory.resolve()
+        origin, target = canonical_path(source), canonical_path(directory)
         if origin == target or origin in target.parents:
             raise SafetyError(f'A folder cannot be copied into itself: {source}')
 
@@ -223,23 +264,53 @@ class FileEngine:
             self.transfer_metrics['verify_bytes_checked'] = self.transfer_metrics.get('verify_bytes_checked', 0) + size
             self.report_transfer('verifying', name)
         progress = verification_progress if cancellable and self.transfer_metrics is not None else None
-        snapshot = safe_snapshot(destination, check, progress) if progress else safe_snapshot(destination, check) if check else safe_snapshot(destination)
         from .provider_mounts import managed, provider_mount
-        if managed(destination) or provider_mount(destination) is not None:
+        provider = managed(destination) or provider_mount(destination) is not None
+        if os.name == 'nt':
+            from .provider_mounts import portable
+            settle = None
+            if portable(destination):
+                from .windows_devices import settle
+            elif provider:
+                from .windows_mounts import settle
+            if settle is not None:
+                try:
+                    settle(destination)
+                except (OSError, ValueError, KeyError, TypeError):
+                    # Preserve the completed data but never invent an undo proof.
+                    with self.history_lock:
+                        operation['records'].append({'source': str(source), 'destination': str(destination),
+                            'kind': kind, 'backup': str(backup) if backup else None,
+                            'snapshot': None, 'snapshot_version': 2, 'reverted': False})
+                        self.save()
+                    return
+        def capture():
+            if provider:
+                # Provider mounts expose ephemeral inode numbers. Directory cache
+                # refresh can assign a new inode to unchanged remote bytes.
+                # Keep content, names, modes, times and mount identity in the hash;
+                # fingerprint still rejects identity changes during a read.
+                return safe_snapshot(destination, check, progress, ignore_inode=True) if progress else safe_snapshot(destination, check, ignore_inode=True)
+            return safe_snapshot(destination, check, progress) if progress else safe_snapshot(destination, check) if check else safe_snapshot(destination)
+        snapshot = capture()
+        if provider:
             # FUSE may refresh attributes on the first read following a rename.
             # Record only a settled fingerprint, keeping undo's strict comparison.
             for _ in range(3):
                 time.sleep(0.02)
-                current = safe_snapshot(destination, check) if check else safe_snapshot(destination)
+                current = capture()
                 if current is not None and current == snapshot:
                     break
                 snapshot = current
             else:
                 snapshot = None
         with self.history_lock:
-            operation['records'].append({'source': str(source), 'destination': str(destination),
+            record = {'source': str(source), 'destination': str(destination),
                 'kind': kind, 'backup': str(backup) if backup else None,
-                'snapshot': snapshot, 'reverted': False})
+                'snapshot': snapshot, 'reverted': False}
+            if provider:
+                record['snapshot_version'] = 2
+            operation['records'].append(record)
             self.save()
 
     def finish(self, operation):
@@ -274,6 +345,8 @@ class FileEngine:
                 self.check_cancel()
                 item = queue.pop()
                 info = item.lstat()
+                if os.name == 'nt' and item.is_junction():
+                    raise SafetyError(f'Junction nicht rekursiv kopieren / Cannot recursively copy junction: {item}')
                 if stat.S_ISDIR(info.st_mode):
                     queue.extend(item.iterdir())
                 else:
@@ -299,6 +372,21 @@ class FileEngine:
         self.compatibility_warnings.add(warning)
 
     def copy_metadata(self, source, target):
+        if os.name == 'nt':
+            from .provider_mounts import portable
+            if portable(target):
+                self.compatibility_warnings.add('MTP: Gerätezeitstempel und Dateirechte bleiben geräteabhängig / Device timestamps and permissions are device-specific')
+                return
+            from .windows_native import set_times
+            info = source.stat(follow_symlinks=False)
+            for callback in (lambda: set_times(target, info),
+                             lambda: os.chmod(target, stat.S_IMODE(info.st_mode), follow_symlinks=False)):
+                try:
+                    callback()
+                except (OSError, NotImplementedError) as error:
+                    self.unsupported_provider_feature(error, target,
+                        'NAS/Online: Dateiattribute nur teilweise übernommen / Some file attributes unsupported')
+            return
         try:
             shutil.copystat(source, target, follow_symlinks=False)
         except (OSError, NotImplementedError) as error:
@@ -323,7 +411,8 @@ class FileEngine:
         info = source.lstat()
         self.report_transfer('copying', source.name)
         if stat.S_ISLNK(info.st_mode):
-            os.symlink(os.readlink(source), target)
+            os.symlink(os.readlink(source), target,
+                       target_is_directory=bool(getattr(info, 'st_file_attributes', 0) & 16))
         elif stat.S_ISDIR(info.st_mode):
             target.mkdir()
             for item in sorted(source.iterdir()):
@@ -370,7 +459,7 @@ class FileEngine:
         return backup
 
     def copy_to(self, source: Path, target: Path, replace=False):
-        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=target.parent))
+        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=native_path(target.parent)))
         try:
             payload = staging / 'payload'
             self.copy_file(source, payload)
@@ -406,8 +495,8 @@ class FileEngine:
         for path in paths:
             path = Path(path)
             if not path.is_symlink():
-                resolved = path.resolve()
-                state = self.state_dir.resolve()
+                resolved = canonical_path(path)
+                state = canonical_path(self.state_dir)
                 if resolved == state or resolved in state.parents or state in resolved.parents:
                     raise SafetyError(f'The active recovery profile cannot be modified: {path}')
 
@@ -422,7 +511,7 @@ class FileEngine:
         if move:
             self.protect_state(sources)
         # Only forbid writing within the profile, not to its ancestors.
-        if directory.resolve() == self.state_dir.resolve() or self.state_dir.resolve() in directory.resolve().parents:
+        if canonical_path(directory) == canonical_path(self.state_dir) or canonical_path(self.state_dir) in canonical_path(directory).parents:
             raise SafetyError('The recovery profile cannot be a destination')
         for source in sources:
             validate_target(source, directory)
@@ -468,6 +557,8 @@ class FileEngine:
         return operation
 
     def rename(self, source, name):
+        from .platform_support import validate_component
+        validate_component(name)
         source = Path(source)
         self.protect_state([source])
         if not name or name in ('.', '..') or '/' in name or '\0' in name:
@@ -481,6 +572,8 @@ class FileEngine:
             self.finish(operation)
 
     def mkdir(self, directory, name):
+        from .platform_support import validate_component
+        validate_component(name)
         if not name or name in ('.', '..') or '/' in name or '\0' in name:
             raise SafetyError('Invalid name')
         target = Path(directory) / name
@@ -492,6 +585,8 @@ class FileEngine:
             self.finish(operation)
 
     def new_file(self, directory, name):
+        from .platform_support import validate_component
+        validate_component(name)
         if not name or name in ('.', '..') or '/' in name or '\0' in name:
             raise SafetyError('Invalid name')
         target = Path(directory) / name
@@ -511,9 +606,9 @@ class FileEngine:
         try:
             for source in selected_roots(paths):
                 self.check_cancel()
-                if source == Path('/'):
+                if source == Path(source.anchor):
                     raise SafetyError('The filesystem root cannot be removed')
-                root = Path(tempfile.mkdtemp(prefix='.OpenCommanderTrash-', dir=source.parent))
+                root = Path(tempfile.mkdtemp(prefix='.OpenCommanderTrash-', dir=native_path(source.parent)))
                 target = root / source.name
                 rename_new(source, target)
                 self.record(operation, source, target, 'move')
@@ -531,7 +626,8 @@ class FileEngine:
             self.check_cancel()
             source, target = Path(record['source']), Path(record['destination'])
             if not record['reverted']:
-                if record['snapshot'] is None or safe_snapshot(target, self.check_cancel) != record['snapshot']:
+                snapshot = recorded_snapshot(record, target, self.check_cancel)
+                if record['snapshot'] is None or snapshot != record['snapshot']:
                     raise SafetyError(f'Undo stopped: file changed or cannot be verified.\n{target}')
                 if record['kind'] == 'move':
                     if exists(source):
@@ -544,9 +640,15 @@ class FileEngine:
                         self.save()
                         raise
                 else:
-                    recovery = Path(tempfile.mkdtemp(prefix='.OpenCommanderUndo-', dir=target.parent)) / target.name
+                    recovery = Path(tempfile.mkdtemp(prefix='.OpenCommanderUndo-', dir=native_path(target.parent))) / target.name
                     rename_new(target, recovery)
                     record['recovery'] = str(recovery)
+                    if os.name == 'nt':
+                        from .windows_mounts import settle
+                        try:
+                            settle(target)
+                        except (OSError, ValueError, KeyError, TypeError):
+                            pass  # Undo retains its recovery data even if refresh is unavailable.
                 record['reverted'] = True
                 self.save()
             if record['backup']:
@@ -563,13 +665,14 @@ class FileEngine:
             validate_target(source, target.parent)
         operation = self.begin('zip')
         operation['inputs'] = [str(source) for source in sources]
-        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=target.parent))
+        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=native_path(target.parent)))
         try:
             payload = staging / 'payload'
-            with zipfile.ZipFile(payload, 'x', zipfile.ZIP_DEFLATED) as archive:
+            with payload.open('xb') as output, zipfile.ZipFile(
+                    SequentialZipOutput(output), 'w', zipfile.ZIP_DEFLATED) as archive:
                 def add(path, name):
                     self.check_cancel()
-                    if path.is_symlink():
+                    if is_link(path):
                         raise SafetyError(f'ZIP does not follow symbolic links: {path}')
                     if path.is_dir():
                         archive.mkdir(name + '/')
@@ -597,7 +700,9 @@ class FileEngine:
         directory = Path(directory)
         operation = self.begin('extract')
         operation['inputs'] = [str(archive_path)]
-        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=directory))
+        staging = Path(tempfile.mkdtemp(prefix='.OpenCommanderTransfer-', dir=native_path(directory)))
+        published = []
+        complete = False
         try:
             payload = staging / 'contents'
             payload.mkdir()
@@ -629,10 +734,40 @@ class FileEngine:
                 for child in sorted(payload.iterdir()):
                     target = unique_path(directory, child.name)
                     rename_new(child, target)
-                    self.record(operation, target, target, 'copy')
+                    published.append(target)
+                complete = True
         finally:
-            shutil.rmtree(staging, ignore_errors=True)
-            self.finish(operation)
+            if complete:
+                # All children were moved out. Never recursively traverse their
+                # stale WinFsp staging aliases after publishing the real output.
+                for empty in (payload, staging):
+                    try:
+                        empty.rmdir()
+                    except OSError:
+                        pass
+            else:
+                shutil.rmtree(staging, ignore_errors=True)
+            if os.name == 'nt' and published:
+                from .windows_mounts import settle
+                for target in published:
+                    try:
+                        settle(target)
+                    except (OSError, ValueError, KeyError, TypeError):
+                        pass  # Keep completed files; a later undo still verifies its proof.
+                if complete:
+                    for empty in (payload, staging):
+                        try:
+                            empty.rmdir()
+                        except OSError:
+                            pass
+            try:
+                # Staging cleanup can invalidate rclone's moved directory nodes.
+                # Capture recovery proofs from the final, refreshed namespace,
+                # just as copy_to() cleans staging before transfer() records it.
+                for target in published:
+                    self.record(operation, target, target, 'copy')
+            finally:
+                self.finish(operation)
 
 
 def checked_members(archive):
@@ -646,6 +781,11 @@ def checked_members(archive):
         if not name or path.is_absolute() or '..' in path.parts or '\\' in name or '\0' in name:
             raise SafetyError(f'Unsafe ZIP path: {name}')
         normalized = str(path)
+        if os.name == 'nt':
+            from .platform_support import validate_component
+            for component in path.parts:
+                validate_component(component)
+            normalized = normalized.casefold()
         if normalized in ('.', '') or normalized in names:
             raise SafetyError(f'Duplicate or empty ZIP path: {name}')
         names.add(normalized)

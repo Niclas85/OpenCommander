@@ -56,7 +56,8 @@ def download_online(entry, target, cancel, report=lambda *_: None, *, limit=2 * 
     if cancel.is_set():
         raise RuntimeError('Abgebrochen / Cancelled')
     request = json.dumps(dict(source=str(entry.path), target=str(target), limit=limit))
-    command = ['/usr/bin/python3', str(Path(__file__).with_name('media_fetch.py'))]
+    from .platform_support import helper_command
+    command = helper_command('media_fetch')
     with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                           env=host_environment()) as process:
         deadline = time.monotonic() + timeout
