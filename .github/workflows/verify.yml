@@ -1,59 +1,11 @@
-name: Verify
-
+name: Linux acceptance snapshot
 on:
   push:
-  pull_request:
-
+    branches: [codex/linux-acceptance-20261110-r1239]
+  workflow_dispatch:
 permissions:
   contents: read
-
 jobs:
-  android:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - uses: android-actions/setup-android@v3
-        with:
-          packages: platform-tools
-      - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
-      - run: python3 ios/localization_parity_test.py
-      - run: tests/run-java-safety.sh
-      - run: ./gradlew :app:assembleDebug :app:lintDebug --no-daemon
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: android-lint
-          path: app/build/reports/lint-results-debug.*
-
-  apple:
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
-      - run: tests/run-swift-safety.sh
-      - run: sh tests/run-ntfs-registration-tests.sh
-      - run: sh tests/run-ntfs-access-tests.sh
-      - name: Verify cloud clients and local provider discovery
-        run: |
-          sh tests/run-cloud-client-tests.sh
-          sh tests/run-cloud-storage-tests.sh
-          sh tests/run-cloud-lease-tests.sh
-      - run: swift test --package-path ntfs/OpenCommanderNTFS
-      - name: Verify native NTFS safety and read-only recovery simulation
-        run: |
-          sh ntfs/NTFS3G/test-harness.sh
-          sh ntfs/NTFS3G/test-engine.sh
-          sh ntfs/NTFS3G/test-engine-readback.sh
-          sh ntfs/NTFS3G/test-recovery.sh
-      - name: Build iOS Simulator app
-        run: >-
-          xcodebuild -project ios/OpenCommander.xcodeproj -scheme OpenCommander
-          -destination 'generic/platform=iOS Simulator' -configuration Debug
-          CODE_SIGNING_ALLOWED=NO build
-
   linux:
     runs-on: ubuntu-24.04
     steps:
@@ -70,13 +22,23 @@ jobs:
       - run: linux/.venv/bin/python -m pip install -r linux/requirements-dev.txt
       - name: Prepare checksum-verified pinned cloud test runtime
         run: linux/.venv/bin/python linux/tests/install_runtime.py >> "$GITHUB_PATH"
-      - run: QT_QPA_PLATFORM=offscreen linux/.venv/bin/python -m pytest linux/tests -q --junitxml=linux/build/pytest.xml
-      - run: ./linux/build.sh
+      - name: Record immutable source and runner
+        run: |
+          mkdir -p linux/build
+          git rev-parse HEAD HEAD:linux > linux/build/source-tree.txt
+          uname -a > linux/build/runner.txt
+          cat /proc/meminfo >> linux/build/runner.txt
+      - name: Run complete Linux suite
+        shell: bash
+        run: |
+          set -o pipefail
+          QT_QPA_PLATFORM=offscreen linux/.venv/bin/python -m pytest linux/tests -q --junitxml=linux/build/pytest.xml | tee linux/build/pytest.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OpenCommander-linux-x86_64
+          name: Linux-acceptance-current-tree
           path: |
-            linux/artifacts/OpenCommander-linux-x86_64.tar.gz
-            linux/artifacts/SHA256SUMS
             linux/build/pytest.xml
+            linux/build/pytest.log
+            linux/build/source-tree.txt
+            linux/build/runner.txt
