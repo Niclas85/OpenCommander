@@ -55,3 +55,13 @@ Im Test r1864 lehnte die installierte Build-102-Erweiterung zusammen mit der Pro
 Der separate NTFS-Engine-Test verwendete eigene ungemountete Abbilder. Dirty-Flag, Windows-Ruhezustand und nicht lesbare Metadaten wurden erkannt. Der Test bestätigte die jeweiligen Schutzprüfungen und den Erhalt der Abbilddaten. Der Cloud-Runtime-Test bestand unter anderem bei falscher ZIP-Prüfsumme, unterbrochenem Download und zu offenen Konfigurationsrechten.
 
 Nachweise sind `ntfs-wrong-volume-b102-r1864.log`, `ntfs-safety-b102-r1864.log` und `cloud-runtime-b102-r1864.log`.
+
+## Live-Wiederholung mit installiertem Build 102
+
+Am 14. November wurde der Test mit neuen Testdateien und einem separaten Profil wiederholt. Der in der Test-App ausgeführte Build 102 hatte dasselbe App-Binary wie die installierte Fassung. F6 zeigte den Namenskonflikt. Nach «Ersetzen» zeigte die Vorbereitung die übertragenen Bytes. In der Auftragskarte führten «Pause» und «Fortsetzen» zum Zustandswechsel derselben Auftrags-ID. Die Karte blieb während der Schlussprüfung bei 99 % und zeigte anschliessend «Abgeschlossen · 100 %». Die Karte mass rund 423 aktive Sekunden. Ein separater Anbieterabruf bestätigte die Dropbox-Bytes in Google Drive und den fehlenden öffentlichen Quellnamen.
+
+«Rückgängig» im erfolgreichen Historieneintrag stellte beide Dateizeilen wieder her. Die App zeigte «Verschieben · Rückgängig» und meldete eine rückgängig gemachte Aktion. Der unabhängige Anbieterabruf bestätigte beide ursprünglichen IDs, Längen und SHA-256-Prüfsummen. Die Verschiebungsjournale waren aufgeräumt. Dieser Durchgang verwendete eine manuelle Pause. Die echte Anbieter-Unterbrechung mit anschliessendem Rückgängig ist für Build 101 oben belegt. Der Mac blieb in derselben Boot-Sitzung.
+
+Acht zusätzliche Suiten endeten erfolgreich mit 140 PASS-Zeilen. Darunter waren sechs echte Prozessabbrüche bei lokalen Papierkorbvorgängen, die Wiederaufnahme eines unterbrochenen lokalen Kopiervorgangs sowie die punktgenaue Inhaltsprüfung von 12.000 kopierten Dateien. Die 140 Prüfschritte sind ergänzende Nachweise zum 158-Fälle-Protokoll. Dessen Stand bleibt bei 97 vollständig, 54 teilweise und 7 umgebungsabhängig geprüften Fällen. Der D2-Start blieb bei 6,67 GB freiem Speicher und 18,79 GB Bedarf in der Vorprüfung. Der separate zweistündige Dauerlauf mit simulierten Verbindungsausfällen war weiterhin aktiv.
+
+Nachweise sind `native-cross-b102-phase-r1865.jsonl`, `native-cross-b102-moved-r1865.json`, `native-cross-b102-restored-r1865.json`, `acceptance-supplemental-r1865.json` und `d2-capacity-r1865.json`.

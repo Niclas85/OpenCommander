@@ -43,4 +43,4 @@ Pro Fall Build, Status («bestanden», «fehlgeschlagen», «teilweise» oder «
 | --- | --- | --- | --- |
 | Dropbox → Google Drive, Ersetzen, Fortsetzen, Rückgängig |  |  |  |
 
-Der dokumentierte macOS-Live-Lauf mit Build 101 hat die Wiederaufnahme und das Rückgängig bis zum unabhängigen Nachweis beider ursprünglichen Anbieter-IDs und Prüfsummen abgeschlossen. Einzelheiten stehen im [Mac-Testprotokoll](mac-dropbox-google-drive-build101-2026-11-12.md). Der Windows-Nachweis steht separat aus.
+Die macOS-Live-Läufe mit Builds 101 und 102 haben Wiederaufnahme und Rückgängig bis zum unabhängigen Nachweis beider ursprünglichen Anbieter-IDs und Prüfsummen abgeschlossen. Build 101 wurde nach einem Anbieter-Zeitlimit wiederaufgenommen, Build 102 nach einer manuellen Pause. Der Windows-Nachweis steht aus. [Mac-Testprotokoll](mac-dropbox-google-drive-build101-2026-11-12.md)
