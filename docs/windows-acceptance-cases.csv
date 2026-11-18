@@ -247,7 +247,7 @@ CLOUD-02;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Google-Drive-Hänger als R
 2. Während verzögerter Antwort navigieren
 3. Erneut laden";"Keine dauerhaft leere, unbedienbare Ansicht; Timeout/Fehler mit Wiederholen; lokale Bereiche weiter bedienbar.";Teilweise belegt;;;Nicht ausgeführt;;;
 CLOUD-03;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Online-Grundoperationen;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. D1 hochladen, herunterladen, umbenennen, Ordner anlegen, entfernen und wiederherstellen
-2. Provider unabhängig prüfen";"Dateien/Inhalte und Namen stimmen; Änderungen auch beim Provider sichtbar; Cache allein zählt nicht als Erfolg.";Teilweise belegt;REG-CLOUD-01, REG-CLOUD-02, REG-CLOUD-07, REG-GDOC-01, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03, REG-GDOC-04, REG-GDOC-05, REG-CLOUD-09;;Nicht ausgeführt;;;
+2. Provider unabhängig prüfen";"Dateien/Inhalte und Namen stimmen; Änderungen auch beim Provider sichtbar; Cache allein zählt nicht als Erfolg.";Teilweise belegt;REG-CLOUD-01, REG-CLOUD-02, REG-CLOUD-07, REG-GDOC-01, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03, REG-GDOC-04, REG-GDOC-05, REG-CLOUD-09, REG-CLOUD-11;;Nicht ausgeführt;;;
 CLOUD-04;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Netzausfall und Wiederkehr;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Während Listen und Kopieren nur Testnetz unterbrechen
 2. Lokalen Ordner bedienen
 3. Netz wiederherstellen";"Begrenzte Wartezeit, sichtbarer Status; keine GUI-Sperre; kontrollierter Retry; keine doppelten Dateieinträge oder Quellverluste.";Teilweise belegt;;;Nicht ausgeführt;;;
@@ -271,7 +271,7 @@ CLOUD-11;Cloud-Dateien, Live-Zugriff und Freigaben;P1;iCloud, Weböffnung und On
 3. Online-Pfad kopieren";"Unterstützte Funktionen korrekt; keine vorgetäuschte iCloud-Linkfreigabe; Weböffnung darf zur Provider-Startseite führen, nicht zwingend zur exakten Datei.";Teilweise belegt;;;Nicht ausgeführt;;;
 CLOUD-12;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Writeback-Mount korrekt beurteilen;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Externen Full-Cache-Testmount verwenden
 2. Upload bei langsamer Leitung ausführen
-3. Backend unabhängig prüfen";"Lokaler Kopierabschluss wird nicht als Beweis vollständiger Provider-Synchronisation gewertet; Test gilt erst bei bestätigtem Online-Inhalt. Abweichende UI-Aussagen als Fehler melden.";Umgebung erforderlich;REG-CLOUD-03, REG-CLOUD-06, REG-CLOUD-10;;Nicht ausgeführt;;;
+3. Backend unabhängig prüfen";"Lokaler Kopierabschluss wird nicht als Beweis vollständiger Provider-Synchronisation gewertet; Test gilt erst bei bestätigtem Online-Inhalt. Abweichende UI-Aussagen als Fehler melden.";Umgebung erforderlich;REG-CLOUD-03, REG-CLOUD-06, REG-CLOUD-10, REG-CLOUD-11;;Nicht ausgeführt;;;
 SERVER-01;SFTP, FTP, FTPS und Netzwerkorte;P0;SFTP mit Passwort;"Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.";"1. Host, Port, Benutzer und Startordner einrichten
 2. Passwort anmelden
 3. Datei hin/zurück kopieren";"Verbindung zum richtigen Server/Ordner; Integrität korrekt; Passwort nicht als Klartext im neuen Serverprofil.";Nativ belegt;REG-AUTH-01, REG-REMOTE-01;;Nicht ausgeführt;;;
