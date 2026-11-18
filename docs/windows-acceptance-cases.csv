@@ -106,7 +106,7 @@ FILE-09;Dateiaktionen und Konflikte;P0;Gefährliche Pfadkombinationen;"D1; leere
 3. Ziel über Symlink-Alias wählen";"Selbstrekursion und gefährliche Überschneidungen werden abgewiesen; keine unendliche Ordnerkette.";Nativ belegt;;;Nicht ausgeführt;;;
 FILE-10;Dateiaktionen und Konflikte;P1;Öffnen und Öffnen mit;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. Text und Bild per Enter öffnen
 2. Rechtsklick Öffnen mit
-3. Alternative Anwendung wählen";"Passende Anwendung/Viewer öffnet; Auswahl wirkt auf angeklickte Datei; Abbrechen verändert keine Zuordnung ungefragt.";Nativ belegt;;;Nicht ausgeführt;;;
+3. Alternative Anwendung wählen";"Passende Anwendung/Viewer öffnet; Auswahl wirkt auf angeklickte Datei; Abbrechen verändert keine Zuordnung ungefragt.";Nativ belegt;REG-OPEN-01;;Nicht ausgeführt;;;
 FILE-11;Dateiaktionen und Konflikte;P0;Fehlende Rechte und voller Datenträger;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. Kopie nach R
 2. Auf kleines Test-Volume bis Platzmangel kopieren";"Klarer Fehler mit betroffener Datei; kein falscher Erfolg; Quelle intakt; teilweiser Stand nachvollziehbar und kontrolliert wiederaufnehmbar/abbrechbar.";Nativ belegt;;;Nicht ausgeführt;;;
 FILE-12;Dateiaktionen und Konflikte;P0;NAS-Metadatenfehler als Regression;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. D1 inklusive JPG/WebP von Cloud auf SMB/GVFS kopieren
@@ -337,7 +337,7 @@ MEDIA-08;Vorschau, Thumbnails und Medien;P1;Vorschau letzter/erster Eintrag;"D3 
 3. Am Anfang/Ende navigieren";"Keine ungültigen Indizes oder Endlosschleifen; leerer Zustand sinnvoll; nicht zu fremdem Ordner wechseln.";Nativ belegt;;;Nicht ausgeführt;;;
 MEDIA-09;Vorschau, Thumbnails und Medien;P1;Größen- und Zeitlimits;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. Testbilder über Thumbnail-/Preview-Limit und Video über 2 GiB wählen
 2. Downloadstillstand simulieren";"Klare Grenze/Timeout; begrenzter Speicher und temporäre Dateien; kein unendliches Laden. Aktuell: Thumbnail 32 MiB, Bildvorschau 128 MiB; Decoderlimit separat.";Teilweise belegt;;;Nicht ausgeführt;;;
-MEDIA-10;Vorschau, Thumbnails und Medien;P1;Text und Binärvorschau;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";1. UTF-8-Text, Text über 2 MiB und Binärdatei öffnen;"Begrenzte Textvorschau; ungeeignete Datei sicher erklärt/extern öffnbar; kein Laden beliebig großer Datei in GUI-Thread.";Teilweise belegt;;;Nicht ausgeführt;;;
+MEDIA-10;Vorschau, Thumbnails und Medien;P1;Text und Binärvorschau;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";1. UTF-8-Text, Text über 2 MiB und Binärdatei öffnen;"Begrenzte Textvorschau; ungeeignete Datei sicher erklärt/extern öffnbar; kein Laden beliebig großer Datei in GUI-Thread.";Teilweise belegt;REG-OPEN-01;;Nicht ausgeführt;;;
 MEDIA-11;Vorschau, Thumbnails und Medien;P1;Archiv-Medien;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. Bild in ZIP öffnen
 2. Pfeiltasten/Schließen
 3. Löschen suchen";"Temporäre schreibgeschützte Vorschau; kein scheinbares Löschen aus Archiv; Extraktion nur über dafür vorgesehenen Ablauf.";Nativ belegt;;;Nicht ausgeführt;;;
