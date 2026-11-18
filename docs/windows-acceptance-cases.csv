@@ -56,7 +56,7 @@ NAV-09;Navigation und Dateibereiche;P0;Kontextmenü auf Datei und leerer Fläche
 NAV-10;Navigation und Dateibereiche;P1;Laden abbrechen und weiter navigieren;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. Langsame Testquelle öffnen
 2. Laden stoppen
 3. Sofort lokalen Ort öffnen
-4. Alte Anfrage später fertig werden lassen";"GUI bleibt bedienbar; verspätetes Ergebnis überschreibt den aktuellen lokalen Ordner nicht; Wiederholen ist möglich.";Nativ belegt;REG-NAS-05;;Nicht ausgeführt;;;
+4. Alte Anfrage später fertig werden lassen";"GUI bleibt bedienbar; verspätetes Ergebnis überschreibt den aktuellen lokalen Ordner nicht; Wiederholen ist möglich.";Nativ belegt;REG-NAS-05, REG-NAS-11;;Nicht ausgeführt;;;
 NAV-11;Navigation und Dateibereiche;P1;Verbindung im Bereichstitel;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. Benannten Online-Ort öffnen
 2. In Unterordner wechseln
 3. Zum lokalen Ort wechseln";"Konto-/Ortsname und aktueller Pfad passen zum Bereich; keine rohen Profil-IDs als alleinige Orientierung; lokaler Titel wird wieder korrekt.";Nativ belegt;;;Nicht ausgeführt;;;
@@ -295,7 +295,7 @@ SERVER-07;SFTP, FTP, FTPS und Netzwerkorte;P0;FTP und FTPS;"Kontrollierte Testse
 SERVER-08;SFTP, FTP, FTPS und Netzwerkorte;P0;SMB/NAS;Dedizierte SMB-Freigabe mit Testkonto und eigenen Dateien.;"1. SMB-Freigabe per \\Server\Freigabe anbinden oder als Netzlaufwerk verbinden
 2. Authentisierung und Aufruf aus OpenCommander prüfen
 3. Ordner anzeigen, Testdatei kopieren, verschieben und das Ergebnis prüfen
-4. Kontrolliert unerreichbaren Testhost öffnen";Ordner und Ziel sind eindeutig. Dateiaktionen liefern die erwarteten Inhalte. Ein unerreichbarer Host ergibt eine verständliche Meldung und blockiert die Oberfläche nicht.;Teilweise belegt;REG-NAS-02, REG-NAS-03, REG-NAS-04;;Nicht ausgeführt;;;
+4. Kontrolliert unerreichbaren Testhost öffnen";Ordner und Ziel sind eindeutig. Dateiaktionen liefern die erwarteten Inhalte. Ein unerreichbarer Host ergibt eine verständliche Meldung und blockiert die Oberfläche nicht.;Teilweise belegt;REG-NAS-02, REG-NAS-03, REG-NAS-04, REG-NAS-11;;Nicht ausgeführt;;;
 SERVER-09;SFTP, FTP, FTPS und Netzwerkorte;P1;Serverprofil bearbeiten;"Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.";"1. Port/Benutzer/Startordner am Testprofil ändern
 2. Neu verbinden
 3. Anzeige prüfen";"Neue Werte wirksam, keine Vermischung alter Sitzung; Anzeigename kann ohne Geheimnisverlust geändert werden.";Nativ belegt;;;Nicht ausgeführt;;;
