@@ -86,7 +86,7 @@ FILE-02;Dateiaktionen und Konflikte;P0;Verschieben mit F6;"D1; leere lokale Ziel
 2. F6
 3. Innerhalb und zwischen Testdateisystemen wiederholen";"Einträge nur am Ziel nach erfolgreichem Abschluss; Daten unverändert; Quelllöschung erst nach sicherem Transfer.";Nativ belegt;;;Nicht ausgeführt;;;
 FILE-03;Dateiaktionen und Konflikte;P0;Drag-and-drop folgt Toggle;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. Toggle Kopieren setzen und ziehen
-2. Toggle Verschieben setzen und andere Datei ziehen";"Beide Modi tun genau das Gewählte ohne zusätzlichen Ausführen-Schritt; sichtbares Ziehobjekt; Zielbereich klar.";Nativ belegt;REG-DROP-01, REG-DROP-02, REG-DROP-03;;Nicht ausgeführt;;;
+2. Toggle Verschieben setzen und andere Datei ziehen";"Beide Modi tun genau das Gewählte ohne zusätzlichen Ausführen-Schritt; sichtbares Ziehobjekt; Zielbereich klar.";Nativ belegt;REG-DROP-01, REG-DROP-02, REG-DROP-03, REG-DROP-04;;Nicht ausgeführt;;;
 FILE-04;Dateiaktionen und Konflikte;P1;F5/F6 unabhängig vom Toggle;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. Toggle Verschieben setzen
 2. F5
 3. Toggle Kopieren setzen
