@@ -60,6 +60,8 @@ Den Abbruch zusätzlich bei durchgehend verbundener Freigabe prüfen. Nach erfol
 
 Die Wiederaufnahme in zwei separaten Läufen prüfen. Einmal nach SMB kopieren und das Ziel trennen, einmal von SMB kopieren und die Quelle trennen. Bei getrennter Freigabe die Test-App neu öffnen und «Fortsetzen» wählen. Der Fortschritt muss erhalten bleiben, während die App auf die Freigabe wartet. Anschliessend dieselbe Freigabe wieder verbinden, denselben Auftrag abschliessen und beide SHA-256-Prüfsummen vergleichen. «Rückgängig» muss den öffentlichen Zielnamen entfernen und die Quelle sowie die Markierungsdatei erhalten. Falls die App dabei eine private Wiederherstellungskopie behält, auch deren Inhalt prüfen. Beide Richtungen wurden unter macOS mit 96-MiB-Testdateien und einer echten separaten SMB-Verbindung in der Übertragungslogik geprüft. Der grosse D2-Lauf ist davon unabhängig.
 
+Für die Kombination aus NTFS und SMB denselben Kopierauftrag bei getrenntem Ziel und anschliessend bei getrennter Quelle prüfen. Jeweils nur den anderen Endpunkt verbinden, die Test-App mit demselben Profil neu öffnen und «Fortsetzen» wählen. Die Meldung muss den fehlenden Endpunkt korrekt bezeichnen, und der gespeicherte Auftrag muss warten. Bei einem Ausfall während der abschliessenden Prüfung darf der Auftrag trotz vollständig übertragener Bytes noch keinen Erfolg melden. Sobald beide Endpunkte verbunden sind, denselben Auftrag abschliessen, die Prüfsummen vergleichen und «Rückgängig» ausführen. Für die Gegenrichtung wiederholen.
+
 ## Weitere Prüffälle ohne WebDAV
 
 | Fall | Durchführung und Prüfkriterium |
