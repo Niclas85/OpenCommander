@@ -148,7 +148,7 @@ JOB-13;Warteschlange, Parallelität und Bedienbarkeit;P0;Schnelle wiederholte St
 REC-01;Neustart, Unterbrechung und Datenintegrität;P0;Geordnet schließen und später fortsetzen;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Kopie starten
 2. Fenster schließen
 3. Auf gespeicherte Pause warten
-4. App erneut öffnen";"Auftrag mit Quelle/Ziel erhalten; Fortsetzung gemäß gespeicherter Zustandslogik; kein Neubeginn bereits verifizierter fertiger Dateien; finale Hashes korrekt.";Teilweise belegt;REG-CLOUD-03, REG-CLOUD-04, REG-QUEUE-02, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03, REG-GDOC-05;;Nicht ausgeführt;;;
+4. App erneut öffnen";"Auftrag mit Quelle/Ziel erhalten; Fortsetzung gemäß gespeicherter Zustandslogik; kein Neubeginn bereits verifizierter fertiger Dateien; finale Hashes korrekt.";Teilweise belegt;REG-CLOUD-03, REG-CLOUD-04, REG-QUEUE-02, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03, REG-GDOC-05, REG-DROP-04;;Nicht ausgeführt;;;
 REC-02;Neustart, Unterbrechung und Datenintegrität;P0;Explizit pausiert neu starten;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Job pausieren
 2. Gespeichert abwarten
 3. Neu starten
