@@ -129,3 +129,12 @@ Der Mac-Live-Test belegt die Quellensicherung und Wiederherstellung. Der vollst�
 2. Mit dem Testadapter den Prozess nach der Veröffentlichung des verifizierten Dropbox-Exports und vor der Sicherung der Google-Quelle beenden. Google muss die Quelle am Originalnamen zeigen. Dropbox muss den Export zeigen und die bisherige Datei mit derselben ID zur Wiederherstellung behalten.
 3. Das Google-Testdokument über einen zweiten Client umbenennen und auf seinen alten Namen zurücksetzen. Die Google-ID muss gleich bleiben. Die App neu starten und den ursprünglichen Auftrag abbrechen. Der Adapter soll keine Schreibaufrufe an die Anbieter protokollieren. Der Verlauf muss genau einen Kopiereintrag mit Rückgängig zeigen.
 4. Nach erneutem Programmstart Rückgängig ausführen und den Anbieter unabhängig prüfen. Die ursprüngliche Dropbox-ID und SHA-256 müssen am sichtbaren Zielnamen zurück sein. Google-ID, Typ und Inhalt bleiben erhalten. Denselben Beleg im Testadapter einmal erneut aufrufen und die IDs sowie Inhalte nochmals vergleichen.
+
+#### Gegenprobe vor der Veröffentlichung
+
+1. Dieselben beiden Testdateien erneut vorbereiten. Den Testprozess nach dem Speichern des privaten Exports und vor dem ersten Dropbox-Schreibaufruf beenden.
+2. Die Google-Testdatei mit einem zweiten Client umbenennen und auf ihren ursprünglichen Namen zurücksetzen. Google-ID und mindestens eine tatsächlich geänderte Google-Serverversion festhalten.
+3. Nach dem Neustart denselben Auftrag fortsetzen. Der erwartete Versionskonflikt erscheint vor dem Ersetzen. Die alte Dropbox-ID, der sichtbare Name und die Prüfsumme bleiben erhalten.
+4. Den Auftrag abbrechen und erneut öffnen. Es darf kein erfolgreicher Kopier- oder Verschiebeeintrag entstehen. Die Google-ID, der native Typ und der Text bleiben erhalten.
+
+Bei der Mac-Diagnose änderte sich die Google-Serverversion auch bei einem Kontroll-Dokument ohne Export. Für den gezielten Nachtest deshalb die Änderung aus Schritt 2 unabhängig nachweisen. Zwei tatsächliche DOCX-Exporte desselben Google-Dokuments hatten unterschiedliche ZIP-Rohbytes und identische Prüfsummen pro Archivdatei.
