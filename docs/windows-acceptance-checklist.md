@@ -58,6 +58,8 @@ Eine separate Windows-Testinstanz mit eigener SMB-Freigabe verwenden. Eine ausre
 
 Den Abbruch zusätzlich bei durchgehend verbundener Freigabe prüfen. Nach erfolgreicher Bereinigung muss der Eintrag der sichtbaren Teilkopie ohne manuelles Aktualisieren verschwinden.
 
+Die Wiederaufnahme in zwei separaten Läufen prüfen. Einmal nach SMB kopieren und das Ziel trennen, einmal von SMB kopieren und die Quelle trennen. Bei getrennter Freigabe die Test-App neu öffnen und «Fortsetzen» wählen. Der Fortschritt muss erhalten bleiben, während die App auf die Freigabe wartet. Anschliessend dieselbe Freigabe wieder verbinden, denselben Auftrag abschliessen und beide SHA-256-Prüfsummen vergleichen. «Rückgängig» muss den öffentlichen Zielnamen entfernen und die Quelle sowie die Markierungsdatei erhalten. Falls die App dabei eine private Wiederherstellungskopie behält, auch deren Inhalt prüfen. Beide Richtungen wurden unter macOS mit 96-MiB-Testdateien und einer echten separaten SMB-Verbindung in der Übertragungslogik geprüft. Der grosse D2-Lauf ist davon unabhängig.
+
 ## Weitere Prüffälle ohne WebDAV
 
 | Fall | Durchführung und Prüfkriterium |
