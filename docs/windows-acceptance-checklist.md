@@ -4,9 +4,9 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 ## Vollständige Prüfliste
 
-- [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und leere Felder für Build, Ist-Ergebnis, Beleg und Fehler-ID. Import in Excel als UTF-8 mit Semikolon als Trennzeichen. Die Windows-Spalten starten bei «Nicht ausgeführt».
-- [Mac-Ergebnisse und beobachtete Fehler nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Stand 18. November 2026: 105 Fälle mit nativ belegtem Ablauf, 46 mit Teilbelegen und 7 mit fehlender Testumgebung. Diese Zahlen zählen Fälle, keine einzelnen Testläufe oder eindeutigen Fehler.
-- [Gezielte Nachtests gefundener Fehler](windows-regressions-from-macos.md) führt häufige und folgenreiche Regressionen mit reproduzierbaren Windows-Schritten auf. Der Mac-Befund gibt vor, welches Verhalten Windows beim Nachtest zeigen soll.
+- [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
+- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 18. November 2026 waren 105 Fälle nativ belegt, 46 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
+- [20 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -56,11 +56,11 @@ Den Test separat für «Beide behalten» wiederholen. Das ursprüngliche Ziel bl
 | Drag-and-drop | Zwischen beiden Bereichen sowie in beide Richtungen zwischen OpenCommander und Windows-Explorer ziehen. Standardgeste und angebotene Modifikatortasten je einmal für Datei, Ordner und Mehrfachauswahl prüfen. Tatsächlichen Kopier- oder Verschiebeeffekt, Übertragungsanzeige und Rückgängig anhand beider Dateilisten und Prüfsummen prüfen. |
 | Datenträger und NAS | Mit eigenen Dateien NTFS, exFAT und, falls verfügbar, SMB prüfen. In beide Richtungen kopieren und verschieben. Ersetzen, Wiederaufnahme und Rückgängig prüfen. Beim Medienwechsel darf ein anderer Datenträger am selben Laufwerksbuchstaben keinen alten Auftrag übernehmen. |
 | Lokale Werkzeuge | Suche im aktiven Ordner und mit geändertem Pfad, Suchtreffer mit vollständigem Pfad, Gross-/Kleinschreibung standardmässig deaktiviert, Vergleichen, mehrfaches Umbenennen, ZIP und Rückgängig prüfen. |
-| Belastung | Mehrere Aufträge mit unabhängigen Zielen starten. Währenddessen navigieren, pausieren und fortsetzen. Laufzeit, freien Speicher, Fehler und die abschliessenden Prüfsummen festhalten. Der vollständige D2-Referenzdatensatz umfasst 20.000 kleine und vier grosse Dateien. Quelle und Ziel belegen zusammen rund 14 GiB, die macOS-Vorprüfung verlangt 17,5 GiB. |
+| Belastung und Pfadreservierung | Mehrere Aufträge mit unabhängigen Zielen starten. Eine Kopie pausieren und eine Löschung derselben Quelle sowie eine unabhängige Löschung anfordern. Prüfen, dass nur die erste Löschung wartet. Die Kopie abbrechen, beide Löschungen nach Abschluss einzeln rückgängig machen und alle Prüfsummen vergleichen. Laufzeit und freien Speicher erfassen. Auf macOS ist der D2-Lauf bis zur Freigabe der wartenden Löschung dokumentiert. Die endgültige Löschung, Rückgängig und der vollständige Hash-Vergleich sind dort noch offen. |
 
 ## Ergebnis festhalten
 
-Pro Fall Build, Status («bestanden», «fehlgeschlagen», «teilweise» oder «blockiert»), Abweichung vom Soll und Beleg erfassen. Bei einem Fehler zusätzlich die Reproduktionsschritte, die Uhrzeit und die genaue Meldung notieren. Mehrere fehlgeschlagene Schritte können denselben Fehler betreffen.
+Pro Fall den Windows-Build, den Status, die Abweichung vom Soll und einen Beleg erfassen. Bei einem Fehler in «Fehler-ID» die ID des Windows-Issues eintragen und dort die Variante, Reproduktionsschritte, Uhrzeit und genaue Meldung festhalten. Die passende Mac-Regressions-ID kann im Windows-Issue als Referenz angegeben werden.
 
 | Fall | Build / Umgebung | Ergebnis | Beleg oder Fehler |
 | --- | --- | --- | --- |
