@@ -149,6 +149,8 @@ Der Mac-Live-Test belegt die Quellensicherung und Wiederherstellung. Der vollst�
 3. Nach dem Neustart denselben Auftrag fortsetzen. Der erwartete Versionskonflikt erscheint vor dem Ersetzen. Die alte Dropbox-ID, der sichtbare Name und die Prüfsumme bleiben erhalten.
 4. Den Auftrag abbrechen und erneut öffnen. Es darf kein erfolgreicher Kopier- oder Verschiebeeintrag entstehen. Die Google-ID, der native Typ und der neue Text bleiben erhalten.
 
+Der separate macOS-Live-Lauf vom 18. November 2026 änderte den Text des nativen Testdokuments über einen zweiten Client. Nach dem Neustart stoppte der alte Auftrag vor dem ersten Schreibzugriff. Der anschliessende Abbruch erzeugte keinen Historieneintrag. Beide Anbieter bestätigten unabhängig dieselben Objekt-IDs, den neuen Google-Text und die alten Dropbox-Bytes.
+
 ### Google-Dokument mit unverändertem Inhalt nach Dropbox verschieben und ersetzen
 
 1. Ein eigenes Google-Dokument und eine gleichnamige Dropbox-Datei mit anderem Inhalt vorbereiten. Google-ID, Dateityp, Text sowie Dropbox-ID und SHA-256 des alten Zielinhalts erfassen. Mit dem Testadapter den privaten DOCX-Export festhalten und den Prozess vor der ersten Dropbox-Veröffentlichung beenden.
