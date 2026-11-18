@@ -6,9 +6,21 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 18. November 2026 waren 105 Fälle nativ belegt, 46 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [29 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Diese Zahl zählt die dokumentierten Nachtests und ist keine Gesamtzahl einzelner Fehler.
+- [30 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
+
+### Fehlende Voraussetzungen der Mac-Abnahme
+
+| Fälle | Für den Windows-Nachtest vorbereiten |
+| --- | --- |
+| AUTH-01 | Separate Testkonten für OneDrive, Google Drive und Dropbox. Je Anbieter Erstanmeldung, App-Neustart und Wiederanmeldung getrennt erfassen. |
+| AUTH-04 | OneDrive-Testkonto, das mehrere Laufwerke zur Auswahl anbietet. Die gewählte Laufwerks-ID nach dem Neustart prüfen. |
+| AUTH-05, AUTH-06 | Apple-Testkonto und bestätigungsfähiges Gerät. Anmeldung, falschen Code, abgelaufenes Vertrauen und verweigerten Webzugriff in getrennten Läufen prüfen. |
+| CLOUD-12 | Extern eingebundenes Cloud-Laufwerk mit Schreibcache, sofern der Windows-Build diese Einbindung unterstützt. Den Zustand direkt beim Anbieter und am Einbindungspfad vergleichen. |
+| DEVICE-04, DEVICE-06 | Physische, entbehrliche NTFS- und exFAT-Testmedien, gegebenenfalls SMB. Windows-Dateisystemtreiber verwenden. Die Mac-FSKit-Abnahme hat eine eigene Umgebung. |
+
+Diese sieben Fall-IDs haben unter macOS den Status «Testumgebung erforderlich». Die CSV nennt die Voraussetzungen und Prüfschritte für jeden einzelnen Fall.
 
 ## Vorbereitung
 
@@ -133,8 +145,33 @@ Der Mac-Live-Test belegt die Quellensicherung und Wiederherstellung. Der vollst�
 #### Gegenprobe vor der Veröffentlichung
 
 1. Dieselben beiden Testdateien erneut vorbereiten. Den Testprozess nach dem Speichern des privaten Exports und vor dem ersten Dropbox-Schreibaufruf beenden.
-2. Die Google-Testdatei mit einem zweiten Client umbenennen und auf ihren ursprünglichen Namen zurücksetzen. Google-ID und mindestens eine tatsächlich geänderte Google-Serverversion festhalten.
+2. Mit einem zweiten Client den Text im Google-Dokument ändern. Den ursprünglichen Namen behalten. Google-ID, neuen Testtext und einen Nachweis für das geänderte Dokument erfassen, etwa eine geänderte ETag oder einen veränderten DOCX-Archivinhalt.
 3. Nach dem Neustart denselben Auftrag fortsetzen. Der erwartete Versionskonflikt erscheint vor dem Ersetzen. Die alte Dropbox-ID, der sichtbare Name und die Prüfsumme bleiben erhalten.
-4. Den Auftrag abbrechen und erneut öffnen. Es darf kein erfolgreicher Kopier- oder Verschiebeeintrag entstehen. Die Google-ID, der native Typ und der Text bleiben erhalten.
+4. Den Auftrag abbrechen und erneut öffnen. Es darf kein erfolgreicher Kopier- oder Verschiebeeintrag entstehen. Die Google-ID, der native Typ und der neue Text bleiben erhalten.
 
-Bei der Mac-Diagnose änderte sich die Google-Serverversion auch bei einem Kontroll-Dokument ohne Export. Für den gezielten Nachtest deshalb die Änderung aus Schritt 2 unabhängig nachweisen. Zwei tatsächliche DOCX-Exporte desselben Google-Dokuments hatten unterschiedliche ZIP-Rohbytes und identische Prüfsummen pro Archivdatei.
+### Google-Dokument mit unverändertem Inhalt nach Dropbox verschieben und ersetzen
+
+1. Ein eigenes Google-Dokument und eine gleichnamige Dropbox-Datei mit anderem Inhalt vorbereiten. Google-ID, Dateityp, Text sowie Dropbox-ID und SHA-256 des alten Zielinhalts erfassen. Mit dem Testadapter den privaten DOCX-Export festhalten und den Prozess vor der ersten Dropbox-Veröffentlichung beenden.
+2. Einen zweiten Export desselben Google-Dokuments abrufen. Wenn der Testadapter Versionsänderungen steuern kann, eine Änderung der numerischen Google-Version bei stabiler ETag, Änderungszeit, ID und Ordnerzuordnung nachstellen. Für beide DOCX-Dateien die Namen sämtlicher ZIP-Einträge und den SHA-256 ihres unkomprimierten Inhalts vergleichen. Unterschiedliche ZIP-Rohbytes sind bei identischen Einträgen zulässig. Den Lauf ohne kontrollierte Versionsänderung als normale Ersetzen-Variante erfassen.
+3. Die App neu öffnen und denselben Auftrag fortsetzen. Der veröffentlichte Dropbox-Export muss den zuvor gespeicherten Rohbytes entsprechen. Sobald Ziel und Sicherung des Google-Originals nachgewiesen sind, die App im Testadapter vor dem Warteschlangenabschluss nochmals beenden. Nach dem Neustart muss derselbe Auftrag genau einen Verschiebeeintrag erzeugen.
+4. Rückgängig nach einem weiteren App-Neustart ausführen. Den ursprünglichen Google-Namen, dieselbe native ID, Typ und Text sowie die alte Dropbox-ID und deren exakten SHA-256 unabhängig prüfen. Bei erneutem Aufruf desselben Rückgängig-Belegs muss der wiederhergestellte Zustand erhalten bleiben.
+
+Die Mac-Diagnose beobachtete eine geänderte numerische Google-Version auch bei einem unberührten Kontroll-Dokument. Zwei tatsächliche DOCX-Exporte desselben Dokuments hatten verschiedene ZIP-Rohbytes und identische SHA-256-Werte pro Archiveintrag. Für die [Gegenprobe mit tatsächlicher Inhaltsänderung](#gegenprobe-vor-der-veröffentlichung) einen separaten Lauf verwenden.
+
+In PowerShell lassen sich die Archiveinträge der beiden unveränderten Exporte direkt vergleichen. `Compare-Object` gibt keine Zeile aus, wenn Namen und Prüfsummen übereinstimmen.
+
+```powershell
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+function Get-DocxEntryHashes($Path) {
+    $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $Path).Path)
+    try {
+        foreach ($entry in $archive.Entries) {
+            $stream = $entry.Open()
+            try {
+                '{0}  {1}' -f (Get-FileHash -InputStream $stream -Algorithm SHA256).Hash, $entry.FullName
+            } finally { $stream.Dispose() }
+        }
+    } finally { $archive.Dispose() }
+}
+Compare-Object @(Get-DocxEntryHashes '.\Export A.docx') @(Get-DocxEntryHashes '.\Export B.docx') -CaseSensitive
+```
