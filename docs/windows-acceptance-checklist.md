@@ -92,6 +92,8 @@ Bei reproduzierbarer Byte-Abweichung die Quelle am lokalen Pfad beziehungsweise 
 
 Eine parallele Mac-Gegenprobe ausserhalb von OpenCommander reproduzierte dieselbe 4-KiB-Bitposition bei einer 1-GiB-Datei. Alle unmittelbar geprüften Schreibblöcke waren korrekt. Zwei vollständige Lesevorgänge nach dem Schliessen fanden dasselbe eine abweichende Bit. Eine weitere vollständige Lesung über eine zweite SMB-Einbindung bestätigte Bitposition und Prüfsumme. Die zwei anderen 2-GiB-Kopien, die lokalen Quellen und die Kontrolldatei stimmten. Für eine Windows-Gegenprobe denselben Testdatensatz gleichzeitig mit dem Betriebssystem in drei eigene SMB-Ziele kopieren. Nach dem Schliessen den vollständigen SHA-256 je Zieldatei zweimal prüfen, wenn möglich über zwei separate SMB-Verbindungen oder einen zweiten Computer. Prüfsummen der Quellen und die Zahl der bestätigten Abweichungen festhalten.
 
+Ein fortgesetzter Mac-Auftrag erreichte 7’000 von 7’001 Dateien und stoppte in der letzten Datei ohne Abschlussbeleg. In einem gezielten Vergleich am Ende der unvollständigen Zieldatei lasen zwei frisch eingehängte Nur-Lese-Verbindungen dasselbe abweichende Bit bei Byteposition 368’476’508. Die vollständige Quellprüfsumme, das Auftragsjournal und die separate Kontrolldatei stimmten. Die Position innerhalb des 4-KiB-Blocks und die Bitmaske entsprachen einem früheren Befund.
+
 ### Quelle und Ziel beim SMB-Fortsetzen unterscheiden
 
 1. Einen Kopierauftrag mit einer eigenen SMB-Datei und separater Kontrolldatei anlegen. Den SHA-256 der Quelle ausserhalb der App erfassen. Mit einem Testadapter nach vollständig gespeicherten Dateibytes und vor dem Abschlussbeleg pausieren. Quelle und Ziel müssen zu diesem Zeitpunkt denselben Hash haben.
@@ -170,6 +172,14 @@ Den Ort danach in beiden Bereichen öffnen und mit einem zweiten Client eine neu
 3. Über die App die gültige Testkonfiguration erneut auswählen und prüfen lassen. Die erwartete Datei muss wieder erscheinen. Objekt-ID und Prüfsumme erneut unabhängig vergleichen.
 
 Der signierte Mac-Build 322 bestand diese Variante mit echten Anbieterantworten für Dropbox und Google Drive. Für den vollständigen Fall den Token-Widerruf am dedizierten Testkonto aus der CSV und die weiteren Anbieter separat prüfen.
+
+### Cloud-Dateiaktionen nach App-Neustart rückgängig machen (CLOUD-03, TRASH-05)
+
+1. In einem eigenen Cloud-Testordner zwei Dateien mit unterschiedlichen Inhalten ablegen. Objekt-IDs und SHA-256-Prüfsummen mit einem zweiten Client erfassen.
+2. In der App einen leeren Ordner anlegen, eine Datei umbenennen und eine Datei in die Cloud-Wiederherstellung verschieben. Die drei Aktionen in separaten Durchläufen prüfen. Den jeweiligen Zwischenzustand direkt beim Anbieter bestätigen.
+3. Die App nach jeder Aktion neu starten und den zugehörigen Historieneintrag rückgängig machen. Der neu angelegte Ordner muss aus der normalen Ansicht verschwinden. Nach Umbenennen und Wiederherstellung müssen ursprünglicher Name, Objekt-ID und Prüfsumme wieder stimmen. Die unabhängige Kontrolldatei muss unverändert sein.
+
+Der signierte Mac-Build 322 bestand alle drei Varianten mit echten Dropbox- und Google-Drive-Testordnern. Nach dem Rückgängigmachen der Ordneranlage liess sich derselbe leere Ordner im Wiederherstellungsbereich nachweisen.
 
 ## Ergebnis festhalten
 
