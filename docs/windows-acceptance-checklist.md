@@ -94,6 +94,8 @@ Eine parallele Mac-Gegenprobe ausserhalb von OpenCommander reproduzierte dieselb
 
 Ein fortgesetzter Mac-Auftrag erreichte 7’000 von 7’001 Dateien und stoppte in der letzten Datei ohne Abschlussbeleg. In einem gezielten Vergleich am Ende der unvollständigen Zieldatei lasen zwei frisch eingehängte Nur-Lese-Verbindungen dasselbe abweichende Bit bei Byteposition 368’476’508. Die vollständige Quellprüfsumme, das Auftragsjournal und die separate Kontrolldatei stimmten. Die Position innerhalb des 4-KiB-Blocks und die Bitmaske entsprachen einem früheren Befund.
 
+Für den Test einzelner Auftragskarten die Karte zuerst in den sichtbaren Bereich der Warteschlange scrollen. Nach dem Klick auf «Pausieren» den gespeicherten Zustand und den weiteren Fortschritt der übrigen Aufträge prüfen. Anschliessend «Fortsetzen» einmal auslösen. Beim Mac-Nachtest beendete ein zweiter Aufruf des Prüftreibers die Test-App, nachdem die erste Bedienaktion bereits angenommen war. Beim erneuten Öffnen standen alle vier ursprünglichen Aufträge mit denselben IDs und Zwischenständen bereit. Nach «Alle fortsetzen» schrieben alle vier über ihre gespeicherten Prüfpunkte hinaus. Danach bestand der Test an einer einzelnen sichtbaren Karte im selben App-Prozess. Der pausierte Auftrag prüfte beim Fortsetzen zunächst 794 gespeicherte Einträge und schrieb dann weitere Dateien. Die drei anderen Aufträge liefen weiter.
+
 ### Quelle und Ziel beim SMB-Fortsetzen unterscheiden
 
 1. Einen Kopierauftrag mit einer eigenen SMB-Datei und separater Kontrolldatei anlegen. Den SHA-256 der Quelle ausserhalb der App erfassen. Mit einem Testadapter nach vollständig gespeicherten Dateibytes und vor dem Abschlussbeleg pausieren. Quelle und Ziel müssen zu diesem Zeitpunkt denselben Hash haben.
