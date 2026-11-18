@@ -155,6 +155,12 @@ In einem frischen Testprofil einen eigenen Cloud-Ordner mit einer Testdatei auf 
 
 Im signierten Mac-Build 322 lagen die gemessenen Zeiten inklusive Bedienautomation bei Dropbox bei 3,13 s für den Erstabruf und 1,95 s für das Wiederöffnen. Bei Google Drive waren es 2,93 s und 1,91 s. Die Werte beschreiben den Testaufbau.
 
+Für den Abbruchnachtest den Listenabruf eines eigenen Testordners gezielt verzögern. Während die Ladeanzeige sichtbar ist, den Cloud-Bereich schliessen. Der lokale Ordner muss sofort wieder erreichbar sein. Sobald der verzögerte Abruf beendet ist, darf keine alte Cloud-Liste die lokale Ansicht ersetzen. Denselben Cloud-Ort erneut öffnen und die Dateiliste unabhängig prüfen.
+
+### Verzögerter Abruf in beiden Bereichen (CLOUD-07)
+
+Den ersten Abruf des eigenen Cloud-Ordners anhalten und denselben Ort rechts öffnen. Beide Bereiche müssen den Ladezustand zeigen. Links den Cloud-Bereich schliessen und prüfen, dass links wieder der lokale Ordner und rechts weiterhin die Ladeanzeige erscheint. Den Abruf freigeben. Die Cloud-Dateien müssen nur rechts erscheinen. Falls der Testaufbau Anbieteraufrufe protokolliert, die Zahl der Listenabrufe während der Überlappung erfassen. Das gleichzeitige manuelle Aktualisieren beider Bereiche ist ein zusätzlicher Schritt aus der CSV.
+
 ### Anmeldewiederherstellung mit abgelehntem Cloud-Token (CLOUD-05)
 
 1. In einem separaten Testprofil einen eigenen Dropbox- oder Google-Drive-Ordner mit einer Testdatei einrichten. Deren Objekt-ID und SHA-256-Prüfsumme unabhängig erfassen. Im zweiten Bereich einen lokalen Testordner öffnen.
