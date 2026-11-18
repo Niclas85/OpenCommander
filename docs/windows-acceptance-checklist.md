@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 18. November 2026 waren 105 Fälle nativ belegt, 46 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [35 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [36 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -123,6 +123,14 @@ Für die zusätzliche Prüfung vor dem Export im Testadapter die Google-Revision
 2. Den Ordner in einen leeren lokalen Testordner kopieren. Der Auftrag muss zwei Dateien als abgeschlossen anzeigen. Unicode-Name, Prüfsumme, leere Datei und leerer Ordner müssen erhalten bleiben. Die Historie muss genau eine Kopie erfassen.
 3. In einer separaten Test-VM mit Testadapter direkt nach dem Speichern des lokalen Kopierbelegs und vor dem Abschluss der Warteschlange den App-Prozess beenden. Die App erneut starten und denselben Auftrag fortsetzen. Die bereits veröffentlichte Kopie muss bestätigt werden. Es darf weder eine zweite Kopie noch einen zweiten Historieneintrag geben. Wenn ein Adapter fehlt, den gezielten Abbruch als offen erfassen.
 4. Nach erneutem Start die Kopie rückgängig machen. Nur der lokale Ordner muss verschwinden. Die Dropbox-IDs und die Dateiinhalte müssen gleich bleiben.
+
+### Cloud-Download nach lokaler Veröffentlichung abbrechen
+
+1. In einer Windows-Test-VM eine eigene Cloud-Datei sowie eine gleichnamige lokale Datei mit anderem Inhalt vorbereiten. Beide SHA-256-Prüfsummen und, falls verfügbar, die Cloud-ID notieren. Eine unbeteiligte lokale Kontrolldatei danebenlegen.
+2. Die Cloud-Datei mit «Ersetzen» herunterladen. Mit einem Testadapter den App-Prozess direkt nach der Veröffentlichung der neuen lokalen Datei und vor dem Historieneintrag beenden. Den Versuch sowohl vor als auch nach dem Speichern des lokalen Kopierbelegs wiederholen. Ohne Testadapter den gezielten Prozessabbruch als offen erfassen.
+3. OpenCommander neu starten und denselben Auftrag abbrechen. Wenn das lokale Ziel seit dem Abbruch unverändert ist, muss genau ein rückgängig machbarer Kopiereintrag erscheinen. Prüfsumme und Kontrolldatei müssen stimmen. In der Variante «Verschieben» den Prozess vor dem Sichern der Cloud-Quelle beenden. Die Cloud-Datei muss sichtbar bleiben und ihre ID sowie ihren Inhalt behalten.
+4. Einen weiteren App-Neustart durchführen und «Rückgängig» wählen. Das frühere lokale Ziel muss mit seiner ursprünglichen Prüfsumme zurückkehren. Cloud-Quelle und Kontrolldatei erneut prüfen.
+5. Als Gegenprobe das veröffentlichte Ziel nach dem erzwungenen Prozessende durch einen anderen Inhalt ersetzen. Der Abbruch muss den Konflikt und den offenen Wiederherstellungszustand melden. Ziel, Cloud-Quelle und Kontrolldatei müssen ihre jeweils zuletzt festgestellte Prüfsumme behalten.
 
 ### Google-Bestätigung nach der Quellensicherung geht verloren
 
