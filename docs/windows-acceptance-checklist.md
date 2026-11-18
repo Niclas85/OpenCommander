@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 18. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [46 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [47 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -111,6 +111,13 @@ Eine parallele Mac-Gegenprobe ausserhalb von OpenCommander reproduzierte dieselb
 2. Nur die isolierte Testverbindung während einer Ordnerbaum-Abfrage verzögern. Den Test mit der bereits geöffneten App und mit Wiedereröffnung beider Orte ausführen. Wartezeit der SMB-Abfrage und Reaktionszeit der Bedienelemente separat messen.
 3. Während der SMB-Ordner lädt, rechts einen lokalen Ordner öffnen und filtern. Die lokale Liste und Bedienelemente müssen reagieren. Den verzögerten Bereich zu einem lokalen Pfad wechseln, die Testverbindung wieder freigeben und prüfen, dass die frühere Antwort den neuen Pfad nicht überschreibt.
 4. In einem getrennten Lauf einen gültigen Ordneralias mit Sonderzeichen wählen. Die Anzeige soll den gewählten Pfad behalten und der Baum nach der Auflösung zum passenden Ordner springen.
+
+### Eingegebenen Netzpfad während der Prüfung ersetzen
+
+1. Beide Paneele einer Testinstanz in lokalen Testordnern öffnen. Rechts zwei Dateien mit unterscheidbaren Namen anlegen. Einen bisher in dieser Instanz nicht geöffneten Ordner einer eigenen Testfreigabe vorbereiten.
+2. Nur die Testfreigabe verzögern und ihren Pfad links eingeben. Während die Abfrage wartet, rechts einen Dateinamen filtern. Das Fenster muss reagieren und nur den passenden Treffer anzeigen.
+3. Links einen anderen lokalen Ordner eingeben und seine Markierungsdatei prüfen. Erst dann die Testfreigabe wieder freigeben. Nach ihrer Antwort muss links weiterhin der zuletzt gewählte lokale Ordner stehen. Rechts müssen Pfad und Filter erhalten bleiben.
+4. Den Netzpfad bei erreichbarer Testfreigabe erneut öffnen. Getrennt einen gültigen Archivpfad, eine gewöhnliche Datei und einen fehlenden Pfad prüfen. Den sichtbaren Ordner oder die jeweilige Fehlermeldung erfassen.
 
 ## Weitere Prüffälle ohne WebDAV
 

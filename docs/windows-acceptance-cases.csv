@@ -42,7 +42,7 @@ NAV-04;Navigation und Dateibereiche;P1;Zurück und Vorwärts;"Datensatz D1 lokal
 4. Neuen Ordner besuchen";"Chronologie und Pfadanzeige stimmen; Vorwärtszweig wird nach neuer Navigation korrekt verworfen.";Nativ belegt;;;Nicht ausgeführt;;;
 NAV-05;Navigation und Dateibereiche;P1;Pfad direkt eingeben;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. Strg+L
 2. Gültigen Unicode-Pfad einfügen
-3. Nicht vorhandenen und unlesbaren Pfad testen";"Gültiger Ordner lädt; Fehler wird erklärt; alter Inhalt erscheint nicht als Inhalt des neuen Pfads.";Nativ belegt;;;Nicht ausgeführt;;;
+3. Nicht vorhandenen und unlesbaren Pfad testen";"Gültiger Ordner lädt; Fehler wird erklärt; alter Inhalt erscheint nicht als Inhalt des neuen Pfads.";Nativ belegt;REG-NAV-02;;Nicht ausgeführt;;;
 NAV-06;Navigation und Dateibereiche;P1;Sortieren und Filtern;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. Nach Name, Größe und Datum in beide Richtungen sortieren
 2. Filter setzen und löschen";"Sortierung nachvollziehbar; sichtbare Treffer korrekt; Filteränderung führt nicht zu Aktionen auf unsichtbar verwechselten Dateien.";Nativ belegt;;;Nicht ausgeführt;;;
 NAV-07;Navigation und Dateibereiche;P1;Mehrfachauswahl;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. Einzeln, mit Strg, mit Umschalt und Strg+A auswählen
@@ -56,7 +56,7 @@ NAV-09;Navigation und Dateibereiche;P0;Kontextmenü auf Datei und leerer Fläche
 NAV-10;Navigation und Dateibereiche;P1;Laden abbrechen und weiter navigieren;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. Langsame Testquelle öffnen
 2. Laden stoppen
 3. Sofort lokalen Ort öffnen
-4. Alte Anfrage später fertig werden lassen";"GUI bleibt bedienbar; verspätetes Ergebnis überschreibt den aktuellen lokalen Ordner nicht; Wiederholen ist möglich.";Nativ belegt;REG-NAS-05, REG-NAS-11, REG-NAV-01;;Nicht ausgeführt;;;
+4. Alte Anfrage später fertig werden lassen";"GUI bleibt bedienbar; verspätetes Ergebnis überschreibt den aktuellen lokalen Ordner nicht; Wiederholen ist möglich.";Nativ belegt;REG-NAS-05, REG-NAS-11, REG-NAV-01, REG-NAV-02;;Nicht ausgeführt;;;
 NAV-11;Navigation und Dateibereiche;P1;Verbindung im Bereichstitel;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. Benannten Online-Ort öffnen
 2. In Unterordner wechseln
 3. Zum lokalen Ort wechseln";"Konto-/Ortsname und aktueller Pfad passen zum Bereich; keine rohen Profil-IDs als alleinige Orientierung; lokaler Titel wird wieder korrekt.";Nativ belegt;;;Nicht ausgeführt;;;
