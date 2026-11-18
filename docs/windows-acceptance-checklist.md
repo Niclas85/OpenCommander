@@ -149,6 +149,14 @@ Eine parallele Mac-Gegenprobe ausserhalb von OpenCommander reproduzierte dieselb
 | Lokale Werkzeuge | Suche im aktiven Ordner und mit geändertem Pfad, Suchtreffer mit vollständigem Pfad, Gross-/Kleinschreibung standardmässig deaktiviert, Vergleichen, mehrfaches Umbenennen, ZIP und Rückgängig prüfen. |
 | Belastung und Pfadreservierung | Mehrere Aufträge mit unabhängigen Zielen starten. Eine Kopie pausieren und eine Löschung derselben Quelle sowie eine unabhängige Löschung anfordern. Prüfen, dass nur die erste Löschung wartet. Die Kopie abbrechen, beide Löschungen nach Abschluss einzeln rückgängig machen und alle Prüfsummen vergleichen. Laufzeit und freien Speicher erfassen. Für JOB-05 drei unabhängige Ziele verwenden. Beim Pausieren und Abbrechen die Zeit vom Klick bis zur ersten sichtbaren Statusänderung erfassen. Build 306 bestand den Ablauf mit APFS-Quelle und SMB-Ziel. Nach beiden Rückgängig-Aktionen stimmten am Originalpfad alle 20’004 Dateien und 107 Unterordner mit dem Manifest überein. Bei der Variante mit langsamer SMB-Quelle wurde die wartende Löschung erfolgreich freigegeben und ihr Wiederherstellungsbestand geprüft. Die Wiederherstellung am ursprünglichen SMB-Pfad stoppte nach 7’001 Dateien mit widersprüchlichen Prüfsummen im Plan. Der [separate Wiederherstellungstest](#smb-wiederherstellungsplan-gegen-die-historie-prüfen) beschreibt den Nachtest. |
 
+### Anmeldewiederherstellung mit abgelehntem Cloud-Token (CLOUD-05)
+
+1. In einem separaten Testprofil einen eigenen Dropbox- oder Google-Drive-Ordner mit einer Testdatei einrichten. Deren Objekt-ID und SHA-256-Prüfsumme unabhängig erfassen. Im zweiten Bereich einen lokalen Testordner öffnen.
+2. In einer Kopie der Testkonfiguration ein absichtlich ungültiges Token ohne funktionierendes Erneuerungstoken hinterlegen. Diese Verbindung öffnen. Der betroffene Bereich muss zur Wiederverbindung auffordern und darf keine Dateiliste als aktuell anzeigen. Der lokale Bereich muss bedienbar bleiben.
+3. Über die App die gültige Testkonfiguration erneut auswählen und prüfen lassen. Die erwartete Datei muss wieder erscheinen. Objekt-ID und Prüfsumme erneut unabhängig vergleichen.
+
+Der signierte Mac-Build 322 bestand diese Variante mit echten Anbieterantworten für Dropbox und Google Drive. Für den vollständigen Fall den Token-Widerruf am dedizierten Testkonto aus der CSV und die weiteren Anbieter separat prüfen.
+
 ## Ergebnis festhalten
 
 Pro Fall den Windows-Build, den Status, die Abweichung vom Soll und einen Beleg erfassen. Bei einem Fehler in «Fehler-ID» die ID des Windows-Issues eintragen und dort die Variante, Reproduktionsschritte, Uhrzeit und genaue Meldung festhalten. Die passende Mac-Regressions-ID kann im Windows-Issue als Referenz angegeben werden.
