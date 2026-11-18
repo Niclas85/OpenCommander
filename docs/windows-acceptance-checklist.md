@@ -104,3 +104,14 @@ Für die zusätzliche Prüfung vor dem Export im Testadapter die Google-Revision
 2. Den Ordner in einen leeren lokalen Testordner kopieren. Der Auftrag muss zwei Dateien als abgeschlossen anzeigen. Unicode-Name, Prüfsumme, leere Datei und leerer Ordner müssen erhalten bleiben. Die Historie muss genau eine Kopie erfassen.
 3. In einer separaten Test-VM mit Testadapter direkt nach dem Speichern des lokalen Kopierbelegs und vor dem Abschluss der Warteschlange den App-Prozess beenden. Die App erneut starten und denselben Auftrag fortsetzen. Die bereits veröffentlichte Kopie muss bestätigt werden. Es darf weder eine zweite Kopie noch einen zweiten Historieneintrag geben. Wenn ein Adapter fehlt, den gezielten Abbruch als offen erfassen.
 4. Nach erneutem Start die Kopie rückgängig machen. Nur der lokale Ordner muss verschwinden. Die Dropbox-IDs und die Dateiinhalte müssen gleich bleiben.
+
+### Google-Bestätigung nach der Quellensicherung geht verloren
+
+Mit einem entbehrlichen nativen Google-Dokument im eigenen Drive-Testordner prüfen. Google-ID, Dokumenttyp und einen eindeutigen Satz festhalten. Für den gezielten Prozessabbruch ist ein instrumentierter Testadapter erforderlich.
+
+1. Den Wiederherstellungsnamen der Quellensicherung im Test aufzeichnen. In einem separaten Versuch diesen Namen vor der Sicherung mit einer eigenen anderen Datei belegen. Der Vorgang muss stoppen. Beide Objekte und Inhalte müssen erhalten bleiben.
+2. Den Platzhalter entfernen und den Testprozess beenden, sobald Google die Quellensicherung bestätigt, bevor die App die Antwort verbucht. Den Wiederherstellungsnamen und die unveränderte Google-ID im Anbieter prüfen.
+3. Den Testprozess neu starten. Die bereits ausgeführte Quellensicherung muss anhand der ursprünglichen ID erkannt werden. Der Testadapter darf keinen zweiten Schreibaufruf für die Quellensicherung verzeichnen. Nach einem weiteren Neustart muss Rückgängig den Originalnamen mit gleicher Google-ID, gleichem Typ und Inhalt wiederherstellen.
+4. Einen gesonderten Versuch mit einer nach der Vorbereitung geänderten Google-Revision ausführen. Die Sicherung für die veraltete Revision muss abgewiesen werden. Das aktuelle Dokument muss erhalten bleiben.
+
+Der Mac-Live-Test belegt die Quellensicherung und Wiederherstellung. Der vollständige Wechsel zu einem zweiten Cloud-Dienst hat eine eigene Abnahme.
