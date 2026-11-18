@@ -204,7 +204,7 @@ TRASH-06;Papierkorb, Historie und Rückgängig;P0;Undo mit nachträglich geände
 TRASH-07;Papierkorb, Historie und Rückgängig;P0;Undo abbrechen und erneut versuchen;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Großen Undo mit Verifikation starten
 2. Abbrechen
 3. App neu starten
-4. Erneut versuchen";"Kein falscher vollständiger Undo; gespeicherter Teilfortschritt konsistent; später sichere Fortsetzung oder klarer Konflikt.";Teilweise belegt;;;Nicht ausgeführt;;;
+4. Erneut versuchen";"Kein falscher vollständiger Undo; gespeicherter Teilfortschritt konsistent; später sichere Fortsetzung oder klarer Konflikt.";Teilweise belegt;REG-NAS-10;;Nicht ausgeführt;;;
 TRASH-08;Papierkorb, Historie und Rückgängig;P1;Historieninformationen und Bilder;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Gemischte Vorgänge ausführen
 2. Historie aufklappen
 3. Bildvorgang wählen";"Aktion, Quelle/Ziel, Zeit, Ergebnis/Warnungen und passende Vorschau soweit verfügbar; Undo dem richtigen Vorgang zugeordnet.";Nativ belegt;REG-HISTORY-01;;Nicht ausgeführt;;;
@@ -406,7 +406,7 @@ SAFE-04;Sicherheit, Leistung und Dauerbetrieb;P1;20.000 Dateien anzeigen;"Isolie
 SAFE-05;Sicherheit, Leistung und Dauerbetrieb;P1;Große Historie und viele Aufträge messen;"Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.";"1. 1.000 History-Einträge und 20 Jobs laden
 2. Scrollen, minimieren, Einstellungen öffnen";"Sichtbare Widgets begrenzt; nach Stabilisierung kein stetiges Speicherwachstum; keine blockierten Hauptaktionen.";Nativ belegt;;;Nicht ausgeführt;;;
 SAFE-06;Sicherheit, Leistung und Dauerbetrieb;P0;Dauerlauf mit Netzwechseln;"Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.";"1. Vier unabhängige Testjobs über mindestens 2 h betreiben
-2. In VM Netzverluste und Pause/Fortsetzen einstreuen";"Kein Crash, Datenverlust oder festhängender GUI-Zustand; alle Enddaten verifiziert; blockierte Jobs haben erklärbaren Zustand.";Teilweise belegt;REG-NAS-08, REG-NAS-09;;Nicht ausgeführt;;;
+2. In VM Netzverluste und Pause/Fortsetzen einstreuen";"Kein Crash, Datenverlust oder festhängender GUI-Zustand; alle Enddaten verifiziert; blockierte Jobs haben erklärbaren Zustand.";Teilweise belegt;REG-NAS-08, REG-NAS-09, REG-NAS-10;;Nicht ausgeführt;;;
 SAFE-07;Sicherheit, Leistung und Dauerbetrieb;P1;Wiederholtes Öffnen/Schließen;"Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.";"1. 50-mal Preview, Eigenschaften und Einstellungen öffnen/schließen
 2. Threads, Tempdateien und RAM vergleichen";"Nach Ruhephase keine pro Durchlauf wachsenden Worker/Handles; private Media-Temps bereinigt; Transfer-Recoverydaten bewusst erhalten.";Nativ belegt;;;Nicht ausgeführt;;;
 SAFE-08;Sicherheit, Leistung und Dauerbetrieb;P0;Automatisierte Regression;"Sauberer Windows-Checkout des zu prüfenden Builds; Testprofil und verfügbare Windows-CI.";"1. Die im Windows-Checkout dokumentierte Testsuite ausführen
