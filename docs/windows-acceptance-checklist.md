@@ -158,6 +158,8 @@ Der Mac-Live-Test belegt die Quellensicherung und Wiederherstellung. Der vollst�
 
 Die Mac-Diagnose beobachtete eine geänderte numerische Google-Version auch bei einem unberührten Kontroll-Dokument. Zwei tatsächliche DOCX-Exporte desselben Dokuments hatten verschiedene ZIP-Rohbytes und identische SHA-256-Werte pro Archiveintrag. Für die [Gegenprobe mit tatsächlicher Inhaltsänderung](#gegenprobe-vor-der-veröffentlichung) einen separaten Lauf verwenden.
 
+Der macOS-Live-Nachtest vom 18. November 2026 erreichte mit echten Google-Drive- und Dropbox-Testordnern beide Abbruchpunkte. Nach dem Neustart hatte der Auftrag dieselbe ID und genau einen Historieneintrag. Zweimaliges Rückgängig in separaten Prozessen stellte die alte Dropbox-ID und deren Bytes sowie Google-Name, ID, Typ und Text wieder her. Der Lauf prüfte die Übertragungslogik. Die Bedienung im App-Fenster ist ein eigener Nachtest.
+
 In PowerShell lassen sich die Archiveinträge der beiden unveränderten Exporte direkt vergleichen. `Compare-Object` gibt keine Zeile aus, wenn Namen und Prüfsummen übereinstimmen.
 
 ```powershell
