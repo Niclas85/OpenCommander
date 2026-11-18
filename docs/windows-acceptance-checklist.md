@@ -149,6 +149,12 @@ Eine parallele Mac-Gegenprobe ausserhalb von OpenCommander reproduzierte dieselb
 | Lokale Werkzeuge | Suche im aktiven Ordner und mit geändertem Pfad, Suchtreffer mit vollständigem Pfad, Gross-/Kleinschreibung standardmässig deaktiviert, Vergleichen, mehrfaches Umbenennen, ZIP und Rückgängig prüfen. |
 | Belastung und Pfadreservierung | Mehrere Aufträge mit unabhängigen Zielen starten. Eine Kopie pausieren und eine Löschung derselben Quelle sowie eine unabhängige Löschung anfordern. Prüfen, dass nur die erste Löschung wartet. Die Kopie abbrechen, beide Löschungen nach Abschluss einzeln rückgängig machen und alle Prüfsummen vergleichen. Laufzeit und freien Speicher erfassen. Für JOB-05 drei unabhängige Ziele verwenden. Beim Pausieren und Abbrechen die Zeit vom Klick bis zur ersten sichtbaren Statusänderung erfassen. Build 306 bestand den Ablauf mit APFS-Quelle und SMB-Ziel. Nach beiden Rückgängig-Aktionen stimmten am Originalpfad alle 20’004 Dateien und 107 Unterordner mit dem Manifest überein. Bei der Variante mit langsamer SMB-Quelle wurde die wartende Löschung erfolgreich freigegeben und ihr Wiederherstellungsbestand geprüft. Die Wiederherstellung am ursprünglichen SMB-Pfad stoppte nach 7’001 Dateien mit widersprüchlichen Prüfsummen im Plan. Der [separate Wiederherstellungstest](#smb-wiederherstellungsplan-gegen-die-historie-prüfen) beschreibt den Nachtest. |
 
+### Kalter und warmer Cloud-Ordnerabruf (CLOUD-01)
+
+In einem frischen Testprofil einen eigenen Cloud-Ordner mit einer Testdatei auf oberster Ebene und einer anderen Datei in einem Unterordner öffnen. Die Zeit vom Klick bis zur richtigen Dateiliste erfassen. Dann den Unterordner öffnen, mit «Zurück» zum Hauptordner wechseln, den Cloud-Bereich schliessen und denselben Ort erneut öffnen. Kalten Erstabruf und warmes Wiederöffnen separat protokollieren. Ladeanzeige, Möglichkeit zum Schliessen und die unveränderte Ansicht im zweiten Bereich prüfen. Objekt-IDs und Dateiinhalte unabhängig beim Anbieter vergleichen.
+
+Im signierten Mac-Build 322 lagen die gemessenen Zeiten inklusive Bedienautomation bei Dropbox bei 3,13 s für den Erstabruf und 1,95 s für das Wiederöffnen. Bei Google Drive waren es 2,93 s und 1,91 s. Die Werte beschreiben den Testaufbau.
+
 ### Anmeldewiederherstellung mit abgelehntem Cloud-Token (CLOUD-05)
 
 1. In einem separaten Testprofil einen eigenen Dropbox- oder Google-Drive-Ordner mit einer Testdatei einrichten. Deren Objekt-ID und SHA-256-Prüfsumme unabhängig erfassen. Im zweiten Bereich einen lokalen Testordner öffnen.
