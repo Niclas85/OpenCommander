@@ -45,7 +45,7 @@ Bei Links oder Freigaben ein separates Testkonto und eine entbehrliche Datei ver
 
 Für CLOUD-09 und CLOUD-10 vor der Bestätigung direkt beim Anbieter prüfen, dass die Testdatei keine öffentliche Freigabe hat. Nach dem Bestätigen den Link in einer abgemeldeten Sitzung öffnen und die Datei mit der vorbereiteten Prüfsumme vergleichen. Anschliessend die Freigabe beim Anbieter widerrufen und den alten Link erneut abgemeldet prüfen. Der rclone-Befehl `link --unlink` kann bei nicht unterstützten Anbietern das Flag ignorieren. Ein erfolgreicher Exitcode reicht als Widerrufsnachweis deshalb nicht aus. [rclone-Dokumentation](https://rclone.org/commands/rclone_link/)
 
-In getrennten abgemeldeten Chrome-Profilen zeigten Google Drive und Dropbox die synthetische Datei nach der Freigabe und verweigerten den bisherigen Link nach dem Widerruf. Der Dropbox-Download aus Chrome und ein separat abgerufener anonymer Google-Drive-Download waren bytegenau.
+Im sichtbaren Test mit dem signierten Mac-Build 321 blieb die Testdatei nach «Abbrechen» auf Google Drive und Dropbox privat. Erst die Bestätigung erstellte den Link. Getrennte abgemeldete Chrome-Sitzungen zeigten die Dateien und verweigerten den Zugriff nach dem Widerruf beim Anbieter. Der Dropbox-Download aus Chrome und der unabhängig abgerufene anonyme Google-Drive-Download waren bytegenau. Bei Google Drive war die Leserfreigabe per Link erreichbar und von der Suche ausgeschlossen.
 
 ## Dropbox → Google Drive bis Rückgängig
 
