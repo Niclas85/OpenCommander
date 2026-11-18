@@ -2,11 +2,34 @@
 
 Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden beim eigenen Durchlauf eingetragen. WebDAV gehört nicht zu diesem Durchlauf.
 
+## Vollständige Prüfliste
+
+- [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und leere Felder für Build, Ist-Ergebnis, Beleg und Fehler-ID. Import in Excel als UTF-8 mit Semikolon als Trennzeichen. Die Windows-Spalten starten bei «Nicht ausgeführt».
+- [Mac-Ergebnisse und beobachtete Fehler nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Stand 18. November 2026: 105 Fälle mit nativ belegtem Ablauf, 46 mit Teilbelegen und 7 mit fehlender Testumgebung. Diese Zahlen zählen Fälle, keine einzelnen Testläufe oder eindeutigen Fehler.
+- [Gezielte Nachtests gefundener Fehler](windows-regressions-from-macos.md) führt häufige und folgenreiche Regressionen mit reproduzierbaren Windows-Schritten auf. Der Mac-Befund gibt vor, welches Verhalten Windows beim Nachtest zeigen soll.
+
+Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
+
 ## Vorbereitung
 
 - Windows-Version, OpenCommander-Build und Testsprache notieren. Für beide Cloud-Dienste die direkte Verbindung in OpenCommander verwenden.
 - In Dropbox und Google Drive je einen eigenen Ordner mit demselben eindeutigen Namen erstellen, etwa `OpenCommander-QA-20261114-01`. Jeweils eine Datei namens `CrossMove.txt` anlegen. In Dropbox beispielsweise `Dropbox Original – Grüße 日本語`, in Google Drive `Drive Original – alte Fassung` speichern. Für Kopier-, Abbruch- und Belastungstests eigene Unterordner verwenden.
 - Beide Dateien vor dem Test unabhängig von OpenCommander herunterladen und die SHA-256-Prüfsummen erfassen. Wenn der Anbieter die Datei-ID über seine API zugänglich macht, auch beide IDs notieren. Lokale Prüfsummen lassen sich mit `Get-FileHash -Algorithm SHA256 -LiteralPath '.\CrossMove.txt'` berechnen. Beim Prüfen dieselben Download-Verfahren verwenden.
+
+### Datensätze und Varianten
+
+| Kürzel | Windows-Testaufbau und Nachweis |
+| --- | --- |
+| D1 | Mindestens 30 synthetische Dateien mit leeren Dateien, Dateien mit 1 Byte und 1 MiB, Unicode, Leerzeichen, langen gültigen Namen, versteckten Dateien, leeren und verschachtelten Ordnern sowie kontrollierten Namenskonflikten. Reparse Points und Links separat in der Test-VM prüfen. Vorher und nachher relative Pfade, Typ, Grösse und SHA-256 vergleichen. |
+| D2 | 20'000 kleine Dateien und vier grosse Dateien in einem gemischten Baum, darunter eine 2-GiB-Datei. Für Quelle und Ziel zusammen rund 14 GiB, plus Platz für Staging und Rückgängig vorsehen. Den vollständigen Run mit mindestens 17,5 GiB frei vorbereiten und den tatsächlichen freien Speicher am Ziel notieren. Für SAFE-05 zusätzlich 1'000 synthetische Historieneinträge. |
+| D3 | JPEG, PNG, WebP und GIF, defektes und absichtlich grosses Bild, kurzes MP4, Audio, Text und Binärdatei. Inhalt, Reihenfolge, Wiedergabe, Positionswechsel und Bereinigung temporärer Dateien prüfen. |
+| D4 | Unterstützte Archivformate mit demselben D1-Teilsatz. Leere, defekte, verschlüsselte und absichtlich unsichere Archive in einer isolierten Testumgebung prüfen. Nur entpacken und Hashes vergleichen. |
+| C1 | OneDrive Personal, Google Drive, Dropbox und iCloud Drive separat. Geschäfts- und geteilte Bereiche bei Verfügbarkeit separat erfassen. Direkte Verbindung und synchronisierter Windows-Ordner ergeben getrennte Varianten. |
+| T1 / T2 | Lokal, SMB, jedes eingerichtete Cloud-Ziel und die Cloud-zu-Cloud-Richtungen separat prüfen. Kopieren und Verschieben, direkte Verbindung und externe Einbindung mit Schreibcache, schreibgeschützt und offline separat erfassen. Sichtbare Daten und Hashes beim Anbieter unabhängig verifizieren. |
+| S1 | Kontrolliertes SFTP mit Passwort, Schlüssel und Agent, FTP, explizites FTPS und SMB. Abgelehnter Host-Key, abgelehntes Zertifikat und falsches Testpasswort ergeben getrennte Fälle. |
+| U1 | Deutsch und Englisch, Hell und Dunkel, 100/150/200 % Skalierung, schmale und breite Fenster, Maus und Tastatur. |
+
+Bei Links oder Freigaben ein separates Testkonto und eine entbehrliche Datei verwenden. Kontrollierte Prozessabbrüche, Speichermangel und Netzverlust in einer Windows-Test-VM durchführen. Belege bitte ohne Kontonamen, öffentliche Freigabelinks, Zugangsdaten oder persönliche Pfade ablegen.
 
 ## Dropbox → Google Drive bis Rückgängig
 
