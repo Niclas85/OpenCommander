@@ -159,6 +159,15 @@ Pro Fall den Windows-Build, den Status, die Abweichung vom Soll und einen Beleg 
 
 Die macOS-Live-Läufe mit Builds 101 und 102 haben Wiederaufnahme und Rückgängig bis zum unabhängigen Nachweis beider ursprünglichen Anbieter-IDs und Prüfsummen abgeschlossen. Build 101 wurde nach einem Anbieter-Zeitlimit wiederaufgenommen, Build 102 nach einer manuellen Pause. Der Windows-Nachweis steht aus. [Mac-Testprotokoll](mac-dropbox-google-drive-build101-2026-11-12.md)
 
+### Natives Google-Dokument mit «Öffnen mit …» exportieren
+
+1. Im eigenen Google-Drive-Testordner ein natives Google-Dokument mit einem kurzen Text anlegen, der Umlaute und japanische Zeichen enthält. Dateinamen und Dokument-ID erfassen.
+2. Im Online-Bereich des Dateimanagers per Rechtsklick «Öffnen mit …» wählen. Den angebotenen DOCX-Export im eigenen lokalen Testordner speichern. Dateiname mit Endung prüfen und den Inhalt im gespeicherten Dokument lesen.
+3. Die App-Auswahl einmal abbrechen. Die gespeicherte Kopie muss weiterhin vorhanden sein. In einem separaten Durchgang eine verfügbare DOCX-Anwendung wählen und prüfen, dass sie genau die gespeicherte Kopie öffnet.
+4. Den Anbieterordner separat neu laden. Dokument-ID und Text mit dem Ausgangsstand vergleichen und bestätigen, dass das Original weiterhin ein natives Google-Dokument ist.
+
+Der sichtbare Mac-Nachtest in Build 321 bestätigte den Export bis zur App-Auswahl und deren Abbruch. Eine unabhängige Prüfung des DOCX-Archivs bestätigte den vollständigen Testtext. Die Google-ID und das native Original blieben erhalten.
+
 ### Google-Docs-Export nach Prozessabbruch fortsetzen
 
 1. Mit direkten Google-Drive- und Dropbox-Verbindungen in einer Test-VM arbeiten. In Google Drive ein eigenes natives Google-Dokument mit eindeutigem Text anlegen und die Google-ID und die ursprüngliche Dokumentart erfassen. In Dropbox einen eigenen leeren Zielordner anlegen.
