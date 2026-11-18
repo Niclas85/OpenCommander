@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 18. November 2026 waren 105 Fälle nativ belegt, 46 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [27 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Diese Zahl zählt die dokumentierten Nachtests und ist keine Gesamtzahl einzelner Fehler.
+- [28 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Diese Zahl zählt die dokumentierten Nachtests und ist keine Gesamtzahl einzelner Fehler.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -115,3 +115,10 @@ Mit einem entbehrlichen nativen Google-Dokument im eigenen Drive-Testordner prü
 4. Einen gesonderten Versuch mit einer nach der Vorbereitung geänderten Google-Revision ausführen. Die Sicherung für die veraltete Revision muss abgewiesen werden. Das aktuelle Dokument muss erhalten bleiben.
 
 Der Mac-Live-Test belegt die Quellensicherung und Wiederherstellung. Der vollständige Wechsel zu einem zweiten Cloud-Dienst hat eine eigene Abnahme.
+
+### Google-Dokument nach Dropbox verschieben und rückgängig machen
+
+1. Ein natives Google-Dokument im eigenen Testordner anlegen und ID, Typ und Text erfassen. In einen leeren Dropbox-Testordner **verschieben**. In Dropbox muss der DOCX-Export mit dem erwarteten Text erscheinen. Das ursprüngliche Google-Dokument muss unter einem internen Wiederherstellungsnamen mit derselben ID erhalten bleiben.
+2. Mit dem Testadapter unmittelbar nach dem Speichern des privaten Exports abbrechen. Dropbox bleibt leer und das Google-Dokument behält seinen Namen. Die App erneut öffnen und denselben Auftrag fortsetzen.
+3. Den Testprozess erneut beenden, sobald der geprüfte Dropbox-Export vorhanden und das native Original gesichert ist. In der Test-App nach dem Neustart denselben Auftrag fortsetzen. Der Auftrag muss mit derselben ID abschliessen und genau einen Verschiebeeintrag ergeben.
+4. Rückgängig nach einem weiteren Neustart ausführen. In Google Drive müssen der Originalname, die gleiche ID, der native Typ und der Text wieder sichtbar sein. Der öffentliche Dropbox-Zielname muss verschwinden. Ein erneuter Aufruf desselben Rückgängig-Belegs durch den Testadapter muss denselben Zustand bestätigen.

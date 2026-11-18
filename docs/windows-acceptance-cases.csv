@@ -148,14 +148,14 @@ JOB-13;Warteschlange, Parallelität und Bedienbarkeit;P0;Schnelle wiederholte St
 REC-01;Neustart, Unterbrechung und Datenintegrität;P0;Geordnet schließen und später fortsetzen;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Kopie starten
 2. Fenster schließen
 3. Auf gespeicherte Pause warten
-4. App erneut öffnen";"Auftrag mit Quelle/Ziel erhalten; Fortsetzung gemäß gespeicherter Zustandslogik; kein Neubeginn bereits verifizierter fertiger Dateien; finale Hashes korrekt.";Teilweise belegt;REG-CLOUD-03, REG-CLOUD-04, REG-QUEUE-02, REG-GDOC-02, REG-CLOUD-08;;Nicht ausgeführt;;;
+4. App erneut öffnen";"Auftrag mit Quelle/Ziel erhalten; Fortsetzung gemäß gespeicherter Zustandslogik; kein Neubeginn bereits verifizierter fertiger Dateien; finale Hashes korrekt.";Teilweise belegt;REG-CLOUD-03, REG-CLOUD-04, REG-QUEUE-02, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03;;Nicht ausgeführt;;;
 REC-02;Neustart, Unterbrechung und Datenintegrität;P0;Explizit pausiert neu starten;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Job pausieren
 2. Gespeichert abwarten
 3. Neu starten
 4. Fortsetzen wählen";"Keine ungeklärte Zustandsänderung; Bediener erkennt gespeicherten Stand und Startverhalten; genau eine Fortsetzung, korrekte Enddaten.";Nativ belegt;REG-QUEUE-03;;Nicht ausgeführt;;;
 REC-03;Neustart, Unterbrechung und Datenintegrität;P0;Unerwarteter Prozessabbruch;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Testkopie starten
 2. Isolierten Prozess während Datenübertragung beenden
-3. Testinstanz neu starten";"Journal bleibt lesbar; kein falscher Abschluss; wiederaufnehmbare Arbeit sichtbar; Quelle intakt; Fortsetzung erzeugt korrekte Daten.";Teilweise belegt;REG-NTFS-01, REG-CLOUD-07, REG-GDOC-02, REG-CLOUD-08;;Nicht ausgeführt;;;
+3. Testinstanz neu starten";"Journal bleibt lesbar; kein falscher Abschluss; wiederaufnehmbare Arbeit sichtbar; Quelle intakt; Fortsetzung erzeugt korrekte Daten.";Teilweise belegt;REG-NTFS-01, REG-CLOUD-07, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03;;Nicht ausgeführt;;;
 REC-04;Neustart, Unterbrechung und Datenintegrität;P0;Lokale Teildatei fortsetzen;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Große lokale Datei teilweise kopieren
 2. Pausieren
 3. Fortsetzen";"Bereits vorhandenes Präfix wird geprüft; geeignete Teildatei weitergeführt; kein still übernommener falscher Inhalt.";Nativ belegt;;;Nicht ausgeführt;;;
@@ -196,11 +196,11 @@ TRASH-03;Papierkorb, Historie und Rückgängig;P0;Cache-Rennen nach Entfernen;"D
 TRASH-04;Papierkorb, Historie und Rückgängig;P0;Aus Papierkorb wiederherstellen;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Vorgang mit mehreren entfernten Dateien wählen
 2. Wiederherstellen";"Gesamter gewählter Entfernungsvorgang wird korrekt zurückgenommen; Inhalt/Hashes gleich; keine Verwechslung mit System-/Provider-Papierkorb.";Nativ belegt;;;Nicht ausgeführt;;;
 TRASH-05;Papierkorb, Historie und Rückgängig;P0;Undo für jede mutierende Operation;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Kopieren, Verschieben, Ersetzen, Umbenennen, Ordner anlegen, ZIP erzeugen und Entpacken jeweils separat ausführen
-2. Jeweils zugehörigen Historieneintrag rückgängig";"Ursprünglicher Zustand soweit dokumentiert wiederhergestellt; betroffene Pfade stimmen; andere Vorgänge unverändert. Jede Variante als eigenen Lauf erfassen.";Teilweise belegt;REG-CLOUD-04, REG-CLOUD-05, REG-CLOUD-06, REG-REMOTE-01, REG-GDOC-01, REG-GDOC-02, REG-CLOUD-08;;Nicht ausgeführt;;;
+2. Jeweils zugehörigen Historieneintrag rückgängig";"Ursprünglicher Zustand soweit dokumentiert wiederhergestellt; betroffene Pfade stimmen; andere Vorgänge unverändert. Jede Variante als eigenen Lauf erfassen.";Teilweise belegt;REG-CLOUD-04, REG-CLOUD-05, REG-CLOUD-06, REG-REMOTE-01, REG-GDOC-01, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03;;Nicht ausgeführt;;;
 TRASH-06;Papierkorb, Historie und Rückgängig;P0;Undo mit nachträglich geändertem Ziel;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Kopieren/ersetzen
 2. Zieldatei extern ändern
 3. Undo
-4. Zusätzlich belegten ursprünglichen Quellpfad testen";"Neuere Daten werden nicht überschrieben oder gelöscht; Konflikt klar; Teilzustand bleibt nachvollziehbar.";Teilweise belegt;REG-NAS-02, REG-CLOUD-06, REG-REMOTE-01, REG-GDOC-01;;Nicht ausgeführt;;;
+4. Zusätzlich belegten ursprünglichen Quellpfad testen";"Neuere Daten werden nicht überschrieben oder gelöscht; Konflikt klar; Teilzustand bleibt nachvollziehbar.";Teilweise belegt;REG-NAS-02, REG-CLOUD-06, REG-REMOTE-01, REG-GDOC-01, REG-GDOC-03;;Nicht ausgeführt;;;
 TRASH-07;Papierkorb, Historie und Rückgängig;P0;Undo abbrechen und erneut versuchen;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Großen Undo mit Verifikation starten
 2. Abbrechen
 3. App neu starten
@@ -247,7 +247,7 @@ CLOUD-02;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Google-Drive-Hänger als R
 2. Während verzögerter Antwort navigieren
 3. Erneut laden";"Keine dauerhaft leere, unbedienbare Ansicht; Timeout/Fehler mit Wiederholen; lokale Bereiche weiter bedienbar.";Teilweise belegt;;;Nicht ausgeführt;;;
 CLOUD-03;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Online-Grundoperationen;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. D1 hochladen, herunterladen, umbenennen, Ordner anlegen, entfernen und wiederherstellen
-2. Provider unabhängig prüfen";"Dateien/Inhalte und Namen stimmen; Änderungen auch beim Provider sichtbar; Cache allein zählt nicht als Erfolg.";Teilweise belegt;REG-CLOUD-01, REG-CLOUD-02, REG-CLOUD-07, REG-GDOC-01, REG-GDOC-02, REG-CLOUD-08;;Nicht ausgeführt;;;
+2. Provider unabhängig prüfen";"Dateien/Inhalte und Namen stimmen; Änderungen auch beim Provider sichtbar; Cache allein zählt nicht als Erfolg.";Teilweise belegt;REG-CLOUD-01, REG-CLOUD-02, REG-CLOUD-07, REG-GDOC-01, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03;;Nicht ausgeführt;;;
 CLOUD-04;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Netzausfall und Wiederkehr;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Während Listen und Kopieren nur Testnetz unterbrechen
 2. Lokalen Ordner bedienen
 3. Netz wiederherstellen";"Begrenzte Wartezeit, sichtbarer Status; keine GUI-Sperre; kontrollierter Retry; keine doppelten Dateieinträge oder Quellverluste.";Teilweise belegt;;;Nicht ausgeführt;;;
