@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 18. November 2026 waren 105 Fälle nativ belegt, 46 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [39 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [40 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -84,6 +84,8 @@ Für SAFE-06 vier unabhängige Ziele und ein separates SMB-Testlaufwerk pro Auft
 
 Vor einem weiteren Dauerlauf die SMB-Quelldateien mit einer unabhängig erzeugten SHA-256-Liste vergleichen. Dazu die isolierte Freigabe neu verbinden und die Dateien auch ausserhalb von OpenCommander lesen. Ein neu vorbereiteter macOS-Testdatensatz scheiterte bei dieser Vorprüfung. Zwei zusätzliche vollständige Lesevorgänge mit unterschiedlichen Puffergrössen bestätigten zwei abweichende Bytes an denselben Positionen in einer 2-GiB-Quelldatei. Die Ursache ist offen. In Windows einen abweichenden Quelldatensatz als fehlgeschlagene Vorprüfung erfassen. Für die gezielte Gegenprobe eine eigene Quelldatei zwischen Pause und Fortsetzen verändern. OpenCommander muss den betroffenen Auftrag vor der Veröffentlichung stoppen und darf dafür keinen Abschluss verbuchen.
 
+Ein separater macOS-Dauerlauf verwendet 20’004 ausgelesene und geprüfte lokale Quelldateien und vier getrennte SMB-Zielverbindungen. Bei 69 MiB wurde eine Zielverbindung getrennt. Der betroffene Auftrag pausierte, während die drei anderen weiterliefen. Nach dem erneuten Einbinden lief derselbe Auftrag mit mehr als 69 MiB weiter. Die Zwei-Stunden-Marke und die unabhängige Endprüfung aller Ziele sind noch offen.
+
 ### Quelle und Ziel beim SMB-Fortsetzen unterscheiden
 
 1. Einen Kopierauftrag mit einer eigenen SMB-Datei und separater Kontrolldatei anlegen. Den SHA-256 der Quelle ausserhalb der App erfassen. Mit einem Testadapter nach vollständig gespeicherten Dateibytes und vor dem Abschlussbeleg pausieren. Quelle und Ziel müssen zu diesem Zeitpunkt denselben Hash haben.
@@ -148,6 +150,12 @@ Für die zusätzliche Prüfung vor dem Export im Testadapter die Google-Revision
 3. SHA-256 am Ziel und bei einem Cache zusätzlich unabhängig am Anbieter prüfen. Beim SMB-Ersetzen «Rückgängig» wählen. Die alte Zieldatei muss ihren früheren Hash zurückerhalten. Prüfe die unveränderte Cloud-Quelle und eine unbeteiligte Datei neben dem Ziel.
 
 Für den zusätzlichen Schreibcache-Test ein eigenes rclone-Laufwerk mit verzögertem Writeback und einem unabhängig lesbaren Test-Backend einbinden. Direkt aus der Cloud zum Laufwerk kopieren. Sobald die Warteschlange fertig meldet, muss der Hash am Laufwerk stimmen und der Hinweis zur unbestätigten Synchronisierung sichtbar sein. Das unabhängige Backend darf in der eingestellten Wartezeit noch leer sein. Nach Ablauf der Wartezeit muss es genau dieselben Bytes enthalten. Die Cloud-Quelle währenddessen unabhängig prüfen. «Verschieben» mit einer separaten Testdatei wiederholen. Ohne bestätigte Übertragung zum Anbieter muss die Cloud-Quelle erhalten bleiben.
+
+### Cloud-Download bei getrenntem Ziellaufwerk wiederaufnehmen
+
+1. Einen eigenen Cloud-Download auf ein separates Testlaufwerk vorbereiten. Mit einem Testadapter nach erfolgreichem Dateisystemtransfer und vor dem Warteschlangenabschluss den App-Prozess beenden. Die Auftrags-ID und den SHA-256 der Testdatei erfassen. Anschliessend das Testlaufwerk trennen.
+2. Die App neu öffnen. In getrennten Läufen «Fortsetzen» und «Abbrechen» am selben gespeicherten Auftrag wählen. Der Auftrag muss pausiert bleiben und auch in der kompakten Ansicht zum Wiederverbinden auffordern. Beim Abbruch muss die ausstehende Prüfung vermerkt bleiben. Am leeren Einbindungspfad dürfen keine Dateien entstehen. Solange die Verbindung fehlt, darf kein erfolgreicher Historieneintrag erscheinen.
+3. Dasselbe Testlaufwerk wieder einbinden und denselben Auftrag fortsetzen. Im Abbruchlauf muss die App zuerst die ausstehende Prüfung abschliessen. Die bereits wirksame Kopie muss bytegenau bestätigt und genau einmal in der Historie erfasst werden. Die unabhängige Prüfsumme am Ziel, der unveränderte Inhalt der Quelle und die ursprüngliche Auftrags-ID müssen stimmen.
 
 ### Google-Bestätigung nach der Quellensicherung geht verloren
 

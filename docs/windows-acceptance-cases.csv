@@ -170,7 +170,7 @@ REC-07;Neustart, Unterbrechung und Datenintegrität;P0;Quelle während Pause ge�
 REC-08;Neustart, Unterbrechung und Datenintegrität;P0;Quelle oder Ziel nicht verfügbar;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Pausieren
 2. Testlaufwerk trennen/Netz sperren
 3. Fortsetzen
-4. Wieder verbinden";"Wartender/fehlerhafter Zustand mit Grund; keine lokale Ersatzkopie in leeren Mountpunkt; nach Wiederverbindung kontrollierte Fortsetzung.";Teilweise belegt;REG-NAS-01, REG-NAS-03, REG-NAS-09;;Nicht ausgeführt;;;
+4. Wieder verbinden";"Wartender/fehlerhafter Zustand mit Grund; keine lokale Ersatzkopie in leeren Mountpunkt; nach Wiederverbindung kontrollierte Fortsetzung.";Teilweise belegt;REG-NAS-01, REG-NAS-03, REG-NAS-09, REG-CLOUD-12;;Nicht ausgeführt;;;
 REC-09;Neustart, Unterbrechung und Datenintegrität;P0;Anderes Laufwerk am gleichen Pfad;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Pause
 2. Testmedium entfernen
 3. Anderes Testmedium am gleichen Mountpfad einhängen
@@ -180,7 +180,7 @@ REC-10;Neustart, Unterbrechung und Datenintegrität;P0;Verschieben: Cleanup unte
 REC-11;Neustart, Unterbrechung und Datenintegrität;P0;Abbruch bei offline befindlichem Ziel;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Aktiven Job unterbrechen
 2. Testziel unerreichbar machen
 3. Abbrechen
-4. Ziel wieder verbinden";"Ausstehende Bereinigung gespeichert und kenntlich; kein Löschen fremder Ordner; nach Erreichbarkeit nur zugehöriger Zwischenstand bereinigt.";Teilweise belegt;REG-CLOUD-05, REG-NAS-03, REG-CLOUD-09;;Nicht ausgeführt;;;
+4. Ziel wieder verbinden";"Ausstehende Bereinigung gespeichert und kenntlich; kein Löschen fremder Ordner; nach Erreichbarkeit nur zugehöriger Zwischenstand bereinigt.";Teilweise belegt;REG-CLOUD-05, REG-NAS-03, REG-CLOUD-09, REG-CLOUD-12;;Nicht ausgeführt;;;
 REC-12;Neustart, Unterbrechung und Datenintegrität;P1;Beschädigtes Testjournal;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Kopie des Testprofils sichern
 2. Journal in Testkopie beschädigen
 3. Starten";"Keine Endlosschleife oder stille Nutzdatenlöschung; Fehler und Wiederherstellungsbedarf erkennbar; Original-Testbackup bleibt nutzbar.";Nativ belegt;;;Nicht ausgeführt;;;
@@ -271,7 +271,7 @@ CLOUD-11;Cloud-Dateien, Live-Zugriff und Freigaben;P1;iCloud, Weböffnung und On
 3. Online-Pfad kopieren";"Unterstützte Funktionen korrekt; keine vorgetäuschte iCloud-Linkfreigabe; Weböffnung darf zur Provider-Startseite führen, nicht zwingend zur exakten Datei.";Teilweise belegt;;;Nicht ausgeführt;;;
 CLOUD-12;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Writeback-Mount korrekt beurteilen;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Externen Full-Cache-Testmount verwenden
 2. Upload bei langsamer Leitung ausführen
-3. Backend unabhängig prüfen";"Lokaler Kopierabschluss wird nicht als Beweis vollständiger Provider-Synchronisation gewertet; Test gilt erst bei bestätigtem Online-Inhalt. Abweichende UI-Aussagen als Fehler melden.";Umgebung erforderlich;REG-CLOUD-03, REG-CLOUD-06, REG-CLOUD-10, REG-CLOUD-11;;Nicht ausgeführt;;;
+3. Backend unabhängig prüfen";"Lokaler Kopierabschluss wird nicht als Beweis vollständiger Provider-Synchronisation gewertet; Test gilt erst bei bestätigtem Online-Inhalt. Abweichende UI-Aussagen als Fehler melden.";Umgebung erforderlich;REG-CLOUD-03, REG-CLOUD-06, REG-CLOUD-10, REG-CLOUD-11, REG-CLOUD-12;;Nicht ausgeführt;;;
 SERVER-01;SFTP, FTP, FTPS und Netzwerkorte;P0;SFTP mit Passwort;"Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.";"1. Host, Port, Benutzer und Startordner einrichten
 2. Passwort anmelden
 3. Datei hin/zurück kopieren";"Verbindung zum richtigen Server/Ordner; Integrität korrekt; Passwort nicht als Klartext im neuen Serverprofil.";Nativ belegt;REG-AUTH-01, REG-REMOTE-01;;Nicht ausgeführt;;;
