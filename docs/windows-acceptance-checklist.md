@@ -78,6 +78,8 @@ Für die Kombination aus NTFS und SMB denselben Kopierauftrag bei getrenntem Zie
 
 Für REC-10 einen Verschiebeauftrag mit «Ersetzen» in einer isolierten Testinstanz vorbereiten. Falls ein Testadapter vorhanden ist, den Testprozess beenden, nachdem das Ziel verifiziert und die Quelle an den Wiederherstellungspfad verschoben wurde. Der Auftrag darf seinen Abschluss noch nicht gespeichert haben. Am früheren Quellpfad eine neue Testdatei mit anderen Bytes anlegen. Nach dem Neustart muss der Auftrag den Konflikt melden. Die veröffentlichte Zieldatei, beide Originale im Wiederherstellungsbereich und die neue Datei müssen erhalten bleiben. Die neue Testdatei separat umbenennen, denselben Auftrag fortsetzen und «Rückgängig» ausführen. Der ursprüngliche Quell- und Zielinhalt muss wieder am jeweiligen Namen liegen. In beide Richtungen testen.
 
+Für SAFE-06 vier unabhängige Ziele und ein separates SMB-Testlaufwerk pro Auftrag verwenden. Einen Auftrag pausieren und ein anderes Testlaufwerk während eines aktiven Schreibvorgangs trennen. Die App muss den fehlenden Zielort melden und dessen Zwischenstand behalten. Die zwei unabhängigen Aufträge müssen weiterlaufen. Das getrennte Laufwerk erneut einbinden, beide unterbrochenen Aufträge fortsetzen und alle vier Ziele unabhängig prüfen. Ein macOS-Lauf mit vier Dateien zu je 160 MiB bestätigte diesen Ablauf. Für den Dauerlauf die vollständigen D2-Daten und mindestens zwei Stunden Laufzeit verwenden.
+
 ## Weitere Prüffälle ohne WebDAV
 
 | Fall | Durchführung und Prüfkriterium |
