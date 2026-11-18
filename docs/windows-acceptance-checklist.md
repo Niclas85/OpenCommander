@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 18. November 2026 waren 105 Fälle nativ belegt, 46 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [20 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll.
+- [23 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Diese Zahl zählt die dokumentierten Nachtests und ist keine Gesamtzahl einzelner Fehler.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -45,6 +45,19 @@ Bei Links oder Freigaben ein separates Testkonto und eine entbehrliche Datei ver
 
 Den Test separat für «Beide behalten» wiederholen. Das ursprüngliche Ziel bleibt erhalten, und der neue Name enthält die Quellbytes. Rückgängig stellt die Quelle wieder her und entfernt die neu angelegte Kopie vom öffentlichen Zielpfad.
 
+## SMB-Abbruch mit Kopie und Ersetzen
+
+Eine separate Windows-Testinstanz mit eigener SMB-Freigabe verwenden. Eine ausreichend grosse lokale Quelldatei vorbereiten und ihren SHA-256 erfassen. In der Freigabe eine unabhängige Markierungsdatei anlegen und ebenfalls hashen. Die beiden Varianten in getrennten Ordnern ausführen. Bei «Ersetzen» vorab eine gleichnamige Zieldatei mit anderen Bytes anlegen und ihren Hash erfassen.
+
+| Schritt | Erwartetes Ergebnis |
+| --- | --- |
+| 1. Kopie starten, bei «Ersetzen» den Konflikt bestätigen. Die separate SMB-Verbindung erst nach messbarem Fortschritt trennen. | Der laufende Auftrag bleibt mit seinem Fortschritt erhalten und wartet auf das Ziel. Am ehemaligen Einbindungspfad wird lokal keine Ersatzkopie angelegt. |
+| 2. OpenCommander schliessen und mit demselben Testprofil wieder öffnen. Den unterbrochenen Auftrag bei weiterhin getrenntem Ziel abbrechen. | Die App zeigt ausstehende Bereinigung. Folgeaufträge auf denselben Pfaden bleiben bis zur Bereinigung geschützt. |
+| 3. Dieselbe SMB-Freigabe wieder verbinden und die ausstehende Bereinigung fortsetzen, falls die App dazu auffordert. | Derselbe Auftrag endet als abgebrochen. Er erzeugt keinen erfolgreichen Kopiereintrag und der eigene Zwischenstand ist entfernt. Bei «Ersetzen» enthält der Zielname wieder die ursprünglichen Bytes. |
+| 4. Dateiliste und Ergebnis zusätzlich im Explorer prüfen und alle vorhandenen Testdateien erneut hashen. | Die Quelle und die unabhängige Markierungsdatei sind bytegenau erhalten. In der Kopier-Variante fehlt der Zielname. In der Ersetzen-Variante stimmt der Hash des ursprünglichen Ziels. |
+
+Den Abbruch zusätzlich bei durchgehend verbundener Freigabe prüfen. Nach erfolgreicher Bereinigung muss der Eintrag der sichtbaren Teilkopie ohne manuelles Aktualisieren verschwinden.
+
 ## Weitere Prüffälle ohne WebDAV
 
 | Fall | Durchführung und Prüfkriterium |
@@ -55,6 +68,7 @@ Den Test separat für «Beide behalten» wiederholen. Das ursprüngliche Ziel bl
 | Cloud-Verbindungen | Eingerichtete Dienste einzeln prüfen. Ordner wechseln, Dateien öffnen und Vorschau, Ladeanzeige, Upload, Download, Verschieben und Rückgängig mit eigenen Dateien prüfen. Direkte Verbindung und synchronisierten Ordner im Ergebnis benennen. |
 | Drag-and-drop | Zwischen beiden Bereichen sowie in beide Richtungen zwischen OpenCommander und Windows-Explorer ziehen. Standardgeste und angebotene Modifikatortasten je einmal für Datei, Ordner und Mehrfachauswahl prüfen. Tatsächlichen Kopier- oder Verschiebeeffekt, Übertragungsanzeige und Rückgängig anhand beider Dateilisten und Prüfsummen prüfen. |
 | Datenträger und NAS | Mit eigenen Dateien NTFS, exFAT und, falls verfügbar, SMB prüfen. In beide Richtungen kopieren und verschieben. Ersetzen, Wiederaufnahme und Rückgängig prüfen. Beim Medienwechsel darf ein anderer Datenträger am selben Laufwerksbuchstaben keinen alten Auftrag übernehmen. |
+| iPhone als Speicherort | Für DEVICE-01 ein entsperrtes Test-iPhone per Datenkabel verbinden und eine Vertrauensabfrage am Gerät bestätigen, falls sie erscheint. Unter «Orte» und bei den Laufwerken nach dem eindeutig benannten Gerät suchen, den angebotenen Medienzugriff öffnen, die Sichtbarkeit in den Einstellungen umschalten und die Anzeige nach dem Abziehen prüfen. Verhalten und unterstützten Zugriff dokumentieren. Der Mac-Nachweis umfasst Erkennung, Sichtbarkeitseinstellungen und Öffnen von Apple Image Capture. Medienimport und physisches Abziehen sind in diesem Nachweis offen. |
 | Lokale Werkzeuge | Suche im aktiven Ordner und mit geändertem Pfad, Suchtreffer mit vollständigem Pfad, Gross-/Kleinschreibung standardmässig deaktiviert, Vergleichen, mehrfaches Umbenennen, ZIP und Rückgängig prüfen. |
 | Belastung und Pfadreservierung | Mehrere Aufträge mit unabhängigen Zielen starten. Eine Kopie pausieren und eine Löschung derselben Quelle sowie eine unabhängige Löschung anfordern. Prüfen, dass nur die erste Löschung wartet. Die Kopie abbrechen, beide Löschungen nach Abschluss einzeln rückgängig machen und alle Prüfsummen vergleichen. Laufzeit und freien Speicher erfassen. Auf macOS ist der D2-Lauf bis zur Freigabe der wartenden Löschung dokumentiert. Die endgültige Löschung, Rückgängig und der vollständige Hash-Vergleich sind dort noch offen. |
 

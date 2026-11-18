@@ -97,7 +97,7 @@ FILE-05;Dateiaktionen und Konflikte;P1;Zwischenablage;"D1; leere lokale Ziele A/
 FILE-06;Dateiaktionen und Konflikte;P0;Lokaler Namenskonflikt;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. Gleichnamige unterschiedliche Dateien vorbereiten
 2. Je einen Durchlauf Behalten, Ersetzen und Abbrechen";"Behalten erhält beide Inhalte unter eindeutigen Namen; Ersetzen hat nachvollziehbare Wiederherstellung; Abbrechen verändert keine Nutzdaten.";Nativ belegt;REG-DROP-01, REG-FS-01, REG-QUEUE-02;;Nicht ausgeführt;;;
 FILE-07;Dateiaktionen und Konflikte;P0;Online-Namenskonflikt;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. Datei auf Online-Ziel mit vorhandenem Namen kopieren
-2. Zweite Kopie starten";"Online-Pfade verwenden sicherheitshalber Behalten mit eindeutigem Namen; vorhandener Inhalt bleibt erhalten; keine stille Überschreibung.";Teilweise belegt;REG-CLOUD-01, REG-CLOUD-04;;Nicht ausgeführt;;;
+2. Zweite Kopie starten";"Online-Pfade verwenden sicherheitshalber Behalten mit eindeutigem Namen; vorhandener Inhalt bleibt erhalten; keine stille Überschreibung.";Teilweise belegt;REG-CLOUD-01, REG-CLOUD-04, REG-CLOUD-07;;Nicht ausgeführt;;;
 FILE-08;Dateiaktionen und Konflikte;P1;Umbenennen und neuer Ordner;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. F2 mit Unicode verwenden
 2. Bestehenden Namen und ungültigen Namen versuchen
 3. Strg+Umschalt+N";"Gültige Aktionen sichtbar; Kollision/ungültiger Name verständlich abgelehnt; kein Datenverlust.";Nativ belegt;;;Nicht ausgeführt;;;
@@ -120,7 +120,7 @@ JOB-04;Warteschlange, Parallelität und Bedienbarkeit;P0;Überlappende Pfade sch
 2. Unabhängigen Job ergänzen";"Unsichere Überschneidung wartet mit nachvollziehbarem Grund; unabhängiger Job kann starten; keine gleichzeitigen widersprüchlichen Änderungen.";Nativ belegt;REG-NAS-05;;Nicht ausgeführt;;;
 JOB-05;Warteschlange, Parallelität und Bedienbarkeit;P0;Pausierte Aufträge reservieren Pfade;"D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.";"1. Kopie pausieren
 2. Quelle entfernen/verschieben anfordern
-3. Kopierauftrag abbrechen";"Konflikt wartet solange Reservation gilt; unabhängiges Entfernen bleibt möglich; Abbruch gibt betroffenen Pfad frei, ohne andere pausierte Jobs zu starten.";Teilweise belegt;REG-QUEUE-02, REG-NAS-02, REG-NAS-05;;Nicht ausgeführt;;;
+3. Kopierauftrag abbrechen";"Konflikt wartet solange Reservation gilt; unabhängiges Entfernen bleibt möglich; Abbruch gibt betroffenen Pfad frei, ohne andere pausierte Jobs zu starten.";Teilweise belegt;REG-QUEUE-02, REG-NAS-02, REG-NAS-05, REG-QUEUE-03;;Nicht ausgeführt;;;
 JOB-06;Warteschlange, Parallelität und Bedienbarkeit;P0;GUI während langsamer Kopie;"D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.";"1. Große Online-Kopie starten
 2. Einstellungen, Orte, Menüs und lokalen Ordner öffnen
 3. Fenster bewegen";"Klicks werden sichtbar zeitnah verarbeitet; kein dauernd eingefrorenes Fenster. Messziel: Rückmeldung ≤ 250 ms, spätestens 1 s; Abweichung als Befund erfassen.";Nativ belegt;REG-NAS-05;;Nicht ausgeführt;;;
@@ -152,10 +152,10 @@ REC-01;Neustart, Unterbrechung und Datenintegrität;P0;Geordnet schließen und s
 REC-02;Neustart, Unterbrechung und Datenintegrität;P0;Explizit pausiert neu starten;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Job pausieren
 2. Gespeichert abwarten
 3. Neu starten
-4. Fortsetzen wählen";"Keine ungeklärte Zustandsänderung; Bediener erkennt gespeicherten Stand und Startverhalten; genau eine Fortsetzung, korrekte Enddaten.";Nativ belegt;;;Nicht ausgeführt;;;
+4. Fortsetzen wählen";"Keine ungeklärte Zustandsänderung; Bediener erkennt gespeicherten Stand und Startverhalten; genau eine Fortsetzung, korrekte Enddaten.";Nativ belegt;REG-QUEUE-03;;Nicht ausgeführt;;;
 REC-03;Neustart, Unterbrechung und Datenintegrität;P0;Unerwarteter Prozessabbruch;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Testkopie starten
 2. Isolierten Prozess während Datenübertragung beenden
-3. Testinstanz neu starten";"Journal bleibt lesbar; kein falscher Abschluss; wiederaufnehmbare Arbeit sichtbar; Quelle intakt; Fortsetzung erzeugt korrekte Daten.";Teilweise belegt;REG-NTFS-01;;Nicht ausgeführt;;;
+3. Testinstanz neu starten";"Journal bleibt lesbar; kein falscher Abschluss; wiederaufnehmbare Arbeit sichtbar; Quelle intakt; Fortsetzung erzeugt korrekte Daten.";Teilweise belegt;REG-NTFS-01, REG-CLOUD-07;;Nicht ausgeführt;;;
 REC-04;Neustart, Unterbrechung und Datenintegrität;P0;Lokale Teildatei fortsetzen;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Große lokale Datei teilweise kopieren
 2. Pausieren
 3. Fortsetzen";"Bereits vorhandenes Präfix wird geprüft; geeignete Teildatei weitergeführt; kein still übernommener falscher Inhalt.";Nativ belegt;;;Nicht ausgeführt;;;
@@ -170,7 +170,7 @@ REC-07;Neustart, Unterbrechung und Datenintegrität;P0;Quelle während Pause ge�
 REC-08;Neustart, Unterbrechung und Datenintegrität;P0;Quelle oder Ziel nicht verfügbar;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Pausieren
 2. Testlaufwerk trennen/Netz sperren
 3. Fortsetzen
-4. Wieder verbinden";"Wartender/fehlerhafter Zustand mit Grund; keine lokale Ersatzkopie in leeren Mountpunkt; nach Wiederverbindung kontrollierte Fortsetzung.";Teilweise belegt;REG-NAS-01;;Nicht ausgeführt;;;
+4. Wieder verbinden";"Wartender/fehlerhafter Zustand mit Grund; keine lokale Ersatzkopie in leeren Mountpunkt; nach Wiederverbindung kontrollierte Fortsetzung.";Teilweise belegt;REG-NAS-01, REG-NAS-03;;Nicht ausgeführt;;;
 REC-09;Neustart, Unterbrechung und Datenintegrität;P0;Anderes Laufwerk am gleichen Pfad;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Pause
 2. Testmedium entfernen
 3. Anderes Testmedium am gleichen Mountpfad einhängen
@@ -196,11 +196,11 @@ TRASH-03;Papierkorb, Historie und Rückgängig;P0;Cache-Rennen nach Entfernen;"D
 TRASH-04;Papierkorb, Historie und Rückgängig;P0;Aus Papierkorb wiederherstellen;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Vorgang mit mehreren entfernten Dateien wählen
 2. Wiederherstellen";"Gesamter gewählter Entfernungsvorgang wird korrekt zurückgenommen; Inhalt/Hashes gleich; keine Verwechslung mit System-/Provider-Papierkorb.";Nativ belegt;;;Nicht ausgeführt;;;
 TRASH-05;Papierkorb, Historie und Rückgängig;P0;Undo für jede mutierende Operation;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Kopieren, Verschieben, Ersetzen, Umbenennen, Ordner anlegen, ZIP erzeugen und Entpacken jeweils separat ausführen
-2. Jeweils zugehörigen Historieneintrag rückgängig";"Ursprünglicher Zustand soweit dokumentiert wiederhergestellt; betroffene Pfade stimmen; andere Vorgänge unverändert. Jede Variante als eigenen Lauf erfassen.";Teilweise belegt;REG-CLOUD-04, REG-CLOUD-05, REG-CLOUD-06;;Nicht ausgeführt;;;
+2. Jeweils zugehörigen Historieneintrag rückgängig";"Ursprünglicher Zustand soweit dokumentiert wiederhergestellt; betroffene Pfade stimmen; andere Vorgänge unverändert. Jede Variante als eigenen Lauf erfassen.";Teilweise belegt;REG-CLOUD-04, REG-CLOUD-05, REG-CLOUD-06, REG-REMOTE-01;;Nicht ausgeführt;;;
 TRASH-06;Papierkorb, Historie und Rückgängig;P0;Undo mit nachträglich geändertem Ziel;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Kopieren/ersetzen
 2. Zieldatei extern ändern
 3. Undo
-4. Zusätzlich belegten ursprünglichen Quellpfad testen";"Neuere Daten werden nicht überschrieben oder gelöscht; Konflikt klar; Teilzustand bleibt nachvollziehbar.";Teilweise belegt;REG-NAS-02, REG-CLOUD-06;;Nicht ausgeführt;;;
+4. Zusätzlich belegten ursprünglichen Quellpfad testen";"Neuere Daten werden nicht überschrieben oder gelöscht; Konflikt klar; Teilzustand bleibt nachvollziehbar.";Teilweise belegt;REG-NAS-02, REG-CLOUD-06, REG-REMOTE-01;;Nicht ausgeführt;;;
 TRASH-07;Papierkorb, Historie und Rückgängig;P0;Undo abbrechen und erneut versuchen;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Großen Undo mit Verifikation starten
 2. Abbrechen
 3. App neu starten
@@ -247,7 +247,7 @@ CLOUD-02;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Google-Drive-Hänger als R
 2. Während verzögerter Antwort navigieren
 3. Erneut laden";"Keine dauerhaft leere, unbedienbare Ansicht; Timeout/Fehler mit Wiederholen; lokale Bereiche weiter bedienbar.";Teilweise belegt;;;Nicht ausgeführt;;;
 CLOUD-03;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Online-Grundoperationen;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. D1 hochladen, herunterladen, umbenennen, Ordner anlegen, entfernen und wiederherstellen
-2. Provider unabhängig prüfen";"Dateien/Inhalte und Namen stimmen; Änderungen auch beim Provider sichtbar; Cache allein zählt nicht als Erfolg.";Teilweise belegt;REG-CLOUD-01, REG-CLOUD-02;;Nicht ausgeführt;;;
+2. Provider unabhängig prüfen";"Dateien/Inhalte und Namen stimmen; Änderungen auch beim Provider sichtbar; Cache allein zählt nicht als Erfolg.";Teilweise belegt;REG-CLOUD-01, REG-CLOUD-02, REG-CLOUD-07;;Nicht ausgeführt;;;
 CLOUD-04;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Netzausfall und Wiederkehr;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Während Listen und Kopieren nur Testnetz unterbrechen
 2. Lokalen Ordner bedienen
 3. Netz wiederherstellen";"Begrenzte Wartezeit, sichtbarer Status; keine GUI-Sperre; kontrollierter Retry; keine doppelten Dateieinträge oder Quellverluste.";Teilweise belegt;;;Nicht ausgeführt;;;
@@ -274,7 +274,7 @@ CLOUD-12;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Writeback-Mount korrekt be
 3. Backend unabhängig prüfen";"Lokaler Kopierabschluss wird nicht als Beweis vollständiger Provider-Synchronisation gewertet; Test gilt erst bei bestätigtem Online-Inhalt. Abweichende UI-Aussagen als Fehler melden.";Umgebung erforderlich;REG-CLOUD-03, REG-CLOUD-06;;Nicht ausgeführt;;;
 SERVER-01;SFTP, FTP, FTPS und Netzwerkorte;P0;SFTP mit Passwort;"Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.";"1. Host, Port, Benutzer und Startordner einrichten
 2. Passwort anmelden
-3. Datei hin/zurück kopieren";"Verbindung zum richtigen Server/Ordner; Integrität korrekt; Passwort nicht als Klartext im neuen Serverprofil.";Nativ belegt;REG-AUTH-01;;Nicht ausgeführt;;;
+3. Datei hin/zurück kopieren";"Verbindung zum richtigen Server/Ordner; Integrität korrekt; Passwort nicht als Klartext im neuen Serverprofil.";Nativ belegt;REG-AUTH-01, REG-REMOTE-01;;Nicht ausgeführt;;;
 SERVER-02;SFTP, FTP, FTPS und Netzwerkorte;P0;SFTP mit privatem Schlüssel;"Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.";"1. Gültigen OpenSSH/PEM-Schlüssel mit passenden Rechten wählen
 2. Verbinden
 3. Datei übertragen";"Schlüsselauthentisierung funktioniert; privater Schlüssel unverändert; keine Ausgabe von Schlüsselinhalt.";Nativ belegt;;;Nicht ausgeführt;;;
@@ -291,7 +291,7 @@ SERVER-06;SFTP, FTP, FTPS und Netzwerkorte;P0;Passwort speichern optional;"Kontr
 SERVER-07;SFTP, FTP, FTPS und Netzwerkorte;P0;FTP und FTPS;"Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.";"1. FTP-Testserver verbinden
 2. Warnung lesen
 3. Explizites FTPS mit gültigem Zertifikat verbinden
-4. Ungültiges Zertifikat testen";"FTP-Klartextrisiko erklärt; FTPS überprüft Zertifikat; ungültiges Zertifikat nicht still akzeptiert; keine vorgetäuschte SCP-Unterstützung.";Nativ belegt;REG-AUTH-01;;Nicht ausgeführt;;;
+4. Ungültiges Zertifikat testen";"FTP-Klartextrisiko erklärt; FTPS überprüft Zertifikat; ungültiges Zertifikat nicht still akzeptiert; keine vorgetäuschte SCP-Unterstützung.";Nativ belegt;REG-AUTH-01, REG-REMOTE-01;;Nicht ausgeführt;;;
 SERVER-08;SFTP, FTP, FTPS und Netzwerkorte;P0;SMB/NAS;Dedizierte SMB-Freigabe mit Testkonto und eigenen Dateien.;"1. SMB-Freigabe per \\Server\Freigabe anbinden oder als Netzlaufwerk verbinden
 2. Authentisierung und Aufruf aus OpenCommander prüfen
 3. Ordner anzeigen, Testdatei kopieren, verschieben und das Ergebnis prüfen
@@ -301,7 +301,8 @@ SERVER-09;SFTP, FTP, FTPS und Netzwerkorte;P1;Serverprofil bearbeiten;"Kontrolli
 3. Anzeige prüfen";"Neue Werte wirksam, keine Vermischung alter Sitzung; Anzeigename kann ohne Geheimnisverlust geändert werden.";Nativ belegt;;;Nicht ausgeführt;;;
 DEVICE-01;Datenträger und Dateisysteme;P0;Datenträger entdecken;"Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.";"1. USB-Testmedium anschließen
 2. Orte beobachten
-3. Öffnen";"Medium zeitnah sichtbar (Ziel ≤ 10 s bei gesunder Desktop-Erkennung); richtiger Name und Inhalt; kein manueller App-Neustart nötig.";Teilweise belegt;;;Nicht ausgeführt;;;
+3. Öffnen
+4. Variante mit eigenem iPhone per Datenkabel prüfen (siehe Checkliste)";"Medium zeitnah sichtbar (Ziel ≤ 10 s bei gesunder Desktop-Erkennung); richtiger Name und Inhalt; kein manueller App-Neustart nötig. iPhone separat erfassen: eindeutiger Ort, angebotener Medienzugriff und Aktualisierung beim Abziehen.";Teilweise belegt;;;Nicht ausgeführt;;;
 DEVICE-02;Datenträger und Dateisysteme;P1;Mount und Auswerfen;"Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.";"1. Nicht eingehängtes Testmedium öffnen
 2. Nach Nutzung sicher auswerfen";"Einbinden über Windows funktioniert; Auswerfen nur sicher im Leerlauf; Ort aktualisiert sich; Fehler verständlich.";Nativ belegt;;;Nicht ausgeführt;;;
 DEVICE-03;Datenträger und Dateisysteme;P0;Datenträger während Kopie verlieren;"Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.";"1. Kopie auf Testmedium starten
@@ -410,7 +411,7 @@ SAFE-07;Sicherheit, Leistung und Dauerbetrieb;P1;Wiederholtes Öffnen/Schließen
 2. Threads, Tempdateien und RAM vergleichen";"Nach Ruhephase keine pro Durchlauf wachsenden Worker/Handles; private Media-Temps bereinigt; Transfer-Recoverydaten bewusst erhalten.";Nativ belegt;;;Nicht ausgeführt;;;
 SAFE-08;Sicherheit, Leistung und Dauerbetrieb;P0;Automatisierte Regression;"Sauberer Windows-Checkout des zu prüfenden Builds; Testprofil und verfügbare Windows-CI.";"1. Die im Windows-Checkout dokumentierte Testsuite ausführen
 2. Build, Aufruf, Anzahl bestanden/fehlgeschlagen/übersprungen und Ausgabe erfassen
-3. Reale Maus-, Provider- und Gerätetests separat eintragen";Jeder Fehler oder übersprungene Test hat einen Grund. Die automatisierte Suite und manuelle Nachweise werden separat ausgewiesen.;Nativ belegt;;;Nicht ausgeführt;;;
+3. Reale Maus-, Provider- und Gerätetests separat eintragen";Jeder Fehler oder übersprungene Test hat einen Grund. Die automatisierte Suite und manuelle Nachweise werden separat ausgewiesen.;Nativ belegt;REG-QUEUE-03;;Nicht ausgeführt;;;
 SAFE-09;Sicherheit, Leistung und Dauerbetrieb;P1;Handbuch offline und Paketvollständigkeit;"Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.";"1. HTML-Handbuch ohne Netzwerk öffnen
 2. Suche, Bilder, Navigation, Druckansicht und links testen
 3. Paketinhalt prüfen";"Dokumentation nutzbar; Screenshots und Ressourcen vorhanden; Beschreibungen passend zu ausgelieferter Version; Planstatus nicht mit Produktprüfung verwechseln.";Nativ belegt;;;Nicht ausgeführt;;;
