@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 18. November 2026 waren 105 Fälle nativ belegt, 46 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [25 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Diese Zahl zählt die dokumentierten Nachtests und ist keine Gesamtzahl einzelner Fehler.
+- [26 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Diese Zahl zählt die dokumentierten Nachtests und ist keine Gesamtzahl einzelner Fehler.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -88,3 +88,10 @@ Pro Fall den Windows-Build, den Status, die Abweichung vom Soll und einen Beleg 
 | Dropbox → Google Drive, Ersetzen, Fortsetzen, Rückgängig |  |  |  |
 
 Die macOS-Live-Läufe mit Builds 101 und 102 haben Wiederaufnahme und Rückgängig bis zum unabhängigen Nachweis beider ursprünglichen Anbieter-IDs und Prüfsummen abgeschlossen. Build 101 wurde nach einem Anbieter-Zeitlimit wiederaufgenommen, Build 102 nach einer manuellen Pause. Der Windows-Nachweis steht aus. [Mac-Testprotokoll](mac-dropbox-google-drive-build101-2026-11-12.md)
+
+### Google-Docs-Export nach Prozessabbruch fortsetzen
+
+1. Mit direkten Google-Drive- und Dropbox-Verbindungen in einer Test-VM arbeiten. In Google Drive ein eigenes natives Google-Dokument mit eindeutigem Text anlegen und die Google-ID und die ursprüngliche Dokumentart erfassen. In Dropbox einen eigenen leeren Zielordner anlegen.
+2. Das Dokument nach Dropbox **kopieren**. Im instrumentierten Lauf den Testprozess direkt nach dem Speichern des vorbereiteten DOCX-Exports und vor dem ersten Upload beenden. SHA-256 der vorbereiteten Datei und Auftrags-ID über den Testadapter erfassen. Der Dropbox-Zielordner ist zu diesem Zeitpunkt leer. Ohne Testadapter lässt sich die normale Kopie prüfen. Den gezielten Abbruch separat als offen erfassen.
+3. Das Google-Dokument direkt bei Google umbenennen und die gleiche ID kontrollieren. Die Test-App starten und denselben Auftrag fortsetzen. In Dropbox muss genau eine Kopie unter dem ursprünglich geplanten Namen erscheinen. Den Export unabhängig herunterladen, seinen Hash vergleichen und den Testtext im DOCX lesen.
+4. Die App nochmals neu starten und den Kopiereintrag einmal rückgängig machen. Dropbox muss den Export entfernen. Das umbenannte Google-Dokument muss mit derselben ID, Dokumentart und demselben Text erhalten bleiben. Doppelte Zielobjekte oder Historieneinträge als Fehler dokumentieren.
