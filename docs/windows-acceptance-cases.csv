@@ -32,7 +32,7 @@ NAV-01;Navigation und Dateibereiche;P0;Unabhängige Bereiche und aktives Ziel;"D
 NAV-02;Navigation und Dateibereiche;P1;Ordnerbaum und lange Namen;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. Drei Ebenen mit langen Namen aufklappen
 2. Baum verbreitern
 3. Horizontal scrollen
-4. Neu starten";"Namen sind lesbar erreichbar; Splitter funktioniert; Breite bleibt gespeichert; keine überlagerten Bedienelemente.";Nativ belegt;;;Nicht ausgeführt;;;
+4. Neu starten";"Namen sind lesbar erreichbar; Splitter funktioniert; Breite bleibt gespeichert; keine überlagerten Bedienelemente.";Nativ belegt;REG-NAV-01;;Nicht ausgeführt;;;
 NAV-03;Navigation und Dateibereiche;P0;Eine Ebene hoch und Herkunft markieren;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. In Unterordner wechseln
 2. Alt+Hoch benutzen
 3. Dasselbe per Schaltfläche wiederholen";Der gerade verlassene Ordner wird im Elternordner markiert und in den sichtbaren Bereich gescrollt.;Nativ belegt;;;Nicht ausgeführt;;;
@@ -56,7 +56,7 @@ NAV-09;Navigation und Dateibereiche;P0;Kontextmenü auf Datei und leerer Fläche
 NAV-10;Navigation und Dateibereiche;P1;Laden abbrechen und weiter navigieren;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. Langsame Testquelle öffnen
 2. Laden stoppen
 3. Sofort lokalen Ort öffnen
-4. Alte Anfrage später fertig werden lassen";"GUI bleibt bedienbar; verspätetes Ergebnis überschreibt den aktuellen lokalen Ordner nicht; Wiederholen ist möglich.";Nativ belegt;REG-NAS-05, REG-NAS-11;;Nicht ausgeführt;;;
+4. Alte Anfrage später fertig werden lassen";"GUI bleibt bedienbar; verspätetes Ergebnis überschreibt den aktuellen lokalen Ordner nicht; Wiederholen ist möglich.";Nativ belegt;REG-NAS-05, REG-NAS-11, REG-NAV-01;;Nicht ausgeführt;;;
 NAV-11;Navigation und Dateibereiche;P1;Verbindung im Bereichstitel;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. Benannten Online-Ort öffnen
 2. In Unterordner wechseln
 3. Zum lokalen Ort wechseln";"Konto-/Ortsname und aktueller Pfad passen zum Bereich; keine rohen Profil-IDs als alleinige Orientierung; lokaler Titel wird wieder korrekt.";Nativ belegt;;;Nicht ausgeführt;;;
