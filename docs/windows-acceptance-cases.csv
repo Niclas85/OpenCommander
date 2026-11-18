@@ -148,7 +148,7 @@ JOB-13;Warteschlange, Parallelität und Bedienbarkeit;P0;Schnelle wiederholte St
 REC-01;Neustart, Unterbrechung und Datenintegrität;P0;Geordnet schließen und später fortsetzen;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Kopie starten
 2. Fenster schließen
 3. Auf gespeicherte Pause warten
-4. App erneut öffnen";"Auftrag mit Quelle/Ziel erhalten; Fortsetzung gemäß gespeicherter Zustandslogik; kein Neubeginn bereits verifizierter fertiger Dateien; finale Hashes korrekt.";Teilweise belegt;REG-CLOUD-03, REG-CLOUD-04, REG-QUEUE-02, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03, REG-GDOC-05, REG-DROP-04;;Nicht ausgeführt;;;
+4. App erneut öffnen";"Auftrag mit Quelle/Ziel erhalten; Fortsetzung gemäß gespeicherter Zustandslogik; kein Neubeginn bereits verifizierter fertiger Dateien; finale Hashes korrekt.";Teilweise belegt;REG-CLOUD-03, REG-CLOUD-04, REG-QUEUE-02, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03, REG-GDOC-05, REG-DROP-04, REG-QUEUE-04;;Nicht ausgeführt;;;
 REC-02;Neustart, Unterbrechung und Datenintegrität;P0;Explizit pausiert neu starten;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Job pausieren
 2. Gespeichert abwarten
 3. Neu starten
@@ -174,7 +174,7 @@ REC-08;Neustart, Unterbrechung und Datenintegrität;P0;Quelle oder Ziel nicht ve
 REC-09;Neustart, Unterbrechung und Datenintegrität;P0;Anderes Laufwerk am gleichen Pfad;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Pause
 2. Testmedium entfernen
 3. Anderes Testmedium am gleichen Mountpfad einhängen
-4. Fortsetzen";"Identitätsprüfung verhindert Schreiben auf falsches Medium; Auftrag und Daten bleiben erhalten.";Teilweise belegt;REG-QUEUE-02, REG-DROP-04;;Nicht ausgeführt;;;
+4. Fortsetzen";"Identitätsprüfung verhindert Schreiben auf falsches Medium; Auftrag und Daten bleiben erhalten.";Teilweise belegt;REG-QUEUE-02, REG-DROP-04, REG-QUEUE-04;;Nicht ausgeführt;;;
 REC-10;Neustart, Unterbrechung und Datenintegrität;P0;Verschieben: Cleanup unterbrechen;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Dateisystemübergreifenden Move im isolierten Test nach Zielverifikation beim Quell-Aufräumen unterbrechen
 2. Neu starten";"Bereits verifiziertes Ziel bleibt; offener Cleanup nachvollziehbar; geänderte Quelle nicht blind gelöscht; keine doppelte oder verlorene Enddatei.";Teilweise belegt;;;Nicht ausgeführt;;;
 REC-11;Neustart, Unterbrechung und Datenintegrität;P0;Abbruch bei offline befindlichem Ziel;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Aktiven Job unterbrechen
@@ -309,7 +309,7 @@ DEVICE-03;Datenträger und Dateisysteme;P0;Datenträger während Kopie verlieren
 2. Kontrollierten Disconnect simulieren";"Fehler/Unterbrechung sichtbar; kein falscher Abschluss; Quelle erhalten; kein Schreiben in leeres lokales Mountverzeichnis.";Teilweise belegt;;;Nicht ausgeführt;;;
 DEVICE-04;Datenträger und Dateisysteme;P0;NTFS lesen und schreiben;"Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.";"1. Gesundes beschreibbares NTFS-Testvolume nutzen
 2. Kopieren/rename/delete/undo
-3. Read-only-Volume wiederholen";"Schreiben nur bei geeignetem Treiber/Mountrechten; Read-only klar gemeldet. OpenCommander repariert keine Superblocks und erzwingt keinen Schreibzugriff.";Umgebung erforderlich;REG-NTFS-01;;Nicht ausgeführt;;;
+3. Read-only-Volume wiederholen";"Schreiben nur bei geeignetem Treiber/Mountrechten; Read-only klar gemeldet. OpenCommander repariert keine Superblocks und erzwingt keinen Schreibzugriff.";Umgebung erforderlich;REG-NTFS-01, REG-QUEUE-04;;Nicht ausgeführt;;;
 DEVICE-05;Datenträger und Dateisysteme;P1;Mountfehler verständlich anzeigen;"Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.";1. In VM absichtlich nicht mountbares Testvolume öffnen;"Systemfehler erkennbar; keine Dauerblockade oder Wiederholungsflut; übrige Orte bedienbar; keine automatische zerstörerische Reparatur.";Nativ belegt;;;Nicht ausgeführt;;;
 DEVICE-06;Datenträger und Dateisysteme;P1;Dateisystemvarianten;Windows-Testvolume für NTFS, exFAT, SMB und gegebenenfalls ein weiteres unterstütztes Dateisystem.;"1. D1 auf NTFS, exFAT und SMB ausführen
 2. Namensgrenzen, Gross-/Kleinschreibung und Unicode vergleichen
