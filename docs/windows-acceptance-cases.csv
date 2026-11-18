@@ -120,7 +120,7 @@ JOB-04;Warteschlange, Parallelität und Bedienbarkeit;P0;Überlappende Pfade sch
 2. Unabhängigen Job ergänzen";"Unsichere Überschneidung wartet mit nachvollziehbarem Grund; unabhängiger Job kann starten; keine gleichzeitigen widersprüchlichen Änderungen.";Nativ belegt;REG-NAS-05;;Nicht ausgeführt;;;
 JOB-05;Warteschlange, Parallelität und Bedienbarkeit;P0;Pausierte Aufträge reservieren Pfade;"D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.";"1. Kopie pausieren
 2. Quelle entfernen/verschieben anfordern
-3. Kopierauftrag abbrechen";"Konflikt wartet solange Reservation gilt; unabhängiges Entfernen bleibt möglich; Abbruch gibt betroffenen Pfad frei, ohne andere pausierte Jobs zu starten.";Teilweise belegt;REG-QUEUE-02, REG-NAS-02, REG-NAS-05, REG-QUEUE-03;;Nicht ausgeführt;;;
+3. Kopierauftrag abbrechen";"Konflikt wartet solange Reservation gilt; unabhängiges Entfernen bleibt möglich; Abbruch gibt betroffenen Pfad frei, ohne andere pausierte Jobs zu starten.";Nativ belegt;REG-QUEUE-02, REG-NAS-02, REG-NAS-05, REG-QUEUE-03;;Nicht ausgeführt;;;
 JOB-06;Warteschlange, Parallelität und Bedienbarkeit;P0;GUI während langsamer Kopie;"D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.";"1. Große Online-Kopie starten
 2. Einstellungen, Orte, Menüs und lokalen Ordner öffnen
 3. Fenster bewegen";"Klicks werden sichtbar zeitnah verarbeitet; kein dauernd eingefrorenes Fenster. Messziel: Rückmeldung ≤ 250 ms, spätestens 1 s; Abweichung als Befund erfassen.";Nativ belegt;REG-NAS-05;;Nicht ausgeführt;;;
