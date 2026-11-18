@@ -96,6 +96,8 @@ Die macOS-Live-Läufe mit Builds 101 und 102 haben Wiederaufnahme und Rückgäng
 3. Das Google-Dokument direkt bei Google umbenennen und die gleiche ID kontrollieren. Die Test-App starten und denselben Auftrag fortsetzen. In Dropbox muss genau eine Kopie unter dem ursprünglich geplanten Namen erscheinen. Den Export unabhängig herunterladen, seinen Hash vergleichen und den Testtext im DOCX lesen.
 4. Die App nochmals neu starten und den Kopiereintrag einmal rückgängig machen. Dropbox muss den Export entfernen. Das umbenannte Google-Dokument muss mit derselben ID, Dokumentart und demselben Text erhalten bleiben. Doppelte Zielobjekte oder Historieneinträge als Fehler dokumentieren.
 
+Für die zusätzliche Prüfung vor dem Export im Testadapter die Google-Revision nach dem ersten Abruf ändern. Dateiname und Google-ID bleiben gleich. Die App muss den veralteten Auftrag vor dem Export abweisen. Dropbox bleibt leer. Die Google-Quelle bleibt mit der aktualisierten Fassung erhalten.
+
 ### Cloud-Ordner-Download mit Neustart und Rückgängig
 
 1. Einen eigenen Dropbox-Testordner mit `Unterordner/Grüße.txt`, dem leeren Ordner `Unterordner/Leer` und der leeren Datei `Empty.txt` anlegen. Inhalt und SHA-256 von `Grüße.txt` unabhängig erfassen. Falls verfügbar, die Dropbox-IDs festhalten.
