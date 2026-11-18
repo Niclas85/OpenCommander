@@ -17,10 +17,10 @@ START-05;Installation, Start und Integration;P1;Zweite Instanz und Ordnerüberga
 3. Zweites unabhängiges Profil starten";"Gleiches Profil verwendet vorhandene Instanz und öffnet den Ordner; anderes Profil darf unabhängig starten; keine parallelen Schreiber im selben Journal.";Nativ belegt;;;Nicht ausgeführt;;;
 START-06;Installation, Start und Integration;P1;Startargumente und Sonderzeichen;Separates Windows-Testkonto mit dem zu prüfenden Windows-Build. Paketart und Versionsnummer erfassen.;"1. Ordner mit Umlauten, Leerzeichen und Shell-Sonderzeichen anlegen
 2. Per absolutem Pfad und file://-URL öffnen
-3. Ungültige URL übergeben";"Gültige Pfade werden unverändert geöffnet; keine Befehlsausführung; ungültige Eingabe führt zu verständlicher Ablehnung ohne Absturz.";Nativ belegt;;;Nicht ausgeführt;;;
+3. Ungültige URL übergeben";"Gültige Pfade werden unverändert geöffnet; keine Befehlsausführung; ungültige Eingabe führt zu verständlicher Ablehnung ohne Absturz.";Nativ belegt;REG-NAV-03;;Nicht ausgeführt;;;
 START-07;Installation, Start und Integration;P1;Einstellungen nach Neustart;Separates Windows-Testkonto mit dem zu prüfenden Windows-Build. Paketart und Versionsnummer erfassen.;"1. Sprache, Theme, Fenstergröße, Pane-Pfade und Baumweite ändern
 2. Geordnet schließen
-3. Erneut starten";"Unterstützte Einstellungen bleiben erhalten; fehlender letzter Ordner verursacht keinen endlosen Startzustand.";Nativ belegt;;;Nicht ausgeführt;;;
+3. Erneut starten";"Unterstützte Einstellungen bleiben erhalten; fehlender letzter Ordner verursacht keinen endlosen Startzustand.";Nativ belegt;REG-NAV-03;;Nicht ausgeführt;;;
 START-08;Installation, Start und Integration;P1;Versionswechsel mit bestehendem Profil;Separates Windows-Testkonto mit dem zu prüfenden Windows-Build. Paketart und Versionsnummer erfassen.;"1. Kopie eines bereinigten Testprofils mit Historie und pausiertem Auftrag verwenden
 2. Neue Version starten
 3. Historie und Warteschlange öffnen";"Profil lesbar; keine verschwundenen Aufträge oder History-Daten; keine zweite aktive Instanz desselben Profils.";Nativ belegt;;;Nicht ausgeführt;;;
@@ -56,7 +56,7 @@ NAV-09;Navigation und Dateibereiche;P0;Kontextmenü auf Datei und leerer Fläche
 NAV-10;Navigation und Dateibereiche;P1;Laden abbrechen und weiter navigieren;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. Langsame Testquelle öffnen
 2. Laden stoppen
 3. Sofort lokalen Ort öffnen
-4. Alte Anfrage später fertig werden lassen";"GUI bleibt bedienbar; verspätetes Ergebnis überschreibt den aktuellen lokalen Ordner nicht; Wiederholen ist möglich.";Nativ belegt;REG-NAS-05, REG-NAS-11, REG-NAV-01, REG-NAV-02;;Nicht ausgeführt;;;
+4. Alte Anfrage später fertig werden lassen";"GUI bleibt bedienbar; verspätetes Ergebnis überschreibt den aktuellen lokalen Ordner nicht; Wiederholen ist möglich.";Nativ belegt;REG-NAS-05, REG-NAS-11, REG-NAV-01, REG-NAV-02, REG-NAV-03;;Nicht ausgeführt;;;
 NAV-11;Navigation und Dateibereiche;P1;Verbindung im Bereichstitel;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. Benannten Online-Ort öffnen
 2. In Unterordner wechseln
 3. Zum lokalen Ort wechseln";"Konto-/Ortsname und aktueller Pfad passen zum Bereich; keine rohen Profil-IDs als alleinige Orientierung; lokaler Titel wird wieder korrekt.";Nativ belegt;;;Nicht ausgeführt;;;

@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 18. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [47 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [48 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -118,6 +118,13 @@ Eine parallele Mac-Gegenprobe ausserhalb von OpenCommander reproduzierte dieselb
 2. Nur die Testfreigabe verzögern und ihren Pfad links eingeben. Während die Abfrage wartet, rechts einen Dateinamen filtern. Das Fenster muss reagieren und nur den passenden Treffer anzeigen.
 3. Links einen anderen lokalen Ordner eingeben und seine Markierungsdatei prüfen. Erst dann die Testfreigabe wieder freigeben. Nach ihrer Antwort muss links weiterhin der zuletzt gewählte lokale Ordner stehen. Rechts müssen Pfad und Filter erhalten bleiben.
 4. Den Netzpfad bei erreichbarer Testfreigabe erneut öffnen. Getrennt einen gültigen Archivpfad, eine gewöhnliche Datei und einen fehlenden Pfad prüfen. Den sichtbaren Ordner oder die jeweilige Fehlermeldung erfassen.
+
+### Start mit gespeichertem Netzordner prüfen
+
+1. In einem eigenen Testprofil links einen Ordner auf einer Testfreigabe öffnen und rechts einen lokalen Ordner mit zwei unterscheidbaren Dateien. Die App beenden und die gespeicherten Pfade dokumentieren.
+2. Nur die Testfreigabe verzögern und die App neu starten. Das Fenster und der rechte Ordner müssen sofort bedienbar sein. Rechts einen Dateinamen filtern, während links die Abfrage wartet.
+3. Die Abfrage enden lassen, ohne einen anderen linken Ordner zu wählen. Wenn links ein Ausweichordner erscheint, muss der gespeicherte Netzpfad für den nächsten Start erhalten bleiben. Die Freigabe wieder freigeben und mit demselben Profil erneut starten. Links muss der gespeicherte Netzordner wieder öffnen.
+4. In einem frischen Lauf den Netzordner und den lokalen Ordner als Startargumente übergeben. Während der Netzpfad wartet, muss der lokale Pfad im richtigen Paneel laden. Einen anderen lokalen Pfad wählen, die Freigabe wieder freigeben und prüfen, dass die alte Antwort diesen Pfad nicht ersetzt.
 
 ## Weitere Prüffälle ohne WebDAV
 
