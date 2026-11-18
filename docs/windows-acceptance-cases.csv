@@ -14,7 +14,7 @@ START-04;Installation, Start und Integration;P1;Standardprogramm ablehnen;Frisch
 3. Ordner vom Desktop öffnen";Die bisherige Zuordnung bleibt erhalten und eine abgelehnte Frage wird nicht bei jedem Start wiederholt. Ist die Frage in Windows nicht vorgesehen, den Grund dokumentieren.;Nativ belegt;;;Nicht ausgeführt;;;
 START-05;Installation, Start und Integration;P1;Zweite Instanz und Ordnerübergabe;Separates Windows-Testkonto mit dem zu prüfenden Windows-Build. Paketart und Versionsnummer erfassen.;"1. App mit Testprofil starten
 2. Dieselbe Installation erneut mit Testordner aufrufen
-3. Zweites unabhängiges Profil starten";"Gleiches Profil verwendet vorhandene Instanz und öffnet den Ordner; anderes Profil darf unabhängig starten; keine parallelen Schreiber im selben Journal.";Nativ belegt;;;Nicht ausgeführt;;;
+3. Zweites unabhängiges Profil starten";"Gleiches Profil verwendet vorhandene Instanz und öffnet den Ordner; anderes Profil darf unabhängig starten; keine parallelen Schreiber im selben Journal.";Nativ belegt;REG-NAV-04;;Nicht ausgeführt;;;
 START-06;Installation, Start und Integration;P1;Startargumente und Sonderzeichen;Separates Windows-Testkonto mit dem zu prüfenden Windows-Build. Paketart und Versionsnummer erfassen.;"1. Ordner mit Umlauten, Leerzeichen und Shell-Sonderzeichen anlegen
 2. Per absolutem Pfad und file://-URL öffnen
 3. Ungültige URL übergeben";"Gültige Pfade werden unverändert geöffnet; keine Befehlsausführung; ungültige Eingabe führt zu verständlicher Ablehnung ohne Absturz.";Nativ belegt;REG-NAV-03;;Nicht ausgeführt;;;
@@ -56,7 +56,7 @@ NAV-09;Navigation und Dateibereiche;P0;Kontextmenü auf Datei und leerer Fläche
 NAV-10;Navigation und Dateibereiche;P1;Laden abbrechen und weiter navigieren;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. Langsame Testquelle öffnen
 2. Laden stoppen
 3. Sofort lokalen Ort öffnen
-4. Alte Anfrage später fertig werden lassen";"GUI bleibt bedienbar; verspätetes Ergebnis überschreibt den aktuellen lokalen Ordner nicht; Wiederholen ist möglich.";Nativ belegt;REG-NAS-05, REG-NAS-11, REG-NAV-01, REG-NAV-02, REG-NAV-03;;Nicht ausgeführt;;;
+4. Alte Anfrage später fertig werden lassen";"GUI bleibt bedienbar; verspätetes Ergebnis überschreibt den aktuellen lokalen Ordner nicht; Wiederholen ist möglich.";Nativ belegt;REG-NAS-05, REG-NAS-11, REG-NAV-01, REG-NAV-02, REG-NAV-03, REG-NAV-04;;Nicht ausgeführt;;;
 NAV-11;Navigation und Dateibereiche;P1;Verbindung im Bereichstitel;"Datensatz D1 lokal; zwei unterschiedliche Ordner in den beiden Bereichen.";"1. Benannten Online-Ort öffnen
 2. In Unterordner wechseln
 3. Zum lokalen Ort wechseln";"Konto-/Ortsname und aktueller Pfad passen zum Bereich; keine rohen Profil-IDs als alleinige Orientierung; lokaler Titel wird wieder korrekt.";Nativ belegt;;;Nicht ausgeführt;;;
