@@ -235,7 +235,7 @@ AUTH-08;Cloud-Anmeldung und Profilverwaltung;P1;Name ändern und Verknüpfung en
 AUTH-09;Cloud-Anmeldung und Profilverwaltung;P1;Google eigene OAuth-Konfiguration;"Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.";"1. Nur Client-ID setzen
 2. Vollständiges Testpaar setzen
 3. Client wechseln
-4. Leere Werte speichern";"Unvollständiges Paar erklärt; Clientwechsel erzwingt passende Autorisierung; leere Eingaben überschreiben vorhandene Werte nicht versehentlich.";Teilweise belegt;;;Nicht ausgeführt;;;
+4. Leere Werte speichern";"Unvollständiges Paar erklärt; Clientwechsel erzwingt passende Autorisierung; leere Eingaben überschreiben vorhandene Werte nicht versehentlich.";Teilweise belegt;REG-AUTH-03;;Nicht ausgeführt;;;
 AUTH-10;Cloud-Anmeldung und Profilverwaltung;P0;Trennen und erneutes Verbinden;"Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.";"1. Inaktiven Testmount trennen
 2. Wieder öffnen
 3. Während reserviertem Transfer Trennen versuchen";"Sicheres Trennen im Leerlauf; belegter Mount wird nicht gewaltsam entfernt; Busy-Zustand wird bei Erfolg und Fehler freigegeben.";Nativ belegt;;;Nicht ausgeführt;;;
