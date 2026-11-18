@@ -200,7 +200,7 @@ TRASH-05;Papierkorb, Historie und Rückgängig;P0;Undo für jede mutierende Oper
 TRASH-06;Papierkorb, Historie und Rückgängig;P0;Undo mit nachträglich geändertem Ziel;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Kopieren/ersetzen
 2. Zieldatei extern ändern
 3. Undo
-4. Zusätzlich belegten ursprünglichen Quellpfad testen";"Neuere Daten werden nicht überschrieben oder gelöscht; Konflikt klar; Teilzustand bleibt nachvollziehbar.";Teilweise belegt;REG-NAS-02, REG-CLOUD-06, REG-REMOTE-01;;Nicht ausgeführt;;;
+4. Zusätzlich belegten ursprünglichen Quellpfad testen";"Neuere Daten werden nicht überschrieben oder gelöscht; Konflikt klar; Teilzustand bleibt nachvollziehbar.";Teilweise belegt;REG-NAS-02, REG-CLOUD-06, REG-REMOTE-01, REG-GDOC-01;;Nicht ausgeführt;;;
 TRASH-07;Papierkorb, Historie und Rückgängig;P0;Undo abbrechen und erneut versuchen;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Großen Undo mit Verifikation starten
 2. Abbrechen
 3. App neu starten
