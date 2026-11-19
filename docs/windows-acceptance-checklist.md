@@ -473,7 +473,7 @@ Auf dem Mac verweigerte FSKit Schreibzugriff auch dann, wenn die Systemmetadaten
 2. Das rote Bild über einen externen Dateivorgang atomar durch das blaue ersetzen. Name und letzter Schreibzeitpunkt müssen gleich bleiben. Den Ordner neu laden. Die Miniatur muss blau sein. Für einen zweiten Durchlauf die Bytes der sichtbaren Datei direkt überschreiben und den alten Schreibzeitpunkt wiederherstellen.
 3. Während eines verzögerten Miniaturauftrags aus der Bildzeile herausscrollen und eine andere Bildzeile anzeigen. Ein spätes Ergebnis darf weder das Bild der anderen Zeile noch eine neu geladene Version überschreiben. Ein unverändertes Nachbarbild soll weiterhin aus dem Cache erscheinen.
 
-Der macOS-Nachtest mit Quick Look bestätigte die rote und die blaue Miniatur aus Testdateien gleicher Länge und Schreibzeit. Er prüfte die Cache-Identität und die erzeugten Pixel. Die sichtbare Scrollprüfung mit der korrigierten App steht aus.
+Der macOS-Komponententest mit Quick Look bestätigte die Cache-Identität und die erzeugten Pixel. Im sichtbaren Nachtest scrollte der signierte Build 358 von den ersten neun der 40 eigenen PNGs bis zum Listenende und zeigte in Zeile 36 die erwartete grüne Miniatur. Nach einem Wechsel in einen leeren Nachbarordner und zurück zeigte Build 338 nach atomarem Ersatz mit gleicher Dateigrösse und Schreibzeit weiterhin die alte magentafarbene Miniatur. Build 358 zeigte die blaue Ersatzversion und die unveränderte magentafarbene Nachbarminiatur. Auch beim direkten Umschreiben derselben Datei mit erhaltener Grösse und Schreibzeit erschien die neue Farbe. Der gezielt verzögerte Auftrag aus Schritt 3 bleibt ein eigener Nachtest.
 
 ### Miniaturen auf Netzlaufwerken begrenzen
 
