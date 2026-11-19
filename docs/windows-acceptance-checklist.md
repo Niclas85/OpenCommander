@@ -240,12 +240,12 @@ Für die Listenvariante zuerst den eigenen Cloud-Testordner laden und dann die V
 
 ### Grössenlimit und Stillstand der Medienvorschau (MEDIA-04, MEDIA-09, MEDIA-10)
 
-1. Mit einer synthetischen lokalen JPEG-Datei von 128 MiB plus einem Byte die Vorschau öffnen. Die App muss das Grössenlimit anzeigen. Danach die Vorschau schliessen und die unveränderte Dateiliste prüfen.
+1. Mit einer synthetischen lokalen JPEG-Datei von 128 MiB plus einem Byte die Vorschau öffnen. Die App muss das Grössenlimit anzeigen. Danach die unveränderte Dateiliste prüfen. Dieselbe Datei in einen eigenen Ordner bei Dropbox oder Google Drive laden und die Vorschau über die direkte Verbindung aufrufen. Der Hinweis muss erscheinen, bevor die App den Dateiinhalt herunterlädt. Sofern der Testadapter Inhaltsanfragen erfasst, muss deren Zahl null bleiben. Die ursprüngliche Cloud-Datei anhand ihrer ID, Grösse und Prüfsumme bestätigen.
 2. Eine UTF-8-Datei von mehr als 2 MiB in der Vorschau öffnen. Der Hinweis auf die begrenzte Textmenge und «Öffnen» müssen sichtbar sein. Mit einer separaten Binärdatei mit der Endung `.txt` wiederholen. Hier muss die App den ungeeigneten Inhalt erklären und das externe Öffnen anbieten. Für alle drei Dateien die Prüfsummen vor und nach dem Test vergleichen.
 3. Ein eigenes synthetisches H.264-Video aus einer direkten Cloud-Verbindung in der App öffnen. In einer isolierten Testumgebung den bereits laufenden Download anhalten und die Verbindung offen lassen. Das Zeitlimit, die sichtbare Fehlermeldung und «Erneut versuchen» prüfen. Den betreffenden Downloadprozess und dessen temporäre Dateien nach dem Abbruch kontrollieren.
 4. Die Verbindung wiederherstellen und «Erneut versuchen» wählen. Das Video abspielen, zu einer anderen Zeit springen, fortsetzen und pausieren. Nach dem Schliessen der Vorschau die Dateiliste, die unveränderte Historie und die ursprüngliche Cloud-Datei anhand ihrer ID und Prüfsumme bestätigen.
 
-Der signierte macOS-Build 322 bestätigte die drei lokalen Eingaben und den Stillstandstest mit Dropbox und Google Drive. In beiden Cloud-Läufen erschien der Hinweis nach rund 30 Sekunden, die unvollständigen temporären Daten wurden entfernt, und die Wiedergabe war beim erneuten Versuch möglich.
+Der signierte macOS-Build 322 bestätigte die drei lokalen Eingaben und das Cloud-Bildlimit bei Dropbox und Google Drive. Beim Stillstandstest erschien in beiden Diensten nach rund 30 Sekunden der Hinweis. Die App entfernte die unvollständigen temporären Daten, und die Wiedergabe war beim erneuten Versuch möglich.
 
 ### Cloud-Ordner-Download mit Neustart und Rückgängig
 
