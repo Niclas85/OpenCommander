@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [94 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [95 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -686,6 +686,15 @@ Der signierte Mac-Build 372 bestand diese sieben getrennten Durchläufe auf APFS
 3. Das gültige ZIP entpacken und die neue Struktur, den leeren Ordner und den SHA-256-Wert der Unicode-Datei unabhängig prüfen. Die App normal neu starten und den zugehörigen Historieneintrag rückgängig machen. Alle Originale und die Kontrolldatei müssen den Ausgangswerten entsprechen.
 
 Build 372 legte beim Entpacken eines gültigen leeren ZIPs auf einem echten lokalen FTP-Testserver einen leeren Ordner an. Build 374 erklärte leere und beschädigte Archive getrennt. Das Serverprotokoll enthielt in beiden Fällen keine Ordnererstellung und keinen Upload. Ein gültiges ZIP ergab die erwartete Unicode-Datei und einen leeren Unterordner. Der ursprüngliche Historieneintrag blieb nach App-Neustart verfügbar. Rückgängig entfernte den veröffentlichten Ordner. Die unabhängige Prüfung bestätigte die Originalarchive sowie die lokalen und serverseitigen Kontrolldateien. Der Lauf belegt den gemeinsamen Online-Entpackpfad mit FTP als Gegenstelle. Beim separaten lokalen APFS-Test mit Build 373 erschien die Meldung zum leeren Archiv ebenfalls und der Zielordner blieb unverändert.
+
+### Entpacken in den gegenüberliegenden Dateibereich prüfen
+
+1. Ein ZIP mit `Plain.txt` und `Docs` anlegen. `Docs` enthält eine Unicode-Datei und einen leeren Ordner. Im gegenüberliegenden Bereich `Plain.txt` und `Docs` bereits mit anderen Inhalten anlegen. Die Ausgangsordner und ihre Prüfsummen erfassen.
+2. «Entpacken» getrennt für FTP → lokal, lokal → FTP und zwischen zwei FTP-Orten ausführen. `Plain (2).txt` und `Docs (2)` müssen direkt im gewählten Zielordner liegen. In den vorhandenen gleichnamigen Einträgen und neben dem Quellarchiv darf sich nichts ändern. Unicode-Datei und leeren Unterordner im Ziel unabhängig prüfen.
+3. OpenCommander normal neu starten und die passenden Historieneinträge rückgängig machen. Das Ziel muss wieder dem Ausgangsstand entsprechen. Der Mac-Build 375 legte für das lokale Ziel einen gemeinsamen Eintrag und für FTP-Ziele einen Eintrag pro veröffentlichtem Objekt an.
+4. Für die Gegenprobe das Lesen des Quellarchivs am eigenen FTP-Testserver verzögern. Währenddessen den gewählten lokalen Zielordner umbenennen und seinen alten Pfad durch einen neuen Ordner mit einer Kontrolldatei belegen. Den Server freigeben. Die App muss den Zielwechsel melden. Beide Ordner und das Quellarchiv müssen unverändert bleiben.
+
+Der signierte Mac-Build 375 bestand alle vier Durchläufe in der App. Die drei Entpackrichtungen wurden über einen lokalen FTP-Testserver und APFS geprüft. Für direkte Cloud-Verbindungen ist ein eigener Durchlauf erforderlich.
 
 ### Rückgängig nach einer Änderung am lokalen Cloud-Kopierziel prüfen (TRASH-06)
 
