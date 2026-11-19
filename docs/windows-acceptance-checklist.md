@@ -5,8 +5,8 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 ## Vollständige Prüfliste
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
-- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 18. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [60 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
+- [61 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -281,6 +281,15 @@ Der macOS-Nachtest verwendete einen verzögerten Microsoft-Graph-Testtransport. 
 Bei einem älteren Auftrag, der nur einen Inhaltsnachweis der Quelle speichert, kann eine erneute Quellenprüfung einen separaten Lesevorgang erfordern. Die bereits geprüfte lokale Zwischenkopie muss erhalten bleiben.
 
 Im macOS-Live-Test auf Google Drive endete der erste Testprozess genau zwischen den beiden Journalen. Der ursprüngliche Auftrag verwendete die bereits geprüften Bytes und speicherte genau einen Kopiereintrag. Ein weiterer Prozess verwendete den gespeicherten Eintrag für «Rückgängig». Objekt-ID und SHA-256 der Quelle blieben gleich. Dieser Lauf verwendete separate Testprozesse.
+
+### Fortschritt nach einem Prozessabbruch prüfen
+
+1. Aus einem Online-Ort einen eigenen Ordner mit zwei Testdateien kopieren. Dateigrössen und SHA-256 vorher festhalten. Über einen kontrollierten Transport die erste Datei vollständig prüfen lassen und den Prozess beenden, während Bytes der zweiten Datei bereits in der Auftragskarte stehen, ihre Inhaltsprüfung aber noch aussteht.
+2. Die Test-App neu öffnen und die Auftragskarte vor «Fortsetzen» prüfen. Erwartet werden derselbe pausierte Auftrag, Grösse und Anzahl der bestätigten ersten Datei, ein Wert unter 100 % und kein erfolgreicher Kopiereintrag. Eine Transportaufzeichnung darf beim blossen Öffnen keinen Anbieteraufruf zeigen.
+3. «Fortsetzen» wählen. Nur die zweite Datei erneut herunterladen lassen. Beide lokalen Dateien und ihre SHA-256-Werte prüfen. Der Abschluss erscheint erst nach Veröffentlichung des Zielordners.
+4. Den Test mit einer einzelnen Datei wiederholen und den Prozess nach ihrem Inhaltsnachweis beenden, bevor die lokale Veröffentlichung beginnt. Die ganze Dateigrösse darf bereits erscheinen. Der Kopiervorgang bleibt offen und der Dateizähler bei 0 von 1.
+
+Der Mac-Nachtest stoppte einen isolierten Downloadprozess mit einem kontrollierten Transport. Die zweite Datei war im Transport bereits angekommen und noch ohne bestätigten Inhaltsnachweis. Nach dem Neustart enthielt der pausierte Auftrag nur den Fortschritt der bestätigten ersten Datei. Beim Fortsetzen wurde nur die zweite Datei erneut geladen. Ein zusätzlicher Google-Drive-Test mit echten Dateien bestätigte denselben Fortschritt, genau einen Historieneintrag und Rückgängig aus einem frischen Prozess.
 
 ## Ergebnis festhalten
 
