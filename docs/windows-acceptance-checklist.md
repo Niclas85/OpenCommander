@@ -451,6 +451,14 @@ Mit einem kleinen, abspielbaren H.264-Testvideo den ersten `RETR` auf dem lokale
 3. Die Grösse berechnen. Das Teilresultat muss 6’000 Dateien, 2’016’000 Bytes und einen Lesefehler anzeigen. Die Inhalte der verlinkten Ordner dürfen nicht mitgezählt werden.
 4. Den Zugriff auf den gesperrten Testordner wieder erlauben und erneut berechnen. Erwartet sind 6’001 Dateien, 13 Unterordner und 2’016’199 Bytes. Beim signierten Mac-Build 322 stimmten beide Resultate. Nach beiden Scans war der andere Dateibereich bedienbar. Die Testdateien und die separate Kontrolldatei behielten ihren Inhalt.
 
+### Verzögerte Ordnergrösse und Wiederholung prüfen (PROP-03)
+
+1. Auf einem eigenen Testserver drei Unterordner mit je drei Dateien zu 651 Bytes anlegen. Die Eigenschaften des übergeordneten Ordners öffnen und erst dann «Grösse berechnen» wählen. Im Testadapter die Verzeichnisabfrage nach den ersten drei Dateien länger als die Berechnungsfrist anhalten. Der Dialog muss 1’953 Bytes, drei Dateien und den Grund für das Teilresultat ausweisen. Nach Freigabe der Abfrage erneut berechnen und 5’859 Bytes, neun Dateien und drei Unterordner erwarten.
+2. In einem frischen Testordner eine Verzeichnisantwort länger als die gesamte Wartefrist des Dialogs anhalten. Die App soll die unbekannte Ordnergrösse und die Möglichkeit zum Wiederholen anzeigen. Die verspätete Antwort des ersten Auftrags darf diese Meldung nicht überschreiben. Erst die neue Berechnung soll das vollständige und unabhängig geprüfte Ergebnis anzeigen.
+3. Einen Dialog mit noch blockierter Berechnung per Escape schliessen. Der andere Dateibereich muss wieder bedienbar sein. Nach Freigabe der verzögerten Antwort muss der Dialog geschlossen bleiben. Anschliessend denselben Ordner öffnen, erneut berechnen und die Testdateien unabhängig prüfen.
+
+Der signierte Mac-Build 363 zeigte über den lokal eingebundenen NFS-Testserver nach rund 12 Sekunden das erwartete Teilresultat. Bei längerem Verbindungsstillstand erschien nach rund 15 Sekunden die Meldung zur unbekannten Ordnergrösse. Wiederholung und Schliessen per Escape bestanden. Die verspätete Antwort änderte die Meldung nicht und öffnete den geschlossenen Dialog nicht wieder. Alle Testdateien blieben bytegenau erhalten. Die genaue Wartefrist und die Fehlermeldung der Windows-Version anhand ihrer sichtbaren Einstellungen und des Testergebnisses erfassen.
+
 ### Miniaturen beim Scrollen und Ordnerwechsel prüfen (MEDIA-12)
 
 1. In einem eigenen Cloud-Testordner 30 nummerierte, synthetische PNGs mit unterschiedlichen Farben ablegen. Daneben einen leeren Ordner anlegen. IDs und Prüfsummen der Bilder erfassen.
