@@ -104,6 +104,8 @@ Im selben fortgesetzten D2-Lauf schrieb ein zweiter Auftrag sämtliche Bytes und
 
 Ein dritter Auftrag stoppte beim Schreiben von `Chunk.bin` nach 7’000 von 7’001 Dateien. Zwei separat eingehängte Nur-Lese-Verbindungen fanden im geprüften 2-MiB-Endbereich dasselbe abweichende Bit an Byteposition 1’121’583’452 mit XOR-Maske 0x02. Position 348 innerhalb des 4-KiB-Blocks entspricht einem früheren Befund an einer anderen Zieldatei. Die Quellprüfsumme entsprach dem Journal. Die Stichprobe belegt die Abweichung im geprüften Bereich. Ein Auftrag lief weiter.
 
+Nach zwei Stunden im fortgesetzten Lauf hatte der letzte Auftrag alle 7’001 Dateien geschrieben und 3’348 von 7’038 Zieleinträgen geprüft. Der Abschlussbeleg stand noch aus. Die Prüfuhr begann beim Fortsetzen nach der früheren Unterbrechung des Steuerprogramms. Die vollständige Abnahme mit vier parallelen Aufträgen bleibt offen.
+
 ### Quelle und Ziel beim SMB-Fortsetzen unterscheiden
 
 1. Einen Kopierauftrag mit einer eigenen SMB-Datei und separater Kontrolldatei anlegen. Den SHA-256 der Quelle ausserhalb der App erfassen. Mit einem Testadapter nach vollständig gespeicherten Dateibytes und vor dem Abschlussbeleg pausieren. Quelle und Ziel müssen zu diesem Zeitpunkt denselben Hash haben.
@@ -168,6 +170,15 @@ In einem frischen Testprofil einen eigenen Cloud-Ordner mit einer Testdatei auf 
 Im signierten Mac-Build 322 lagen die gemessenen Zeiten inklusive Bedienautomation bei Dropbox bei 3,13 s für den Erstabruf und 1,95 s für das Wiederöffnen. Bei Google Drive waren es 2,93 s und 1,91 s. Die Werte beschreiben den Testaufbau.
 
 Für den Abbruchnachtest den Listenabruf eines eigenen Testordners gezielt verzögern. Während die Ladeanzeige sichtbar ist, den Cloud-Bereich schliessen. Der lokale Ordner muss sofort wieder erreichbar sein. Sobald der verzögerte Abruf beendet ist, darf keine alte Cloud-Liste die lokale Ansicht ersetzen. Denselben Cloud-Ort erneut öffnen und die Dateiliste unabhängig prüfen.
+
+### Anfragedrosselung beim Ordnerabruf prüfen (CLOUD-06)
+
+1. Einen eigenen Ordner über die direkte Cloud-Verbindung laden. Nur beim Listenabruf für diesen Testordner den Testadapter mit `HTTP 429: too_many_requests` antworten lassen. Die App muss die bisherige Liste mit Zeitangabe und einem Hinweis auf die Drosselung zeigen. Den anderen Dateibereich auf einer lokalen Kontrolldatei lassen.
+2. Während der Wartezeit zweimal manuell aktualisieren. Die Zahl der Anbieteranfragen muss gleich bleiben. In einer separaten Sitzung eine neue Testdatei im Cloud-Ordner ablegen und die Störung aufheben. Ein automatischer Abruf muss die neue Datei anzeigen und den Warnhinweis entfernen.
+3. Die Drosselung erneut auslösen und den Cloud-Bereich vor dem geplanten Abruf verlassen. Über mindestens zwei Warteintervalle die Anfragen zählen. Der frühere Ordner darf keinen weiteren Abruf auslösen. Erst das erneute Öffnen soll wieder genau eine Liste laden. Die IDs und Prüfsummen der Testdateien unabhängig vergleichen.
+4. In einem separaten Lauf die Drosselung bestehen lassen und alle automatischen Versuche bis zum Erreichen des Wiederholungslimits zählen. Danach müssen die Warnung und die zuletzt geladene Liste erhalten bleiben. Nach Aufheben der Störung muss ein manuelles Aktualisieren wieder funktionieren.
+
+Der signierte Mac-Build 322 bestand diese Varianten für Dropbox und Google Drive. Beim ersten Test lud die App nach rund 15,6 Sekunden einmal erneut. Bei anhaltender Drosselung wurden drei automatische Versuche mit Abständen von rund 16, 21 und 32 Sekunden beobachtet. Während der anschliessenden 32 Sekunden kam kein weiterer Abruf hinzu.
 
 ### Verzögerter Abruf in beiden Bereichen (CLOUD-07)
 
