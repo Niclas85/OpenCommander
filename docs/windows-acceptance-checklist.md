@@ -523,6 +523,15 @@ Mit einem kleinen, abspielbaren H.264-Testvideo den ersten `RETR` auf dem lokale
 
 Für den Wiedergabetest ein 18 Sekunden langes FTP-Testvideo verwenden. Zuerst pausieren, auf etwa 55 % der Zeitleiste klicken, wieder abspielen und erneut pausieren. Im signierten Mac-Build 366 sprang der Abspielkopf auf 9,9 Sekunden. Er lief beim Fortsetzen weiter und hielt beim Pausieren wieder an. Nach dem Schliessen erschien dieselbe Datei. Der Server lieferte das kleine Video einmal und meldete für das grosse Video keinen `RETR`. Beide Quelldateien und die lokale Kontrolle blieben bytegenau erhalten.
 
+### Kleine Fenster und lange Dateinamen prüfen (PROP-06)
+
+1. In einem eigenen Testordner eine kleine Textdatei mit langem Unicode-Namen erstellen. OpenCommander auf die kleinste unterstützte Fenstergrösse bringen. In den Einstellungen die Sprachauswahl öffnen und schliessen. Symbolleiste und Dateipfade müssen erreichbar sein.
+2. Die lange Datei auswählen und ihre Informationen öffnen. Den vollständigen Namen und die genaue Bytezahl prüfen, dann den Dialog schliessen.
+3. Einen eigenen pausierten Kopierauftrag in der Transferübersicht mit «Alle fortsetzen» starten. «Alle abgeschlossenen entfernen» wählen. Die Karte muss verschwinden, die gespeicherte Historie und die Zieldatei müssen erhalten bleiben.
+4. Den Ablauf bei den im Prüffall vorgesehenen Auflösungen und Skalierungen wiederholen. Fenstergrösse, Sprache und Darstellungsmodus je Lauf protokollieren.
+
+Im signierten Mac-Build 392 bestanden sechs sichtbare Läufe bei 900 × 600 Fensterpunkten mit deutschen Einstellungen und Dunkelmodus sowie bei 1366 × 768 Fensterpunkten mit englischen Einstellungen und heller Ansicht. Die gemessenen Bedienelemente der Symbolleiste, die Pfadfelder und die geprüften globalen Transferbuttons lagen innerhalb des App-Fensters. Der Sprachdialog liess sich öffnen. Die Auflösung und Skalierung des Monitors blieben wie vor dem Test eingestellt. Die restlichen Auflösungs- und Skalierungsvarianten stehen aus. In zwei sichtbaren Läufen von Build 392 zeigte der Info-Dialog den vollständigen langen Unicode-Namen und die exakte Grösse von 47 Bytes. Die Schaltfläche zum Schliessen war innerhalb des Fensters erreichbar. Die Transferübersicht im signierten Build 392 war in beiden Fenstergrössen bedienbar. «Alle fortsetzen» schloss den eigenen gespeicherten Auftrag unter derselben ID ab. «Alle abgeschlossenen entfernen» entfernte die Karte. Die 47 Zielbytes und der gespeicherte Historieneintrag blieben erhalten.
+
 ### Info-Dialog mit der Tastatur bedienen
 
 1. Einen eigenen Ordner mit zwei Testdateien von 187 und 368 Bytes anlegen. Den Ordner auswählen und über den im Menü angegebenen Tastaturbefehl «Informationen» öffnen. Die Ordnergrösse muss als unberechnet erscheinen.
