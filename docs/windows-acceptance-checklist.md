@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [85 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [86 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -618,6 +618,15 @@ Der signierte Mac-Build 322 stoppte «Rückgängig» für beide isoliert geteste
 Für den zusätzlichen Schreibcache-Test ein eigenes rclone-Laufwerk mit verzögertem Writeback und einem unabhängig lesbaren Test-Backend einbinden. Direkt aus der Cloud zum Laufwerk kopieren. Sobald die Warteschlange fertig meldet, muss der Hash am Laufwerk stimmen und der Hinweis zur unbestätigten Synchronisierung sichtbar sein. Das unabhängige Backend darf in der eingestellten Wartezeit noch leer sein. Nach Ablauf der Wartezeit muss es genau dieselben Bytes enthalten. Die Cloud-Quelle währenddessen unabhängig prüfen. «Verschieben» mit einer separaten Testdatei wiederholen. Ohne bestätigte Übertragung zum Anbieter muss die Cloud-Quelle erhalten bleiben.
 
 Der Mac-Nachtest mit einem eingebundenen lokalen NFS-Export bestätigte den Hinweis zur ausstehenden Synchronisierung. Die 256 KiB wurden später unabhängig am Test-Backend bytegenau bestätigt. Das geschützte Verschieben und «Rückgängig» wurden während des offenen Synchronisationszustands mit einer Erklärung abgelehnt. Die Abnahme an einem Cloud-Anbieter und auf echtem SMB bleibt offen.
+
+### Statuszeile beim Kopieren auf einen Schreibcache
+
+1. Eine eigene 256-KiB-Testdatei auf das zuvor beschriebene eingebundene Testlaufwerk kopieren. Für das Writeback beispielsweise 75 Sekunden Verzögerung einstellen. Sobald die Karte 100 % zeigt, die Zielbytes am eingebundenen Pfad prüfen und den unabhängigen Speicher des Testanbieters kontrollieren.
+2. Während die Datei nur im Schreibcache vorliegt, müssen die globale Statuszeile und die Karte auf die unbestätigte externe Synchronisierung hinweisen. Den Auftrag schliessen und die App normal neu öffnen. Die geprüfte Karte und genau ein Historieneintrag sollen zur ursprünglichen Auftrags-ID erhalten bleiben.
+3. Vor dem Writeback «Rückgängig» versuchen. Wenn die App die aktuelle Anbieterversion über diesen Mount nicht sicher prüfen kann, muss sie den Vorgang verständlich ablehnen und Quelle, Ziel und Historieneintrag erhalten. Nach dem Upload den SHA-256 zusätzlich über das vom Mount unabhängige Backend prüfen.
+4. Eine zweite Testdatei in einen gewöhnlichen lokalen Ordner kopieren. Die Statuszeile soll «Abgeschlossen» anzeigen. «Rückgängig» muss die Zielkopie entfernen und das Original erhalten.
+
+Im signierten Mac-Build 364 waren die Warnung in der Statuszeile und in der kompakten Karte sichtbar, bevor das separate lokale NFS-Test-Backend die Datei enthielt. Nach normalem App-Neustart blieben die Karte und der Historieneintrag erhalten. «Rückgängig» wurde während der ausstehenden Synchronisierung abgelehnt. Die unabhängige Kontrolle bestätigte die 256 KiB rund 75 Sekunden nach Abschluss im Dateisystem. Kopieren und «Rückgängig» auf APFS bestanden als Gegenprobe. Der Nachtest der Statuszeile mit einem direkten Cloud-Konto bleibt offen.
 
 ### Cloud-Download bei getrenntem Ziellaufwerk wiederaufnehmen
 
