@@ -256,7 +256,11 @@ Für die grosse lokale Variante 20’000 eigene kleine Dateien aus D2 verwenden 
 3. Den ursprünglichen Auftrag nach dem Öffnen fortsetzen. Das Anbieterprotokoll soll nur den erneuten Download der noch fehlenden Datei zeigen. Beide Dateien und der leere Unterordner müssen am lokalen Ziel vorhanden sein. SHA-256 abgleichen und genau einen erfolgreichen Kopiereintrag erwarten.
 4. In getrennten Gegenproben die bereits bestätigte lokale Zwischendatei ändern oder das zugehörige Anbieterobjekt durch eine andere Datei mit denselben Bytes ersetzen. Der Auftrag muss abbrechen. Vor der weiteren Prüfung die ursprünglichen Testobjekte wiederherstellen. Abschliessend «Rückgängig» in einem weiteren Prozess prüfen und die Quellen sowie eine unabhängige lokale Kontrolldatei erneut vergleichen.
 
+Für die OneDrive-Variante den Ort «OneDrive Online» wählen. Die Prüfung zusätzlich mit einem erhaltenen Ordnerauftrag aus einem älteren Windows-Build durchführen, sofern ein solches Testprofil verfügbar ist. Vom älteren Auftrag gespeicherte Objekt-IDs und Versionskennungen müssen beim Fortsetzen weiterhin gelten.
+
 Im Live-Test vom 19. November setzte der Mac-Code für Build 329 einen Google-Drive-Ordnerdownload nach einem Prozessabbruch fort. Drei Download-Starts im Transportprotokoll belegen, dass nur die unterbrochene zweite Datei erneut geladen wurde. Beide SHA-256-Prüfsummen und der leere Unterordner stimmten. «Rückgängig» in einem dritten Prozess entfernte den Ordner vom sichtbaren lokalen Ziel. Ein erneuter unabhängiger Lesevorgang bestätigte die Inhalte der Google-Drive-Dateien. Dieser Lauf verwendete separate Testprozesse. Das normale Schliessen des App-Fensters bleibt für diesen Fall offen.
+
+Der Mac-Nachtest mit Microsoft-Graph-Testadapter bestätigte auch für OneDrive Online, dass beim Fortsetzen nur die unterbrochene Datei erneut geladen wird. Ein Auftrag im früheren Speicherformat bestand ebenfalls. Die Prüfung mit einem echten OneDrive-Konto und sichtbarem App-Neustart steht für diese Variante aus.
 
 ## Ergebnis festhalten
 
