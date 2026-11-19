@@ -200,7 +200,7 @@ TRASH-05;Papierkorb, Historie und Rückgängig;P0;Undo für jede mutierende Oper
 TRASH-06;Papierkorb, Historie und Rückgängig;P0;Undo mit nachträglich geändertem Ziel;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Kopieren/ersetzen
 2. Zieldatei extern ändern
 3. Undo
-4. Zusätzlich belegten ursprünglichen Quellpfad testen";"Neuere Daten werden nicht überschrieben oder gelöscht; Konflikt klar; Teilzustand bleibt nachvollziehbar.";Teilweise belegt;REG-NAS-02, REG-CLOUD-06, REG-REMOTE-01, REG-GDOC-01, REG-GDOC-03;;Nicht ausgeführt;;;
+4. Zusätzlich belegten ursprünglichen Quellpfad testen";"Neuere Daten werden nicht überschrieben oder gelöscht; Konflikt klar; Teilzustand bleibt nachvollziehbar.";Teilweise belegt;REG-NAS-02, REG-CLOUD-06, REG-REMOTE-01, REG-GDOC-01, REG-GDOC-03, REG-HISTORY-02;;Nicht ausgeführt;;;
 TRASH-07;Papierkorb, Historie und Rückgängig;P0;Undo abbrechen und erneut versuchen;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Großen Undo mit Verifikation starten
 2. Abbrechen
 3. App neu starten
@@ -394,7 +394,7 @@ PROP-06;Eigenschaften, Einstellungen und Ergonomie;P1;Skalierung und kleine Fens
 PROP-07;Eigenschaften, Einstellungen und Ergonomie;P1;Tastatur und sichtbarer Fokus;"D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.";"1. Ohne Maus Einstellungen, Orte, Dialoge und Auftragssteuerung bedienen
 2. Escape/Tab nutzen";"Fokus erkennbar, Reihenfolge sinnvoll, kein Fokusverlust; nicht unterstützte Tastaturpfade als Ergonomiefehler dokumentieren.";Teilweise belegt;REG-KEY-01;;Nicht ausgeführt;;;
 PROP-08;Eigenschaften, Einstellungen und Ergonomie;P1;Fehlertexte und Statusfarben;"D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.";"1. Offline/Permission/Quota-Fehler auslösen
-2. Hell/Dunkel prüfen";"Konkreter Pfad/Vorgang und nächster Schritt; kein Erfolg ausschließlich durch Farbe; keine technischen Geheimnisse/rohen Tokens.";Teilweise belegt;REG-HISTORY-01, REG-NAS-18, REG-FS-02, REG-FS-03;;Nicht ausgeführt;;;
+2. Hell/Dunkel prüfen";"Konkreter Pfad/Vorgang und nächster Schritt; kein Erfolg ausschließlich durch Farbe; keine technischen Geheimnisse/rohen Tokens.";Teilweise belegt;REG-HISTORY-01, REG-NAS-18, REG-FS-02, REG-FS-03, REG-HISTORY-02;;Nicht ausgeführt;;;
 SAFE-01;Sicherheit, Leistung und Dauerbetrieb;P0;Zugangsdaten und Dateirechte;"Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.";"1. Berechtigungen von Testprofil, rclone-Konfig und Journal prüfen
 2. Redigierte Logs/Prozessargumente auf Test-Secrets untersuchen";"Keine Passwörter/Tokens in Exporten, Kommandozeile oder öffentlichen Logs; private Konfiguration nur für Benutzer; Cloud-Konfigschutz nicht fälschlich als Verschlüsselung bezeichnen.";Nativ belegt;;;Nicht ausgeführt;;;
 SAFE-02;Sicherheit, Leistung und Dauerbetrieb;P0;Runtime-Download und Prüfsumme;"Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.";"1. In Testprofil rclone-Bereitstellung starten

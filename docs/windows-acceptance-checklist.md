@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [89 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [90 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -508,6 +508,8 @@ Der signierte Mac-Build 367 zeigte im hellen englischen und dunklen deutschen Fa
 
 Im signierten Mac-Build 368 blieb der Auftrag bei leerem Einhängepfad pausiert und zeigte die Meldung für das getrennte Laufwerk. Beim zweiten Volume erschien die Meldung zum abweichenden Volume. Das leere Verzeichnis und die Dateien auf dem zweiten Volume blieben unverändert. Mit dem Original setzte dieselbe ID den Auftrag bytegenau fort. «Rückgängig» erhielt Quelle und Kontroll-Datei. Im getrennten Abbruchlauf enthielt der Wiederherstellungsordner auf dem Original die unveränderte Teildatei.
 
+Beim Versionswechsel von Build 367 auf 368 verwendete die signierte Test-App eine echte ältere Warteschlange mit einer Teildatei und einem bereits abgeschlossenen Auftrag. Ein erneuter Versuch am eingebundenen exFAT-Laufwerk ergänzte den gespeicherten Einhängepfad. Nach erneutem App-Start mit abgezogenem Laufwerk erschien die passende Meldung. Mit dem Original wurde derselbe Auftrag fortgesetzt und bytegenau abgeschlossen. Beide Kopien liessen sich über ihre Historieneinträge rückgängig machen.
+
 ### Lokale Miniatur nach Dateiersatz prüfen
 
 1. Zwei kleine BMP-Testbilder mit identischen Abmessungen und identischer Dateigrösse erzeugen, eines rot und eines blau. Das rote Bild ins Testverzeichnis legen. Den Ordner in OpenCommander öffnen und die rote Miniatur abwarten.
@@ -641,6 +643,14 @@ Die sechs isolierten macOS-Varianten bestanden mit simulierten Microsoft-Graph-A
 3. OpenCommander öffnen und den abgeschlossenen Auftrag rückgängig machen. Die App muss die geänderte Zieldatei melden und den Historieneintrag behalten. Zieldatei, Kontrolldatei und Cloud-Quelle anhand ihrer Prüfsummen prüfen. Bei Zugriff auf die Sicherung auch die frühere lokale Version prüfen.
 
 Der signierte Mac-Build 322 stoppte «Rückgängig» für beide isoliert getesteten Kopien aus Dropbox und Google Drive und meldete die Änderung. Die bearbeitete Version, die ursprüngliche lokale Sicherung, die Kontrolldatei und die Cloud-Quelle blieben bytegenau erhalten.
+
+### Rückgängig bei verändertem exFAT-Ziel oder belegter Quelle
+
+1. Eine eigene Datei auf ein exFAT-Testlaufwerk kopieren. Danach direkt auf dem Laufwerk ein Byte der Zieldatei ändern. Länge, Dateikennung und den letzten Schreibzeitpunkt beibehalten. «Rückgängig» wählen. Die Meldung soll sich auf die Rückgängig-Aktion beziehen. Die geänderte Zieldatei und der Historieneintrag bleiben erhalten.
+2. Die Test-App schliessen und den gespeicherten Historieneintrag nach dem Neustart öffnen. Auch dort muss dieselbe Ursache verständlich angezeigt werden. Die ursprünglichen Zielbytes aus der Testdatei wiederherstellen und «Rückgängig» erneut ausführen.
+3. In einem separaten Durchlauf eine Testdatei auf exFAT verschieben und ihren früheren Quellpfad danach mit einer eigenen Datei belegen. «Rückgängig» muss stoppen. Prüfsummen der verschobenen Datei und des neuen Inhalts vergleichen. Die neue Datei an einen anderen Ort verschieben und «Rückgängig» erneut wählen. Die ursprüngliche Datei muss unter ihrem alten Namen zurückkehren. Die neue Datei bleibt am separaten Ort erhalten.
+
+Im signierten Mac-Build 369 zeigte der bereits in Build 368 gespeicherte Historieneintrag nach dem Versionswechsel den Grund für das gestoppte Rückgängig. Auch ein erneuter Versuch zeigte denselben Grund in der Statuszeile. Der gespeicherte Fehlercode blieb erhalten. Beim veränderten Ziel und beim belegten Quellpfad blieben alle betroffenen Dateien erhalten. Nach dem Wiederherstellen der Zielbytes und dem Freigeben des Quellpfads gelang Rückgängig in beiden Fällen.
 
 ### Externe Synchronisierung nach einem Cloud-Download prüfen
 
