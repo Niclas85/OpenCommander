@@ -98,6 +98,8 @@ Für den Test einzelner Auftragskarten die Karte zuerst in den sichtbaren Bereic
 
 Für JOB-01 die angezeigten Bytes, Dateizahlen, aktive Zeit, Transferrate und Restzeit mit dem gespeicherten Auftragsstand vergleichen. Build 322 zeigte bei drei laufenden gemischten Verzeichniskopien die Dateizahlen und eine beobachtete Transferrate. Bei unbekannter Restzeit erschien ein Strich. Der Auftrag mit vollständig geschriebenen, aber fehlerhaft zurückgelesenen 2 GiB zeigte 99 Prozent, den Dateinamen und die Fehlermeldung zur Zielprüfung. Ein Abschlussbeleg war nicht vorhanden.
 
+Zwei vollständige Lesevorgänge ohne Dateicache über separat eingehängte Nur-Lese-Verbindungen ergaben für diese 2-GiB-Datei dieselbe Zielprüfsumme und dieselbe Abweichung von der Quelle. Betroffen war genau ein Bit an Byteposition 1’718’428’249 mit XOR-Maske 0x02. Position 601 innerhalb des 4-KiB-Blocks entspricht einem früheren Befund an einer anderen Datei. Die Quelle entsprach dem ursprünglichen Manifest. Das Journal und die Kontrolldatei wurden bei beiden Lesevorgängen unverändert bestätigt.
+
 ### Quelle und Ziel beim SMB-Fortsetzen unterscheiden
 
 1. Einen Kopierauftrag mit einer eigenen SMB-Datei und separater Kontrolldatei anlegen. Den SHA-256 der Quelle ausserhalb der App erfassen. Mit einem Testadapter nach vollständig gespeicherten Dateibytes und vor dem Abschlussbeleg pausieren. Quelle und Ziel müssen zu diesem Zeitpunkt denselben Hash haben.
