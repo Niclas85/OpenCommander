@@ -183,6 +183,10 @@ Der signierte Mac-Build 322 bestand diese Variante mit echten Anbieterantworten 
 
 Der signierte Mac-Build 322 bestand alle drei Varianten mit echten Dropbox- und Google-Drive-Testordnern. Nach dem Rückgängigmachen der Ordneranlage liess sich derselbe leere Ordner im Wiederherstellungsbereich nachweisen.
 
+Für die beiden Archivvarianten zuerst aus einer normalen Quelldatei ein ZIP erzeugen. Die Ergebnisdatei unabhängig herunterladen, die CRCs prüfen und archivierte Dateinamen und Inhalte vergleichen. Zum Entpacken separat ein ausserhalb der App erzeugtes ZIP mit einer Unicode-Datei im Unterordner verwenden. Die entpackten Dateien direkt beim Anbieter prüfen. Nach jeder Aktion die App neu starten und den zugehörigen Historieneintrag rückgängig machen. Das erzeugte ZIP beziehungsweise der entpackte Ordner muss aus der normalen Ansicht verschwinden. Die Eingabedateien und ihre Objekt-IDs müssen erhalten bleiben.
+
+Build 322 bestand ZIP und Entpacken samt Rückgängig mit Dropbox. Bei Google Drive waren die ZIP-Prüfung und das Rückgängigmachen der ZIP-Erzeugung erfolgreich. Beim Entpacken stimmten auch dort die Dateien direkt beim Anbieter. Für das Rückgängigmachen der Entpackung endete das erste Beobachtungsfenster nach 75 Sekunden ohne bestätigten Abschluss.
+
 ## Ergebnis festhalten
 
 Pro Fall den Windows-Build, den Status, die Abweichung vom Soll und einen Beleg erfassen. Bei einem Fehler in «Fehler-ID» die ID des Windows-Issues eintragen und dort die Variante, Reproduktionsschritte, Uhrzeit und genaue Meldung festhalten. Die passende Mac-Regressions-ID kann im Windows-Issue als Referenz angegeben werden.
