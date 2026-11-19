@@ -350,6 +350,8 @@ Für den zusätzlichen Schreibcache-Test ein eigenes rclone-Laufwerk mit verzög
 
 Die frühere macOS-Version des rclone-Befehls für gewöhnliche Downloads exportierte ein echtes Google-Dokument stillschweigend. Im Live-Nachtest vom 19. November 2026 wies der korrigierte Befehl den nativen Eintrag ohne lokale Ausgabe ab. Die normale Datei blieb bytegenau abrufbar. Der ausdrückliche Export lieferte weiterhin den erwarteten Text. Eine unabhängige Anbieterauflistung bestätigte unveränderte Objekt-IDs und Dateimetadaten. Der Live-Nachtest lief mit dem von OpenCommander geprüften rclone-Binary direkt beim Anbieter. Der konkurrierende Austausch in der App hat einen eigenen kontrollierten Regressionstest. [rclone-Dokumentation](https://rclone.org/drive/#drive-skip-gdocs)
 
+Im signierten Mac-Build 325 bestand «Öffnen mit …» auch in der App für beide echten Google-Drive-Objekttypen. Die gewöhnliche Datei wurde bytegenau gespeichert, und der DOCX-Export enthielt den vollständigen Text des nativen Dokuments. Die macOS-App-Auswahl öffnete sich in beiden Fällen. Ihr Abbruch liess die geprüften lokalen Kopien bestehen. Separate Anbieterabfragen bestätigten beide Original-IDs und Inhalte.
+
 ### Google-Bestätigung nach der Quellensicherung geht verloren
 
 Mit einem entbehrlichen nativen Google-Dokument im eigenen Drive-Testordner prüfen. Google-ID, Dokumenttyp und einen eindeutigen Satz festhalten. Für den gezielten Prozessabbruch ist ein instrumentierter Testadapter erforderlich.
