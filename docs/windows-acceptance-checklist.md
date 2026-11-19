@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [69 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [70 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -334,6 +334,14 @@ Der Mac-Nachtest stoppte einen isolierten Downloadprozess mit einem kontrolliert
 2. Mit dem Testadapter ausschliesslich die eigene Teildatei am Ende auf 2,5 MiB kürzen. Freigabe aushängen und erneut einhängen. In einem neuen Prozess denselben Auftrag fortsetzen. Die App muss die Identität der Teildatei und alle verbliebenen Bytes bis zum neuen Zwischenstand prüfen, bevor sie fehlende Bytes ergänzt.
 3. Den Test einmal unmittelbar nach dem neu geprüften Zwischenstand pausieren. Nach Prozessneustart muss derselbe Auftrag mit dem korrigierten Zwischenstand fortsetzen. Beim erfolgreichen Abschluss die vollständige Zielprüfsumme über eine separate Nur-Lese-Verbindung, den Abschlussbeleg und die unveränderte Kontrolldatei prüfen.
 4. Je eine Negativvariante mit einem geänderten Byte im verbliebenen Teil, einem unter dem gleichen Namen eingesetzten anderen Objekt und einer nach dem Abschluss gekürzten Datei durchführen. Jede Variante muss den bestehenden Inhalt erhalten und ohne neuen Abschlussbeleg stoppen.
+
+### Fehlende Eigentumsmarkierung am SMB-Ziel erkennen
+
+1. In einem eigenen SMB-Testordner zwei Testdateien kopieren, darunter eine Datei in einem verschachtelten Unicode-Pfad. Den Auftrag nach der ersten fertigen Datei und vor dem Schreiben der zweiten pausieren.
+2. Mit dem Dateisystem-Testadapter nur die gespeicherte Eigentumsmarkierung der ersten Zieldatei entfernen. Die Dateidaten unverändert lassen. Dieselbe Auftrags-ID fortsetzen. Der Auftrag muss den exakten Zielpfad und die fehlende Zuordnung zum Auftrag melden. Es darf keinen Abschlussbeleg geben und die zweite Datei darf noch nicht angelegt sein.
+3. Die Test-App neu starten und die Sprache wechseln. Der genaue Pfad und der lokalisierte Grund müssen erhalten bleiben. Quelle und bereits vorhandene Zieldatei müssen unabhängig verglichen werden können. Einen neuen Kopierauftrag in einem leeren Testordner als Gegenprobe abschliessen.
+
+Zwei gestoppte Mac-D2-Aufträge zeigten dieses Muster nach dem erneuten Einhängen auch bei unverändertem Dateiinhalt. Die separate Nur-Lese-Prüfung fand auf beiden Zielen weitere Dateien mit derselben Kennung und null Bytes. Die Ursache für den Verlust der Markierungen und Daten bleibt offen.
 
 ### SMB-Zieldatei bei der Prüfung des Abschlussbelegs finden
 
