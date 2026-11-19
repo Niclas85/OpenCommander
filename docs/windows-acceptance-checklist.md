@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 18. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [58 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [59 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -261,6 +261,15 @@ Für die OneDrive-Variante den Ort «OneDrive Online» wählen. Die Prüfung zus
 Im Live-Test vom 19. November setzte der Mac-Code für Build 329 einen Google-Drive-Ordnerdownload nach einem Prozessabbruch fort. Drei Download-Starts im Transportprotokoll belegen, dass nur die unterbrochene zweite Datei erneut geladen wurde. Beide SHA-256-Prüfsummen und der leere Unterordner stimmten. «Rückgängig» in einem dritten Prozess entfernte den Ordner vom sichtbaren lokalen Ziel. Ein erneuter unabhängiger Lesevorgang bestätigte die Inhalte der Google-Drive-Dateien. Dieser Lauf verwendete separate Testprozesse. Das normale Schliessen des App-Fensters bleibt für diesen Fall offen.
 
 Der Mac-Nachtest mit Microsoft-Graph-Testadapter bestätigte auch für OneDrive Online, dass beim Fortsetzen nur die unterbrochene Datei erneut geladen wird. Ein Auftrag im früheren Speicherformat bestand ebenfalls. Die Prüfung mit einem echten OneDrive-Konto und sichtbarem App-Neustart steht für diese Variante aus.
+
+### Fortschritt während eines OneDrive-Downloads
+
+1. Eine eigene ausreichend grosse Datei über «OneDrive Online» in den lokalen Testordner kopieren. Die Übertragung mit einem Testadapter oder einer langsamen Testverbindung so verzögern, dass der Inhalt in mindestens zwei getrennten Abschnitten eintrifft. Grösse und SHA-256 der Quelldatei vorher erfassen.
+2. Während der Download läuft die Auftragskarte öffnen. Die empfangenen Bytes müssen bereits nach dem ersten Abschnitt steigen. Ist die Dateigrösse bekannt, zeigt die Karte die feste Gesamtgrösse. Der Dateizähler bleibt bis zur geprüften Veröffentlichung bei 0 von 1. «100 %» und «Abgeschlossen» erscheinen erst nach dem bestätigten Kopiervorgang.
+3. Den vollständig übertragenen Inhalt mit der erwarteten Prüfsumme vergleichen. Den Ablauf für einen Ordner mit mindestens zwei Dateien wiederholen. Bei bekanntem Eingang von Teildaten steigen die Bytes, bevor die laufende Datei als geprüft gezählt wird.
+4. Als Gegenprobe einen begonnenen Testdownload abbrechen. Am Ziel darf keine vollständige Datei erscheinen. Fortschrittsmeldungen aus dem beendeten Versuch dürfen einen neuen Auftrag nicht überschreiben.
+
+Der macOS-Nachtest verwendete einen verzögerten Microsoft-Graph-Testtransport. Er bestätigte Zwischenwerte vor der Inhaltsprüfung, die Metadaten der Auftragskarte und einen Abbruch ohne bestätigten Abschluss. Ein sichtbarer Live-Download mit angemeldetem OneDrive-Konto steht für diesen Nachtest noch aus.
 
 ## Ergebnis festhalten
 
