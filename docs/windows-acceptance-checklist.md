@@ -106,6 +106,8 @@ Ein dritter Auftrag stoppte beim Schreiben von `Chunk.bin` nach 7’000 von 7’
 
 Nach zwei Stunden im fortgesetzten Lauf hatte der letzte Auftrag alle 7’001 Dateien geschrieben und 3’348 von 7’038 Zieleinträgen geprüft. Der Abschlussbeleg stand noch aus. Die Prüfuhr begann beim Fortsetzen nach der früheren Unterbrechung des Steuerprogramms. Die vollständige Abnahme mit vier parallelen Aufträgen bleibt offen.
 
+Beim letzten Auftrag startete der Eintragszähler nach der Strukturprüfung erneut. Die gespeicherten Auftragsdaten kennzeichneten den zweiten Durchlauf als Prüfung des Abschlussbelegs. Eine Stichprobe des laufenden Prozesses bestätigte diese Phase. Für den Windows-Nachtest beim Wechsel den Phasennamen und den Zähler gemeinsam erfassen und den Auftrag erst nach dem gespeicherten Abschlussbeleg als erledigt werten.
+
 ### Quelle und Ziel beim SMB-Fortsetzen unterscheiden
 
 1. Einen Kopierauftrag mit einer eigenen SMB-Datei und separater Kontrolldatei anlegen. Den SHA-256 der Quelle ausserhalb der App erfassen. Mit einem Testadapter nach vollständig gespeicherten Dateibytes und vor dem Abschlussbeleg pausieren. Quelle und Ziel müssen zu diesem Zeitpunkt denselben Hash haben.
