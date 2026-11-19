@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [73 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [74 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -445,6 +445,15 @@ Der macOS-Nachtest mit Quick Look bestätigte die rote und die blaue Miniatur au
 4. Parallel eine direkte Cloud-Verbindung und ein Netzlaufwerk anzeigen. Beide müssen sich die zwei Plätze für Online-Miniaturen teilen. Lokale Miniaturen sollen auch weiter geladen werden können, wenn die Online-Plätze belegt sind.
 
 Auf macOS bestätigte der Test mit Quick Look, dass ein Abbruch einen Platz freigibt und die zwei anderen Bildresultate die richtigen Farben haben. Quick Look renderte auch ein Testbild von einem schreibgeschützt eingebundenen lokalen NFS-Testserver. Ein Warteschlangentest mit blockierten Aufträgen bestätigte das gemeinsame Limit für direkte Cloud-Verbindungen und Netzlaufwerke. Der Scrolltest im App-Fenster und der Nachtest auf echtem SMB bleiben offen.
+
+### Bild wird während des Wartens zu gross oder ersetzt
+
+1. Auf einer eigenen Testfreigabe ein kleines rotes PNG und ein blaues PNG derselben Dateigrösse vorbereiten. Das rote PNG in OpenCommander listen. Mit einem Testadapter seinen Miniaturauftrag nach der Auflistung und vor dem Lesen anhalten.
+2. Das rote Testbild auf mehr als 32 MiB vergrössern. Den Auftrag freigeben. Das Dateitypsymbol muss erhalten bleiben. Der Testadapter muss bestätigen, dass die übergrosse Datei keinem Decoder übergeben wurde.
+3. Aus getrennten Ausgangszuständen das Testbild atomar durch das blaue ersetzen. Grösse und letzter Schreibzeitpunkt müssen gleich bleiben. In einem weiteren Durchlauf bei vorhandener Unterstützung einen symbolischen Link an den vorherigen Pfad setzen. Die alte Miniatur darf aus diesen Bytes weder angezeigt noch in den Cache geschrieben werden. Nach Neuladen mit einem gültigen regulären Testbild muss dessen eigene Miniatur erscheinen.
+4. Mit einem Testadapter nach der geprüften Übernahme der Bytes pausieren und den Netzpfad ändern. Der Decoder soll nur die bereits begrenzte Kopie lesen. Das Ergebnis einer seitdem veränderten Quelle darf die aktuelle Zeile nicht überschreiben. Nach dem Auftrag muss die temporäre Kopie verschwinden. Ohne Testadapter die gezielten Zeitpunkte als offen erfassen.
+
+Die macOS-Komponententests bestätigten die Ablehnung von Grössenzunahme, gleich grossem Umschreiben, symbolischem Link und FIFO. Vier echte Durchläufe auf einem lokal eingebundenen NFS-Testserver wiesen die nachträglich vergrösserte Datei ab. Quick Look konnte danach aus der bereits erstellten Kopie die ursprünglichen roten Pixel rendern. Die App-Anzeige auf einer echten SMB-Freigabe bleibt offen.
 
 ### Cloud-Ordner-Download mit Neustart und Rückgängig
 
