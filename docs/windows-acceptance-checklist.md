@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [91 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [92 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -489,6 +489,17 @@ Der signierte Mac-Build 322 zeigte bei Dropbox und Google Drive vier geprüfte M
 3. Auf einem beschreibbar eingehängten Testvolume eine Datei mit eingeschränkter Schreibberechtigung separat prüfen. Das Feld für das Dateisystem muss weiter einen beschreibbaren Datenträger anzeigen. Die Berechtigung der einzelnen Datei kann davon abweichen.
 
 Auf dem Mac verweigerte FSKit Schreibzugriff auch dann, wenn die Systemmetadaten den Einhängemodus als beschreibbar meldeten. Der korrigierte Dateieigenschaften-Test bestätigte beide Modi. Sechs zusätzliche unsichere NTFS-Testabbilder blieben beim abgelehnten Schreibmount und beim anschliessenden Lesen schreibgeschützt und bytegenau unverändert. Dazu gehörten simulierte Windows-Ruhezustände und nicht abgeschlossene Journale.
+
+### NTFS-Schreibschutz bei Dateiaktionen prüfen
+
+1. Ein eigenes NTFS-Testabbild beschreibbar einhängen. Von einem lokalen Testordner eine Datei auf das Abbild kopieren. Die Kopie umbenennen. Die Umbenennung über die Historie rückgängig machen.
+2. Dieselbe Kopie in den privaten OpenCommander-Papierkorb verschieben und über die Historie wiederherstellen. Danach die ursprüngliche Kopie über ihren eigenen Historieneintrag rückgängig machen. Nach jeder Aktion Dateinamen, Inhalte und Historie prüfen. Eine separate Referenzdatei auf dem Abbild muss erhalten bleiben.
+3. Die Test-App schliessen und dasselbe Abbild schreibgeschützt einhängen. Die Referenzdatei vom Abbild in den lokalen Ordner kopieren, ihren Hash unabhängig prüfen und die lokale Kopie rückgängig machen.
+4. Eine separate lokale Datei auf das schreibgeschützte Abbild kopieren. Anschliessend versuchen, die Referenzdatei auf dem Abbild umzubenennen. Beide Aktionen müssen den Schreibschutz ausdrücklich melden. Es darf keine neue Datei, keinen abgeschlossenen Auftrag und keinen Erfolgseintrag in der Historie geben. Nach dem Aushängen den SHA-256-Wert des Abbilds mit dem Wert vor dem Nur-Lese-Test vergleichen.
+
+Der signierte Mac-Build 370 bestand die Dateiaktionen und Rückgängig auf dem beschreibbaren Abbild. Im Nur-Lese-Modus blieb das Abbild bytegenau erhalten. Die Meldungen beim verweigerten Kopieren und Umbenennen benannten den bestätigten Schreibschutz nur indirekt oder als mögliche Ursache.
+
+Der signierte Mac-Build 371 meldete den Schreibschutz bei beiden Dateiaktionen ausdrücklich. Auf dem beschreibbar eingehängten NTFS-Abbild bestanden Kopieren, Umbenennen, privater Papierkorb und die drei einzelnen Rückgängig-Aktionen. Im Nur-Lese-Modus liess sich die Referenzdatei bytegenau kopieren und die lokale Kopie rückgängig machen. Weder der blockierte Schreibversuch noch das verweigerte Umbenennen erzeugte einen Historieneintrag. Der SHA-256-Wert des NTFS-Abbilds blieb über den Nur-Lese-Test identisch. Beim separaten APFS-Ordner mit fehlender Schreibberechtigung blieb die gewöhnliche Berechtigungsmeldung erhalten. Für die virtuellen Abbilder war der installierte FSKit-Treiber aus Build 268 aktiv.
 
 ### Kopie auf vollem exFAT-Testlaufwerk fortsetzen
 
