@@ -5,8 +5,8 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 ## Vollständige Prüfliste
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
-- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [107 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
+- [109 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -226,6 +226,12 @@ Ein unabhängiges Prüfprogramm schrieb auf derselben SMB-Freigabe über vier ge
 3. Links einen anderen lokalen Ordner eingeben und seine Markierungsdatei prüfen. Erst dann die Testfreigabe wieder freigeben. Nach ihrer Antwort muss links weiterhin der zuletzt gewählte lokale Ordner stehen. Rechts müssen Pfad und Filter erhalten bleiben.
 4. Den Netzpfad bei erreichbarer Testfreigabe erneut öffnen. Getrennt einen gültigen Archivpfad, eine gewöhnliche Datei und einen fehlenden Pfad prüfen. Den sichtbaren Ordner oder die jeweilige Fehlermeldung erfassen.
 
+### Speicherorte bei einer nicht antwortenden SMB-Freigabe aktualisieren
+
+Eine separate SMB-Testfreigabe und zwei eigene Ordner verwenden. In einem Bereich die Testfreigabe öffnen, im anderen einen lokalen Ordner. Ausschliesslich die Testverbindung während der Aktualisierung der Speicherorte verzögern. Die lokale Navigation und die Cloud-Liste müssen bedienbar bleiben. Prüfen, dass nur Einträge unter dem tatsächlich getrennten Speicherort zurückgesetzt werden. Einen ähnlich benannten Nachbarordner als Gegenprobe verwenden.
+
+Beim Versuch eines Cloud-Transfers auf SMB wartete der Hauptthread von Mac-Build 405 beim Abgleichen der Speicherorte in `faccessat`. Build 406 vergleicht die bereits bekannten Pfadkomponenten. Beim erneuten Versuch blieb der Hauptthread in der normalen Ereignisschleife. Die SMB-Abfrage wartete weiterhin im Hintergrund. Die Freigabe lieferte keine Zielzeile, daher bleibt der Transfer offen. Die Pfadtests decken den Originalpfad, den aufgelösten Pfad, lokale Pfadaliase und benachbarte Namen ab.
+
 ### Start mit gespeichertem Netzordner prüfen
 
 1. In einem eigenen Testprofil links einen Ordner auf einer Testfreigabe öffnen und rechts einen lokalen Ordner mit zwei unterscheidbaren Dateien. Die App beenden und die gespeicherten Pfade dokumentieren.
@@ -310,6 +316,16 @@ Der Finder-Nachtest in Build 389 prüfte vier echte Ziehvorgänge von einem eige
 5. Dieselbe Explorer-Kopie mit einem echten SMB-Testordner wiederholen. Nach Abschluss über eine neue Nur-Lese-Verbindung den SHA-256-Wert der öffentlichen Zieldatei prüfen. OpenCommander neu öffnen, «Rückgängig» wählen und mit einer weiteren Nur-Lese-Verbindung prüfen, dass der öffentliche Zielname fehlt und die Kontrolldatei unverändert ist. Falls die App eine Kopie zur Wiederherstellung zurückhält, diese und den belegten Speicherplatz separat erfassen.
 
 Mac-Testbuild 402 bestand vier lokale Versuche mit tatsächlicher Mausgeste vom Finder. Beim verzögerten Test blieben Transferübersicht und Navigation bedienbar. Der Test lehnte den getauschten Zielordner ab. Nach dem Abbruch erzeugte ausschliesslich der zweite Versuch einen Auftrag. ⌘ während des Ziehens verschob die Datei, und «Rückgängig» stellte die Quelle wieder her. Auf der echten SMB-Freigabe bestätigten neue Nur-Lese-Verbindungen die Zielbytes und das Ergebnis von «Rückgängig» nach App-Neustart. Die private Wiederherstellungskopie enthielt weiterhin exakt die Testbytes. Der vollständige D2-Dauerlauf bleibt offen.
+
+### Cloud-Dateien in einen lokalen Bereich oder in den Explorer ziehen
+
+1. Ein eigenes Testkonto oder einen kontrollierten Cloud-Testadapter und eine Testdatei mit bekanntem SHA-256-Wert verwenden. Eine wirkliche Mausgeste aus dem Online-Bereich auf einen lokalen Zielordner ausführen. Während einer kontrolliert gehaltenen Zielprüfung die danebenliegende Dateiansicht und die Transferübersicht bedienen. Der interne Drop sollte in dieser Phase keine zweite Dateibereitstellung für den Explorer auslösen. Nach Freigabe Auftragszahl, Historie, Zielinhalt und «Rückgängig» prüfen.
+2. Den ursprünglich gewählten Ordner in zwei getrennten Läufen am gleichen Pfad ersetzen. Den Austausch zuerst während der Zielprüfung und danach während der Anfrage beim Testanbieter ausführen. Die Veröffentlichung muss in beiden Fällen stoppen. Die Kontrolldateien in beiden lokalen Ordnern und die Cloud-Quelle müssen bytegenau erhalten bleiben. Prüfen, ob die vorgesehene Fehlermeldung erscheint und sich der fehlgeschlagene Vorgang gegebenenfalls in der Historie nachvollziehen lässt.
+3. Die Prüfung in einem weiteren Lauf abbrechen und erneut auf einen anderen Ordner ziehen. Die alte Prüfung erst danach freigeben. Die gewählte Datei auch direkt aus dem Online-Bereich in ein separates Explorer-Fenster ziehen. Dateiinhalt und Name prüfen. Der Explorer-Export muss über die Dateibereitstellung weiterhin funktionieren.
+
+In Build 404 forderte Catalyst nach einem internen Drop zusätzlich die Finder-Dateibereitstellung an. Der simulierte Anbieter erhielt dadurch schon während der Zielprüfung eine Download-Anfrage. Build 405 fing diese zweite Anforderung ab. Native Maus-Tests bestätigten den abgewiesenen Ordneraustausch vor dem Download und während der Anbieterabfrage. Im Wartefall liessen sich ein anderer Ordner und die Transferübersicht öffnen. Die Datei erschien im ursprünglich gewählten Ziel, und «Rückgängig» entfernte die öffentliche Kopie. Der separate Export in den Finder enthielt exakt die Testbytes. Die Komponentenprüfungen deckten sowohl die Warteschlange als auch die direkte Veröffentlichung ab.
+
+Beim Abbruch mit Escape veröffentlichte nur der zweite Ziehvorgang eine Datei, deren Inhalt bytegenau stimmte. Der anschliessende automatisierte Aufruf von «Rückgängig» zeigte in dieser Variante keine Wirkung. Dieser Nachtest bleibt offen.
 
 ### Kalter und warmer Cloud-Ordnerabruf (CLOUD-01)
 

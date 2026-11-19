@@ -86,7 +86,7 @@ FILE-02;Dateiaktionen und Konflikte;P0;Verschieben mit F6;"D1; leere lokale Ziel
 2. F6
 3. Innerhalb und zwischen Testdateisystemen wiederholen";"Einträge nur am Ziel nach erfolgreichem Abschluss; Daten unverändert; Quelllöschung erst nach sicherem Transfer.";Nativ belegt;REG-QUEUE-05;;Nicht ausgeführt;;;
 FILE-03;Dateiaktionen und Konflikte;P0;Drag-and-drop folgt Toggle;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. Toggle Kopieren setzen und ziehen
-2. Toggle Verschieben setzen und andere Datei ziehen";"Beide Modi tun genau das Gewählte ohne zusätzlichen Ausführen-Schritt; sichtbares Ziehobjekt; Zielbereich klar.";Nativ belegt;REG-DROP-01, REG-DROP-02, REG-DROP-03, REG-DROP-04;;Nicht ausgeführt;;;
+2. Toggle Verschieben setzen und andere Datei ziehen";"Beide Modi tun genau das Gewählte ohne zusätzlichen Ausführen-Schritt; sichtbares Ziehobjekt; Zielbereich klar.";Nativ belegt;"REG-DROP-01, REG-DROP-02, REG-DROP-03, REG-DROP-04, REG-DROP-05";;Nicht ausgeführt;;;
 FILE-04;Dateiaktionen und Konflikte;P1;F5/F6 unabhängig vom Toggle;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. Toggle Verschieben setzen
 2. F5
 3. Toggle Kopieren setzen
@@ -174,7 +174,7 @@ REC-08;Neustart, Unterbrechung und Datenintegrität;P0;Quelle oder Ziel nicht ve
 REC-09;Neustart, Unterbrechung und Datenintegrität;P0;Anderes Laufwerk am gleichen Pfad;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Pause
 2. Testmedium entfernen
 3. Anderes Testmedium am gleichen Mountpfad einhängen
-4. Fortsetzen";"Identitätsprüfung verhindert Schreiben auf falsches Medium; Auftrag und Daten bleiben erhalten.";Teilweise belegt;REG-QUEUE-02, REG-DROP-04, REG-QUEUE-04, REG-FS-03, REG-FS-04;;Nicht ausgeführt;;;
+4. Fortsetzen";"Identitätsprüfung verhindert Schreiben auf falsches Medium; Auftrag und Daten bleiben erhalten.";Teilweise belegt;"REG-QUEUE-02, REG-DROP-04, REG-QUEUE-04, REG-FS-03, REG-FS-04, REG-DROP-05";;Nicht ausgeführt;;;
 REC-10;Neustart, Unterbrechung und Datenintegrität;P0;Verschieben: Cleanup unterbrechen;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Dateisystemübergreifenden Move im isolierten Test nach Zielverifikation beim Quell-Aufräumen unterbrechen
 2. Neu starten";"Bereits verifiziertes Ziel bleibt; offener Cleanup nachvollziehbar; geänderte Quelle nicht blind gelöscht; keine doppelte oder verlorene Enddatei.";Teilweise belegt;REG-GDOC-06, REG-CLOUD-25, REG-CLOUD-26, REG-CLOUD-27, REG-CLOUD-28, REG-CLOUD-29;;Nicht ausgeführt;;;
 REC-11;Neustart, Unterbrechung und Datenintegrität;P0;Abbruch bei offline befindlichem Ziel;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Aktiven Job unterbrechen
@@ -247,7 +247,7 @@ CLOUD-02;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Google-Drive-Hänger als R
 2. Während verzögerter Antwort navigieren
 3. Erneut laden";"Keine dauerhaft leere, unbedienbare Ansicht; Timeout/Fehler mit Wiederholen; lokale Bereiche weiter bedienbar.";Teilweise belegt;;;Nicht ausgeführt;;;
 CLOUD-03;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Online-Grundoperationen;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. D1 hochladen, herunterladen, umbenennen, Ordner anlegen, entfernen und wiederherstellen
-2. Provider unabhängig prüfen";"Dateien/Inhalte und Namen stimmen; Änderungen auch beim Provider sichtbar; Cache allein zählt nicht als Erfolg.";Teilweise belegt;REG-CLOUD-01, REG-CLOUD-02, REG-CLOUD-07, REG-GDOC-01, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03, REG-GDOC-04, REG-GDOC-05, REG-CLOUD-09, REG-CLOUD-11, REG-CLOUD-13, REG-CLOUD-16, REG-GDOC-07, REG-CLOUD-17, REG-CLOUD-18, REG-CLOUD-20, REG-ARCH-07;;Nicht ausgeführt;;;
+2. Provider unabhängig prüfen";"Dateien/Inhalte und Namen stimmen; Änderungen auch beim Provider sichtbar; Cache allein zählt nicht als Erfolg.";Teilweise belegt;"REG-CLOUD-01, REG-CLOUD-02, REG-CLOUD-07, REG-GDOC-01, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03, REG-GDOC-04, REG-GDOC-05, REG-CLOUD-09, REG-CLOUD-11, REG-CLOUD-13, REG-CLOUD-16, REG-GDOC-07, REG-CLOUD-17, REG-CLOUD-18, REG-CLOUD-20, REG-ARCH-07, REG-DROP-05";;Nicht ausgeführt;;;
 CLOUD-04;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Netzausfall und Wiederkehr;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Während Listen und Kopieren nur Testnetz unterbrechen
 2. Lokalen Ordner bedienen
 3. Netz wiederherstellen";"Begrenzte Wartezeit, sichtbarer Status; keine GUI-Sperre; kontrollierter Retry; keine doppelten Dateieinträge oder Quellverluste.";Teilweise belegt;;;Nicht ausgeführt;;;
@@ -295,7 +295,7 @@ SERVER-07;SFTP, FTP, FTPS und Netzwerkorte;P0;FTP und FTPS;"Kontrollierte Testse
 SERVER-08;SFTP, FTP, FTPS und Netzwerkorte;P0;SMB/NAS;Dedizierte SMB-Freigabe mit Testkonto und eigenen Dateien.;"1. SMB-Freigabe per \\Server\Freigabe anbinden oder als Netzlaufwerk verbinden
 2. Authentisierung und Aufruf aus OpenCommander prüfen
 3. Ordner anzeigen, Testdatei kopieren, verschieben und das Ergebnis prüfen
-4. Kontrolliert unerreichbaren Testhost öffnen";Ordner und Ziel sind eindeutig. Dateiaktionen liefern die erwarteten Inhalte. Ein unerreichbarer Host ergibt eine verständliche Meldung und blockiert die Oberfläche nicht.;Teilweise belegt;REG-NAS-02, REG-NAS-03, REG-NAS-04, REG-NAS-11;;Nicht ausgeführt;;;
+4. Kontrolliert unerreichbaren Testhost öffnen";Ordner und Ziel sind eindeutig. Dateiaktionen liefern die erwarteten Inhalte. Ein unerreichbarer Host ergibt eine verständliche Meldung und blockiert die Oberfläche nicht.;Teilweise belegt;"REG-NAS-02, REG-NAS-03, REG-NAS-04, REG-NAS-11, REG-NAS-20";;Nicht ausgeführt;;;
 SERVER-09;SFTP, FTP, FTPS und Netzwerkorte;P1;Serverprofil bearbeiten;"Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.";"1. Port/Benutzer/Startordner am Testprofil ändern
 2. Neu verbinden
 3. Anzeige prüfen";"Neue Werte wirksam, keine Vermischung alter Sitzung; Anzeigename kann ohne Geheimnisverlust geändert werden.";Nativ belegt;;;Nicht ausgeführt;;;
@@ -392,7 +392,7 @@ PROP-05;Eigenschaften, Einstellungen und Ergonomie;P1;Tastaturbefehle und Fokus;
 PROP-06;Eigenschaften, Einstellungen und Ergonomie;P1;Skalierung und kleine Fenster;"D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.";"1. Testauflösungen/Skalierungen durchgehen
 2. Dialoge, Queue und lange Namen anzeigen";"Bedienelemente erreichbar; Inhalte scrollbar statt abgeschnitten; wichtige Buttons nicht außerhalb des Bildschirms.";Teilweise belegt;;;Nicht ausgeführt;;;
 PROP-07;Eigenschaften, Einstellungen und Ergonomie;P1;Tastatur und sichtbarer Fokus;"D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.";"1. Ohne Maus Einstellungen, Orte, Dialoge und Auftragssteuerung bedienen
-2. Escape/Tab nutzen";"Fokus erkennbar, Reihenfolge sinnvoll, kein Fokusverlust; nicht unterstützte Tastaturpfade als Ergonomiefehler dokumentieren.";Teilweise belegt;REG-KEY-01, REG-KEY-02;;Nicht ausgeführt;;;
+2. Escape/Tab nutzen";"Fokus erkennbar, Reihenfolge sinnvoll, kein Fokusverlust; nicht unterstützte Tastaturpfade als Ergonomiefehler dokumentieren.";Teilweise belegt;"REG-KEY-01, REG-KEY-02, REG-NAS-20";;Nicht ausgeführt;;;
 PROP-08;Eigenschaften, Einstellungen und Ergonomie;P1;Fehlertexte und Statusfarben;"D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.";"1. Offline/Permission/Quota-Fehler auslösen
 2. Hell/Dunkel prüfen";"Konkreter Pfad/Vorgang und nächster Schritt; kein Erfolg ausschließlich durch Farbe; keine technischen Geheimnisse/rohen Tokens.";Teilweise belegt;REG-HISTORY-01, REG-NAS-18, REG-FS-02, REG-FS-03, REG-HISTORY-02, REG-FS-04, REG-NTFS-03, REG-NTFS-04, REG-CLOUD-35;;Nicht ausgeführt;;;
 SAFE-01;Sicherheit, Leistung und Dauerbetrieb;P0;Zugangsdaten und Dateirechte;"Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.";"1. Berechtigungen von Testprofil, rclone-Konfig und Journal prüfen
