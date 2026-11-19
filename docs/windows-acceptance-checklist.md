@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [66 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [67 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -327,6 +327,13 @@ Der Mac-Nachtest stoppte einen isolierten Downloadprozess mit einem kontrolliert
 2. Die Testverbindung während der Kopie trennen. Der ursprüngliche Auftrag muss pausiert sein und die Wiederverbindung angeben. Der vorhandene Teilstand bleibt erhalten. Den Ablauf separat mit «Pausieren» während des Verbindungsunterbruchs wiederholen. Solange die Verbindung fehlt, bleibt der Wiederverbindungshinweis erforderlich.
 3. Dieselbe Freigabe verbinden und den ursprünglichen Auftrag fortsetzen. Nach der Prüfung bereits geschriebener Daten manuell pausieren. Die Karte meldet nun die manuelle Pause. Ein früherer Wiederverbindungshinweis darf nicht wieder erscheinen. ID und Teilstand müssen erhalten bleiben.
 4. Fortsetzen, den Abschlussbeleg prüfen und die SHA-256-Prüfsumme des Ziels über eine neue Nur-Lese-Verbindung vergleichen. Quelle und Kontrolldatei müssen unverändert sein. Den Wiederverbindungshinweis für ein getrenntes NTFS-Testlaufwerk separat prüfen.
+
+### SMB-Zieldatei bei der Prüfung des Abschlussbelegs finden
+
+1. Einen eigenen lokalen Ordner mit einer verschachtelten Unicode-Datei und einer zweiten Datei vorbereiten. Beide SHA-256-Prüfsummen erfassen. Den Ordner auf eine eigene SMB-Testfreigabe kopieren und dort zuvor eine unabhängige Kontrolldatei anlegen.
+2. Den Testauftrag nach dem Schreiben und der ersten Inhaltsprüfung anhalten, bevor er den Abschlussbeleg prüft. Mit dem Testadapter genau ein Byte der verschachtelten Testdatei am Ziel ändern und die Belegprüfung weiterlaufen lassen.
+3. Die Transferkarte muss den genauen Zielpfad und den fehlgeschlagenen Inhaltsvergleich nennen. Der Auftrag darf keinen erfolgreichen Abschlussbeleg und keinen Rückgängig-Eintrag erhalten. Nach einem Neustart der Test-App müssen dieselbe Auftrags-ID und derselbe gemeldete Pfad sichtbar sein.
+4. Die geänderte Zieldatei über eine separate Nur-Lese-Verbindung prüfen. Die zweite Zieldatei, die Kontrolldatei und die Quelle müssen ihre erwarteten Prüfsummen behalten. Der Mac-Nachtest bestand mit echtem SMB und einem kontrollierten Eingriff an der Beleggrenze. Die sichtbare Windows-Prüfung erfolgt in der Windows-Test-App.
 
 ## Ergebnis festhalten
 
