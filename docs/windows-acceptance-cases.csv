@@ -86,7 +86,7 @@ FILE-02;Dateiaktionen und Konflikte;P0;Verschieben mit F6;"D1; leere lokale Ziel
 2. F6
 3. Innerhalb und zwischen Testdateisystemen wiederholen";"Einträge nur am Ziel nach erfolgreichem Abschluss; Daten unverändert; Quelllöschung erst nach sicherem Transfer.";Nativ belegt;REG-QUEUE-05;;Nicht ausgeführt;;;
 FILE-03;Dateiaktionen und Konflikte;P0;Drag-and-drop folgt Toggle;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. Toggle Kopieren setzen und ziehen
-2. Toggle Verschieben setzen und andere Datei ziehen";"Beide Modi tun genau das Gewählte ohne zusätzlichen Ausführen-Schritt; sichtbares Ziehobjekt; Zielbereich klar.";Nativ belegt;"REG-DROP-01, REG-DROP-02, REG-DROP-03, REG-DROP-04, REG-DROP-05";;Nicht ausgeführt;;;
+2. Toggle Verschieben setzen und andere Datei ziehen";"Beide Modi tun genau das Gewählte ohne zusätzlichen Ausführen-Schritt; sichtbares Ziehobjekt; Zielbereich klar.";Nativ belegt;"REG-DROP-01, REG-DROP-02, REG-DROP-03, REG-DROP-04, REG-DROP-05, REG-DROP-06";;Nicht ausgeführt;;;
 FILE-04;Dateiaktionen und Konflikte;P1;F5/F6 unabhängig vom Toggle;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. Toggle Verschieben setzen
 2. F5
 3. Toggle Kopieren setzen
@@ -170,7 +170,7 @@ REC-07;Neustart, Unterbrechung und Datenintegrität;P0;Quelle während Pause ge�
 REC-08;Neustart, Unterbrechung und Datenintegrität;P0;Quelle oder Ziel nicht verfügbar;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Pausieren
 2. Testlaufwerk trennen/Netz sperren
 3. Fortsetzen
-4. Wieder verbinden";"Wartender/fehlerhafter Zustand mit Grund; keine lokale Ersatzkopie in leeren Mountpunkt; nach Wiederverbindung kontrollierte Fortsetzung.";Teilweise belegt;REG-NAS-01, REG-NAS-03, REG-NAS-09, REG-CLOUD-12, REG-NAS-13, REG-NAS-14, REG-NAS-15, REG-NAS-16, REG-NAS-17, REG-NAS-18, REG-FS-03, REG-FS-04, REG-QUEUE-06;;Nicht ausgeführt;;;
+4. Wieder verbinden";"Wartender/fehlerhafter Zustand mit Grund; keine lokale Ersatzkopie in leeren Mountpunkt; nach Wiederverbindung kontrollierte Fortsetzung.";Teilweise belegt;"REG-NAS-01, REG-NAS-03, REG-NAS-09, REG-CLOUD-12, REG-NAS-13, REG-NAS-14, REG-NAS-15, REG-NAS-16, REG-NAS-17, REG-NAS-18, REG-FS-03, REG-FS-04, REG-QUEUE-06, REG-DROP-06";;Nicht ausgeführt;;;
 REC-09;Neustart, Unterbrechung und Datenintegrität;P0;Anderes Laufwerk am gleichen Pfad;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Pause
 2. Testmedium entfernen
 3. Anderes Testmedium am gleichen Mountpfad einhängen
@@ -196,7 +196,7 @@ TRASH-03;Papierkorb, Historie und Rückgängig;P0;Cache-Rennen nach Entfernen;"D
 TRASH-04;Papierkorb, Historie und Rückgängig;P0;Aus Papierkorb wiederherstellen;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Vorgang mit mehreren entfernten Dateien wählen
 2. Wiederherstellen";"Gesamter gewählter Entfernungsvorgang wird korrekt zurückgenommen; Inhalt/Hashes gleich; keine Verwechslung mit System-/Provider-Papierkorb.";Nativ belegt;;;Nicht ausgeführt;;;
 TRASH-05;Papierkorb, Historie und Rückgängig;P0;Undo für jede mutierende Operation;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Kopieren, Verschieben, Ersetzen, Umbenennen, Ordner anlegen, ZIP erzeugen und Entpacken jeweils separat ausführen
-2. Jeweils zugehörigen Historieneintrag rückgängig";"Ursprünglicher Zustand soweit dokumentiert wiederhergestellt; betroffene Pfade stimmen; andere Vorgänge unverändert. Jede Variante als eigenen Lauf erfassen.";Teilweise belegt;REG-CLOUD-04, REG-CLOUD-05, REG-CLOUD-06, REG-REMOTE-01, REG-GDOC-01, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03, REG-GDOC-04, REG-GDOC-05, REG-CLOUD-09, REG-CLOUD-16, REG-GDOC-07, REG-CLOUD-17, REG-NAS-14, REG-CLOUD-25, REG-CLOUD-27, REG-CLOUD-28, REG-CLOUD-29, REG-NTFS-03, REG-NTFS-04, REG-ARCH-01, REG-ARCH-02, REG-ARCH-03, REG-ARCH-05, REG-ARCH-06;;Nicht ausgeführt;;;
+2. Jeweils zugehörigen Historieneintrag rückgängig";"Ursprünglicher Zustand soweit dokumentiert wiederhergestellt; betroffene Pfade stimmen; andere Vorgänge unverändert. Jede Variante als eigenen Lauf erfassen.";Teilweise belegt;"REG-CLOUD-04, REG-CLOUD-05, REG-CLOUD-06, REG-REMOTE-01, REG-GDOC-01, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03, REG-GDOC-04, REG-GDOC-05, REG-CLOUD-09, REG-CLOUD-16, REG-GDOC-07, REG-CLOUD-17, REG-NAS-14, REG-CLOUD-25, REG-CLOUD-27, REG-CLOUD-28, REG-CLOUD-29, REG-NTFS-03, REG-NTFS-04, REG-ARCH-01, REG-ARCH-02, REG-ARCH-03, REG-ARCH-05, REG-ARCH-06, REG-DROP-06";;Nicht ausgeführt;;;
 TRASH-06;Papierkorb, Historie und Rückgängig;P0;Undo mit nachträglich geändertem Ziel;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Kopieren/ersetzen
 2. Zieldatei extern ändern
 3. Undo
@@ -392,7 +392,7 @@ PROP-05;Eigenschaften, Einstellungen und Ergonomie;P1;Tastaturbefehle und Fokus;
 PROP-06;Eigenschaften, Einstellungen und Ergonomie;P1;Skalierung und kleine Fenster;"D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.";"1. Testauflösungen/Skalierungen durchgehen
 2. Dialoge, Queue und lange Namen anzeigen";"Bedienelemente erreichbar; Inhalte scrollbar statt abgeschnitten; wichtige Buttons nicht außerhalb des Bildschirms.";Teilweise belegt;;;Nicht ausgeführt;;;
 PROP-07;Eigenschaften, Einstellungen und Ergonomie;P1;Tastatur und sichtbarer Fokus;"D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.";"1. Ohne Maus Einstellungen, Orte, Dialoge und Auftragssteuerung bedienen
-2. Escape/Tab nutzen";"Fokus erkennbar, Reihenfolge sinnvoll, kein Fokusverlust; nicht unterstützte Tastaturpfade als Ergonomiefehler dokumentieren.";Teilweise belegt;"REG-KEY-01, REG-KEY-02, REG-NAS-20";;Nicht ausgeführt;;;
+2. Escape/Tab nutzen";"Fokus erkennbar, Reihenfolge sinnvoll, kein Fokusverlust; nicht unterstützte Tastaturpfade als Ergonomiefehler dokumentieren.";Teilweise belegt;"REG-KEY-01, REG-KEY-02, REG-NAS-20, REG-DROP-06";;Nicht ausgeführt;;;
 PROP-08;Eigenschaften, Einstellungen und Ergonomie;P1;Fehlertexte und Statusfarben;"D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.";"1. Offline/Permission/Quota-Fehler auslösen
 2. Hell/Dunkel prüfen";"Konkreter Pfad/Vorgang und nächster Schritt; kein Erfolg ausschließlich durch Farbe; keine technischen Geheimnisse/rohen Tokens.";Teilweise belegt;REG-HISTORY-01, REG-NAS-18, REG-FS-02, REG-FS-03, REG-HISTORY-02, REG-FS-04, REG-NTFS-03, REG-NTFS-04, REG-CLOUD-35;;Nicht ausgeführt;;;
 SAFE-01;Sicherheit, Leistung und Dauerbetrieb;P0;Zugangsdaten und Dateirechte;"Isolierte Profile; D2; kontrollierte Fehleradapter; definierte Testhardware und Messprotokoll.";"1. Berechtigungen von Testprofil, rclone-Konfig und Journal prüfen

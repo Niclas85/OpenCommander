@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [109 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [110 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -325,7 +325,13 @@ Mac-Testbuild 402 bestand vier lokale Versuche mit tatsächlicher Mausgeste vom 
 
 In Build 404 forderte Catalyst nach einem internen Drop zusätzlich die Finder-Dateibereitstellung an. Der simulierte Anbieter erhielt dadurch schon während der Zielprüfung eine Download-Anfrage. Build 405 fing diese zweite Anforderung ab. Native Maus-Tests bestätigten den abgewiesenen Ordneraustausch vor dem Download und während der Anbieterabfrage. Im Wartefall liessen sich ein anderer Ordner und die Transferübersicht öffnen. Die Datei erschien im ursprünglich gewählten Ziel, und «Rückgängig» entfernte die öffentliche Kopie. Der separate Export in den Finder enthielt exakt die Testbytes. Die Komponentenprüfungen deckten sowohl die Warteschlange als auch die direkte Veröffentlichung ab.
 
-Beim Abbruch mit Escape veröffentlichte nur der zweite Ziehvorgang eine Datei, deren Inhalt bytegenau stimmte. Der anschliessende automatisierte Aufruf von «Rückgängig» zeigte in dieser Variante keine Wirkung. Dieser Nachtest bleibt offen.
+### Bedienelemente direkt nach einem Cloud-Drop benutzen
+
+1. Eine eigene Online-Testdatei auf eine Unterordnerzeile im lokalen Dateibereich ziehen. Nach Abschluss direkt «Rückgängig» in der Werkzeugleiste anklicken, ohne vorher eine Dateizeile anzuklicken. Die öffentliche Kopie muss verschwinden. Kontrollinhalt und gegebenenfalls die zurückbehaltene Version per Prüfsumme prüfen.
+2. In einem neuen Lauf die erste Zielprüfung mit einer kontrollierten Verzögerung halten und «Abbrechen» anklicken. Die Datei erneut auf den Unterordner ziehen und das Ergebnis abwarten. Die ursprüngliche Prüfung freigeben. Nur der zweite Drop darf in der Historie stehen. Ohne weiteren Klick in der Dateiliste die Historie öffnen und exakt diesen Eintrag rückgängig machen.
+3. Im gleichen Ablauf die App nach der erfolgreichen zweiten Übertragung beenden und mit demselben Testprofil öffnen. «Rückgängig» am wiederhergestellten Historieneintrag muss das gleiche Ergebnis liefern. Danach den Export einer Cloud-Datei und einer Datei aus einem lokalen ZIP in den Explorer mit Name und Prüfsumme kontrollieren.
+
+In Build 407 blieben die sichtbaren Schaltflächen nach dem Cloud-Drop ohne Wirkung, bis ein Klick in die Dateiliste die Bedienung wiederherstellte. Build 408 schloss den ursprünglichen Mausdruck vor dem Start des nativen Drags ab. In drei nativen Tests funktionierten Rückgängig aus der Werkzeugleiste, Abbrechen und erneutes Ziehen mit anschliessendem Rückgängig aus der Historie sowie Rückgängig nach App-Neustart. In allen drei Läufen blieben die zurückbehaltenen Testbytes und die Kontrollinhalte exakt. Beide Exporte in Finder bestanden. Der Cloud-Anbieter war simuliert.
 
 ### Kalter und warmer Cloud-Ordnerabruf (CLOUD-01)
 
