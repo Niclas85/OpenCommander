@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [87 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [88 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -489,6 +489,15 @@ Der signierte Mac-Build 322 zeigte bei Dropbox und Google Drive vier geprüfte M
 3. Auf einem beschreibbar eingehängten Testvolume eine Datei mit eingeschränkter Schreibberechtigung separat prüfen. Das Feld für das Dateisystem muss weiter einen beschreibbaren Datenträger anzeigen. Die Berechtigung der einzelnen Datei kann davon abweichen.
 
 Auf dem Mac verweigerte FSKit Schreibzugriff auch dann, wenn die Systemmetadaten den Einhängemodus als beschreibbar meldeten. Der korrigierte Dateieigenschaften-Test bestätigte beide Modi. Sechs zusätzliche unsichere NTFS-Testabbilder blieben beim abgelehnten Schreibmount und beim anschliessenden Lesen schreibgeschützt und bytegenau unverändert. Dazu gehörten simulierte Windows-Ruhezustände und nicht abgeschlossene Journale.
+
+### Kopie auf vollem exFAT-Testlaufwerk fortsetzen
+
+1. Ein virtuelles exFAT-Laufwerk mit 96 MiB anlegen und eine eigene Kontroll-Datei darauf speichern. Mit einer weiteren Testdatei den freien Platz auf rund 19 MiB reduzieren. Eine getrennte lokale Quelle mit 48 MiB und bekannter SHA‑256-Prüfsumme vorbereiten.
+2. Die Kopie über die Dateiliste starten. Auf der Karte des gestoppten Auftrags den Dateinamen, die Meldung zum fehlenden Speicherplatz und «Fortsetzen» prüfen. Der Hinweis muss zum lokalen Ziel passen. Quelle und Kontroll-Datei müssen stimmen. Für den unvollständigen Auftrag darf kein erfolgreicher Historieneintrag erscheinen.
+3. Die Test-App normal schliessen. Im selben Testprofil das andere Farbschema und die andere Sprache wählen. Nach dem Neustart denselben Auftrag und die lesbare, übersetzte Meldung prüfen.
+4. Die eigene Fülldatei entfernen und «Fortsetzen» wählen. Die Auftrags-ID und die SHA‑256-Prüfsummen vergleichen. «Rückgängig» muss die neue Kopie entfernen. Quelle und Kontroll-Datei bleiben bytegenau erhalten.
+
+Der signierte Mac-Build 367 zeigte im hellen englischen und dunklen deutschen Farbschema den korrigierten Hinweis zum unvollständigen Ziel und die Speicherplatzmeldung. Der gestoppte Auftrag blieb mit derselben ID über den Neustart erhalten. Nach dem Freigeben von Platz kopierte er die 48 MiB bytegenau. «Rückgängig» entfernte den Zielnamen und erhielt Quelle und Kontroll-Datei.
 
 ### Lokale Miniatur nach Dateiersatz prüfen
 
