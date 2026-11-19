@@ -247,6 +247,13 @@ Für die Listenvariante zuerst den eigenen Cloud-Testordner laden und dann die V
 
 Der signierte macOS-Build 322 bestätigte die drei lokalen Eingaben und das Cloud-Bildlimit bei Dropbox und Google Drive. Beim Stillstandstest erschien in beiden Diensten nach rund 30 Sekunden der Hinweis. Die App entfernte die unvollständigen temporären Daten, und die Wiedergabe war beim erneuten Versuch möglich.
 
+### Ordnergrösse mit Zugriffsfehler und symbolischen Links prüfen (PROP-01, PROP-03)
+
+1. In einem eigenen Testordner zwölf Unterordner mit je 500 Dateien zu 336 Bytes anlegen. In einem dreizehnten Unterordner eine Datei mit 199 Bytes anlegen und den lesenden Zugriff auf diesen Unterordner für das Testkonto sperren. Zwei symbolische Links erstellen. Einer verweist auf den Testordner selbst, der andere auf einen separaten, bekannten Testordner.
+2. Eine andere Datei markieren und den Testordner per Rechtsklick öffnen. «Eigenschaften» muss den angeklickten Ordner betreffen. Die rekursive Grösse muss als unberechnet erscheinen, bis die Berechnung ausdrücklich gestartet wird.
+3. Die Grösse berechnen. Das Teilresultat muss 6’000 Dateien, 2’016’000 Bytes und einen Lesefehler anzeigen. Die Inhalte der verlinkten Ordner dürfen nicht mitgezählt werden.
+4. Den Zugriff auf den gesperrten Testordner wieder erlauben und erneut berechnen. Erwartet sind 6’001 Dateien, 13 Unterordner und 2’016’199 Bytes. Beim signierten Mac-Build 322 stimmten beide Resultate. Nach beiden Scans war der andere Dateibereich bedienbar. Die Testdateien und die separate Kontrolldatei behielten ihren Inhalt.
+
 ### Miniaturen beim Scrollen und Ordnerwechsel prüfen (MEDIA-12)
 
 1. In einem eigenen Cloud-Testordner 30 nummerierte, synthetische PNGs mit unterschiedlichen Farben ablegen. Daneben einen leeren Ordner anlegen. IDs und Prüfsummen der Bilder erfassen.
@@ -272,6 +279,14 @@ Der signierte Mac-Build 322 zeigte bei Dropbox und Google Drive vier geprüfte M
 4. Einen weiteren App-Neustart durchführen und «Rückgängig» wählen. Das frühere lokale Ziel muss mit seiner ursprünglichen Prüfsumme zurückkehren. Cloud-Quelle und Kontrolldatei erneut prüfen.
 5. Als Gegenprobe das veröffentlichte Ziel nach dem erzwungenen Prozessende durch einen anderen Inhalt ersetzen. Der Abbruch muss den Konflikt und den offenen Wiederherstellungszustand melden. Ziel, Cloud-Quelle und Kontrolldatei müssen ihre jeweils zuletzt festgestellte Prüfsumme behalten.
 6. «Verschieben» in zwei weiteren Läufen nach dem Schreiben des Wiederherstellungseintrags testen. Den App-Prozess einmal unmittelbar vor dem Verschieben der Cloud-Quelle in den Wiederherstellungsbereich beenden und einmal unmittelbar danach. Nach dem Neustart denselben Auftrag abbrechen. Im ersten Lauf muss die sichtbare Quelle erhalten bleiben und genau ein Kopiereintrag entstehen. Im zweiten Lauf muss genau ein Verschiebeeintrag entstehen. Der Abbruch darf an der Cloud-Quelle keine weitere Änderung auslösen. «Rückgängig» nach einem weiteren Neustart muss das frühere lokale Ziel und im zweiten Lauf auch die Cloud-Quelle unter ihrem ursprünglichen Namen wiederherstellen. Wenn möglich dieselbe Cloud-ID bestätigen.
+
+### Rückgängig nach einer Änderung am lokalen Cloud-Kopierziel prüfen (TRASH-06)
+
+1. Eine eigene Datei über eine direkte Cloud-Verbindung in einen lokalen Testordner ziehen und die gleichnamige lokale Datei mit «Ersetzen» überschreiben. Die Prüfsummen der drei Dateien festhalten: Cloud-Quelle, frühere lokale Version und separate Kontrolldatei. Vor dem nächsten Schritt den erfolgreichen Auftrag und seinen Historieneintrag bestätigen.
+2. OpenCommander schliessen. Mit einem unabhängigen Werkzeug ein Byte in der heruntergeladenen Datei ändern. Die Länge und nach Möglichkeit den Änderungszeitpunkt beibehalten. Die neue Prüfsumme erfassen.
+3. OpenCommander öffnen und den abgeschlossenen Auftrag rückgängig machen. Die App muss die geänderte Zieldatei melden und den Historieneintrag behalten. Zieldatei, Kontrolldatei und Cloud-Quelle anhand ihrer Prüfsummen prüfen. Bei Zugriff auf die Sicherung auch die frühere lokale Version prüfen.
+
+Der signierte Mac-Build 322 stoppte «Rückgängig» für beide isoliert getesteten Kopien aus Dropbox und Google Drive und meldete die Änderung. Die bearbeitete Version, die ursprüngliche lokale Sicherung, die Kontrolldatei und die Cloud-Quelle blieben bytegenau erhalten.
 
 ### Externe Synchronisierung nach einem Cloud-Download prüfen
 
