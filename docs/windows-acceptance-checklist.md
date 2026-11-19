@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [111 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [112 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -933,6 +933,15 @@ Der signierte Mac-Build 322 stoppte «Rückgängig» für beide isoliert geteste
 2. «Rückgängig» aus der Historie starten. In einem instrumentierten Test-Build den Vorgang nach der ersten erfolgreichen Prüfung der Sicherung und vor dem Lesen für die Wiederherstellung anhalten, etwa am Prüfpunkt im Debugger. Unabhängig ein Byte in der Sicherung ändern und den Vorgang fortsetzen. Ohne einen kontrollierbaren Prüfpunkt lässt sich die Abbruchvariante mit einer bereits vor «Rückgängig» geänderten Sicherung separat prüfen.
 3. Die App muss die Wiederherstellung ablehnen und die sichtbare Zieldatei, Quelle, Kontrolldatei sowie den Historieneintrag erhalten. Prüfsummen und verständliche Fehlermeldung erfassen. Im gespeicherten Historieneintrag muss der fehlgeschlagene Versuch nachvollziehbar bleiben.
 4. Die Originalbytes der Testsicherung wiederherstellen, OpenCommander neu öffnen und denselben Eintrag rückgängig machen. Prüfen, dass der Zielpfad wieder exakt die vorherige Dateiversion enthält und die Quelle und Kontrolldatei unverändert sind.
+
+### Rückgängig während des Kopierens der Sicherung abbrechen
+
+1. In einem isolierten Profil einen lokalen Testordner mit vielen Dateien durch eine andere Version ersetzen. SHA-256 und Inventar beider Versionen festhalten und eine unabhängige Kontrolldatei daneben ablegen. Für eine grössere einzelne Datei kann dieselbe Variante wiederholt werden.
+2. «Rückgängig» in der Historie wählen. Abbrechen, sobald die App die vorherige Version für die Wiederherstellung kopiert. Den Beginn und den Abbruch anhand der Grösse der noch unvollständigen Kopie im Arbeitsordner oder mit einem Prüfpunkt im Test-Build bestätigen.
+3. Das sichtbare Ziel, die Sicherung und die Kontrolldatei anhand ihrer Prüfsummen prüfen. Der angefangene private Kopierstand muss bereinigt sein. Der Vorgang muss mit verständlichem Abbruchstatus in der Historie stehen bleiben.
+4. OpenCommander schliessen, neu öffnen und denselben Historieneintrag erneut rückgängig machen. Vorherige Version, Dateianzahl und SHA-256 am Ziel prüfen. Die Kontrolldatei und die Quelle der Kopie bleiben unverändert.
+
+Im isolierten Mac-Build 410 waren beim Maus-Abbruch 258 von 4’800 Dateien im Zwischenstand sichtbar. Die App bereinigte den Zwischenstand, erhielt das sichtbare Ziel und speicherte den Abbruch in der Historie. Nach dem Neustart der App stellte derselbe Eintrag alle 4’800 Dateien mit den ursprünglichen SHA-256-Prüfsummen wieder her.
 
 ### Rückgängig bei verändertem exFAT-Ziel oder belegter Quelle
 
