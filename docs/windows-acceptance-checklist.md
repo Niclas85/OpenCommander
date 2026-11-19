@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [83 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [85 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -482,7 +482,7 @@ Der macOS-Komponententest mit Quick Look bestätigte die Cache-Identität und di
 3. Einen laufenden Auftrag über den Zeilenwechsel abbrechen. Prüfen, dass das späte Ergebnis keinem neuen Eintrag zugewiesen wird und danach wieder eine sichtbare Miniatur fertig wird. Im Testadapter kontrollieren, dass die Netzvideos durch das blosse Anzeigen der Liste keinen Inhaltsdownload auslösen. Ohne Testadapter die Auftrags- und Lesezähler offen erfassen.
 4. Parallel eine direkte Cloud-Verbindung und ein Netzlaufwerk anzeigen. Beide müssen sich die zwei Plätze für Online-Miniaturen teilen. Lokale Miniaturen sollen auch weiter geladen werden können, wenn die Online-Plätze belegt sind.
 
-Auf macOS bestätigte der Test mit Quick Look, dass ein Abbruch einen Platz freigibt und die zwei anderen Bildresultate die richtigen Farben haben. Quick Look renderte auch ein Testbild von einem schreibgeschützt eingebundenen lokalen NFS-Testserver. Ein Warteschlangentest mit blockierten Aufträgen bestätigte das gemeinsame Limit für direkte Cloud-Verbindungen und Netzlaufwerke. Der Scrolltest im App-Fenster und der Nachtest auf echtem SMB bleiben offen.
+Auf macOS bestätigte der Test mit Quick Look, dass ein Abbruch einen Platz freigibt und die zwei anderen Bildresultate die richtigen Farben haben. Quick Look renderte auch ein Testbild von einem schreibgeschützt eingebundenen lokalen NFS-Testserver. Ein Warteschlangentest mit blockierten Aufträgen bestätigte das gemeinsame Limit für direkte Cloud-Verbindungen und Netzlaufwerke. Im signierten Build 359 zeigte die App auf einer echten SMB-Freigabe die erwartete Miniatur nach dem Scrollen. Ein Netzvideo und ein Bild über 32 MiB behielten ihre Dateitypsymbole. Dasselbe Video erhielt im lokalen Dateibereich eine Miniatur. Der sichtbare Test mit zwei gezielt angehaltenen Aufträgen bleibt offen.
 
 ### Bild wird während des Wartens zu gross oder ersetzt
 
@@ -491,7 +491,23 @@ Auf macOS bestätigte der Test mit Quick Look, dass ein Abbruch einen Platz frei
 3. Aus getrennten Ausgangszuständen das Testbild atomar durch das blaue ersetzen. Grösse und letzter Schreibzeitpunkt müssen gleich bleiben. In einem weiteren Durchlauf bei vorhandener Unterstützung einen symbolischen Link an den vorherigen Pfad setzen. Die alte Miniatur darf aus diesen Bytes weder angezeigt noch in den Cache geschrieben werden. Nach Neuladen mit einem gültigen regulären Testbild muss dessen eigene Miniatur erscheinen.
 4. Mit einem Testadapter nach der geprüften Übernahme der Bytes pausieren und den Netzpfad ändern. Der Decoder soll nur die bereits begrenzte Kopie lesen. Das Ergebnis einer seitdem veränderten Quelle darf die aktuelle Zeile nicht überschreiben. Nach dem Auftrag muss die temporäre Kopie verschwinden. Ohne Testadapter die gezielten Zeitpunkte als offen erfassen.
 
-Die macOS-Komponententests bestätigten die Ablehnung von Grössenzunahme, gleich grossem Umschreiben, symbolischem Link und FIFO. Vier echte Durchläufe auf einem lokal eingebundenen NFS-Testserver wiesen die nachträglich vergrösserte Datei ab. Quick Look konnte danach aus der bereits erstellten Kopie die ursprünglichen roten Pixel rendern. Die App-Anzeige auf einer echten SMB-Freigabe bleibt offen.
+Die macOS-Komponententests bestätigten die Ablehnung von Grössenzunahme, gleich grossem Umschreiben, symbolischem Link und FIFO. Vier echte Durchläufe auf einem lokal eingebundenen NFS-Testserver wiesen die nachträglich vergrösserte Datei ab. Quick Look konnte danach aus der bereits erstellten Kopie die ursprünglichen roten Pixel rendern. Die SMB-Variante mit gezielt verzögertem Inhaltsabruf bleibt offen.
+
+### SMB-Miniatur nach geänderten Dateimetadaten
+
+1. Einen eigenen SMB-Ordner mit kleinen unterschiedlichen PNGs öffnen, darunter ein frisch geschriebenes Bild. Mit einem Testadapter einen geänderten Zeitstempel zwischen Dateiliste und erstem Öffnen nachstellen. Den Ordner in der App geöffnet lassen und weder manuell aktualisieren noch die Ansicht wechseln.
+2. Die veraltete Miniatur darf nicht verwendet werden. Die App soll die betroffene Zeile automatisch erneut prüfen und die aktuelle Miniatur anzeigen. Stimmen Dateikennung, Grösse oder Erstellungszeit nicht mehr überein, braucht sie eine frische Auflistung. Ein gleichzeitig geöffneter lokaler Testordner muss bedienbar bleiben.
+3. Den Ordner während der ausstehenden Aktualisierung verlassen. Die verzögerte Aktualisierung darf den neuen Ordner und seine Auswahl nicht verändern. Beim Wiederöffnen das richtige Bild sowie ein unverändertes Nachbarbild prüfen.
+
+Auf der echten SMB-Freigabe zeigte der signierte Mac-Build 358 nach dem ersten Öffnen weiterhin das Dateitypsymbol. Eine separate Prüfung zeigte, dass macOS beim Öffnen den Zeitstempel der gelisteten Datei aktualisierte. Der signierte Build 363 zeigte ohne manuelle Aktualisierung die richtige Miniatur beim ersten Öffnen und nach dem Scrollen. Der gezielte Ordnerwechsel während genau dieser ausstehenden Aktualisierung steht noch aus.
+
+### SMB-Cachetreffer nach gleichem Schreibzeitpunkt prüfen
+
+1. Eine blaue PNG-Datei auf SMB anzeigen und das Laden ihrer Miniatur abwarten. In einen leeren Nachbarordner wechseln. Dieselbe Datei direkt mit einer gleich grossen magentafarbenen PNG überschreiben. Den alten Schreibzeitpunkt wiederherstellen und bestätigen, dass die Dateikennung und die Länge gleich blieben.
+2. Den ursprünglichen Ordner öffnen. Sobald eine Miniatur erscheint, muss sie die aktuelle magentafarbene Datei zeigen. Die unveränderte Nachbarminiatur muss korrekt bleiben. Den Inhalt der umgeschriebenen Datei unabhängig prüfen.
+3. Wenn der Testadapter Dateimetadaten getrennt für Pfad und geöffnetes Objekt liefert, am Pfad zunächst die alte Version melden. Beim erneuten Einlesen muss die App den aktuellen Dateiinhalt prüfen. Danach dieselbe unveränderte Bildzeile innerhalb derselben Dateiliste aus dem sichtbaren Bereich und zurück scrollen. Dabei soll der Miniaturcache einen weiteren vollständigen Inhaltsabruf vermeiden.
+
+Der signierte Mac-Build 359 zeigte beim Wiederöffnen weiterhin die blaue Miniatur. Ein SMB-Metadatentest bestätigte, dass der Pfad zunächst denselben Stand wie vor dem Umschreiben meldete. Build 363 zeigte im gleichen Ablauf die magentafarbene Miniatur. Die Dateikennung, Grösse und zunächst gemeldete Schreibzeit blieben gleich. Der unabhängige Inhaltsvergleich bestätigte die Änderung sowie die unveränderten Nachbardateien. Die Zahl der Inhaltsabrufe beim erneuten Scrollen bleibt offen.
 
 ### Cloud-Ordner-Download mit Neustart und Rückgängig
 
