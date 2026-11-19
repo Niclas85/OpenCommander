@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [96 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [97 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -708,6 +708,14 @@ Der signierte Mac-Build 375 bestand alle sechs Durchläufe in der App. Die drei 
 3. In einem getrennten Durchlauf den letzten Upload am eigenen FTP-Testserver vor dem Schreiben vorübergehend ablehnen. Die App neu starten, den Server freigeben und «Fortsetzen» wählen. Nach erneutem Start müssen beide erfolgreich veröffentlichten Einträge dieselbe Rückgängig-Aktion anbieten. Deren Ausführung muss den ursprünglichen Zielinhalt wiederherstellen.
 
 Der signierte Mac-Build 376 bestand diese Nachtests auf einem lokalen FTP-Testserver. Die App speichert den Rückgängig-Stand pro Eintrag. Bei einem Konflikt bleiben bereits abgeschlossene Rückgängig-Schritte erhalten. App-eigene Wiederherstellungspfade werden separat in der Historie angezeigt.
+
+### Archiv am Online-Ort im selben Bereich öffnen
+
+1. Ein eigenes ZIP mit einem Unterordner und zwei Textdateien auf den FTP-Testserver legen. Die Prüfsumme des Archivs erfassen. Daneben eine Kontrolldatei ablegen.
+2. Das ZIP in der FTP-Dateiliste doppelt anklicken. Im selben Dateibereich sollen die Archiveinträge erscheinen. Den Unterordner öffnen und eine Textdatei anzeigen. Über «Zurück» in den FTP-Ordner wechseln. Der gegenüberliegende Dateibereich und die Prüfsummen müssen unverändert bleiben.
+3. In einem getrennten Durchlauf «Öffnen mit …» verwenden und den Dialog abbrechen. Danach noch einmal per Doppelklick öffnen. Dateiliste und ursprünglicher Online-Ort müssen erhalten bleiben.
+
+Der signierte Mac-Build 376 öffnete beim Doppelklick auf das ZIP einen Speichern-Dialog. Die Archiveinträge erschienen im betroffenen Dateibereich nicht. Der Test exportierte keine Datei. Die Prüfsummen und der lokale Kontrollordner blieben unverändert. Die Korrektur ist offen.
 
 ### Online-Vorschau während eines Downloads wechseln und schliessen (MEDIA-06)
 

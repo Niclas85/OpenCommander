@@ -1380,19 +1380,23 @@
       "id": "ARCH-01",
       "titel": "Unterstützte Formate öffnen",
       "macos_status": "native_verified",
-      "macos_beobachtungen": "ZIP, TAR, TGZ, TAR.BZ2, TAR.XZ, TAR.ZST, 7z and real RAR5 each opened in the native pane; names/shape checked and each fully extracted to a separate target. All output bytes/empty directories checked independently. Zstandard now bundled, no external zstd required.",
-      "belegverweise_anzahl": 3,
-      "oeffentliche_referenzberichte": []
+      "macos_beobachtungen": "ZIP, TAR, TGZ, TAR.BZ2, TAR.XZ, TAR.ZST, 7z and real RAR5 each opened in the native pane; names/shape checked and each fully extracted to a separate target. All output bytes/empty directories checked independently. Zstandard now bundled, no external zstd required. Beim Doppelklick auf ein ZIP in der FTP-Dateiliste öffnete der signierte Build 376 den Speichern-Dialog. Die Archiveinträge erschienen im betroffenen Dateibereich nicht. Escape schloss den Dialog und die FTP-Liste kehrte zurück. Beide Dateibereiche und sämtliche Testdateien blieben unverändert. Der Befund betrifft direkte Online-Orte. Die lokal geprüften Archivformate und die lokalen Testfälle zur gezielten Extraktion bleiben belegt.",
+      "belegverweise_anzahl": 4,
+      "oeffentliche_referenzberichte": [],
+      "regressionen": [
+        "REG-ARCH-04"
+      ]
     },
     {
       "id": "ARCH-02",
       "titel": "Gezielt und vollständig entpacken",
       "macos_status": "native_verified",
-      "macos_beobachtungen": "Native selected ZIP/Zstandard folder and complete no-selection extraction for all eight formats passed. Additional explicit single Unicode-member extraction preserved Ordner/Grüsse.txt, exact bytes and excluded unselected Empty/. Destinations were the opposite pane. Der signierte Build 375 entpackte ein vollständiges ZIP direkt in den gegenüberliegenden Dateibereich. Geprüft wurden FTP → APFS, APFS → FTP und FTP → FTP am eigenen Server. In allen drei Durchläufen erschienen die obersten ZIP-Einträge direkt im Ziel. Die Auswahl einzelner ZIP-Mitglieder war nicht Teil dieser drei Durchläufe. Zwei separate App-Durchläufe in Build 375 prüften zusätzlich ein explizit ausgewähltes ZIP-Mitglied sowie den aktuellen Unterordner im ZIP ohne Dateiauswahl. Nach FTP gelangten jeweils nur die erwarteten Einträge. Rückgängig nach App-Neustart stellte den ursprünglichen Zustand wieder her.",
-      "belegverweise_anzahl": 8,
+      "macos_beobachtungen": "Native selected ZIP/Zstandard folder and complete no-selection extraction for all eight formats passed. Additional explicit single Unicode-member extraction preserved Ordner/Grüsse.txt, exact bytes and excluded unselected Empty/. Destinations were the opposite pane. Der signierte Build 375 entpackte ein vollständiges ZIP direkt in den gegenüberliegenden Dateibereich. Geprüft wurden FTP → APFS, APFS → FTP und FTP → FTP am eigenen Server. In allen drei Durchläufen erschienen die obersten ZIP-Einträge direkt im Ziel. Die Auswahl einzelner ZIP-Mitglieder war nicht Teil dieser drei Durchläufe. Zwei separate App-Durchläufe in Build 375 prüften zusätzlich ein explizit ausgewähltes ZIP-Mitglied sowie den aktuellen Unterordner im ZIP ohne Dateiauswahl. Nach FTP gelangten jeweils nur die erwarteten Einträge. Rückgängig nach App-Neustart stellte den ursprünglichen Zustand wieder her. Beim Doppelklick auf ein ZIP in der FTP-Dateiliste öffnete der signierte Build 376 den Speichern-Dialog. Die Archiveinträge erschienen im betroffenen Dateibereich nicht. Escape schloss den Dialog und die FTP-Liste kehrte zurück. Beide Dateibereiche und sämtliche Testdateien blieben unverändert. Der Befund betrifft direkte Online-Orte. Die lokal geprüften Archivformate und die lokalen Testfälle zur gezielten Extraktion bleiben belegt.",
+      "belegverweise_anzahl": 9,
       "oeffentliche_referenzberichte": [],
       "regressionen": [
-        "REG-ARCH-02"
+        "REG-ARCH-02",
+        "REG-ARCH-04"
       ]
     },
     {
