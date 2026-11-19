@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [103 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [104 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -272,6 +272,14 @@ Den ersten Abruf des eigenen Cloud-Ordners anhalten und denselben Ort rechts öf
 Den Ort danach in beiden Bereichen öffnen und mit einem zweiten Client eine neue Testdatei anlegen. Manuell links aktualisieren, den Abruf verzögern und rechts ebenfalls aktualisieren. Sobald beide Bereiche laden, den Abruf freigeben. Die neue Datei muss in beiden Listen erscheinen. Falls der Testaufbau Anbieteraufrufe protokolliert, die Zahl der Listenabrufe während der Überlappung erfassen. Build 322 bestand beide Varianten mit Dropbox und Google Drive.
 
 Ein separater App-Test mit Build 384 und simuliertem OneDrive-Transport protokollierte je einen Abruf beim Öffnen desselben Ordners in beiden Bereichen, beim manuellen Aktualisieren beider Bereiche und beim späteren Verlassen des linken Bereichs. Der rechte Bereich erhielt die verspätete Liste. Links blieb der eigene lokale Ordner sichtbar.
+
+### Beide Bereiche mit einem Tastendruck aktualisieren
+
+1. Zwei eigene Online-Ordner in den Dateibereichen öffnen. Ausserhalb von OpenCommander in jedem Testordner eine eindeutig benannte neue Datei anlegen. Nur einmal den im Menü angegebenen Befehl «Aktualisieren» per Tastatur auslösen. Beide Bereiche müssen ihre jeweiligen neuen Einträge zeigen.
+2. Denselben Online-Ordner in beiden Bereichen öffnen. Einen Abruf im Testadapter anhalten. Ein Tastendruck muss in beiden Bereichen den Ladezustand anzeigen. Für den gemeinsamen Ordner muss ein einziger Abruf reichen.
+3. Während des gemeinsamen Abrufs links zum lokalen Testordner zurückkehren. Die verspätete Antwort darf nur rechts erscheinen. Separat mit aktivem lokalem Bereich und inaktiver Online-Liste wiederholen. Auch die inaktive Liste muss aktualisiert werden.
+
+Einmal ⌘R aktualisierte in Mac-Build 387 nur den aktiven Bereich. Dadurch fehlte ein neuer Cloud-Eintrag im anderen Bereich. Der signierte Build 388 aktualisierte mit derselben Geste beide Bereiche. Im simulierten OneDrive gingen für denselben Ordner genau ein Abruf und für zwei verschiedene Orte je ein Abruf an den Testadapter. Im gemischten Betrieb aktualisierte auch ein lokaler aktiver Bereich die Online-Liste rechts. Beim Verlassen der linken Liste während des Abrufs blieb der rechte Abruf erhalten. Bei einer gemeinsam genutzten Konfigurationsdatei wartete der zweite Abruf auf die Dateisperre und aktualisierte anschliessend seinen Bereich.
 
 ### Anmeldewiederherstellung mit abgelehntem Cloud-Token (CLOUD-05)
 
@@ -545,6 +553,8 @@ Der signierte Mac-Build 370 bestand die Dateiaktionen und Rückgängig auf dem b
 Der signierte Mac-Build 371 meldete den Schreibschutz bei beiden Dateiaktionen ausdrücklich. Auf dem beschreibbar eingehängten NTFS-Abbild bestanden Kopieren, Umbenennen, privater Papierkorb und die drei einzelnen Rückgängig-Aktionen. Im Nur-Lese-Modus liess sich die Referenzdatei bytegenau kopieren und die lokale Kopie rückgängig machen. Weder der blockierte Schreibversuch noch das verweigerte Umbenennen erzeugte einen Historieneintrag. Der SHA-256-Wert des NTFS-Abbilds blieb über den Nur-Lese-Test identisch. Beim separaten APFS-Ordner mit fehlender Schreibberechtigung blieb die gewöhnliche Berechtigungsmeldung erhalten. Für die virtuellen Abbilder war der installierte FSKit-Treiber aus Build 268 aktiv.
 
 Build 384 bestand die Schritte 1 bis 4 erneut mit dem installierten FSKit-Treiber aus Build 268. Die Meldung bei fehlender Schreibberechtigung auf APFS blieb vom NTFS-Schreibschutz unterscheidbar. Dieser Nachtest verwendete ein Testabbild.
+
+Der signierte Build 388 wiederholte die NTFS-Dateiaktionen auf einem virtuellen Testabbild mit dem installierten FSKit-Treiber aus Build 268. Schreiben, Lesen, Umbenennen, privates Löschen und Rückgängig bestanden. Das schreibgeschützt eingehängte Abbild behielt seine SHA-256-Prüfsumme.
 
 Build 371 stoppte die private Löschaktion auf dem schreibgeschützten NTFS-Abbild sicher und zeigte einen allgemeinen Löschfehler. Nach einem App-Neustart stand der Fehler unter den Auftragsdetails. Im signierten Build 372 war der bestätigte Schreibschutz sofort in der kompakten Auftragskarte sichtbar, auch nach dem Neustart. Die App übernahm dieselbe Auftrags-ID. «Abbrechen» liess die Referenzdatei, die gespeicherte Historie und das gesamte Abbild unverändert. Der Test verwendete den installierten FSKit-Treiber aus Build 268. 81 Warteschlangenprüfungen und 62 Lokalisierungsprüfungen bestanden. Die Lokalisierungssuite prüfte beide Schreibschutz-Fehlercodes in allen 20 App-Sprachen.
 
