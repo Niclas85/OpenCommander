@@ -693,8 +693,9 @@ Build 372 legte beim Entpacken eines gültigen leeren ZIPs auf einem echten loka
 2. «Entpacken» getrennt für FTP → lokal, lokal → FTP und zwischen zwei FTP-Orten ausführen. `Plain (2).txt` und `Docs (2)` müssen direkt im gewählten Zielordner liegen. In den vorhandenen gleichnamigen Einträgen und neben dem Quellarchiv darf sich nichts ändern. Unicode-Datei und leeren Unterordner im Ziel unabhängig prüfen.
 3. OpenCommander normal neu starten und die passenden Historieneinträge rückgängig machen. Das Ziel muss wieder dem Ausgangsstand entsprechen. Der Mac-Build 375 legte für das lokale Ziel einen gemeinsamen Eintrag und für FTP-Ziele einen Eintrag pro veröffentlichtem Objekt an.
 4. Für die Gegenprobe das Lesen des Quellarchivs am eigenen FTP-Testserver verzögern. Währenddessen den gewählten lokalen Zielordner umbenennen und seinen alten Pfad durch einen neuen Ordner mit einer Kontrolldatei belegen. Den Server freigeben. Die App muss den Zielwechsel melden. Beide Ordner und das Quellarchiv müssen unverändert bleiben.
+5. Das ZIP auf der lokalen Seite öffnen, `Plain.txt` auswählen und nach FTP entpacken. Nur `Plain (2).txt` darf hinzukommen. In einem getrennten Lauf im ZIP zu `Docs` wechseln und ohne Dateiauswahl entpacken. Nur der Inhalt von `Docs` darf in `Docs (2)` erscheinen. Beide Durchläufe nach App-Neustart rückgängig machen.
 
-Der signierte Mac-Build 375 bestand alle vier Durchläufe in der App. Die drei Entpackrichtungen wurden über einen lokalen FTP-Testserver und APFS geprüft. Für direkte Cloud-Verbindungen ist ein eigener Durchlauf erforderlich.
+Der signierte Mac-Build 375 bestand alle sechs Durchläufe in der App. Die drei Entpackrichtungen und die beiden Varianten der Archivauswahl wurden über einen lokalen FTP-Testserver und APFS geprüft. Für direkte Cloud-Verbindungen ist ein eigener Durchlauf erforderlich.
 
 ### Rückgängig nach einer Änderung am lokalen Cloud-Kopierziel prüfen (TRASH-06)
 
