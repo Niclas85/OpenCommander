@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [75 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [76 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -484,6 +484,15 @@ Der Mac-Komponententest verwendete zwei echte Prozessabbrüche mit eigenen lokal
 1. Eine isolierte Cloud-Testverbindung mit bekannten Prüfdaten verwenden. Beim Tokenwechsel einen Prozessabbruch zuerst nach dem Speichern der ausstehenden Bindung und dann nach dem Veröffentlichen der neuen Konfiguration auslösen. Beide Fälle mit einem frischen Prozess prüfen.
 2. Die Vorschau für die erneute Bestätigung öffnen. Sie darf die Konfiguration oder die gespeicherte Bindung nicht verändern. Nach Bestätigung muss bei beiden nachweislich zum Auftrag gehörenden Tokenständen dieselbe Kontobindung erhalten bleiben.
 3. In einer getrennten Testinstanz eine Konfiguration einsetzen, die zu keinem der beiden gespeicherten Stände passt. Der normale Verbindungsversuch muss stoppen. Nach ausdrücklicher Bestätigung muss die App eine neue Identität anlegen, die frühere Bindung archivieren und die Konfiguration unverändert lassen. Frühere Aufträge und Rückgängig-Belege bleiben der bisherigen Identität zugeordnet. Einen zwischen Vorschau und Bestätigung geänderten Stand separat prüfen. Diese Bestätigung muss abgelehnt werden.
+
+### Cloud-Ordner nach Zielveröffentlichung abbrechen
+
+1. Auf Google Drive einen eigenen Testordner mit zwei Dateien, einem Unicode-Namen und einem leeren Unterordner vorbereiten. Die Prüfsummen der Quelle und den leeren Dropbox-Testordner bestätigen. «Verschieben» starten.
+2. Mit einem Testadapter unmittelbar nach der Veröffentlichung des Zielordners und vor dem Sichern der Quelle «Abbrechen» wählen. Der Testadapter soll die Bestätigung des Ziels zulassen und den App-Prozess vor dem Speichern des Warteschlangenbelegs beenden. Falls der Testadapter fehlt, diesen gezielten Zeitpunkt als offen erfassen.
+3. Nach Neustart denselben Auftrag fortsetzen. Der Abbruch muss als Prüfung der bereits vorhandenen Kopie fortgesetzt werden. Es darf weder einen neuen Upload noch eine Änderung an der Quelle geben. Die Historie muss genau eine Kopie mit funktionierendem «Rückgängig» zeigen. Beide Ordner müssen bis zum Rückgängigmachen vollständig bleiben.
+4. «Rückgängig» ausführen und Quelle und Ziel erneut unabhängig prüfen. Nur die bestätigte Zielkopie muss verschwinden. Den Ablauf auch von Dropbox zu Google Drive und separat mit «Ersetzen» am Ziel prüfen.
+
+Auf dem Mac bestätigten isolierte Tests mit simulierten Anbietern und echten Prozessabbrüchen beide Übertragungsrichtungen sowie «Ersetzen». Nach dem Neustart entstand genau ein Kopiereintrag. Die Quelle behielt ihren Inhalt und «Rückgängig» entfernte die veröffentlichte Kopie. Die Live-Abnahme mit beiden Konten bleibt offen.
 
 ### Cloud-Rückgängig nach Prozessabbruch fortsetzen
 
