@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 18. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [59 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [60 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -270,6 +270,17 @@ Der Mac-Nachtest mit Microsoft-Graph-Testadapter bestätigte auch für OneDrive 
 4. Als Gegenprobe einen begonnenen Testdownload abbrechen. Am Ziel darf keine vollständige Datei erscheinen. Fortschrittsmeldungen aus dem beendeten Versuch dürfen einen neuen Auftrag nicht überschreiben.
 
 Der macOS-Nachtest verwendete einen verzögerten Microsoft-Graph-Testtransport. Er bestätigte Zwischenwerte vor der Inhaltsprüfung, die Metadaten der Auftragskarte und einen Abbruch ohne bestätigten Abschluss. Ein sichtbarer Live-Download mit angemeldetem OneDrive-Konto steht für diesen Nachtest noch aus.
+
+### Prozessabbruch nach geprüftem Download
+
+1. Eine eigene Datei aus einem Online-Ort in einen leeren lokalen Testordner kopieren. Quelle, Grösse und SHA-256 festhalten. Einen Prüfstopp nach dem Speichern des internen Inhaltsnachweises und vor dem Anlegen des lokalen Kopierjournals einrichten.
+2. Nur die Test-App am Prüfstopp beenden. Es darf noch keine sichtbare Zieldatei und keinen erfolgreichen Historieneintrag geben. Bei Neustart muss der ursprüngliche Auftrag pausiert erscheinen.
+3. Den Auftrag fortsetzen. Eine Transportaufzeichnung muss zeigen, dass kein zweiter Inhaltsdownload erfolgt. Die Zieldatei muss bytegenau sein. Genau einen erfolgreichen Kopiereintrag erwarten und «Rückgängig» prüfen.
+4. In getrennten Durchgängen vor dem Fortsetzen die privaten Testbytes ändern oder im gespeicherten Downloadplan die Kontobindung austauschen. Der Auftrag muss den Konflikt melden und das sichtbare Ziel leer lassen. Das Original auf dem Anbieter und eine lokale Kontrolldatei müssen erhalten bleiben.
+
+Bei einem älteren Auftrag, der nur einen Inhaltsnachweis der Quelle speichert, kann eine erneute Quellenprüfung einen separaten Lesevorgang erfordern. Die bereits geprüfte lokale Zwischenkopie muss erhalten bleiben.
+
+Im macOS-Live-Test auf Google Drive endete der erste Testprozess genau zwischen den beiden Journalen. Der ursprüngliche Auftrag verwendete die bereits geprüften Bytes und speicherte genau einen Kopiereintrag. Ein weiterer Prozess verwendete den gespeicherten Eintrag für «Rückgängig». Objekt-ID und SHA-256 der Quelle blieben gleich. Dieser Lauf verwendete separate Testprozesse.
 
 ## Ergebnis festhalten
 
