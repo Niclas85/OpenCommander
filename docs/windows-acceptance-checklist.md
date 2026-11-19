@@ -100,6 +100,8 @@ Für JOB-01 die angezeigten Bytes, Dateizahlen, aktive Zeit, Transferrate und Re
 
 Zwei vollständige Lesevorgänge ohne Dateicache über separat eingehängte Nur-Lese-Verbindungen ergaben für diese 2-GiB-Datei dieselbe Zielprüfsumme und dieselbe Abweichung von der Quelle. Betroffen war genau ein Bit an Byteposition 1’718’428’249 mit XOR-Maske 0x02. Position 601 innerhalb des 4-KiB-Blocks entspricht einem früheren Befund an einer anderen Datei. Die Quelle entsprach dem ursprünglichen Manifest. Das Journal und die Kontrolldatei wurden bei beiden Lesevorgängen unverändert bestätigt.
 
+Im selben fortgesetzten D2-Lauf schrieb ein zweiter Auftrag sämtliche Bytes und stoppte beim Zurücklesen der 1-GiB-Datei `Chunk.bin`. Das Journal benannte die Datei. Ein Abschlussbeleg und ein Historieneintrag fehlten. Zwei weitere Aufträge liefen weiter. Für den zweiten Stopp steht der unabhängige Bytevergleich aus.
+
 ### Quelle und Ziel beim SMB-Fortsetzen unterscheiden
 
 1. Einen Kopierauftrag mit einer eigenen SMB-Datei und separater Kontrolldatei anlegen. Den SHA-256 der Quelle ausserhalb der App erfassen. Mit einem Testadapter nach vollständig gespeicherten Dateibytes und vor dem Abschlussbeleg pausieren. Quelle und Ziel müssen zu diesem Zeitpunkt denselben Hash haben.
@@ -230,7 +232,7 @@ Für die zusätzliche Prüfung vor dem Export im Testadapter die Google-Revision
 3. Die App muss am ursprünglichen Auftrag einen wiederholbaren Fehler anzeigen. Die alte Zieldatei und die Kontrolldatei müssen unverändert bleiben. Es darf noch keinen erfolgreichen Historieneintrag geben.
 4. Die Verbindung wiederherstellen, die App neu starten und am ursprünglichen Auftrag «Fortsetzen» wählen. Zielprüfsumme und genau einen neuen rückgängig machbaren Historieneintrag prüfen. Nach einem weiteren App-Neustart «Rückgängig» wählen. Die alte Zieldatei muss bytegenau zurückkehren. Die Kontrolldatei sowie ID und Inhalt der Cloud-Quelle unabhängig prüfen.
 
-Der signierte macOS-Build 322 hat bei Dropbox und Google Drive das Ziehen, die Unterbrechung, das Fortsetzen nach App-Neustart und das Rückgängig bestanden. Bei Google Drive wurde die Auswahl im lokalen Bereich während des gehaltenen Downloads mit der macOS-Bedienungshilfe ausgelöst und sichtbar bestätigt. Für Dropbox bleibt dieser Prüfschritt offen.
+Der signierte macOS-Build 322 hat bei Dropbox und Google Drive das Ziehen, die Unterbrechung, das Fortsetzen nach App-Neustart und das Rückgängig bestanden. Bei beiden Diensten wurde die Auswahl im lokalen Bereich während des gehaltenen Downloads mit der macOS-Bedienungshilfe ausgelöst und sichtbar bestätigt.
 
 ### Cloud-Ordner-Download mit Neustart und Rückgängig
 
