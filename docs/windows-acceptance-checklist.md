@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [98 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [99 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -729,6 +729,16 @@ Mac-Build 376 öffnete beim Doppelklick den Speichern-Dialog. Der signierte Buil
 5. In getrennten Gegenproben eine lokale Datei per **F5** in ein bereits geöffnetes Archiv kopieren und anschliessend ein ZIP in einer normalen Ordnerliste markieren und per **F5** in einen gewöhnlichen Zielordner kopieren. Das Archiv als Ziel muss mit einer Schreibschutzmeldung abgewiesen werden. Die ZIP-Datei als Quelle muss mit unveränderter Prüfsumme im normalen Ziel erscheinen und rückgängig zu machen sein.
 
 Build 379 wies F5 aus dem in der App geöffneten FTP-Archiv mit einer Schreibschutzmeldung ab. Im signierten Build 380 bestanden alle sechs Varianten mit APFS und einem eigenen FTP-Testserver. Die unabhängige Prüfung bestätigte die Zielstruktur und SHA-256-Werte sowie die ursprünglichen Inhalte nach Rückgängig und App-Neustart. Direkte Cloud-Orte brauchen einen eigenen Nachtest.
+
+### Zielordner während des Entpackens austauschen
+
+1. Ein ZIP und ein TAR.GZ mit `Docs/Prüfung 日本語.txt`, einem leeren Unterordner und einer Datei im Archivstamm erstellen. Im gegenüberliegenden Testordner eine gleichnamige Struktur mit anderen Bytes sowie eine Kontrolldatei ablegen. Die SHA-256-Werte der Originale erfassen.
+2. Für den gezielten Durchlauf das Archiv öffnen, im Archiv zu `Docs` wechseln und den nächsten Lesezugriff auf das Testarchiv über einen Testadapter anhalten. **F5** drücken und die sichtbare Fortschrittsanzeige abwarten. Den Zielordner umbenennen und seinen alten Pfad durch einen neuen Ordner mit einer anderen Kontrolldatei belegen. Dann das Lesen freigeben. Den Durchlauf für beide Archivformate wiederholen.
+3. Die App muss den ausgetauschten Zielordner melden. Die beiden Ordner, das Archiv und die Historie unabhängig prüfen. Im Ersatzordner darf kein entpackter Inhalt erscheinen, und es darf keinen erfolgreichen Historieneintrag geben.
+4. In einem getrennten Lauf das Lesen ebenfalls anhalten und **Abbrechen** wählen, bevor der Adapter es freigibt. Ohne Ordnerwechsel müssen beide Ausgangsmanifeste und die leere Historie erhalten bleiben.
+5. Als Kontrolle das Archiv bei unverändertem Ziel normal per F5 kopieren. `Docs (2)` muss ausschliesslich den Inhalt des aktuellen Archivordners enthalten. Die App neu starten, den passenden Eintrag rückgängig machen und beide Ausgangsmanifeste vergleichen. Bei einem Laufwerkstest für das Ziel ein separates Testmedium verwenden.
+
+Mac-Build 380 entpackte ZIP und TAR.GZ in den Ersatzordner und meldete Erfolg. In Build 381 blieben nach dem Zielordnerwechsel beide Ordner und die Historie unverändert. Zwei Abbruchtests erhielten dieselben Ausgangsdaten. Normales Kopieren mit Namenskonflikt und Rückgängig nach App-Neustart bestand auf APFS, SMB sowie je einem frisch erzeugten exFAT- und FSKit-NTFS-Abbild. Die unabhängige Nachprüfung bestätigte auch die Bytes im privaten Rückgängig-Ordner. Die beiden Abbilder wurden nach der Prüfung wieder ausgehängt.
 
 ### Online-Vorschau während eines Downloads wechseln und schliessen (MEDIA-06)
 
