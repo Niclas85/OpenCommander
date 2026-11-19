@@ -223,6 +223,15 @@ Der sichtbare Mac-Nachtest in Build 321 bestätigte den Export bis zur App-Auswa
 
 Für die zusätzliche Prüfung vor dem Export im Testadapter die Google-Revision nach dem ersten Abruf ändern. Dateiname und Google-ID bleiben gleich. Die App muss den veralteten Auftrag vor dem Export abweisen. Dropbox bleibt leer. Die Google-Quelle bleibt mit der aktualisierten Fassung erhalten.
 
+### Cloud-Download mit Ersetzen nach Verbindungsabbruch fortsetzen
+
+1. Eine eigene Datei im direkt verbundenen Dropbox- oder Google-Drive-Testordner ablegen. Der Mac-Test verwendete 2 MiB und einen Testadapter. Für einen manuellen Test eine grössere Datei oder eine gedrosselte Testverbindung verwenden, damit Zeit für die Unterbrechung bleibt. Lokal eine gleichnamige Datei mit anderem Inhalt und eine separate Kontrolldatei anlegen. Die Prüfsummen und, sofern verfügbar, die Cloud-Datei-ID notieren.
+2. Die Cloud-Datei in den lokalen Bereich ziehen und «Ersetzen» wählen. Warten, bis der Auftrag in der Warteschlange steht und der Download Daten überträgt. Dann die Verbindung in der isolierten Testumgebung trennen. Solange die Verbindung unterbrochen ist, im lokalen Bereich die Kontrolldatei auswählen und prüfen, ob die Auswahl sichtbar wechselt.
+3. Die App muss am ursprünglichen Auftrag einen wiederholbaren Fehler anzeigen. Die alte Zieldatei und die Kontrolldatei müssen unverändert bleiben. Es darf noch keinen erfolgreichen Historieneintrag geben.
+4. Die Verbindung wiederherstellen, die App neu starten und am ursprünglichen Auftrag «Fortsetzen» wählen. Zielprüfsumme und genau einen neuen rückgängig machbaren Historieneintrag prüfen. Nach einem weiteren App-Neustart «Rückgängig» wählen. Die alte Zieldatei muss bytegenau zurückkehren. Die Kontrolldatei sowie ID und Inhalt der Cloud-Quelle unabhängig prüfen.
+
+Der signierte macOS-Build 322 hat bei Dropbox und Google Drive das Ziehen, die Unterbrechung, das Fortsetzen nach App-Neustart und das Rückgängig bestanden. Bei Google Drive wurde die Auswahl im lokalen Bereich während des gehaltenen Downloads mit der macOS-Bedienungshilfe ausgelöst und sichtbar bestätigt. Für Dropbox bleibt dieser Prüfschritt offen.
+
 ### Cloud-Ordner-Download mit Neustart und Rückgängig
 
 1. Einen eigenen Dropbox-Testordner mit `Unterordner/Grüße.txt`, dem leeren Ordner `Unterordner/Leer` und der leeren Datei `Empty.txt` anlegen. Inhalt und SHA-256 von `Grüße.txt` unabhängig erfassen. Falls verfügbar, die Dropbox-IDs festhalten.
