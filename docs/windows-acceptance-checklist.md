@@ -211,6 +211,10 @@ Ein unabhängiges Prüfprogramm schrieb auf derselben SMB-Freigabe über vier ge
 
 In Build 388 war «Alle fortsetzen» bei ausschliesslich fehlgeschlagenen und abgebrochenen Aufträgen deaktiviert. Bei einem zusätzlich pausierten Auftrag startete die App nur diesen. Build 389 setzte nach dem ausdrücklichen Klick die pausierten und zuvor fehlgeschlagenen Aufträge mit ihren ursprünglichen IDs fort. Die App verbuchte exakt einen Historieneintrag je erfolgreichem Auftrag und liess den abgebrochenen Auftrag unverändert. Beim automatisierten Nachtest bewahrte die lokale Warteschlange einen gleichnamigen fremden Zielinhalt bytegenau und verbuchte dafür keinen Abschluss. Die simulierte Cloud-Warteschlange bewahrte den bisherigen Fehler und versuchte nur fortsetzbare Aufträge erneut. In einem separaten App-Nachtest mit ausschliesslich Cloud-Aufträgen aktivierte Build 389 den Button ebenfalls. Nach dem Klick blieb der Auftrag ohne gültige Kontobindung unter derselben ID blockiert. Die App bewahrte den vorigen Fehler. Der abgebrochene Auftrag, der Zielordner und die leere Historie blieben unverändert.
 
+**Tastatur-Nachtest.** Die Transferübersicht mit der dafür vorgesehenen Tastenkombination öffnen und Escape drücken. Die Übersicht muss schliessen. Erneut öffnen, den fehlgeschlagenen Auftrag über den Tastaturbefehl für «Alle fortsetzen» starten und nach dem Abschluss erneut mit Escape schliessen. Danach den Tastaturbefehl für die Ordnernavigation prüfen. Bei automatisierter Eingabe einen uneinheitlichen Tastendruck separat festhalten.
+
+Im signierten Build 389 öffnete ⌘⇧T die Transferübersicht. Escape schloss sie vor und nach dem Fortsetzen. ⇧R führte einen gespeicherten fehlgeschlagenen Auftrag unter derselben ID bis zu bytegenauem Ziel und genau einem Historieneintrag fort. Der abgebrochene Auftrag blieb beendet. Nach dem Schliessen war die Ordnernavigation mit ⌘L wieder erreichbar. Die automatisierte Escape-Zustellung war im gemischten Versuch uneinheitlich. Deshalb ist für diese Variante kein Tastaturergebnis eingetragen.
+
 ### Pausierten Auftrag mit F5 oder F6 erneut auswählen
 
 1. In zwei eigenen lokalen Testordnern gleichnamige Dateien mit unterschiedlichen Inhalten anlegen. Die SHA-256-Prüfsummen beider Dateien notieren. Die Quelldatei gross genug wählen, damit der Transfer pausiert werden kann. Wenn nötig, einen verzögerten Testdatenträger verwenden.
@@ -255,6 +259,8 @@ Im signierten Mac-Build 366 bestand der Ablauf mit der aktiven Tastaturbelegung.
 5. Eine Datei über einem eingeklappten Ordner im Ordnerbaum halten. Dessen Unterordner müssen nach kurzer Zeit sichtbar werden. Mit Escape abbrechen. Prüfen, dass dadurch kein Kopier- oder Verschiebeauftrag entsteht.
 
 Im signierten Mac-Build 356 bestanden die Standardgeste, Verschieben vom Finder mit ⌘ vor oder während des Ziehens, Kopieren mit Option bei aktivem Verschiebemodus, Export in den Finder und Escape. Die Zielliste scrollte beim Halten der Maus und der Ordnerbaum klappte das gehaltene Ziel auf. F5 und F6 bestanden separat mit lokalen Zielordnern, bytegenauem Ergebnis, Historie und «Rückgängig».
+
+Der Finder-Nachtest in Build 389 prüfte vier echte Ziehvorgänge von einem eigenen Finder-Ordner auf einen sichtbaren OpenCommander-Unterordner. Escape und die kombinierte Geste ⌥⌘ liessen Quelle, Ziel und Auftragsliste unverändert. ⌥ bei aktivem Verschiebemodus kopierte, nach Beginn des Ziehens gedrücktes ⌘ verschob. Die Zieldateien stimmten bytegenau. Rückgängig stellte in beiden Fällen den Ausgangszustand wieder her. Beim ersten automatisierten Versuch mit ⌘ nach Beginn des Ziehens blieb der Mauszeiger am Ziel stehen. Die App kopierte. Beim Nachtest bewegte der Testtreiber den Zeiger nochmals innerhalb derselben Zielzeile und hielt ⌘ bis nach dem Loslassen. Die App verschob die Datei. Der App-Code war in beiden Versuchen identisch.
 
 ### Kalter und warmer Cloud-Ordnerabruf (CLOUD-01)
 
