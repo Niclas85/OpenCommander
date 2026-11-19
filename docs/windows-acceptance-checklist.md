@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [70 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [71 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -420,6 +420,14 @@ Mit einem kleinen, abspielbaren H.264-Testvideo den ersten `RETR` auf dem lokale
 5. Eines der sichtbaren Testbilder über einen unabhängigen Client durch ein andersfarbiges PNG gleicher Grösse ersetzen. Nach Möglichkeit Objekt-ID und Änderungsdatum beibehalten. Die geänderte Prüfsumme erfassen, den Ordner neu laden und beide Miniaturen vergleichen. Das ersetzte Bild muss seine neue Farbe zeigen. Beim unveränderten Nachbarbild darf der Zähler für Inhaltsanfragen gleich bleiben.
 
 Der signierte Mac-Build 322 zeigte bei Dropbox und Google Drive vier geprüfte Miniaturen nach dem Wiederöffnen ohne erneuten Download. Beim separaten Google-Drive-Test aktualisierte die App das geänderte Bild mit einem Download und verwendete für das unveränderte Nachbarbild weiter den Cache.
+
+### Schreibschutz in den NTFS-Dateieigenschaften prüfen
+
+1. Ein eigenes sauberes NTFS-Testabbild mit einer Referenzdatei beschreibbar einhängen. In OpenCommander die Dateieigenschaften öffnen. Das Dateisystem muss als beschreibbar erscheinen. Einen Schreibvorgang mit einer separaten Testdatei ausführen und das Ergebnis unabhängig lesen.
+2. Dasselbe Abbild aushängen und schreibgeschützt einhängen. Die Referenzdatei muss lesbar bleiben. Ihre Eigenschaften müssen das Dateisystem als schreibgeschützt und Schreibzugriff für den aktuellen Prozess als verweigert ausweisen. Der Versuch, im Testordner eine neue Datei anzulegen, muss eindeutig scheitern. Die Referenzdatei und das Abbild müssen unverändert bleiben.
+3. Auf einem beschreibbar eingehängten Testvolume eine Datei mit eingeschränkter Schreibberechtigung separat prüfen. Das Feld für das Dateisystem muss weiter einen beschreibbaren Datenträger anzeigen. Die Berechtigung der einzelnen Datei kann davon abweichen.
+
+Auf dem Mac verweigerte FSKit Schreibzugriff auch dann, wenn die Systemmetadaten den Einhängemodus als beschreibbar meldeten. Der korrigierte Dateieigenschaften-Test bestätigte beide Modi. Sechs zusätzliche unsichere NTFS-Testabbilder blieben beim abgelehnten Schreibmount und beim anschliessenden Lesen schreibgeschützt und bytegenau unverändert. Dazu gehörten simulierte Windows-Ruhezustände und nicht abgeschlossene Journale.
 
 ### Lokale Miniatur nach Dateiersatz prüfen
 

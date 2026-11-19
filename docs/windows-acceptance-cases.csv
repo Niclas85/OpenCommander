@@ -313,7 +313,7 @@ DEVICE-04;Datenträger und Dateisysteme;P0;NTFS lesen und schreiben;"Entbehrlich
 DEVICE-05;Datenträger und Dateisysteme;P1;Mountfehler verständlich anzeigen;"Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.";1. In VM absichtlich nicht mountbares Testvolume öffnen;"Systemfehler erkennbar; keine Dauerblockade oder Wiederholungsflut; übrige Orte bedienbar; keine automatische zerstörerische Reparatur.";Nativ belegt;;;Nicht ausgeführt;;;
 DEVICE-06;Datenträger und Dateisysteme;P1;Dateisystemvarianten;Windows-Testvolume für NTFS, exFAT, SMB und gegebenenfalls ein weiteres unterstütztes Dateisystem.;"1. D1 auf NTFS, exFAT und SMB ausführen
 2. Namensgrenzen, Gross-/Kleinschreibung und Unicode vergleichen
-3. Bei gültigen Zielnamen die SHA-256-Prüfsummen vergleichen";Das jeweilige Dateisystemverhalten ist nachvollziehbar. Kollisionen werden nicht still überschrieben und gültige Daten bleiben bytegenau.;Umgebung erforderlich;REG-FS-01, REG-NTFS-01;;Nicht ausgeführt;;;
+3. Bei gültigen Zielnamen die SHA-256-Prüfsummen vergleichen";Das jeweilige Dateisystemverhalten ist nachvollziehbar. Kollisionen werden nicht still überschrieben und gültige Daten bleiben bytegenau.;Umgebung erforderlich;REG-FS-01, REG-NTFS-01, REG-NTFS-02;;Nicht ausgeführt;;;
 MEDIA-01;Vorschau, Thumbnails und Medien;P0;JPG-Absturzregression;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. Mehrere gültige JPG/JPEG lokal öffnen
 2. Pfeiltasten vor/zurück
 3. Schließen";"Bild erscheint ohne Absturz; Reihenfolge entspricht unterstützten Medien der Ansicht; Fokus kehrt sinnvoll zurück.";Nativ belegt;;;Nicht ausgeführt;;;
@@ -380,7 +380,7 @@ PROP-01;Eigenschaften, Einstellungen und Ergonomie;P0;Eigenschaften des angeklic
 2. Auf Ziel rechtsklicken Eigenschaften
 3. Lokal/NAS/Cloud wiederholen";"Name, Typ, Größe, Pfad und Datum gehören zum tatsächlich angeklickten Eintrag; keine veralteten Werte.";Teilweise belegt;REG-NAS-06;;Nicht ausgeführt;;;
 PROP-02;Eigenschaften, Einstellungen und Ergonomie;P1;NAS-Metadaten;"D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.";"1. Datei über SMB/GVFS mit bekanntem Datum/Rechten prüfen
-2. Providerdaten vergleichen";"Remote-Metadaten soweit verfügbar richtig; nicht ermittelbare Felder als unbekannt, nicht als 0 oder falsche lokale Rechte.";Teilweise belegt;REG-NAS-06;;Nicht ausgeführt;;;
+2. Providerdaten vergleichen";"Remote-Metadaten soweit verfügbar richtig; nicht ermittelbare Felder als unbekannt, nicht als 0 oder falsche lokale Rechte.";Teilweise belegt;REG-NAS-06, REG-NTFS-02;;Nicht ausgeführt;;;
 PROP-03;Eigenschaften, Einstellungen und Ergonomie;P1;Ordnergröße freiwillig berechnen;"D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.";"1. Eigenschaften großer Teststruktur öffnen
 2. Größe berechnen
 3. Fehler/Timeout simulieren";"Kein ungefragtes tiefes Scannen beim Öffnen; Links nicht rekursiv verfolgen; Teilresultat/Grenze/Fehlerzahl klar; UI frei.";Teilweise belegt;;;Nicht ausgeführt;;;
