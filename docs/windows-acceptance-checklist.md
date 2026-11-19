@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [72 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [73 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -436,6 +436,14 @@ Auf dem Mac verweigerte FSKit Schreibzugriff auch dann, wenn die Systemmetadaten
 3. Während eines verzögerten Miniaturauftrags aus der Bildzeile herausscrollen und eine andere Bildzeile anzeigen. Ein spätes Ergebnis darf weder das Bild der anderen Zeile noch eine neu geladene Version überschreiben. Ein unverändertes Nachbarbild soll weiterhin aus dem Cache erscheinen.
 
 Der macOS-Nachtest mit Quick Look bestätigte die rote und die blaue Miniatur aus Testdateien gleicher Länge und Schreibzeit. Er prüfte die Cache-Identität und die erzeugten Pixel. Die sichtbare Scrollprüfung mit der korrigierten App steht aus.
+
+### Miniaturen auf Netzlaufwerken begrenzen
+
+1. Einen eigenen lokalen Ordner und einen Ordner auf einer SMB-Testfreigabe mit denselben zwölf unterscheidbaren PNGs, zwei kleinen Videos und einem PNG über 32 MiB vorbereiten. Beide Dateibereiche mit diesen Ordnern öffnen. Die lokalen Videos sollen bei verfügbarem Decoder eine Miniatur erhalten. Auf dem Netzlaufwerk sollen geeignete Bilder eine Miniatur erhalten. Bei den Netzvideos und dem übergrossen Bild bleibt das Dateitypsymbol sichtbar.
+2. Mit einem Testadapter zwei begonnene Miniaturaufträge anhalten. Schnell über mehrere Bildzeilen scrollen. Es sollen höchstens zwei Dateilistenaufträge gleichzeitig laufen. Aus der Ansicht gescrollte, noch wartende Zeilen sollen keinen Leseauftrag auslösen. Der zweite Dateibereich muss währenddessen bedienbar bleiben.
+3. Einen laufenden Auftrag über den Zeilenwechsel abbrechen. Prüfen, dass das späte Ergebnis keinem neuen Eintrag zugewiesen wird und danach wieder eine sichtbare Miniatur fertig wird. Im Testadapter kontrollieren, dass die Netzvideos durch das blosse Anzeigen der Liste keinen Inhaltsdownload auslösen. Ohne Testadapter die Auftrags- und Lesezähler offen erfassen.
+
+Auf macOS bestätigte der Test mit Quick Look, dass ein Abbruch einen Platz freigibt und beide folgenden Bildresultate die richtigen Farben haben. Ein eingehängter lokaler NFS-Testserver bestätigte die Unterscheidung zwischen APFS und Netzspeicher. Der Scrolltest im App-Fenster und der Nachtest auf echtem SMB bleiben offen.
 
 ### Cloud-Ordner-Download mit Neustart und Rückgängig
 
