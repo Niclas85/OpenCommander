@@ -110,7 +110,7 @@ FILE-10;Dateiaktionen und Konflikte;P1;Öffnen und Öffnen mit;"D1; leere lokale
 FILE-11;Dateiaktionen und Konflikte;P0;Fehlende Rechte und voller Datenträger;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. Kopie nach R
 2. Auf kleines Test-Volume bis Platzmangel kopieren";"Klarer Fehler mit betroffener Datei; kein falscher Erfolg; Quelle intakt; teilweiser Stand nachvollziehbar und kontrolliert wiederaufnehmbar/abbrechbar.";Nativ belegt;;;Nicht ausgeführt;;;
 FILE-12;Dateiaktionen und Konflikte;P0;NAS-Metadatenfehler als Regression;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. D1 inklusive JPG/WebP von Cloud auf SMB/GVFS kopieren
-2. Inhalt unabhängig prüfen";"Nicht unterstütztes chmod/follow_symlinks/fsync führt nicht allein zum Verlust einer gültigen Kopie; echte Schreibfehler bleiben Fehler; Hashes stimmen.";Teilweise belegt;REG-NAS-01, REG-NAS-08, REG-CLOUD-10;;Nicht ausgeführt;;;
+2. Inhalt unabhängig prüfen";"Nicht unterstütztes chmod/follow_symlinks/fsync führt nicht allein zum Verlust einer gültigen Kopie; echte Schreibfehler bleiben Fehler; Hashes stimmen.";Teilweise belegt;REG-NAS-01, REG-NAS-08, REG-CLOUD-10, REG-NAS-14;;Nicht ausgeführt;;;
 JOB-01;Warteschlange, Parallelität und Bedienbarkeit;P0;Fortschritt vollständig;"D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.";"1. Große Datei und viele kleine Dateien kopieren
 2. Planen, Kopieren und Abschluss beobachten";"Prozent, Bytes, Dateien, Zeit, Geschwindigkeit und brauchbare Restzeit; unbekannte Werte als unbekannt; 100 % erst nach bestätigtem Abschluss.";Teilweise belegt;REG-NAS-07, REG-NAS-12, REG-CLOUD-10, REG-CLOUD-19, REG-CLOUD-21, REG-CLOUD-22, REG-CLOUD-23;;Nicht ausgeführt;;;
 JOB-02;Warteschlange, Parallelität und Bedienbarkeit;P1;Zeitformate und Grenzwerte;"D2; unabhängige Ziele A/B/C; langsame Testquelle; UI-Latenz per Video/Timer messen.";1. Kontrollierte Testwerte unter/über 60 s, 60 min und 24 h anzeigen lassen;"Lesbare Sekunden/Minuten/Stunden/Tage; kein riesiger Sekundenwert; keine negative Zeit, Division durch null oder absurde feste Restzeit bei Stillstand.";Nativ belegt;;;Nicht ausgeführt;;;
@@ -170,7 +170,7 @@ REC-07;Neustart, Unterbrechung und Datenintegrität;P0;Quelle während Pause ge�
 REC-08;Neustart, Unterbrechung und Datenintegrität;P0;Quelle oder Ziel nicht verfügbar;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Pausieren
 2. Testlaufwerk trennen/Netz sperren
 3. Fortsetzen
-4. Wieder verbinden";"Wartender/fehlerhafter Zustand mit Grund; keine lokale Ersatzkopie in leeren Mountpunkt; nach Wiederverbindung kontrollierte Fortsetzung.";Teilweise belegt;REG-NAS-01, REG-NAS-03, REG-NAS-09, REG-CLOUD-12, REG-NAS-13;;Nicht ausgeführt;;;
+4. Wieder verbinden";"Wartender/fehlerhafter Zustand mit Grund; keine lokale Ersatzkopie in leeren Mountpunkt; nach Wiederverbindung kontrollierte Fortsetzung.";Teilweise belegt;REG-NAS-01, REG-NAS-03, REG-NAS-09, REG-CLOUD-12, REG-NAS-13, REG-NAS-14;;Nicht ausgeführt;;;
 REC-09;Neustart, Unterbrechung und Datenintegrität;P0;Anderes Laufwerk am gleichen Pfad;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Pause
 2. Testmedium entfernen
 3. Anderes Testmedium am gleichen Mountpfad einhängen
@@ -196,7 +196,7 @@ TRASH-03;Papierkorb, Historie und Rückgängig;P0;Cache-Rennen nach Entfernen;"D
 TRASH-04;Papierkorb, Historie und Rückgängig;P0;Aus Papierkorb wiederherstellen;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Vorgang mit mehreren entfernten Dateien wählen
 2. Wiederherstellen";"Gesamter gewählter Entfernungsvorgang wird korrekt zurückgenommen; Inhalt/Hashes gleich; keine Verwechslung mit System-/Provider-Papierkorb.";Nativ belegt;;;Nicht ausgeführt;;;
 TRASH-05;Papierkorb, Historie und Rückgängig;P0;Undo für jede mutierende Operation;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Kopieren, Verschieben, Ersetzen, Umbenennen, Ordner anlegen, ZIP erzeugen und Entpacken jeweils separat ausführen
-2. Jeweils zugehörigen Historieneintrag rückgängig";"Ursprünglicher Zustand soweit dokumentiert wiederhergestellt; betroffene Pfade stimmen; andere Vorgänge unverändert. Jede Variante als eigenen Lauf erfassen.";Teilweise belegt;REG-CLOUD-04, REG-CLOUD-05, REG-CLOUD-06, REG-REMOTE-01, REG-GDOC-01, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03, REG-GDOC-04, REG-GDOC-05, REG-CLOUD-09, REG-CLOUD-16, REG-GDOC-07, REG-CLOUD-17;;Nicht ausgeführt;;;
+2. Jeweils zugehörigen Historieneintrag rückgängig";"Ursprünglicher Zustand soweit dokumentiert wiederhergestellt; betroffene Pfade stimmen; andere Vorgänge unverändert. Jede Variante als eigenen Lauf erfassen.";Teilweise belegt;REG-CLOUD-04, REG-CLOUD-05, REG-CLOUD-06, REG-REMOTE-01, REG-GDOC-01, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03, REG-GDOC-04, REG-GDOC-05, REG-CLOUD-09, REG-CLOUD-16, REG-GDOC-07, REG-CLOUD-17, REG-NAS-14;;Nicht ausgeführt;;;
 TRASH-06;Papierkorb, Historie und Rückgängig;P0;Undo mit nachträglich geändertem Ziel;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Kopieren/ersetzen
 2. Zieldatei extern ändern
 3. Undo

@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [64 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [65 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -311,6 +311,13 @@ Der Mac-Nachtest stoppte einen isolierten Downloadprozess mit einem kontrolliert
 2. Die integrierte Vorschau wählen. Die Grössenmeldung muss erscheinen. Das Transportprotokoll darf dabei keinen Inhaltsdownload zeigen.
 3. Auf derselben Datei «Öffnen» wählen. Der Vorgang muss den vollständigen Download vorbereiten und eine Kopie zum Speichern anbieten. Nach «Abbrechen» muss die temporäre Kopie entfernt sein. In einer Wiederholung die Kopie speichern und Dateilänge sowie Bytefolgen vor dem externen Öffnen prüfen.
 4. Die Grössenmeldung bei der integrierten Vorschau eines zu grossen Videos ebenfalls prüfen. Über «Öffnen mit …» muss eine vollständige Kopie zur Wahl einer externen Anwendung angeboten werden. Die Anbieterdateien bleiben unverändert.
+
+### Fehlerhafte Zieldatei beim Cloud-Download auf SMB finden
+
+1. Einen eigenen Cloud-Testordner mit zwei Dateien und einem verschachtelten Unicode-Pfad anlegen. Beide SHA-256-Prüfsummen und eine separate Kontrolldatei auf einer SMB-Testfreigabe erfassen.
+2. Den Ordner auf die Testfreigabe kopieren. Über den Fehleradapter in genau einer eigenen Zieldatei nach dem Schreiben und vor der abschliessenden Inhaltsprüfung ein Byte ändern. Die Karte muss den betroffenen Zielpfad und die fehlgeschlagene Inhaltsprüfung melden. Es darf kein erfolgreicher Historieneintrag entstehen.
+3. Einen neuen Testprozess starten. Dort müssen derselbe Auftrag und derselbe Fehlerpfad sichtbar sein. Mit einer separaten Nur-Lese-Verbindung den geänderten Inhalt feststellen. «Fortsetzen» bei weiterhin geänderten Zieldaten muss mit demselben Fehler stoppen. Quellordner, Zielbytes und Kontrolldatei bleiben prüfbar.
+4. Nur das absichtlich geänderte Byte des Testauftrags wiederherstellen und denselben Auftrag fortsetzen. Die bereits geprüfte zweite Datei wird weder erneut geladen noch neu geschrieben. Beide Zielprüfsummen müssen stimmen. Ein erfolgreicher Historieneintrag muss «Rückgängig» ermöglichen. Per neuer Nur-Lese-Verbindung prüfen, dass die Kontrolldatei erhalten und die Testkopie entfernt ist.
 
 ## Ergebnis festhalten
 
