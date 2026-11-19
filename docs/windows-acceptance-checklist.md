@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [90 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [91 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -509,6 +509,17 @@ Der signierte Mac-Build 367 zeigte im hellen englischen und dunklen deutschen Fa
 Im signierten Mac-Build 368 blieb der Auftrag bei leerem Einhängepfad pausiert und zeigte die Meldung für das getrennte Laufwerk. Beim zweiten Volume erschien die Meldung zum abweichenden Volume. Das leere Verzeichnis und die Dateien auf dem zweiten Volume blieben unverändert. Mit dem Original setzte dieselbe ID den Auftrag bytegenau fort. «Rückgängig» erhielt Quelle und Kontroll-Datei. Im getrennten Abbruchlauf enthielt der Wiederherstellungsordner auf dem Original die unveränderte Teildatei.
 
 Beim Versionswechsel von Build 367 auf 368 verwendete die signierte Test-App eine echte ältere Warteschlange mit einer Teildatei und einem bereits abgeschlossenen Auftrag. Ein erneuter Versuch am eingebundenen exFAT-Laufwerk ergänzte den gespeicherten Einhängepfad. Nach erneutem App-Start mit abgezogenem Laufwerk erschien die passende Meldung. Mit dem Original wurde derselbe Auftrag fortgesetzt und bytegenau abgeschlossen. Beide Kopien liessen sich über ihre Historieneinträge rückgängig machen.
+
+### exFAT-Quelllaufwerk nach einem Prozessabbruch prüfen
+
+1. Eine Testdatei mit 320 MiB und bekannter SHA-256-Prüfsumme auf einem eigenen exFAT-Testabbild ablegen. In einem separaten App-Profil die Kopie auf das lokale Laufwerk starten. Nur den Testprozess beenden, sobald das Ziel nachweislich bereits Daten enthält und der Auftrag noch läuft.
+2. Das Quellabbild aushängen und die App im selben Profil starten. Dieselbe Auftrags-ID und «Fortsetzen» müssen verfügbar sein. «Fortsetzen» muss bei fehlender Quelle anhalten und zum erneuten Verbinden auffordern. Die lokale Teildatei muss dieselben Bytes enthalten. Ein Erfolgseintrag in der Historie darf noch nicht erscheinen.
+3. Ein anderes exFAT-Abbild mit eigener Volume-ID am selben Pfad einhängen. Darauf eine Datei gleichen Namens und gleicher Länge verwenden. Den Versuch auch mit identischen Bytes wiederholen. Die Meldung muss das falsche Quelllaufwerk benennen und auch nach einem App-Neustart verständlich sein. Die Teildatei am Ziel und die Datei auf dem fremden Laufwerk müssen ihren vorherigen SHA-256-Wert behalten.
+4. Das Original wieder einhängen. Denselben Auftrag fortsetzen, die fertige Kopie unabhängig hashen und genau einen Historieneintrag prüfen. «Rückgängig» wählen. Das Ziel muss entfernt werden. Die Quelle und die separate lokale Kontrolldatei bleiben unverändert.
+
+Build 369 verweigerte die Fortsetzung mit dem fremden Laufwerk und liess die Teildatei intakt. In der Oberfläche und nach einem Neustart erschien dafür nur ein allgemeiner Integritätsfehler.
+
+Im signierten Mac-Build 370 erschien bei fehlendem exFAT-Quelllaufwerk die Aufforderung zur Wiederverbindung. Bei einem anderen Volume am selben Pfad forderte die App dazu auf, das ursprüngliche Quelllaufwerk wieder zu verbinden. Die Meldung blieb nach einem App-Neustart sichtbar. Mit dem Original setzte die App denselben Auftrag fort. Die 320 MiB stimmten im unabhängigen SHA-256-Vergleich. Genau ein Historieneintrag entstand und Rückgängig entfernte nur die Kopie. Die 42 exFAT-Prüfungen umfassten auch einen getrennten Versuch mit völlig identischer Quelldatei auf dem fremden Volume. 79 Journalprüfungen bestanden ebenfalls.
 
 ### Lokale Miniatur nach Dateiersatz prüfen
 
