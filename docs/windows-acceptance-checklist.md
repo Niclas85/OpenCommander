@@ -317,6 +317,10 @@ Einmal ⌘R aktualisierte in Mac-Build 387 nur den aktiven Bereich. Dadurch fehl
 
 Der signierte Mac-Build 322 bestand diese Variante mit echten Anbieterantworten für Dropbox und Google Drive. Für den vollständigen Fall den Token-Widerruf am dedizierten Testkonto aus der CSV und die weiteren Anbieter separat prüfen.
 
+Für den parallelen Nachtest mit einem kontrollierten Testadapter zwei Bereiche mit derselben Verbindung öffnen. Beide Listen zuerst laden, dann die nächste Aktualisierung mit HTTP 401 beantworten. Abrufzahl, alte Zeilen und Anmeldeaktion in beiden Bereichen prüfen. Den Wiederverbindungsdialog öffnen und abbrechen. Nach einem App-Neustart den weiterhin abgelehnten Zustand prüfen. Anschliessend dem Adapter wieder Zugriff gewähren und den Abruf ausdrücklich wiederholen. Danach den Ablauf mit zwei getrennten Testkonten durchführen. Die zweite Verbindung muss ihre aktuelle Liste behalten und normal aktualisieren können.
+
+Im signierten Mac-Build 392 simulierte der rclone-Testadapter HTTP 401 nach einer erfolgreichen ersten Liste. Bei zwei Ansichten derselben Verbindung genügte pro App-Prozess eine Anfrage. Beide Ansichten entfernten die alten Zeilen und zeigten den Anmeldehinweis. Mit getrennten synthetischen Konten aktualisierte die zweite Verbindung ihre Liste weiterhin. Die Wiederverbindung öffnete die korrekte gespeicherte Konfiguration. Abbrechen erhielt beide Testprofile. Während des Beobachtungsfensters von rund elf Sekunden startete kein automatischer neuer Abruf. Nach dem Neustart blieb die Ablehnung sichtbar. Sobald der Testadapter den Zugriff wieder gewährte, erschien die neue Dateiliste nach «Erneut versuchen». Konfigurationen und Testdateien stimmten bytegenau. Die Historie blieb leer. Der Token-Widerruf an einem echten Konto ist weiterhin offen.
+
 ### Cloud-Dateiaktionen nach App-Neustart rückgängig machen (CLOUD-03, TRASH-05)
 
 1. In einem eigenen Cloud-Testordner zwei Dateien mit unterschiedlichen Inhalten ablegen. Objekt-IDs und SHA-256-Prüfsummen mit einem zweiten Client erfassen.
