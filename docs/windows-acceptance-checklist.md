@@ -220,6 +220,8 @@ Bei einem kontrollierten Mac-Nachtest des Arbeitsstands für Build 323 entfiel b
 
 Im Live-Nachtest mit dem signierten Build 323 speicherte der Google-Drive-Auftrag für zwei Dateien und zwei Unterordner seinen Historieneintrag nach 698 Sekunden. Ein unabhängiger Download bestätigte beide SHA‑256-Prüfsummen sowie den leeren und den verschachtelten Unterordner. Nach App-Neustart entfernte «Rückgängig» den ursprünglichen Zielnamen und behielt dieselben Daten im ausgewiesenen Wiederherstellungsordner. Die Quelle und die synthetischen Kontrolldateien blieben bytegenau. Ein leerer auftragsbezogener Ordner `.OpenCommander-Tree-Files-…` war neben dem Ziel sichtbar und blieb auch nach «Rückgängig» vorhanden. Für den Windows-Nachtest nach Abschluss und nach Rückgängig zusätzlich die Geschwistereinträge im Zielordner erfassen.
 
+Der separate D1-Upload mit Build 322 speicherte einen Abschlussbeleg für alle 37 Dateien. Ein unabhängiger Download bestätigte alle relativen Pfade, Dateitypen, Grössen und SHA‑256-Prüfsummen sowie die vier Unterordner. Auch bei diesem Auftrag blieb der leere Arbeitsordner neben dem Ergebnis vorhanden. Die Prüfung von «Rückgängig» läuft am ursprünglichen Historieneintrag weiter.
+
 Für TRASH-07 eine neue Entpackung auf Google Drive ausführen. «Rückgängig» starten und abbrechen, sobald die Zielprüfung läuft. Den unveränderten Historieneintrag sowie Objekt-IDs und Prüfsummen des ZIP und der entpackten Dateien prüfen. Die App neu starten und genau denselben Eintrag erneut rückgängig machen. Build 322 bestand diesen Ablauf mit zwei Dateien, darunter eine Unicode-Datei im Unterordner.
 
 Für die grosse lokale Variante 20’000 eigene kleine Dateien aus D2 verwenden und vorab ein Manifest aus relativen Pfaden und SHA-256-Prüfsummen erstellen. Den Testbaum in den OpenCommander-Papierkorb verschieben, «Rückgängig» starten und während der Prüfung abbrechen. Prüfen, dass der Bestand im privaten Papierkorb unverändert bleibt und derselbe Historieneintrag erhalten ist. Die App neu starten, den Eintrag erneut rückgängig machen und den wiederhergestellten Baum mit dem Manifest vergleichen. Build 322 bestand diese Variante auf APFS. Die vollständige Wiederherstellung des D2-Testbaums auf SMB steht noch aus.
@@ -242,6 +244,8 @@ Die macOS-Live-Läufe mit Builds 101 und 102 haben Wiederaufnahme und Rückgäng
 4. Den Anbieterordner separat neu laden. Dokument-ID und Text mit dem Ausgangsstand vergleichen und bestätigen, dass das Original weiterhin ein natives Google-Dokument ist.
 
 Der sichtbare Mac-Nachtest in Build 321 bestätigte den Export bis zur App-Auswahl und deren Abbruch. Eine unabhängige Prüfung des DOCX-Archivs bestätigte den vollständigen Testtext. Die Google-ID und das native Original blieben erhalten.
+
+Für die Inhaltsprüfung vor einer Ordneroperation im Testadapter zunächst zwei normale Dateien und einen leeren Unterordner melden. Im nächsten Verzeichnisabruf eine der Dateien unter demselben Namen als natives Google-Dokument melden. Die App muss die Inhaltsprüfung abbrechen. Im Testprotokoll darf für dieses Objekt kein Export stehen. Mit unverändertem Inventar müssen sämtliche Pfade und Prüfsummen stimmen. Der kontrollierte Mac-Test reproduzierte zuvor den fehlerhaften Export im Prüfablauf. Der korrigierte Arbeitsstand wies ihn ab und las die beiden regulären Dateien korrekt. Der oben beschriebene normale Export über «Öffnen mit …» bleibt verfügbar.
 
 ### Google-Docs-Export nach Prozessabbruch fortsetzen
 
