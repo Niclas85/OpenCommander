@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [101 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [102 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -120,9 +120,11 @@ Die Wiederherstellung aus dem Archiv schuf einen weiteren isolierten SMB-Quellda
 
 Der vollständige unabhängige Vergleich auf SMB umfasste 20’004 Dateien und 107 Unterordner. Zwei Originaldateien wichen vom Manifest ab. Von zwei separat neu geschriebenen Testdateien bestand die 1‑GiB-Datei beide vollständigen Leseläufe. Die neue 2‑GiB-Datei zeigte in beiden frischen Nur-Lese-Verbindungen dasselbe abweichende Byte an Position 2’041’270’620. OpenCommander schrieb diese Dateien nicht. Der Dauerlauf bleibt offen. Auch nach dem gezielten, unmittelbar verifizierten Überschreiben des betroffenen 4‑KiB-Blocks zeigten zwei frische Nur-Lese-Verbindungen dieselbe Abweichung in der separaten 2‑GiB-Testdatei. Die SMB-Quelle wurde für den Dauerlauf nicht freigegeben.
 
-Mit dem signierten Build 384 startete der Dauerlauf von einer lokal rekonstruierten APFS-Quelle. Der unabhängige SHA-256-Vergleich bestätigte alle 20’004 Dateien. Vier getrennte SMB-Zielverbindungen nahmen je den vollständigen Baum an. Das gezielt getrennte Ziel setzte mit derselben Auftrags-ID und Teildatei fort. Für die Zwei-Stunden-Marke und die abschliessenden Zielprüfsummen liegt aus diesem Lauf noch kein Ergebnis vor.
+Mit dem signierten Build 384 startete der Dauerlauf von einer lokal rekonstruierten APFS-Quelle. Der unabhängige SHA-256-Vergleich bestätigte alle 20’004 Dateien. Vier getrennte SMB-Zielverbindungen nahmen je den vollständigen Baum an. Das gezielt getrennte Ziel setzte mit derselben Auftrags-ID und Teildatei fort. Die Zwei-Stunden-Marke wurde in diesem Durchgang nicht erreicht.
 
-Die beiden Abweichungen lagen an Position 348 beziehungsweise 601 innerhalb des jeweiligen 4‑KiB-Blocks. Diese Positionen und die Bitmaske stimmen mit früheren SMB-Befunden überein. Bei einem vergleichbaren Windows-Befund zusätzlich zur absoluten Byteposition auch die Position im Block und die Bitmaske notieren.
+In Build 384 stoppte einer der vier laufenden Aufträge bei der Zielprüfung einer 2‑GiB-Datei. Zwei vollständige unabhängige Nur-Lese-SMB-Verbindungen bestätigten dieselbe Abweichung an Dateiposition 1’873’781’084 (Blockposition 348, XOR 0x02). Die lokale Quelle entsprach dem SHA-256-Manifest. Für das betroffene Ziel gab es weder Abschlussbeleg noch Historieneintrag.
+
+Die beiden Abweichungen in der ursprünglichen SMB-Quelldatei lagen an Position 348 beziehungsweise 601 innerhalb des jeweiligen 4‑KiB-Blocks. Diese Positionen und die Bitmaske stimmen mit früheren SMB-Befunden überein. Bei einem vergleichbaren Windows-Befund zusätzlich zur absoluten Byteposition auch die Position im Block und die Bitmaske notieren.
 
 Ein separater macOS-Dauerlauf verwendet 20’004 ausgelesene und geprüfte lokale Quelldateien und vier getrennte SMB-Zielverbindungen. Bei 69 MiB wurde eine Zielverbindung getrennt. Der betroffene Auftrag pausierte, während die drei anderen weiterliefen. Nach dem erneuten Einbinden lief derselbe Auftrag mit mehr als 69 MiB weiter. Die Zwei-Stunden-Marke und die unabhängige Endprüfung aller Ziele sind noch offen.
 
@@ -259,11 +261,15 @@ Für den Abbruchnachtest den Listenabruf eines eigenen Testordners gezielt verz�
 
 Der signierte Mac-Build 322 bestand diese Varianten für Dropbox und Google Drive. Beim ersten Test lud die App nach rund 15,6 Sekunden einmal erneut. Bei anhaltender Drosselung wurden drei automatische Versuche mit Abständen von rund 16, 21 und 32 Sekunden beobachtet. Während der anschliessenden 32 Sekunden kam kein weiterer Abruf hinzu.
 
+Build 384 behandelte die explizite Diagnose «HTTP 503: serviceNotAvailable» im rclone-Transport als allgemeinen Fehler. Build 385 zeigte die datierte letzte Liste und den Wiederholungszeitpunkt. Ein einziger automatischer Abruf lud danach die neuen Daten. Nach HTTP 429 beendete das Verlassen des Ordners weitere Abrufe. Der App-Test verwendete einen simulierten OneDrive-Transport. Den Adapter für diese Variante mit `HTTP 503: serviceNotAvailable` antworten lassen.
+
 ### Verzögerter Abruf in beiden Bereichen (CLOUD-07)
 
 Den ersten Abruf des eigenen Cloud-Ordners anhalten und denselben Ort rechts öffnen. Beide Bereiche müssen den Ladezustand zeigen. Links den Cloud-Bereich schliessen und prüfen, dass links wieder der lokale Ordner und rechts weiterhin die Ladeanzeige erscheint. Den Abruf freigeben. Die Cloud-Dateien müssen nur rechts erscheinen.
 
 Den Ort danach in beiden Bereichen öffnen und mit einem zweiten Client eine neue Testdatei anlegen. Manuell links aktualisieren, den Abruf verzögern und rechts ebenfalls aktualisieren. Sobald beide Bereiche laden, den Abruf freigeben. Die neue Datei muss in beiden Listen erscheinen. Falls der Testaufbau Anbieteraufrufe protokolliert, die Zahl der Listenabrufe während der Überlappung erfassen. Build 322 bestand beide Varianten mit Dropbox und Google Drive.
+
+Ein separater App-Test mit Build 384 und simuliertem OneDrive-Transport protokollierte je einen Abruf beim Öffnen desselben Ordners in beiden Bereichen, beim manuellen Aktualisieren beider Bereiche und beim späteren Verlassen des linken Bereichs. Der rechte Bereich erhielt die verspätete Liste. Links blieb der eigene lokale Ordner sichtbar.
 
 ### Anmeldewiederherstellung mit abgelehntem Cloud-Token (CLOUD-05)
 

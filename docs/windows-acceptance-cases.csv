@@ -255,7 +255,7 @@ CLOUD-05;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Abgelaufene Autorisierung;
 2. Liste öffnen";"Anmeldefehler klar; keine alte Cacheliste als frisch/live ausgeben; erneute Anmeldung zugänglich.";Teilweise belegt;REG-AUTH-02, REG-AUTH-04;;Nicht ausgeführt;;;
 CLOUD-06;Cloud-Dateien, Live-Zugriff und Freigaben;P1;Rate-Limit und temporäre Fehler;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Über Testadapter 429/temporären Backendfehler liefern
 2. Retry beobachten
-3. Wegnavigieren";"Begrenzte Wiederholungen mit Wartezeit; kein Request-Sturm; ältere Ersatzliste nur mit Alters-/Warnhinweis; Navigation beendet Retry.";Teilweise belegt;;;Nicht ausgeführt;;;
+3. Wegnavigieren";"Begrenzte Wiederholungen mit Wartezeit; kein Request-Sturm; ältere Ersatzliste nur mit Alters-/Warnhinweis; Navigation beendet Retry.";Teilweise belegt;REG-CLOUD-34;;Nicht ausgeführt;;;
 CLOUD-07;Cloud-Dateien, Live-Zugriff und Freigaben;P1;Parallele identische Listen;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Beide Bereiche auf selben Online-Ordner
 2. Gleichzeitig aktualisieren";"Anfragen sinnvoll zusammengeführt; beide Bereiche korrekt; kein gegenseitiges Überschreiben nach Navigation.";Teilweise belegt;REG-CLOUD-15;;Nicht ausgeführt;;;
 CLOUD-08;Cloud-Dateien, Live-Zugriff und Freigaben;P1;Externe rclone-Einbindung;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Separaten eigenen Testmount mit bekanntem Provider öffnen
