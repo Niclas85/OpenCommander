@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [74 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [75 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -461,6 +461,14 @@ Die macOS-Komponententests bestätigten die Ablehnung von Grössenzunahme, gleic
 2. Den Ordner in einen leeren lokalen Testordner kopieren. Der Auftrag muss zwei Dateien als abgeschlossen anzeigen. Unicode-Name, Prüfsumme, leere Datei und leerer Ordner müssen erhalten bleiben. Die Historie muss genau eine Kopie erfassen.
 3. In einer separaten Test-VM mit Testadapter direkt nach dem Speichern des lokalen Kopierbelegs und vor dem Abschluss der Warteschlange den App-Prozess beenden. Die App erneut starten und denselben Auftrag fortsetzen. Die bereits veröffentlichte Kopie muss bestätigt werden. Es darf weder eine zweite Kopie noch einen zweiten Historieneintrag geben. Wenn ein Adapter fehlt, den gezielten Abbruch als offen erfassen.
 4. Nach erneutem Start die Kopie rückgängig machen. Nur der lokale Ordner muss verschwinden. Die Dropbox-IDs und die Dateiinhalte müssen gleich bleiben.
+
+### Dateizähler nach zwei Prozessabbrüchen prüfen
+
+1. Einen Cloud-Testordner mit zwei Dateien von 5 und 7 Bytes vorbereiten. Den Download in eine separate Testinstanz starten. Den Testprozess beenden, nachdem der lokale Inhalt der zweiten Datei mit seinem Beleg gespeichert ist und bevor der gemeinsame Fortschrittsbeleg ersetzt wird.
+2. Im ersten Neustart den bisherigen Beleg mit einer Datei und 5 Bytes bestätigen. Denselben Auftrag fortsetzen. Mit einem Testadapter nach der erneuten lokalen Prüfsummenprüfung beider Dateien den Prozess erneut beenden, bevor eine Kopie im endgültigen Ziel erscheint.
+3. Beim nächsten Neustart muss die Warteschlange zwei bestätigte Dateien und 12 Bytes anzeigen. Beide Dateien müssen bytegenau erhalten sein. Prüfen, dass die Wiederaufnahme keinen zweiten Inhaltsdownload für diese Dateien auslöst. Der Auftrag muss bis zur bestätigten Veröffentlichung als unvollständig gelten.
+
+Der Mac-Komponententest verwendete zwei echte Prozessabbrüche mit eigenen lokalen Prüfdaten. Zuvor blieb der zweite Beleg bei 5 Bytes und einer Datei. Mit der Korrektur enthielt er 12 Bytes und zwei Dateien. Die sichtbare Cloud- und SMB-Abnahme dieses Ablaufs bleibt offen.
 
 ### Cloud-Download nach lokaler Veröffentlichung abbrechen
 
