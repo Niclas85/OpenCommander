@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [93 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [94 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -678,6 +678,14 @@ Für jeden Durchlauf zwei frische Testordner und ein eigenes App-Profil verwende
 Jeweils genau einen passenden Historieneintrag prüfen und dessen eigene Schaltfläche «Rückgängig» verwenden. Bei Ordner, ZIP-Erstellung und Entpacken vor dem Rückgängig die App normal neu starten. Anschliessend die beiden Ausgangsmanifeste vergleichen und prüfen, dass der Eintrag aus der aktiven Historie verschwunden ist.
 
 Der signierte Mac-Build 372 bestand diese sieben getrennten Durchläufe auf APFS. Beide Dateibereiche entsprachen nach jedem Rückgängig exakt dem jeweiligen Ausgangsmanifest. Bei den drei Neustartvarianten blieb genau der ursprüngliche Historieneintrag verfügbar.
+
+### Leere und beschädigte Archive am Online-Ort prüfen (ARCH-07)
+
+1. An einem eigenen beschreibbaren Testort ein gültiges leeres ZIP, eine beschädigte ZIP-Datei und ein gültiges ZIP mit einem leeren Ordner und einer Unicode-Datei ablegen. Die Originale und eine Kontrolldatei unabhängig hashen.
+2. Das leere ZIP entpacken. Die App muss melden, dass das Archiv keine Einträge enthält. Der Ort bleibt frei von neuen Dateien und Ordnern. Anschliessend das beschädigte ZIP entpacken. Die App muss melden, dass es nicht gelesen werden konnte. Den Ort über einen zweiten Client oder direkt am Testserver überprüfen.
+3. Das gültige ZIP entpacken und die neue Struktur, den leeren Ordner und den SHA-256-Wert der Unicode-Datei unabhängig prüfen. Die App normal neu starten und den zugehörigen Historieneintrag rückgängig machen. Alle Originale und die Kontrolldatei müssen den Ausgangswerten entsprechen.
+
+Build 372 legte beim Entpacken eines gültigen leeren ZIPs auf einem echten lokalen FTP-Testserver einen leeren Ordner an. Build 374 erklärte leere und beschädigte Archive getrennt. Das Serverprotokoll enthielt in beiden Fällen keine Ordnererstellung und keinen Upload. Ein gültiges ZIP ergab die erwartete Unicode-Datei und einen leeren Unterordner. Der ursprüngliche Historieneintrag blieb nach App-Neustart verfügbar. Rückgängig entfernte den veröffentlichten Ordner. Die unabhängige Prüfung bestätigte die Originalarchive sowie die lokalen und serverseitigen Kontrolldateien. Der Lauf belegt den gemeinsamen Online-Entpackpfad mit FTP als Gegenstelle. Beim separaten lokalen APFS-Test mit Build 373 erschien die Meldung zum leeren Archiv ebenfalls und der Zielordner blieb unverändert.
 
 ### Rückgängig nach einer Änderung am lokalen Cloud-Kopierziel prüfen (TRASH-06)
 
