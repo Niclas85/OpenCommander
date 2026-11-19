@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [100 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [101 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -118,6 +118,8 @@ Vor einem weiteren Dauerlauf die SMB-Quelldateien mit einer unabhängig erzeugte
 
 Die Wiederherstellung aus dem Archiv schuf einen weiteren isolierten SMB-Quelldatensatz. Der Archivstrom und die aus dem Archiv entpackten Inhalte aller 20’004 Dateien entsprachen dem Manifest. Die unabhängige Vorprüfung der gespeicherten Quelle stoppte bei `Large2GiB.bin`. Zwei frische Nur-Lese-Verbindungen lasen danach die gesamten 2 GiB mit derselben abweichenden Prüfsumme. Gegenüber der direkt aus dem Archiv gelesenen Fassung wichen die Bytes an den nullbasierten Positionen 1’007’042’908 und 2’092’733’017 jeweils um Bitmaske 0x02 ab. Ein separates Programm hatte die Quelle geschrieben. Der vorbereitete Vier-Aufträge-Lauf in der App wartete auf die Vorprüfung und wurde nicht gestartet.
 
+Der vollständige unabhängige Vergleich auf SMB umfasste 20’004 Dateien und 107 Unterordner. Zwei Originaldateien wichen vom Manifest ab. Von zwei separat neu geschriebenen Testdateien bestand die 1‑GiB-Datei beide vollständigen Leseläufe. Die neue 2‑GiB-Datei zeigte in beiden frischen Nur-Lese-Verbindungen dasselbe abweichende Byte an Position 2’041’270’620. OpenCommander schrieb diese Dateien nicht. Der Dauerlauf bleibt offen.
+
 Die beiden Abweichungen lagen an Position 348 beziehungsweise 601 innerhalb des jeweiligen 4‑KiB-Blocks. Diese Positionen und die Bitmaske stimmen mit früheren SMB-Befunden überein. Bei einem vergleichbaren Windows-Befund zusätzlich zur absoluten Byteposition auch die Position im Block und die Bitmaske notieren.
 
 Ein separater macOS-Dauerlauf verwendet 20’004 ausgelesene und geprüfte lokale Quelldateien und vier getrennte SMB-Zielverbindungen. Bei 69 MiB wurde eine Zielverbindung getrennt. Der betroffene Auftrag pausierte, während die drei anderen weiterliefen. Nach dem erneuten Einbinden lief derselbe Auftrag mit mehr als 69 MiB weiter. Die Zwei-Stunden-Marke und die unabhängige Endprüfung aller Ziele sind noch offen.
@@ -192,6 +194,14 @@ Ein unabhängiges Prüfprogramm schrieb auf derselben SMB-Freigabe über vier ge
 2. Die App mit demselben Testprofil und dem verzögerten Ordner erneut aufrufen. Die zweite Instanz muss die Übergabe abschliessen. Die bestehende Instanz muss bedienbar bleiben und darf bis zur erfolgreichen Prüfung keine Dateien des Netzordners anzeigen.
 3. Im anderen Paneel eine Datei filtern. Danach im Paneel mit der wartenden Anfrage einen neuen lokalen Ordner öffnen. Die Freigabe wieder freigeben und prüfen, dass die ältere Anfrage den neuen Ordner nicht ersetzt.
 4. Einen verfügbaren Ordner über die Shell an die laufende Testinstanz übergeben. Separat eine gewöhnliche Datei und einen fehlenden Ordner prüfen. Ungeeignete Pfade müssen eine sichtbare Meldung ergeben. Im Testprofil darf nur eine Instanz schreiben.
+
+### Pausierten Auftrag mit F5 oder F6 erneut auswählen
+
+1. In zwei eigenen lokalen Testordnern gleichnamige Dateien mit unterschiedlichen Inhalten anlegen. Die SHA-256-Prüfsummen beider Dateien notieren. Die Quelldatei gross genug wählen, damit der Transfer pausiert werden kann. Wenn nötig, einen verzögerten Testdatenträger verwenden.
+2. Die Quelle auswählen, F5 drücken und «Beide behalten» wählen. Pausieren, die Auftrags-ID notieren und die App neu öffnen. Im selben Quellordner erneut dieselbe Datei auswählen und F5 mit demselben Ziel auslösen.
+3. Die Warteschlange muss den vorhandenen Auftrag auswählen und fortsetzen. Die ursprüngliche Auftrags-ID und der bereits gewählte Zielname bleiben erhalten. Die ursprüngliche Zieldatei und die Quelle müssen ihre Prüfsummen behalten. Die neu benannte Kopie muss der Quelle entsprechen.
+4. Die App nochmals öffnen und «Rückgängig» aus der Historie auswählen. Die neu benannte Kopie muss verschwinden. Den Ablauf getrennt mit F6 prüfen. Nach erfolgreichem Verschieben darf die Quelle fehlen. «Rückgängig» muss sie unter ihrem ursprünglichen Namen mit denselben Bytes zurückbringen.
+5. Ohne gespeicherten Auftrag eine weitere Datei mit Namenskonflikt kopieren und den Dialog abbrechen. Der Dialog muss erscheinen, und der Abbruch muss beide Dateien unverändert lassen. Bei einer gemischten Auswahl aus pausierter und neuer Datei mit Konflikt muss ein Abbruch auch den pausierten Auftrag in Ruhe lassen.
 
 ## Weitere Prüffälle ohne WebDAV
 
