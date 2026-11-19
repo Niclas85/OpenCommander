@@ -108,6 +108,8 @@ Nach zwei Stunden im fortgesetzten Lauf hatte der letzte Auftrag alle 7’001 Da
 
 Beim letzten Auftrag startete der Eintragszähler nach der Strukturprüfung erneut. Die gespeicherten Auftragsdaten kennzeichneten den zweiten Durchlauf als Prüfung des Abschlussbelegs. Eine Stichprobe des laufenden Prozesses bestätigte diese Phase. Für den Windows-Nachtest beim Wechsel den Phasennamen und den Zähler gemeinsam erfassen und den Auftrag erst nach dem gespeicherten Abschlussbeleg als erledigt werten.
 
+Der letzte Auftrag speicherte nach 2 Stunden 29 Minuten einen Abschlussbeleg und genau einen Historieneintrag für 7’001 Dateien. Nach erneutem Einhängen verglich ein separates Prüfprogramm die Ordnerstruktur und alle 2’149’826’768 Bytes von Quelle und Ziel per SHA-256 mit dem Ausgangsmanifest. Die Kontrolldatei war unverändert. Die drei anderen Aufträge blieben ohne Abschlussbeleg. Der Zweistundenlauf mit vier erfolgreichen Aufträgen bleibt offen.
+
 ### Quelle und Ziel beim SMB-Fortsetzen unterscheiden
 
 1. Einen Kopierauftrag mit einer eigenen SMB-Datei und separater Kontrolldatei anlegen. Den SHA-256 der Quelle ausserhalb der App erfassen. Mit einem Testadapter nach vollständig gespeicherten Dateibytes und vor dem Abschlussbeleg pausieren. Quelle und Ziel müssen zu diesem Zeitpunkt denselben Hash haben.
