@@ -507,11 +507,24 @@ Der signierte Mac-Build 322 stoppte «Rückgängig» für beide isoliert geteste
 
 Für den zusätzlichen Schreibcache-Test ein eigenes rclone-Laufwerk mit verzögertem Writeback und einem unabhängig lesbaren Test-Backend einbinden. Direkt aus der Cloud zum Laufwerk kopieren. Sobald die Warteschlange fertig meldet, muss der Hash am Laufwerk stimmen und der Hinweis zur unbestätigten Synchronisierung sichtbar sein. Das unabhängige Backend darf in der eingestellten Wartezeit noch leer sein. Nach Ablauf der Wartezeit muss es genau dieselben Bytes enthalten. Die Cloud-Quelle währenddessen unabhängig prüfen. «Verschieben» mit einer separaten Testdatei wiederholen. Ohne bestätigte Übertragung zum Anbieter muss die Cloud-Quelle erhalten bleiben.
 
+Der Mac-Nachtest mit einem eingebundenen lokalen NFS-Export bestätigte den Hinweis zur ausstehenden Synchronisierung. Die 256 KiB wurden später unabhängig am Test-Backend bytegenau bestätigt. Das geschützte Verschieben und «Rückgängig» wurden während des offenen Synchronisationszustands mit einer Erklärung abgelehnt. Die Abnahme an einem Cloud-Anbieter und auf echtem SMB bleibt offen.
+
 ### Cloud-Download bei getrenntem Ziellaufwerk wiederaufnehmen
 
 1. Einen eigenen Cloud-Download auf ein separates Testlaufwerk vorbereiten. Mit einem Testadapter nach erfolgreichem Dateisystemtransfer und vor dem Warteschlangenabschluss den App-Prozess beenden. Die Auftrags-ID und den SHA-256 der Testdatei erfassen. Anschliessend das Testlaufwerk trennen.
 2. Die App neu öffnen. In getrennten Läufen «Fortsetzen» und «Abbrechen» am selben gespeicherten Auftrag wählen. Der Auftrag muss pausiert bleiben und auch in der kompakten Ansicht zum Wiederverbinden auffordern. Beim Abbruch muss die ausstehende Prüfung vermerkt bleiben. Am leeren Einbindungspfad dürfen keine Dateien entstehen. Solange die Verbindung fehlt, darf kein erfolgreicher Historieneintrag erscheinen.
 3. Dasselbe Testlaufwerk wieder einbinden und denselben Auftrag fortsetzen. Im Abbruchlauf muss die App zuerst die ausstehende Prüfung abschliessen. Die bereits wirksame Kopie muss bytegenau bestätigt und genau einmal in der Historie erfasst werden. Die unabhängige Prüfsumme am Ziel, der unveränderte Inhalt der Quelle und die ursprüngliche Auftrags-ID müssen stimmen.
+4. Den Ablauf mit einem Ordner mit zwei Dateien, einem Unicode-Dateinamen und einem leeren Unterordner wiederholen. Für «Fortsetzen» den Prozess während des Lesens der zweiten Datei beenden. Beim Neustart darf der Zähler nur die erste bestätigte Datei umfassen. Nach Wiederverbinden soll nur die zweite Datei nochmals angefordert werden. Für «Abbrechen» den Prozess direkt nach dem lokalen Kopierbeleg beenden. Der Abbruch soll nach Wiederverbinden die vorhandene Kopie mit genau einem Historieneintrag bestätigen. Beide Dateien und der leere Unterordner müssen erhalten bleiben.
+
+Der Mac-Integrationstest mit einem simulierten Cloud-Anbieter und einem tatsächlich eingebundenen lokalen NFS-Export bestätigte beide Abläufe. Beim Wiederaufnehmen wurde genau eine Datei erneut angefordert. Beim Abbruch nach dem Kopierbeleg gab es keinen erneuten Inhaltsdownload. Eine unabhängige Kontrolle am Test-Backend bestätigte die beiden Dateien und den leeren Unterordner. Der Lauf mit echtem SMB und die sichtbare Bedienung bleiben offen.
+
+### Ausgewählte NTFS-Quelldatei nach Medienwechsel fortsetzen
+
+1. In einer Test-VM ein beschreibbares NTFS-Testabbild mit einer Datei vorbereiten. Ein zweites Testabbild mit eigenen Volumekennzeichen sowie demselben Ordnernamen und derselben Datei bereitstellen. Die Datei aus dem ersten Abbild kopieren und den Auftrag pausieren.
+2. Das erste Abbild aushängen. «Fortsetzen» wählen und prüfen, dass der Auftrag pausiert bleibt. Das zweite Abbild am gleichen Laufwerksbuchstaben einbinden. Auch dieser Versuch muss stoppen.
+3. Das Original wieder einbinden. Denselben Auftrag fortsetzen, Quell- und Zielprüfsummen vergleichen und den Auftrag rückgängig machen. Der Zielordner muss wieder seinem Ausgangszustand entsprechen.
+
+Auf dem Mac bestand der Fall mit virtuellen NTFS-Testabbildern und dem installierten FSKit-Treiber. Das zweite Abbild hatte eine andere Seriennummer. Nach Wiederanschluss des Originals unter einer neuen Gerätekennung wurde derselbe Auftrag korrekt fortgesetzt und rückgängig gemacht. Der Nachtest mit einem physischen NTFS-Gerät steht aus.
 
 ### Unvollständigen Cloud-Download nach Prozessabbruch bereinigen
 
