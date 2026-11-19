@@ -661,6 +661,24 @@ Die sechs isolierten macOS-Varianten bestanden mit simulierten Microsoft-Graph-A
 2. «Rückgängig» starten. Den Testprozess beenden, nachdem die Quelle zurückgekehrt ist und der Anbieter die veröffentlichte Kopie unter dem Wiederherstellungsnamen gesichert hat. Der vorherige Zielinhalt darf zu diesem Zeitpunkt noch nicht unter dem öffentlichen Namen stehen.
 3. Nach Neustart denselben Rückgängig-Eintrag ausführen. Nur der fehlende letzte Umbenennungsschritt darf gesendet werden. Die beiden Originale müssen mit ihren IDs und Prüfsummen zurückkehren. Erneutes Prüfen in einem weiteren Prozess darf keine Mutation wiederholen. Der Mac-Nachtest hat diese Prozessgrenze mit simulierten Anbietern geprüft.
 
+### Rückgängig für sieben lokale Dateiaktionen prüfen (TRASH-05)
+
+Für jeden Durchlauf zwei frische Testordner und ein eigenes App-Profil verwenden. Den D1-Baum mit 33 Testdateien vorbereiten und relative Pfade, Dateitypen, SHA-256-Werte, leere Ordner und gegebenenfalls Linkziele erfassen. In beiden Dateibereichen je eine unbeteiligte Kontrolldatei ablegen.
+
+| Aktion | Prüfung vor Rückgängig | Prüfung nach Rückgängig |
+| --- | --- | --- |
+| Kopieren | Der Zielbaum entspricht dem Quellmanifest. | Der Zielbaum verschwindet. Die Quelle bleibt erhalten. |
+| Verschieben | Der Zielbaum entspricht dem Quellmanifest und der alte Quellpfad ist frei. | Der frühere Quellpfad enthält wieder den vollständigen Baum. |
+| Ersetzen | Ein vorhandener gleichnamiger Zielordner mit anderer Testdatei wird nach ausdrücklicher Bestätigung ersetzt. | Der frühere Zielordner mit seiner ursprünglichen Datei kommt zurück. |
+| Umbenennen | Der Baum liegt unter dem neuen Namen und hat unveränderten Inhalt. | Der alte Name und das ursprüngliche Manifest sind wieder vorhanden. |
+| Ordner anlegen | Der neue Ordner existiert und ist leer. | Der neue Ordner verschwindet. |
+| ZIP erstellen | Das gespeicherte ZIP unabhängig öffnen. Alle Einträge und Prüfsummen müssen stimmen. Hierfür reguläre Dateien und Ordner aus D1 verwenden. | Das ZIP verschwindet und der gepackte Quellbaum bleibt erhalten. |
+| Entpacken | Ein separat erstelltes ZIP in den anderen Dateibereich entpacken. Die entpackten Pfade und Prüfsummen entsprechen dem Archiv. | Die entpackten Einträge verschwinden. Das Quellarchiv bleibt bytegenau erhalten. |
+
+Jeweils genau einen passenden Historieneintrag prüfen und dessen eigene Schaltfläche «Rückgängig» verwenden. Bei Ordner, ZIP-Erstellung und Entpacken vor dem Rückgängig die App normal neu starten. Anschliessend die beiden Ausgangsmanifeste vergleichen und prüfen, dass der Eintrag aus der aktiven Historie verschwunden ist.
+
+Der signierte Mac-Build 372 bestand diese sieben getrennten Durchläufe auf APFS. Beide Dateibereiche entsprachen nach jedem Rückgängig exakt dem jeweiligen Ausgangsmanifest. Bei den drei Neustartvarianten blieb genau der ursprüngliche Historieneintrag verfügbar.
+
 ### Rückgängig nach einer Änderung am lokalen Cloud-Kopierziel prüfen (TRASH-06)
 
 1. Eine eigene Datei über eine direkte Cloud-Verbindung in einen lokalen Testordner ziehen und die gleichnamige lokale Datei mit «Ersetzen» überschreiben. Die Prüfsummen der drei Dateien festhalten: Cloud-Quelle, frühere lokale Version und separate Kontrolldatei. Vor dem nächsten Schritt den erfolgreichen Auftrag und seinen Historieneintrag bestätigen.
