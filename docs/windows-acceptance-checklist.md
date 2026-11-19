@@ -181,6 +181,16 @@ Ein unabhängiges Prüfprogramm schrieb auf derselben SMB-Freigabe über vier ge
 
 Der signierte Mac-Build 356 bestand den sichtbaren Suchnachtest. ⌘F öffnete die Suche im aktiven Ordner. Der Pfad liess sich ändern, die Treffer zeigten den absoluten Pfad und die standardmässig abgewählte Gross-/Kleinschreibung liess sich einschalten. Mit zwei eigenen Dateien, etwa `Links\Mixed.txt` und `Rechts\mixed.txt`, lässt sich derselbe Wechsel auf Windows mit der dortigen Such-Tastenkombination prüfen.
 
+### Zwischen Dateifenstern und Explorer ziehen (FILE-03)
+
+1. Zwei vorbereitete Testordner in OpenCommander öffnen. Eine Datei direkt auf eine Ordnerzeile im Ziel ziehen. Im Kopiermodus muss die Quelle erhalten bleiben. Im Verschiebemodus muss sie an den Zielort wechseln. Die Zieldatei darf ausschliesslich im gewählten Unterordner erscheinen. Für beide Läufe den Historieneintrag und «Rückgängig» prüfen.
+2. In Windows-Explorer einen separaten Testordner daneben öffnen. Eine Testdatei von dort auf dieselbe Ordnerzeile ziehen. Die Standardgeste, den Verschiebemodifikator vor und während des Ziehens sowie den Kopiermodifikator bei aktivem Verschiebemodus jeweils separat prüfen. Quelle und Ziel nach dem Ablegen und nach «Rückgängig» per Prüfsumme kontrollieren.
+3. Eine eigene Datei in Gegenrichtung nach Explorer ziehen und mit dem Kopiermodifikator ablegen. Beide Dateien müssen bytegleich sein. Bei sichtbarem Ziel mit Escape abbrechen und prüfen, dass kein Auftrag entsteht. Die Modifikatortasten für eine Verknüpfung separat testen und das Verhalten des Windows-Builds erfassen. Mac-Build 356 wies diese Geste beim Eingang von Finder zurück.
+4. Eine Datei über dem unteren Rand einer langen Zielliste halten. Sichtbare Zeilennamen vor und nach dem automatischen Scrollen festhalten. Während des Ziehens Escape drücken. Quelle, Zielordner und Auftragsliste müssen ihren ursprünglichen Zustand behalten.
+5. Eine Datei über einem eingeklappten Ordner im Ordnerbaum halten. Dessen Unterordner müssen nach kurzer Zeit sichtbar werden. Mit Escape abbrechen. Prüfen, dass dadurch kein Kopier- oder Verschiebeauftrag entsteht.
+
+Im signierten Mac-Build 356 bestanden die Standardgeste, Verschieben vom Finder mit ⌘ vor oder während des Ziehens, Kopieren mit Option bei aktivem Verschiebemodus, Export in den Finder und Escape. Die Zielliste scrollte beim Halten der Maus und der Ordnerbaum klappte das gehaltene Ziel auf. F5 und F6 bestanden separat mit lokalen Zielordnern, bytegenauem Ergebnis, Historie und «Rückgängig».
+
 ### Kalter und warmer Cloud-Ordnerabruf (CLOUD-01)
 
 In einem frischen Testprofil einen eigenen Cloud-Ordner mit einer Testdatei auf oberster Ebene und einer anderen Datei in einem Unterordner öffnen. Die Zeit vom Klick bis zur richtigen Dateiliste erfassen. Dann den Unterordner öffnen, mit «Zurück» zum Hauptordner wechseln, den Cloud-Bereich schliessen und denselben Ort erneut öffnen. Kalten Erstabruf und warmes Wiederöffnen separat protokollieren. Ladeanzeige, Möglichkeit zum Schliessen und die unveränderte Ansicht im zweiten Bereich prüfen. Objekt-IDs und Dateiinhalte unabhängig beim Anbieter vergleichen.
