@@ -247,6 +247,16 @@ Für die Listenvariante zuerst den eigenen Cloud-Testordner laden und dann die V
 
 Der signierte macOS-Build 322 bestätigte die drei lokalen Eingaben und das Cloud-Bildlimit bei Dropbox und Google Drive. Beim Stillstandstest erschien in beiden Diensten nach rund 30 Sekunden der Hinweis. Die App entfernte die unvollständigen temporären Daten, und die Wiedergabe war beim erneuten Versuch möglich.
 
+### Miniaturen beim Scrollen und Ordnerwechsel prüfen (MEDIA-12)
+
+1. In einem eigenen Cloud-Testordner 30 nummerierte, synthetische PNGs mit unterschiedlichen Farben ablegen. Daneben einen leeren Ordner anlegen. IDs und Prüfsummen der Bilder erfassen.
+2. Den Bilderordner über die direkte Verbindung in OpenCommander öffnen. Zwei sichtbare Miniaturen mit ihren Dateien vergleichen. Mit dem Mausrad nach unten scrollen und zwei weitere sichtbare Miniaturen vergleichen.
+3. Den leeren Ordner öffnen und warten, bis er vollständig geladen ist. Die Bildzeilen des vorherigen Ordners dürfen dort nicht auftauchen. Den Bilderordner erneut öffnen und dieselben vier Miniaturen überprüfen.
+4. Wenn ein Testadapter Inhaltsanfragen erfasst, die Zähler für die vier bereits vollständig geladenen Miniaturen vor und nach dem Wiederöffnen vergleichen. Sie müssen gleich bleiben. Bei pixelgenauen Vergleichen Bildschirmaufnahmen anhand ihres Farbprofils nach sRGB umrechnen. IDs und Prüfsummen aller Testbilder am Anbieter erneut prüfen.
+5. Eines der sichtbaren Testbilder über einen unabhängigen Client durch ein andersfarbiges PNG gleicher Grösse ersetzen. Nach Möglichkeit Objekt-ID und Änderungsdatum beibehalten. Die geänderte Prüfsumme erfassen, den Ordner neu laden und beide Miniaturen vergleichen. Das ersetzte Bild muss seine neue Farbe zeigen. Beim unveränderten Nachbarbild darf der Zähler für Inhaltsanfragen gleich bleiben.
+
+Der signierte Mac-Build 322 zeigte bei Dropbox und Google Drive vier geprüfte Miniaturen nach dem Wiederöffnen ohne erneuten Download. Beim separaten Google-Drive-Test aktualisierte die App das geänderte Bild mit einem Download und verwendete für das unveränderte Nachbarbild weiter den Cache.
+
 ### Cloud-Ordner-Download mit Neustart und Rückgängig
 
 1. Einen eigenen Dropbox-Testordner mit `Unterordner/Grüße.txt`, dem leeren Ordner `Unterordner/Leer` und der leeren Datei `Empty.txt` anlegen. Inhalt und SHA-256 von `Grüße.txt` unabhängig erfassen. Falls verfügbar, die Dropbox-IDs festhalten.
