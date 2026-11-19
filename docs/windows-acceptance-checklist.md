@@ -191,6 +191,8 @@ Für die beiden Archivvarianten zuerst aus einer normalen Quelldatei ein ZIP erz
 
 Build 322 bestand ZIP und Entpacken samt Rückgängig mit Dropbox und Google Drive. Beim Rückgängigmachen der Entpackung auf Google Drive endete das erste Beobachtungsfenster nach 75 Sekunden. In einer neuen Testinstanz war die Prüfung noch nach 167 Sekunden aktiv und schloss anschliessend erfolgreich ab. Die Objekt-ID und der Inhalt des Eingabearchivs stimmten beim unabhängigen Anbieterabruf weiterhin überein.
 
+Für TRASH-07 eine neue Entpackung auf Google Drive ausführen. «Rückgängig» starten und abbrechen, sobald die Zielprüfung läuft. Den unveränderten Historieneintrag sowie Objekt-IDs und Prüfsummen des ZIP und der entpackten Dateien prüfen. Die App neu starten und genau denselben Eintrag erneut rückgängig machen. Build 322 bestand diesen Ablauf mit zwei Dateien, darunter eine Unicode-Datei im Unterordner. Der separate grosse Wiederherstellungstest bleibt offen.
+
 ## Ergebnis festhalten
 
 Pro Fall den Windows-Build, den Status, die Abweichung vom Soll und einen Beleg erfassen. Bei einem Fehler in «Fehler-ID» die ID des Windows-Issues eintragen und dort die Variante, Reproduktionsschritte, Uhrzeit und genaue Meldung festhalten. Die passende Mac-Regressions-ID kann im Windows-Issue als Referenz angegeben werden.
