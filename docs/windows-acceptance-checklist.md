@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [99 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [100 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -739,6 +739,15 @@ Build 379 wies F5 aus dem in der App geöffneten FTP-Archiv mit einer Schreibsch
 5. Als Kontrolle das Archiv bei unverändertem Ziel normal per F5 kopieren. `Docs (2)` muss ausschliesslich den Inhalt des aktuellen Archivordners enthalten. Die App neu starten, den passenden Eintrag rückgängig machen und beide Ausgangsmanifeste vergleichen. Bei einem Laufwerkstest für das Ziel ein separates Testmedium verwenden.
 
 Mac-Build 380 entpackte ZIP und TAR.GZ in den Ersatzordner und meldete Erfolg. In Build 381 blieben nach dem Zielordnerwechsel beide Ordner und die Historie unverändert. Zwei Abbruchtests erhielten dieselben Ausgangsdaten. Normales Kopieren mit Namenskonflikt und Rückgängig nach App-Neustart bestand auf APFS, SMB sowie je einem frisch erzeugten exFAT- und FSKit-NTFS-Abbild. Die unabhängige Nachprüfung bestätigte auch die Bytes im privaten Rückgängig-Ordner. Die beiden Abbilder wurden nach der Prüfung wieder ausgehängt.
+
+### Cloud-Archiv mit gleicher Grösse und neuer Version prüfen
+
+1. Zwei eigene ZIP-Dateien mit identischem Dateinamen und exakt gleicher Länge vorbereiten. Das ausgewählte Textmitglied muss unterschiedliche Bytes haben. Für beide Archive Objekt-ID, Version und SHA-256 festhalten. Am lokalen Ziel einen Ordner mit demselben Namen und eine Kontrolldatei anlegen.
+2. Die erste Version in OpenCommander auflisten. Im kontrollierten Testtransport erst nach dieser Auflistung unter gleichem Namen und gleicher Grösse die zweite Version bereitstellen. Beim Doppelklick auf die alte Zeile muss die App die Änderung melden und im Online-Ordner bleiben. Der Testtransport darf keinen Archivdownload melden. Das lokale Ziel und die Historie unabhängig prüfen.
+3. Den Test zurücksetzen. Die Version diesmal erst nach dem Abruf der ersten Archivbytes und vor der letzten Versionsprüfung wechseln. Die App muss auch dann im Online-Ordner bleiben. Den temporären Download und den leeren Verlauf prüfen. Das Ziel und die Kontrolldatei müssen weiterhin ihre ursprünglichen Prüfsummen haben.
+4. Die Dateiliste mit der neuen Version aktualisieren und das ZIP erneut öffnen. Ein einzelnes Mitglied per **F5** in den anderen Dateibereich kopieren. Nur dessen Bytes und der benötigte Unterordner dürfen im Ziel erscheinen. Nach App-Neustart den Kopiereintrag rückgängig machen und beide Ordner unabhängig prüfen.
+
+Mit simuliertem Dropbox-Transport öffnete Build 381 nach dem Austausch die neue Datei aus der alten Zeile. Der signierte Build 382 stoppte vor dem Download und räumte bei einem Wechsel während des Downloads die temporäre Datei auf. Zwei weitere App-Läufe öffneten je eine frisch gelistete Archivversion und bestanden die gezielte Kopie mit Rückgängig nach Neustart. Diese Nachtests verwendeten eigene Testdaten und eine isolierte App-Konfiguration.
 
 ### Online-Vorschau während eines Downloads wechseln und schliessen (MEDIA-06)
 
