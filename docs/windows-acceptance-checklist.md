@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [62 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [63 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -297,6 +297,13 @@ Der Mac-Nachtest stoppte einen isolierten Downloadprozess mit einem kontrolliert
 2. Nach dem Anbieter-Download das Schreiben am Ziel mit einem Testadapter in der zweiten Datei anhalten. Die erste Datei muss am Ziel bereits intern geprüft sein. Die aufgeklappte Auftragskarte soll **1 von 2 Dateien**, die bekannten Gesamtbytes und die bereits am Ziel geschriebenen Bytes zeigen. Der Auftrag ist noch aktiv und steht unter 100 %.
 3. Pausieren und prüfen, dass der Auftrag bei **1 von 2** bleibt und noch keinen erfolgreichen Historieneintrag hat. Denselben Auftrag fortsetzen. Einen zusätzlichen Inhaltsdownload vom Anbieter ausschliessen.
 4. Erst nach Abschluss **2 von 2 Dateien** und **100 %** erwarten. Beide Zieldateien und ihre SHA-256-Prüfsummen vergleichen. Prüfen, dass die beiden Quelldateien weiter vorhanden sind.
+
+### Schreiben und Prüfen am Cloud-Downloadziel beobachten
+
+1. Einen eigenen Cloud-Ordner mit einer kleinen und einer deutlich grösseren Datei auf ein lokales Testziel kopieren. Den Anbieter-Download und das Schreiben am Ziel soweit verlangsamen, dass beide Phasen sichtbar sind.
+2. Beim Schreiben am Ziel müssen der Kopierstatus und ein Fortschrittswert unter 100 % erscheinen, sofern die Gesamtbytes bekannt sind. Die Geschwindigkeit muss aus den Bytes am Ziel berechnet werden. Beim Phasenwechsel wartet die Anzeige auf neue Messwerte.
+3. Den Auftrag in der zweiten Datei pausieren und fortsetzen. Beim Prüfen bereits geschriebener Teildaten und des vollständigen Inhalts müssen die Details kopierte Gesamtbytes und aktuell geprüfte Bytes separat anzeigen. Die Metadatenprüfung soll Einträge zählen. Die Prozentzahl des gesamten Auftrags bleibt unter 100 %, auch wenn die Inhaltsprüfung alle Bytes umfasst.
+4. In der Abschlussphase die Veröffentlichung beobachten. 100 % und der erfolgreiche Historieneintrag erscheinen erst nach bestätigtem Abschluss. Beide SHA-256-Prüfsummen vergleichen. Die Prüfung auf SMB mit einer eigenen Freigabe wiederholen.
 
 ## Ergebnis festhalten
 
