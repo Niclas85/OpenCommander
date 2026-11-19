@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [104 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [105 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -200,6 +200,15 @@ Ein unabhängiges Prüfprogramm schrieb auf derselben SMB-Freigabe über vier ge
 2. Die App mit demselben Testprofil und dem verzögerten Ordner erneut aufrufen. Die zweite Instanz muss die Übergabe abschliessen. Die bestehende Instanz muss bedienbar bleiben und darf bis zur erfolgreichen Prüfung keine Dateien des Netzordners anzeigen.
 3. Im anderen Paneel eine Datei filtern. Danach im Paneel mit der wartenden Anfrage einen neuen lokalen Ordner öffnen. Die Freigabe wieder freigeben und prüfen, dass die ältere Anfrage den neuen Ordner nicht ersetzt.
 4. Einen verfügbaren Ordner über die Shell an die laufende Testinstanz übergeben. Separat eine gewöhnliche Datei und einen fehlenden Ordner prüfen. Ungeeignete Pfade müssen eine sichtbare Meldung ergeben. Im Testprofil darf nur eine Instanz schreiben.
+
+### Fehlgeschlagene Aufträge gemeinsam fortsetzen
+
+1. In einem eigenen Testprofil eine Kopie durch ein vorübergehend nicht erreichbares Ziel scheitern lassen. Die Auftrags-ID notieren und das Ziel wieder verbinden. Die App schliessen und mit demselben Profil öffnen. Den Zustand vor der ersten Eingabe prüfen.
+2. Nur «Alle fortsetzen» wählen. Der Button muss auch bei ausschliesslich fehlgeschlagenen Aufträgen verfügbar sein. Der Auftrag muss mit derselben ID weiterlaufen und nach Erfolg genau einmal in der Historie stehen. Zielbytes unabhängig prüfen.
+3. Mit einem fehlgeschlagenen, einem pausierten und einem endgültig abgebrochenen Auftrag wiederholen. Nur die ersten beiden dürfen weiterlaufen. Den Ablauf für lokale Dateien und für den Testadapter eines Online-Anbieters prüfen.
+4. Einen getrennten Gegenversuch mit einem fehlgeschlagenen Auftrag durchführen, dessen teilweise veröffentlichtes Ziel unabhängig durch andere Bytes ersetzt wurde. «Alle fortsetzen» muss die Ersetzung erkennen. Das vorhandene Ziel und der ursprüngliche Auftrag bleiben erhalten. Für dieses Ziel darf die App keinen Erfolg melden. Ein unabhängiger Auftrag soll trotzdem abschliessen.
+
+In Build 388 war «Alle fortsetzen» bei ausschliesslich fehlgeschlagenen und abgebrochenen Aufträgen deaktiviert. Bei einem zusätzlich pausierten Auftrag startete die App nur diesen. Build 389 setzte nach dem ausdrücklichen Klick die pausierten und zuvor fehlgeschlagenen Aufträge mit ihren ursprünglichen IDs fort. Die App verbuchte exakt einen Historieneintrag je erfolgreichem Auftrag und liess den abgebrochenen Auftrag unverändert. Beim automatisierten Nachtest bewahrte die lokale Warteschlange einen gleichnamigen fremden Zielinhalt bytegenau und verbuchte dafür keinen Abschluss. Die simulierte Cloud-Warteschlange bewahrte den bisherigen Fehler und versuchte nur fortsetzbare Aufträge erneut.
 
 ### Pausierten Auftrag mit F5 oder F6 erneut auswählen
 
