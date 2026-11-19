@@ -366,6 +366,8 @@ Der Mac-Nachtest stoppte einen isolierten Downloadprozess mit einem kontrolliert
 3. Dieselbe Freigabe verbinden und den ursprünglichen Auftrag fortsetzen. Nach der Prüfung bereits geschriebener Daten manuell pausieren. Die Karte meldet nun die manuelle Pause. Ein früherer Wiederverbindungshinweis darf nicht wieder erscheinen. ID und Teilstand müssen erhalten bleiben.
 4. Fortsetzen, den Abschlussbeleg prüfen und die SHA-256-Prüfsumme des Ziels über eine neue Nur-Lese-Verbindung vergleichen. Quelle und Kontrolldatei müssen unverändert sein. Den Wiederverbindungshinweis für ein getrenntes NTFS-Testlaufwerk separat prüfen.
 
+Für den kurzen Vier-Aufträge-Nachtest denselben eigenen Ordner auf vier getrennte SMB-Testziele kopieren. Im signierten Mac-Build 363 stoppte einer der Aufträge beim Trennen seiner Testverbindung nach 10 MiB. Nach dem Einbinden setzte ein Klick auf das sichtbare «Fortsetzen» denselben Auftrag fort. Eine anschliessende manuelle Pause blieb ohne alten Wiederverbindungshinweis. Alle vier Aufträge erhielten je einen Abschluss- und Historieneintrag. Die unabhängige Prüfung über neu eingehängte Nur-Lese-Verbindungen bestätigte 580 Dateien mit insgesamt 134’445’824 Byte sowie die vier Kontrolldateien. Die Zweistunden-Abnahme hat einen eigenen Lauf.
+
 ### Verkürzte SMB-Teilkopie kontrolliert fortsetzen
 
 1. Eine eigene Datei mit mindestens 8 MiB auf eine separate SMB-Testfreigabe kopieren. Nach 4 MiB pausieren. Auftrags-ID, gespeicherten Zwischenstand und die SHA-256-Prüfsummen der Quelle und einer Kontrolldatei erfassen.
