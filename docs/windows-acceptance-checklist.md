@@ -610,6 +610,8 @@ Der Mac-Integrationstest mit einem simulierten Cloud-Anbieter und einem tatsäch
 
 Auf dem Mac bestand der Fall mit virtuellen NTFS-Testabbildern und dem installierten FSKit-Treiber. Das zweite Abbild hatte eine andere Seriennummer. Nach Wiederanschluss des Originals unter einer neuen Gerätekennung wurde derselbe Auftrag korrekt fortgesetzt und rückgängig gemacht. Der Nachtest mit einem physischen NTFS-Gerät steht aus.
 
+Am 19. November bestanden ergänzend 17 Prüfungen der NTFS-Engine und 10 Sicherheitsprüfungen mit frischen Abbildern. Für DEVICE-04 insbesondere die unveränderten vorhandenen Daten nach Platzmangel oder fehlgeschlagenem Ersetzen, genaue Zeitstempel nach erneutem Öffnen und den Nur-Lese-Zugriff bei einem Ruhezustandsabbild nachprüfen. Fehlendes Schreiben auf ein als unsicher erkanntes Abbild ist erwartetes Schutzverhalten. Diese Engine-Prüfungen liefen ausserhalb der App.
+
 ### Unvollständigen Cloud-Download nach Prozessabbruch bereinigen
 
 1. Eine eigene Cloud-Testdatei von mindestens 4 MiB in einen eigenen SMB-Testordner kopieren. Eine unbeteiligte Kontrolldatei im selben Ordner anlegen. Den App-Prozess nach dem ersten gespeicherten Datenblock und vor dem Abschluss beenden. Der Zielname muss zu diesem Zeitpunkt eine Teilkopie enthalten.
