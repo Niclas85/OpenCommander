@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [77 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [78 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -502,6 +502,16 @@ Auf dem Mac bestätigten isolierte Tests mit simulierten Anbietern und echten Pr
 4. OpenCommander erneut starten. Den eigenen Ersatzordner entfernen und genau den vorher veröffentlichten Zielordner mit seiner ursprünglichen Anbieter-ID zurückbringen. Den Auftrag erneut prüfen lassen. Die Historie muss genau eine Kopie erfassen. Die Cloud-Quelle muss an ihrem ursprünglichen Ort bleiben. «Rückgängig» darf nur die bestätigte Zielkopie betreffen.
 
 Mit den simulierten Anbietern setzte der frühere Mac-Code nach Schritt 4 das Verschieben fort. Im korrigierten Ablauf blieb der Abbruch über den Neustart gespeichert. Der Ersatzordner blieb unangetastet, die Quelle blieb am ursprünglichen Ort und der Kopiereintrag liess sich exakt rückgängig machen. Der Live-Nachtest bleibt offen.
+
+### Abbruch nach Cloud-Ersetzen mit geänderter Zielkopie oder Sicherung
+
+1. Eine eigene Cloud-Verschiebung mit «Ersetzen» vorbereiten. Die Prüfwerte der Quelle und der früheren Zielversion festhalten. Den Prozess nach der Veröffentlichung des neuen Zielordners beenden. Quelle und gesicherte Vorgängerversion müssen weiterhin vorhanden sein.
+2. In getrennten Läufen den neuen Zielordner oder die gesicherte Vorgängerversion durch einen eigenen Ordner mit denselben Dateien und einer anderen Anbieter-ID ersetzen. In einer weiteren Variante den neuen Zielordner vorübergehend aus der Liste entfernen. Am ursprünglichen Auftrag «Abbrechen» wählen.
+3. Der Auftrag muss die ausstehende Abbruchprüfung speichern. Die App darf während der Prüfung weder die Quelle verschieben noch einen Zielordner überschreiben. Nach Neustart den betreffenden Ordner mit seiner ursprünglichen ID zurückbringen und die Abbruchprüfung wiederholen.
+4. Genau einen Kopiereintrag und die unveränderte Quelle bestätigen. «Rückgängig» ausführen. Die Vorgängerversion muss am ursprünglichen Ziel mit ihrer früheren Prüfsumme erscheinen. Die Cloud-Quelle muss während des ganzen Tests erhalten bleiben.
+5. In einem Kontrolllauf den Prozess nach dem Sichern der Vorgängerversion und vor der Veröffentlichung des neuen Ziels beenden. «Abbrechen» muss die vorhandene Sicherung und den offenen Zustand anzeigen. Eine ausdrücklich gewählte Fortsetzung muss den unvollständigen Auftrag weiterführen können.
+
+Mit simulierten Anbietern bestanden der Austausch der Zielkopie, der Austausch der Sicherung und das vorübergehend fehlende Ziel nach einem echten Prozessabbruch. Der Kopiereintrag stellte beim Rückgängigmachen die Vorgängerversion wieder her. Die getrennten Kontrollläufe bestätigten die ausdrückliche Fortsetzung vor der Veröffentlichung. Die Live-Abnahme bleibt offen.
 
 ### Cloud-Rückgängig nach Prozessabbruch fortsetzen
 
