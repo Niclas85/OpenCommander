@@ -110,6 +110,8 @@ Für SAFE-06 vier unabhängige Ziele und ein separates SMB-Testlaufwerk pro Auft
 
 Zwischen der ersten und der letzten Beobachtung mit vier aktiven Aufträgen in Build 363 lagen 2 Stunden, 11 Minuten und 23 Sekunden. In dieser Zeit lagen auch die geplante Pause und die Trennung einer Einbindung. Jeder Auftrag meldete 20’004 geschriebene Dateien und anschliessende Zielprüfung. Ein Auftrag erkannte eine abweichende 2‑GiB-Zieldatei, speicherte ihren relativen Pfad und blieb ohne Abschlussbeleg. Zwei unabhängige Leseprüfungen nach frischer SMB-Einbindung bestätigten dasselbe einzelne abweichende Bit. Die Ursache und der Endnachweis für alle vier Aufträge bleiben offen.
 
+An der betroffenen, eindeutig dem Testlauf zugeordneten Datei wurden das abweichende Byte und in einem separaten Versuch der ganze zugehörige 1‑MiB-Block mit den geprüften Quellbytes geschrieben. Der Vergleich am offenen Dateihandle war jeweils erfolgreich. Nach Schliessen und erneuter SMB-Einbindung war dasselbe Bit abweichend. Die App-Aufträge und ihre Journale blieben erhalten. Die Wiederaufnahme wurde nach diesem Befund nicht ausgelöst.
+
 Vor einem weiteren Dauerlauf die SMB-Quelldateien mit einer unabhängig erzeugten SHA-256-Liste vergleichen. Dazu die isolierte Freigabe neu verbinden und die Dateien auch ausserhalb von OpenCommander lesen. Ein neu vorbereiteter macOS-Testdatensatz scheiterte bei dieser Vorprüfung. Zwei zusätzliche vollständige Lesevorgänge mit unterschiedlichen Puffergrössen bestätigten zwei abweichende Bytes an denselben Positionen in einer 2-GiB-Quelldatei. Die Ursache ist offen. In Windows einen abweichenden Quelldatensatz als fehlgeschlagene Vorprüfung erfassen. Für die gezielte Gegenprobe eine eigene Quelldatei zwischen Pause und Fortsetzen verändern. OpenCommander muss den betroffenen Auftrag vor der Veröffentlichung stoppen und darf dafür keinen Abschluss verbuchen.
 
 Ein separater macOS-Dauerlauf verwendet 20’004 ausgelesene und geprüfte lokale Quelldateien und vier getrennte SMB-Zielverbindungen. Bei 69 MiB wurde eine Zielverbindung getrennt. Der betroffene Auftrag pausierte, während die drei anderen weiterliefen. Nach dem erneuten Einbinden lief derselbe Auftrag mit mehr als 69 MiB weiter. Die Zwei-Stunden-Marke und die unabhängige Endprüfung aller Ziele sind noch offen.
@@ -706,6 +708,23 @@ Der signierte Mac-Build 375 bestand alle sechs Durchläufe in der App. Die drei 
 3. In einem getrennten Durchlauf den letzten Upload am eigenen FTP-Testserver vor dem Schreiben vorübergehend ablehnen. Die App neu starten, den Server freigeben und «Fortsetzen» wählen. Nach erneutem Start müssen beide erfolgreich veröffentlichten Einträge dieselbe Rückgängig-Aktion anbieten. Deren Ausführung muss den ursprünglichen Zielinhalt wiederherstellen.
 
 Der signierte Mac-Build 376 bestand diese Nachtests auf einem lokalen FTP-Testserver. Die App speichert den Rückgängig-Stand pro Eintrag. Bei einem Konflikt bleiben bereits abgeschlossene Rückgängig-Schritte erhalten. App-eigene Wiederherstellungspfade werden separat in der Historie angezeigt.
+
+### Online-Vorschau während eines Downloads wechseln und schliessen (MEDIA-06)
+
+1. Drei eigene, klar unterscheidbare Bilder in einen Online-Testordner legen. Für FTP das rote Bild über der automatischen Miniaturgrenze und innerhalb der Vorschaugrenze anlegen. Auf dem Testserver ausschliesslich dessen Inhaltsabrufe verzögern.
+2. Das rote Bild in der Vorschau öffnen und die Ladeanzeige sowie den begonnenen Abruf bestätigen. Mit Rechts, Links, Rechts und nochmals Rechts blättern. Die dritte Vorschau muss sofort nach der Dekodierung und einige Sekunden später dasselbe blaue Bild zeigen.
+3. Zweimal nach links zum roten Bild blättern. Einen weiteren laufenden Abruf beobachten und die Vorschau über ihre Schaltfläche schliessen. Der Testserver muss für jeden verzögerten Abruf den Verbindungsabbruch verzeichnen. Die Dateiliste muss wieder sichtbar sein. Originaldateien, Kontrolldateien und leere Historie unabhängig prüfen.
+
+Der signierte Mac-Build 376 bestand den Durchlauf am lokalen FTP-Testserver. Die Vorschau zeigte bei beiden Messungen die erwarteten blauen Pixel. Der Server bestätigte, dass alle drei absichtlich verzögerten Abrufe abgebrochen wurden. Der Nachweis ergänzt die getrennten Google-Drive- und Dropbox-Durchläufe.
+
+### Online-Video bei einem Stillstand erneut laden (MEDIA-04 und MEDIA-09)
+
+1. Ein kurzes eigenes MP4 und eine Datei mit einer Grösse von 2 GiB plus einem Byte am FTP-Testserver bereitstellen. Den ersten Inhaltsabruf des kurzen Videos bestätigen und anschliessend ohne Datenübertragung offen halten.
+2. Das kurze Video öffnen. Ladeanzeige und Abbrechen müssen sichtbar sein. Nach der Zeitgrenze muss die App den Stillstand melden und «Erneut versuchen» anbieten. Am Server prüfen, dass die erste Verbindung beendet wurde.
+3. «Erneut versuchen» anklicken. Der zweite Abruf muss zur Wiedergabe führen. Mit Zeitleiste, Wiedergabe und Pause prüfen, ob sich die Abspielposition wie erwartet ändert. Danach die Vorschau schliessen und prüfen, ob die Dateiliste wieder sichtbar ist.
+4. Die Datei über 2 GiB zur Vorschau wählen. Die App muss ihre Grössengrenze melden. Der Server darf für diese Datei keinen Inhaltsabruf sehen. Beide SHA-256-Werte, die lokale Kontrolldatei und die leere Historie prüfen.
+
+Im signierten Mac-Build 376 endete der gehaltene FTP-Abruf nach 30,03 Sekunden. «Erneut versuchen» startete die Wiedergabe. Springen in der Zeitleiste, Wiedergabe und Pause funktionierten. Der Server erhielt zwei Abrufe für das kurze Video. Die App lehnte die Datei über 2 GiB vor dem ersten Abruf ab.
 
 ### Rückgängig nach einer Änderung am lokalen Cloud-Kopierziel prüfen (TRASH-06)
 
