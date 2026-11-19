@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [71 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [72 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -452,6 +452,18 @@ Der macOS-Nachtest mit Quick Look bestätigte die rote und die blaue Miniatur au
 4. Einen weiteren App-Neustart durchführen und «Rückgängig» wählen. Das frühere lokale Ziel muss mit seiner ursprünglichen Prüfsumme zurückkehren. Cloud-Quelle und Kontrolldatei erneut prüfen.
 5. Als Gegenprobe das veröffentlichte Ziel nach dem erzwungenen Prozessende durch einen anderen Inhalt ersetzen. Der Abbruch muss den Konflikt und den offenen Wiederherstellungszustand melden. Ziel, Cloud-Quelle und Kontrolldatei müssen ihre jeweils zuletzt festgestellte Prüfsumme behalten.
 6. «Verschieben» in zwei weiteren Läufen nach dem Schreiben des Wiederherstellungseintrags testen. Den App-Prozess einmal unmittelbar vor dem Verschieben der Cloud-Quelle in den Wiederherstellungsbereich beenden und einmal unmittelbar danach. Nach dem Neustart denselben Auftrag abbrechen. Im ersten Lauf muss die sichtbare Quelle erhalten bleiben und genau ein Kopiereintrag entstehen. Im zweiten Lauf muss genau ein Verschiebeeintrag entstehen. Der Abbruch darf an der Cloud-Quelle keine weitere Änderung auslösen. «Rückgängig» nach einem weiteren Neustart muss das frühere lokale Ziel und im zweiten Lauf auch die Cloud-Quelle unter ihrem ursprünglichen Namen wiederherstellen. Wenn möglich dieselbe Cloud-ID bestätigen.
+
+### Kontobindung nach abgebrochenem Tokenwechsel bestätigen
+
+1. Eine isolierte Cloud-Testverbindung mit bekannten Prüfdaten verwenden. Beim Tokenwechsel einen Prozessabbruch zuerst nach dem Speichern der ausstehenden Bindung und dann nach dem Veröffentlichen der neuen Konfiguration auslösen. Beide Fälle mit einem frischen Prozess prüfen.
+2. Die Vorschau für die erneute Bestätigung öffnen. Sie darf die Konfiguration oder die gespeicherte Bindung nicht verändern. Nach Bestätigung muss bei beiden nachweislich zum Auftrag gehörenden Tokenständen dieselbe Kontobindung erhalten bleiben.
+3. In einer getrennten Testinstanz eine Konfiguration einsetzen, die zu keinem der beiden gespeicherten Stände passt. Der normale Verbindungsversuch muss stoppen. Nach ausdrücklicher Bestätigung muss die App eine neue Identität anlegen, die frühere Bindung archivieren und die Konfiguration unverändert lassen. Frühere Aufträge und Rückgängig-Belege bleiben der bisherigen Identität zugeordnet. Einen zwischen Vorschau und Bestätigung geänderten Stand separat prüfen. Diese Bestätigung muss abgelehnt werden.
+
+### Cloud-Rückgängig nach Prozessabbruch fortsetzen
+
+1. Mit eigenen Testdateien eine Cloud-zu-Cloud-Verschiebung mit «Ersetzen» abschliessen und die ursprünglichen Objekt-IDs sowie die Prüfsummen von Quelle und altem Ziel erfassen.
+2. «Rückgängig» starten. Den Testprozess beenden, nachdem die Quelle zurückgekehrt ist und der Anbieter die veröffentlichte Kopie unter dem Wiederherstellungsnamen gesichert hat. Der vorherige Zielinhalt darf zu diesem Zeitpunkt noch nicht unter dem öffentlichen Namen stehen.
+3. Nach Neustart denselben Rückgängig-Eintrag ausführen. Nur der fehlende letzte Umbenennungsschritt darf gesendet werden. Die beiden Originale müssen mit ihren IDs und Prüfsummen zurückkehren. Erneutes Prüfen in einem weiteren Prozess darf keine Mutation wiederholen. Der Mac-Nachtest hat diese Prozessgrenze mit simulierten Anbietern geprüft.
 
 ### Rückgängig nach einer Änderung am lokalen Cloud-Kopierziel prüfen (TRASH-06)
 

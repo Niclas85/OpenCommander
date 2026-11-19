@@ -218,7 +218,7 @@ AUTH-01;Cloud-Anmeldung und Profilverwaltung;P0;OAuth für drei Dienste;"Eigene 
 AUTH-02;Cloud-Anmeldung und Profilverwaltung;P1;Anmeldebrowser wieder nach vorn;"Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.";"1. Browser während Anmeldung verdecken
 2. Assistentenknopf zum Vorholen benutzen";"Passender Login wird wieder angeboten; keine beliebige externe URL geöffnet; Einschränkungen des Window-Managers sichtbar dokumentieren.";Nativ belegt;;;Nicht ausgeführt;;;
 AUTH-03;Cloud-Anmeldung und Profilverwaltung;P0;Abgebrochene und abgelehnte Anmeldung;"Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.";"1. OAuth abbrechen, Zugriff ablehnen und Zeitüberschreitung simulieren
-2. Neu anmelden";"Keine halbfertige Verbindung als erfolgreich; GUI bleibt bedienbar; sauberer neuer Anlauf ohne alten fremden Callback.";Teilweise belegt;REG-AUTH-01, REG-AUTH-02;;Nicht ausgeführt;;;
+2. Neu anmelden";"Keine halbfertige Verbindung als erfolgreich; GUI bleibt bedienbar; sauberer neuer Anlauf ohne alten fremden Callback.";Teilweise belegt;REG-AUTH-01, REG-AUTH-02, REG-AUTH-04;;Nicht ausgeführt;;;
 AUTH-04;Cloud-Anmeldung und Profilverwaltung;P0;OneDrive-Auswahl;"Eigene Testkonten; frisches Testprofil; Browser installiert; keine Geheimnisse in Protokoll/Screenshots.";"1. Konto mit mehreren angebotenen Drives verwenden
 2. Persönlichen Hauptspeicher auswählen
 3. Erwarteten Testordner öffnen";"Gewählter Speicher enthält eigene Daten; technische Bundles/Archive werden nicht still zum Hauptspeicher; Auswahl bleibt erhalten.";Umgebung erforderlich;;;Nicht ausgeführt;;;
@@ -252,7 +252,7 @@ CLOUD-04;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Netzausfall und Wiederkehr
 2. Lokalen Ordner bedienen
 3. Netz wiederherstellen";"Begrenzte Wartezeit, sichtbarer Status; keine GUI-Sperre; kontrollierter Retry; keine doppelten Dateieinträge oder Quellverluste.";Teilweise belegt;;;Nicht ausgeführt;;;
 CLOUD-05;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Abgelaufene Autorisierung;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Token eines dedizierten Testkontos widerrufen
-2. Liste öffnen";"Anmeldefehler klar; keine alte Cacheliste als frisch/live ausgeben; erneute Anmeldung zugänglich.";Teilweise belegt;REG-AUTH-02;;Nicht ausgeführt;;;
+2. Liste öffnen";"Anmeldefehler klar; keine alte Cacheliste als frisch/live ausgeben; erneute Anmeldung zugänglich.";Teilweise belegt;REG-AUTH-02, REG-AUTH-04;;Nicht ausgeführt;;;
 CLOUD-06;Cloud-Dateien, Live-Zugriff und Freigaben;P1;Rate-Limit und temporäre Fehler;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Über Testadapter 429/temporären Backendfehler liefern
 2. Retry beobachten
 3. Wegnavigieren";"Begrenzte Wiederholungen mit Wartezeit; kein Request-Sturm; ältere Ersatzliste nur mit Alters-/Warnhinweis; Navigation beendet Retry.";Teilweise belegt;;;Nicht ausgeführt;;;
