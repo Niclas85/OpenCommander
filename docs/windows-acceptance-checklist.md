@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [105 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [106 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -54,6 +54,14 @@ Im sichtbaren Test mit dem signierten Mac-Build 321 blieb die Testdatei nach «A
 3. Die Kontrollläufe mit einer gültigen Bestätigung, HTTP 429 und HTTP 403 wiederholen. Die App muss den bestätigten Link anbieten beziehungsweise die Drosselung oder fehlende Berechtigung erklären.
 
 Die sechs Antwortvarianten bestanden im Mac-Nachtest mit simulierten Microsoft-Graph-Antworten. Der frühere Zustand zeigte bei Verbindungsverlust und HTTP 503 keinen Hinweis auf eine mögliche Freigabe. Die sichtbare Prüfung mit einem echten OneDrive-Testkonto steht noch aus.
+
+### Unklaren Ausgang eines rclone-Freigabeversuchs prüfen
+
+1. Eine eigene Datei im separaten Testprofil auswählen. Das Kontextmenü zuerst nur öffnen, dann den Freigabedialog öffnen und abbrechen. Der Adapter muss bis dahin null Linkanfragen sehen.
+2. In separaten Läufen den Linkversuch ausdrücklich bestätigen. Sobald das rclone-Kommando gestartet ist, den Testadapter eine Zeitüberschreitung, einen Verbindungsabbruch oder HTTP 503 melden lassen. Der Fehler muss den Hinweis enthalten, dass beim Anbieter bereits ein Link bestehen kann. Keine URL zum Kopieren oder Öffnen, kein automatischer Wiederholungsversuch.
+3. Als Gegenprobe vor dem Kommando abbrechen sowie HTTP 401 und 429 auslösen. Die jeweilige Abbruch-, Anmelde- oder Drosselungsmeldung prüfen. Prüfsumme der ursprünglichen Datei kontrollieren.
+
+Der rclone-Weg zeigte bei einem Ausfall nach Start des Freigabebefehls bisher nur den allgemeinen Fehler. Build 392 gibt zusätzlich an, dass beim Anbieter bereits ein Link bestehen kann. Der Test mit einem eigenen rclone-Hilfsprozess prüfte Zeitüberschreitung, Verbindungsabbruch, HTTP 503 und unbestimmten Ausgang. HTTP 401 und 429 behielten ihren eigenen Fehler. Die kontrollierte Cloud-Datei blieb bytegenau, und der Client sendete genau einen Linkversuch. Der sichtbare Nachtest prüfte das Freigabemenü und «Abbrechen» an einer simulierten OneDrive-Verbindung. Die Warnung nach einem echten Provider-Ausfall wurde dabei nicht ausgelöst. Im signierten Build 392 öffnete das native Kontextmenü die Freigabebestätigung für genau die angeklickte Testdatei. Menüöffnung und Abbrechen erzeugten ausschliesslich Lesezugriffe. Beide Dateibereiche blieben verfügbar. Die lokalen und simulierten Cloud-Dateien blieben bytegenau. Die Historie blieb leer. Bei zwei ausgewählten Dateien bot das Kontextmenü keine öffentliche Freigabe an.
 
 ### Browser-Anmeldung ablehnen, abbrechen und erneut starten (AUTH-03)
 
