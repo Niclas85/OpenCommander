@@ -102,6 +102,8 @@ Zwei vollständige Lesevorgänge ohne Dateicache über separat eingehängte Nur-
 
 Im selben fortgesetzten D2-Lauf schrieb ein zweiter Auftrag sämtliche Bytes und stoppte beim Zurücklesen der 1-GiB-Datei `Chunk.bin`. Das Journal benannte die Datei. Ein Abschlussbeleg und ein Historieneintrag fehlten. Zwei weitere Aufträge liefen weiter. Für den zweiten Stopp steht der unabhängige Bytevergleich aus.
 
+Ein dritter Auftrag stoppte beim Schreiben von `Chunk.bin` nach 7’000 von 7’001 Dateien. Zwei separat eingehängte Nur-Lese-Verbindungen fanden im geprüften 2-MiB-Endbereich dasselbe abweichende Bit an Byteposition 1’121’583’452 mit XOR-Maske 0x02. Position 348 innerhalb des 4-KiB-Blocks entspricht einem früheren Befund an einer anderen Zieldatei. Die Quellprüfsumme entsprach dem Journal. Die Stichprobe belegt die Abweichung im geprüften Bereich. Ein Auftrag lief weiter.
+
 ### Quelle und Ziel beim SMB-Fortsetzen unterscheiden
 
 1. Einen Kopierauftrag mit einer eigenen SMB-Datei und separater Kontrolldatei anlegen. Den SHA-256 der Quelle ausserhalb der App erfassen. Mit einem Testadapter nach vollständig gespeicherten Dateibytes und vor dem Abschlussbeleg pausieren. Quelle und Ziel müssen zu diesem Zeitpunkt denselben Hash haben.
@@ -235,6 +237,15 @@ Für die zusätzliche Prüfung vor dem Export im Testadapter die Google-Revision
 Der signierte macOS-Build 322 hat bei Dropbox und Google Drive das Ziehen, die Unterbrechung, das Fortsetzen nach App-Neustart und das Rückgängig bestanden. Bei beiden Diensten wurde die Auswahl im lokalen Bereich während des gehaltenen Downloads mit der macOS-Bedienungshilfe ausgelöst und sichtbar bestätigt.
 
 Für die Listenvariante zuerst den eigenen Cloud-Testordner laden und dann die Verbindung beim Aktualisieren dieses Bereichs unterbrechen. Die bisherige Liste muss sichtbar und als gespeicherter Stand erkennbar bleiben. Im lokalen Bereich eine Testdatei auswählen. Über eine separate, weiterhin verbundene Sitzung eine zweite eigene Datei in den Cloud-Testordner legen. Diese darf erst nach der Wiederverbindung und dem erneuten Abruf in der App erscheinen. Danach beide Namen und, sofern verfügbar, die Anbieter-IDs und Prüfsummen vergleichen. In der App dürfen dabei keine Historien- oder Warteschlangeneinträge hinzukommen.
+
+### Grössenlimit und Stillstand der Medienvorschau (MEDIA-04, MEDIA-09, MEDIA-10)
+
+1. Mit einer synthetischen lokalen JPEG-Datei von 128 MiB plus einem Byte die Vorschau öffnen. Die App muss das Grössenlimit anzeigen. Danach die Vorschau schliessen und die unveränderte Dateiliste prüfen.
+2. Eine UTF-8-Datei von mehr als 2 MiB in der Vorschau öffnen. Der Hinweis auf die begrenzte Textmenge und «Öffnen» müssen sichtbar sein. Mit einer separaten Binärdatei mit der Endung `.txt` wiederholen. Hier muss die App den ungeeigneten Inhalt erklären und das externe Öffnen anbieten. Für alle drei Dateien die Prüfsummen vor und nach dem Test vergleichen.
+3. Ein eigenes synthetisches H.264-Video aus einer direkten Cloud-Verbindung in der App öffnen. In einer isolierten Testumgebung den bereits laufenden Download anhalten und die Verbindung offen lassen. Das Zeitlimit, die sichtbare Fehlermeldung und «Erneut versuchen» prüfen. Den betreffenden Downloadprozess und dessen temporäre Dateien nach dem Abbruch kontrollieren.
+4. Die Verbindung wiederherstellen und «Erneut versuchen» wählen. Das Video abspielen, zu einer anderen Zeit springen, fortsetzen und pausieren. Nach dem Schliessen der Vorschau die Dateiliste, die unveränderte Historie und die ursprüngliche Cloud-Datei anhand ihrer ID und Prüfsumme bestätigen.
+
+Der signierte macOS-Build 322 bestätigte die drei lokalen Eingaben und den Stillstandstest mit Dropbox und Google Drive. In beiden Cloud-Läufen erschien der Hinweis nach rund 30 Sekunden, die unvollständigen temporären Daten wurden entfernt, und die Wiedergabe war beim erneuten Versuch möglich.
 
 ### Cloud-Ordner-Download mit Neustart und Rückgängig
 
