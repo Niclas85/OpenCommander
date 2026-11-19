@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [76 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [77 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -493,6 +493,15 @@ Der Mac-Komponententest verwendete zwei echte Prozessabbrüche mit eigenen lokal
 4. «Rückgängig» ausführen und Quelle und Ziel erneut unabhängig prüfen. Nur die bestätigte Zielkopie muss verschwinden. Den Ablauf auch von Dropbox zu Google Drive und separat mit «Ersetzen» am Ziel prüfen.
 
 Auf dem Mac bestätigten isolierte Tests mit simulierten Anbietern und echten Prozessabbrüchen beide Übertragungsrichtungen sowie «Ersetzen». Nach dem Neustart entstand genau ein Kopiereintrag. Die Quelle behielt ihren Inhalt und «Rückgängig» entfernte die veröffentlichte Kopie. Die Live-Abnahme mit beiden Konten bleibt offen.
+
+### Geänderten Zielordner beim Wiederholen des Cloud-Abbruchs schützen
+
+1. Den vorherigen Test mit leerem Ziel vorbereiten. Den Prozess nach der Veröffentlichung des Zielordners beenden, während die Quelle noch unter ihrem ursprünglichen Namen liegt.
+2. Auf dem Testanbieter den veröffentlichten Zielordner unter einem anderen Namen sichern. Am bisherigen Zielpfad eine Kopie mit denselben Bytes und einer eigenen Anbieter-ID platzieren. OpenCommander neu starten und am ursprünglichen Verschiebeauftrag «Abbrechen» wählen.
+3. Der Auftrag muss mit ausstehender Prüfung sichtbar bleiben. Die Quelle und der Ersatzordner müssen unverändert bleiben. Es darf keinen Kopier- oder Verschiebeeintrag für den ungeklärten Zustand geben.
+4. OpenCommander erneut starten. Den eigenen Ersatzordner entfernen und genau den vorher veröffentlichten Zielordner mit seiner ursprünglichen Anbieter-ID zurückbringen. Den Auftrag erneut prüfen lassen. Die Historie muss genau eine Kopie erfassen. Die Cloud-Quelle muss an ihrem ursprünglichen Ort bleiben. «Rückgängig» darf nur die bestätigte Zielkopie betreffen.
+
+Mit den simulierten Anbietern setzte der frühere Mac-Code nach Schritt 4 das Verschieben fort. Im korrigierten Ablauf blieb der Abbruch über den Neustart gespeichert. Der Ersatzordner blieb unangetastet, die Quelle blieb am ursprünglichen Ort und der Kopiereintrag liess sich exakt rückgängig machen. Der Live-Nachtest bleibt offen.
 
 ### Cloud-Rückgängig nach Prozessabbruch fortsetzen
 
