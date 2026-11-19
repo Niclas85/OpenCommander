@@ -266,6 +266,10 @@ Für die Listenvariante zuerst den eigenen Cloud-Testordner laden und dann die V
 
 Der signierte macOS-Build 322 bestätigte die drei lokalen Eingaben und das Cloud-Bildlimit bei Dropbox und Google Drive. Beim Stillstandstest erschien in beiden Diensten nach rund 30 Sekunden der Hinweis. Die App entfernte die unvollständigen temporären Daten, und die Wiedergabe war beim erneuten Versuch möglich.
 
+Für FTP auf einem lokalen Testserver zusätzlich ein synthetisches MP4 mit genau 2’147’483’649 Bytes anbieten. Eine Sparse-Datei genügt für diese Prüfung. In der App die Vorschau öffnen und die Meldung zur Grenze von 2’048 MiB prüfen. Das Serverprotokoll darf für diese Datei keinen `RETR`-Befehl enthalten.
+
+Mit einem kleinen, abspielbaren H.264-Testvideo den ersten `RETR` auf dem lokalen Server annehmen und die Datenverbindung ohne Nutzdaten offen halten. Ladezustand und Abbruchmöglichkeit müssen sichtbar sein. Nach dem Timeout «Erneut versuchen» wählen und den zweiten `RETR` normal bedienen. Die Wiedergabe muss starten, und nach dem Schliessen muss dieselbe Datei sichtbar sein. Der signierte Mac-Build 322 bestand beide FTP-Varianten. Der Server bestätigte die Trennung der blockierten Verbindung nach 30,0 Sekunden und lieferte das kleine Video genau einmal vollständig aus. Beide Quelldateien und die Kontrolldatei blieben bytegenau erhalten, die Historie blieb leer.
+
 ### Ordnergrösse mit Zugriffsfehler und symbolischen Links prüfen (PROP-01, PROP-03)
 
 1. In einem eigenen Testordner zwölf Unterordner mit je 500 Dateien zu 336 Bytes anlegen. In einem dreizehnten Unterordner eine Datei mit 199 Bytes anlegen und den lesenden Zugriff auf diesen Unterordner für das Testkonto sperren. Zwei symbolische Links erstellen. Einer verweist auf den Testordner selbst, der andere auf einen separaten, bekannten Testordner.
