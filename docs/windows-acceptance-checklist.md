@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [80 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [81 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -46,6 +46,14 @@ Bei Links oder Freigaben ein separates Testkonto und eine entbehrliche Datei ver
 Für CLOUD-09 und CLOUD-10 vor der Bestätigung direkt beim Anbieter prüfen, dass die Testdatei keine öffentliche Freigabe hat. Nach dem Bestätigen den Link in einer abgemeldeten Sitzung öffnen und die Datei mit der vorbereiteten Prüfsumme vergleichen. Anschliessend die Freigabe beim Anbieter widerrufen und den alten Link erneut abgemeldet prüfen. Der rclone-Befehl `link --unlink` kann bei nicht unterstützten Anbietern das Flag ignorieren. Ein erfolgreicher Exitcode reicht als Widerrufsnachweis deshalb nicht aus. [rclone-Dokumentation](https://rclone.org/commands/rclone_link/)
 
 Im sichtbaren Test mit dem signierten Mac-Build 321 blieb die Testdatei nach «Abbrechen» auf Google Drive und Dropbox privat. Erst die Bestätigung erstellte den Link. Getrennte abgemeldete Chrome-Sitzungen zeigten die Dateien und verweigerten den Zugriff nach dem Widerruf beim Anbieter. Der Dropbox-Download aus Chrome und der unabhängig abgerufene anonyme Google-Drive-Download waren bytegenau. Bei Google Drive war die Leserfreigabe per Link erreichbar und von der Suche ausgeschlossen.
+
+### Ausbleibende OneDrive-Freigabebestätigung prüfen
+
+1. In einem separaten Testprofil mit einer eigenen Datei den Freigabedialog öffnen und abbrechen. Der Testadapter muss null Freigabeanfragen sehen.
+2. Die Freigabe ausdrücklich bestätigen. In getrennten Läufen den Testadapter erst den Versand annehmen und anschliessend die Verbindung unterbrechen, mit HTTP 503 antworten oder eine unbrauchbare Linkbestätigung liefern lassen. Die App muss darauf hinweisen, dass der Freigabelink beim Anbieter bereits aktiv sein kann. Für jeden Lauf genau eine Anfrage zählen. Der Dialog darf keinen Link zum Kopieren oder Öffnen anbieten.
+3. Die Kontrollläufe mit einer gültigen Bestätigung, HTTP 429 und HTTP 403 wiederholen. Die App muss den bestätigten Link anbieten beziehungsweise die Drosselung oder fehlende Berechtigung erklären.
+
+Die sechs Antwortvarianten bestanden im Mac-Nachtest mit simulierten Microsoft-Graph-Antworten. Der frühere Zustand zeigte bei Verbindungsverlust und HTTP 503 keinen Hinweis auf eine mögliche Freigabe. Die sichtbare Prüfung mit einem echten OneDrive-Testkonto steht noch aus.
 
 ## Dropbox → Google Drive bis Rückgängig
 
