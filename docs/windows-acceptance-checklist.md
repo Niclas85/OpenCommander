@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [88 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [89 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -498,6 +498,15 @@ Auf dem Mac verweigerte FSKit Schreibzugriff auch dann, wenn die Systemmetadaten
 4. Die eigene Fülldatei entfernen und «Fortsetzen» wählen. Die Auftrags-ID und die SHA‑256-Prüfsummen vergleichen. «Rückgängig» muss die neue Kopie entfernen. Quelle und Kontroll-Datei bleiben bytegenau erhalten.
 
 Der signierte Mac-Build 367 zeigte im hellen englischen und dunklen deutschen Farbschema den korrigierten Hinweis zum unvollständigen Ziel und die Speicherplatzmeldung. Der gestoppte Auftrag blieb mit derselben ID über den Neustart erhalten. Nach dem Freigeben von Platz kopierte er die 48 MiB bytegenau. «Rückgängig» entfernte den Zielnamen und erhielt Quelle und Kontroll-Datei.
+
+### Getrenntes und ersetztes exFAT-Laufwerk unterscheiden
+
+1. Den gestoppten exFAT-Auftrag aus dem vorigen Test verwenden. Die eigene Fülldatei entfernen, die Test-App normal schliessen und das Testabbild aushängen. Die App mit demselben Profil wieder öffnen und «Fortsetzen» wählen. Der Auftrag soll pausiert bleiben und zum erneuten Verbinden desselben Laufwerks auffordern. Das leere Einhängeverzeichnis und die Historie prüfen.
+2. Ein zweites exFAT-Testlaufwerk mit anderer Volume-ID am selben Pfad einbinden. Den sichtbaren Namen und eine bytegleiche Kopie der Teildatei verwenden. «Fortsetzen» erneut wählen. Die Meldung soll das andere Laufwerk benennen. Prüfsummen der Teildatei und einer separaten Kontroll-Datei auf dem zweiten Volume kontrollieren.
+3. Das Original wieder einhängen und den Auftrag mit derselben ID fortsetzen. Nach dem Abschluss SHA‑256 von Quelle und Ziel sowie den einzelnen Historieneintrag prüfen. «Rückgängig» ausführen und Quelle sowie Kontroll-Datei nochmals prüfen.
+4. In einem separaten Durchlauf bei abgezogenem Original «Abbrechen» wählen. Die ausstehende Prüfung muss sichtbar bleiben. Anschliessend das zweite Volume und danach das Original einhängen. Am zweiten Volume bleiben alle Testdateien unverändert. Am Original muss die App den Abbruch abschliessen und den unvollständigen Zielnamen entfernen. Falls sie die Teildatei in einem Wiederherstellungsordner behält, deren Prüfsumme mit der Teildatei vor dem Abbruch vergleichen.
+
+Im signierten Mac-Build 368 blieb der Auftrag bei leerem Einhängepfad pausiert und zeigte die Meldung für das getrennte Laufwerk. Beim zweiten Volume erschien die Meldung zum abweichenden Volume. Das leere Verzeichnis und die Dateien auf dem zweiten Volume blieben unverändert. Mit dem Original setzte dieselbe ID den Auftrag bytegenau fort. «Rückgängig» erhielt Quelle und Kontroll-Datei. Im getrennten Abbruchlauf enthielt der Wiederherstellungsordner auf dem Original die unveränderte Teildatei.
 
 ### Lokale Miniatur nach Dateiersatz prüfen
 
