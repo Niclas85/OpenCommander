@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 19. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [79 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [80 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -521,6 +521,15 @@ Mit simulierten Anbietern bestanden der Austausch der Zielkopie, der Austausch d
 4. OpenCommander erneut starten, das ursprüngliche Objekt mit seiner Anbieter-ID zurückbringen und die Abbruchprüfung wiederholen. Genau einen Kopiereintrag erwarten. Die Quellversion muss am ursprünglichen Ort bleiben. «Rückgängig» muss das leere Ziel beziehungsweise die frühere Zieldatei bytegenau wiederherstellen.
 
 Alle fünf Varianten bestanden auf dem Mac mit simulierten Anbietern und echten Prozessabbrüchen. Die Quelle blieb am ursprünglichen Ort. Ein Vergleichslauf mit der früheren Fassung setzte nach Rückkehr der ursprünglichen Zieldatei noch das Verschieben fort. Die Live-Abnahme bleibt offen.
+
+### Abbruch nach bestätigtem OneDrive-Upload prüfen
+
+1. Eine eigene Datei von einem anderen Cloud-Anbieter nach OneDrive Online verschieben. Die Prüfsumme der Quelle und bei «Ersetzen» die Prüfsumme der bisherigen OneDrive-Datei festhalten. Im Testlauf den Auftrag nach Bestätigung der Zieldatei durch OneDrive und vor dem Entfernen der Quelle unterbrechen.
+2. In einer kontrollierten Testumgebung die bestätigte OneDrive-Datei vorübergehend aus der Zielauflistung ausblenden. In einem zweiten Lauf eine namens- und inhaltsgleiche Datei mit anderer OneDrive-ID zurückgeben. Den zweiten Lauf mit und ohne «Ersetzen» prüfen. «Abbrechen» wählen und sicherstellen, dass Quelle, Zieldateien und gegebenenfalls die Sicherung erhalten bleiben.
+3. Die App neu starten. Den ursprünglichen OneDrive-Eintrag mit identischer ID und Version wieder bereitstellen. Die Abbruchprüfung wiederholen. Genau einen Kopiereintrag erwarten. Die Quelle muss am ursprünglichen Ort bleiben. «Rückgängig» muss bei leerem Ziel den ursprünglichen Zustand wiederherstellen. Bei «Ersetzen» muss die frühere Datei wieder unter dem öffentlichen Namen erscheinen und die bestätigte Kopie unter einem Wiederherstellungsnamen erhalten bleiben.
+4. Als Kontrolle auch nach dem Sichern der bisherigen OneDrive-Datei und während eines noch unbestätigten Uploads abbrechen. Die App muss die Sicherung behalten. Eine unbestätigte Datei darf keinen abgeschlossenen Kopiereintrag erzeugen.
+
+Die sechs isolierten macOS-Varianten bestanden mit simulierten Microsoft-Graph-Antworten. Die Warteschlange und die Historie wurden von der Festplatte neu geöffnet. Die drei Varianten mit vorübergehend fehlender oder fremder Zieldatei behielten den Abbruch und prüften die korrekte Kopie bis «Rückgängig». Der Live-Test mit einem OneDrive-Konto bleibt offen.
 
 ### Cloud-Rückgängig nach Prozessabbruch fortsetzen
 
