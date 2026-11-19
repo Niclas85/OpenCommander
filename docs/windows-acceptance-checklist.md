@@ -234,6 +234,8 @@ Für die zusätzliche Prüfung vor dem Export im Testadapter die Google-Revision
 
 Der signierte macOS-Build 322 hat bei Dropbox und Google Drive das Ziehen, die Unterbrechung, das Fortsetzen nach App-Neustart und das Rückgängig bestanden. Bei beiden Diensten wurde die Auswahl im lokalen Bereich während des gehaltenen Downloads mit der macOS-Bedienungshilfe ausgelöst und sichtbar bestätigt.
 
+Für die Listenvariante zuerst den eigenen Cloud-Testordner laden und dann die Verbindung beim Aktualisieren dieses Bereichs unterbrechen. Die bisherige Liste muss sichtbar und als gespeicherter Stand erkennbar bleiben. Im lokalen Bereich eine Testdatei auswählen. Über eine separate, weiterhin verbundene Sitzung eine zweite eigene Datei in den Cloud-Testordner legen. Diese darf erst nach der Wiederverbindung und dem erneuten Abruf in der App erscheinen. Danach beide Namen und, sofern verfügbar, die Anbieter-IDs und Prüfsummen vergleichen. In der App dürfen dabei keine Historien- oder Warteschlangeneinträge hinzukommen.
+
 ### Cloud-Ordner-Download mit Neustart und Rückgängig
 
 1. Einen eigenen Dropbox-Testordner mit `Unterordner/Grüße.txt`, dem leeren Ordner `Unterordner/Leer` und der leeren Datei `Empty.txt` anlegen. Inhalt und SHA-256 von `Grüße.txt` unabhängig erfassen. Falls verfügbar, die Dropbox-IDs festhalten.
