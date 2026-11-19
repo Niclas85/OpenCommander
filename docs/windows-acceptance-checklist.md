@@ -124,6 +124,8 @@ Mit dem signierten Build 384 startete der Dauerlauf von einer lokal rekonstruier
 
 In Build 384 stoppte einer der vier laufenden Aufträge bei der Zielprüfung einer 2‑GiB-Datei. Zwei vollständige unabhängige Nur-Lese-SMB-Verbindungen bestätigten dieselbe Abweichung an Dateiposition 1’873’781’084 (Blockposition 348, XOR 0x02). Die lokale Quelle entsprach dem SHA-256-Manifest. Für das betroffene Ziel gab es weder Abschlussbeleg noch Historieneintrag.
 
+Bei der Wiederaufnahme von drei erhaltenen Aufträgen stoppte ein weiterer Auftrag bei der Prüfung der Teildatei. Zwei vollständige Lesevorgänge über unabhängige Nur-Lese-Verbindungen bestätigten in den 2’081’423’360 vorhandenen Bytes genau ein abweichendes Byte an Dateiposition 880’452’185 (Blockposition 601, XOR 0x02). Die gesamte lokale Quelle entsprach wieder dem Manifest. Für den gestoppten Auftrag gab es weder Abschlussbeleg noch Historieneintrag.
+
 Die beiden Abweichungen in der ursprünglichen SMB-Quelldatei lagen an Position 348 beziehungsweise 601 innerhalb des jeweiligen 4‑KiB-Blocks. Diese Positionen und die Bitmaske stimmen mit früheren SMB-Befunden überein. Bei einem vergleichbaren Windows-Befund zusätzlich zur absoluten Byteposition auch die Position im Block und die Bitmaske notieren.
 
 Ein separater macOS-Dauerlauf verwendet 20’004 ausgelesene und geprüfte lokale Quelldateien und vier getrennte SMB-Zielverbindungen. Bei 69 MiB wurde eine Zielverbindung getrennt. Der betroffene Auftrag pausierte, während die drei anderen weiterliefen. Nach dem erneuten Einbinden lief derselbe Auftrag mit mehr als 69 MiB weiter. Die Zwei-Stunden-Marke und die unabhängige Endprüfung aller Ziele sind noch offen.
