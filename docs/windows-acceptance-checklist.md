@@ -712,10 +712,13 @@ Der signierte Mac-Build 376 bestand diese Nachtests auf einem lokalen FTP-Testse
 ### Archiv am Online-Ort im selben Bereich öffnen
 
 1. Ein eigenes ZIP mit einem Unterordner und zwei Textdateien auf den FTP-Testserver legen. Die Prüfsumme des Archivs erfassen. Daneben eine Kontrolldatei ablegen.
-2. Das ZIP in der FTP-Dateiliste doppelt anklicken. Im selben Dateibereich sollen die Archiveinträge erscheinen. Den Unterordner öffnen und eine Textdatei anzeigen. Über «Zurück» in den FTP-Ordner wechseln. Der gegenüberliegende Dateibereich und die Prüfsummen müssen unverändert bleiben.
-3. In einem getrennten Durchlauf «Öffnen mit …» verwenden und den Dialog abbrechen. Danach noch einmal per Doppelklick öffnen. Dateiliste und ursprünglicher Online-Ort müssen erhalten bleiben.
+2. Das ZIP in der FTP-Dateiliste doppelt anklicken. Im selben Dateibereich sollen die Archiveinträge und der Online-Pfad erscheinen. Den Unterordner öffnen und eine einzelne Textdatei in der Vorschau anzeigen. Dieselbe Datei in den gegenüberliegenden Bereich entpacken. Dort dürfen nur der benötigte Unterordner und die gewählte Datei hinzukommen.
+3. Über «Zurück» aus dem Archiv zum FTP-Ordner wechseln und das Archiv über «Vorwärts» wieder öffnen. Auch «Übergeordnet» im Archiv-Unterordner und danach im Archivstamm prüfen. Die temporäre Archivkopie soll nach dem Verlassen verschwinden, sobald laufende Zugriffe beendet sind.
+4. «Rückgängig» für das gezielt entpackte Mitglied ausführen. Der gegenüberliegende Dateibereich muss wieder den ursprünglichen Inhalt haben. Die Server-Prüfsumme und die Kontrolldateien vergleichen. App neu starten und den zuletzt aktiven FTP-Ordner prüfen.
+5. In getrennten Durchläufen ein beschädigtes ZIP öffnen und «Öffnen mit …» bei einem gültigen ZIP wählen. Das beschädigte ZIP muss eine lesbare Fehlermeldung im FTP-Bereich ergeben. «Öffnen mit …» muss den gewohnten Speichern-Dialog anbieten. Den Dialog abbrechen und den Online-Ordner prüfen.
+6. Den Abruf des Testarchivs am FTP-Server vorübergehend anhalten. Im betroffenen Bereich einen lokalen Testordner öffnen und erst dann den Abruf freigeben. Der lokale Bereich muss ausgewählt bleiben. In einem getrennten Lauf aus einem bereits geöffneten Archiv zum lokalen Testordner wechseln. Die App neu starten und prüfen, dass der zuletzt gewählte lokale Ort erhalten bleibt.
 
-Der signierte Mac-Build 376 öffnete beim Doppelklick auf das ZIP einen Speichern-Dialog. Die Archiveinträge erschienen im betroffenen Dateibereich nicht. Der Test exportierte keine Datei. Die Prüfsummen und der lokale Kontrollordner blieben unverändert. Die Korrektur ist offen.
+Mac-Build 376 öffnete beim Doppelklick den Speichern-Dialog. Der signierte Build 379 öffnete ZIP und TAR.GZ im gewählten Dateibereich. Der App-Nachtest bestätigte die Dateivorschau, gezieltes Entpacken mit Rückgängig, «Zurück», «Vorwärts» und «Übergeordnet». Nach dem Verlassen und beim regulären Beenden wurde die jeweilige temporäre Kopie aufgeräumt. Ein beschädigtes ZIP blieb mit sichtbarer Meldung in der FTP-Dateiliste. «Öffnen mit …» bot weiterhin den Speichern-Dialog an, und Abbrechen führte zum FTP-Ordner zurück. Beide Versuche mit einem Wechsel zum lokalen Ort bestanden. Eigene Abnahmeläufe mit direkten Cloud-Konten stehen aus.
 
 ### Online-Vorschau während eines Downloads wechseln und schliessen (MEDIA-06)
 
