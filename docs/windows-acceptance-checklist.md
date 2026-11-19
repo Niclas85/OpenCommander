@@ -191,7 +191,9 @@ Für die beiden Archivvarianten zuerst aus einer normalen Quelldatei ein ZIP erz
 
 Build 322 bestand ZIP und Entpacken samt Rückgängig mit Dropbox und Google Drive. Beim Rückgängigmachen der Entpackung auf Google Drive endete das erste Beobachtungsfenster nach 75 Sekunden. In einer neuen Testinstanz war die Prüfung noch nach 167 Sekunden aktiv und schloss anschliessend erfolgreich ab. Die Objekt-ID und der Inhalt des Eingabearchivs stimmten beim unabhängigen Anbieterabruf weiterhin überein.
 
-Für TRASH-07 eine neue Entpackung auf Google Drive ausführen. «Rückgängig» starten und abbrechen, sobald die Zielprüfung läuft. Den unveränderten Historieneintrag sowie Objekt-IDs und Prüfsummen des ZIP und der entpackten Dateien prüfen. Die App neu starten und genau denselben Eintrag erneut rückgängig machen. Build 322 bestand diesen Ablauf mit zwei Dateien, darunter eine Unicode-Datei im Unterordner. Der separate grosse Wiederherstellungstest bleibt offen.
+Für TRASH-07 eine neue Entpackung auf Google Drive ausführen. «Rückgängig» starten und abbrechen, sobald die Zielprüfung läuft. Den unveränderten Historieneintrag sowie Objekt-IDs und Prüfsummen des ZIP und der entpackten Dateien prüfen. Die App neu starten und genau denselben Eintrag erneut rückgängig machen. Build 322 bestand diesen Ablauf mit zwei Dateien, darunter eine Unicode-Datei im Unterordner.
+
+Für die grosse lokale Variante 20’000 eigene kleine Dateien aus D2 verwenden und vorab ein Manifest aus relativen Pfaden und SHA-256-Prüfsummen erstellen. Den Testbaum in den OpenCommander-Papierkorb verschieben, «Rückgängig» starten und während der Prüfung abbrechen. Prüfen, dass der Bestand im privaten Papierkorb unverändert bleibt und derselbe Historieneintrag erhalten ist. Die App neu starten, den Eintrag erneut rückgängig machen und den wiederhergestellten Baum mit dem Manifest vergleichen. Build 322 bestand diese Variante auf APFS. Die vollständige Wiederherstellung des D2-Testbaums auf SMB steht noch aus.
 
 ## Ergebnis festhalten
 
