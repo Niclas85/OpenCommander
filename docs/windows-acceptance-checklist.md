@@ -85,6 +85,8 @@ Für den Nachtest der Wartefrist zuerst eine gültige Liste laden. Beim nächste
 2. Zehn Sekunden später erneut aktualisieren. Den Testadapter bei den ersten zwei Abrufen wieder vorübergehend scheitern lassen. Beim dritten Abruf nur `Neu.txt` liefern.
 3. Zwei Wiederholungen mit Wartezeiten von zwei und vier Sekunden erwarten. Danach muss genau ein Eintrag `Neu.txt` ohne Cache-Zeitstempel erscheinen. `Alt.txt` darf nach Ablauf der fünf Minuten auch während eines weiteren Fehlers nicht als Ersatz erscheinen.
 
+Im Mac-Nachtest ermittelte der Client das Cache-Alter über die Testuhr. Der Adapter lieferte die vorübergehenden HTTP-503-Fehler. Der anschliessende echte Anbieterabruf zeigte nach 8,05 Sekunden bei Google Drive und nach 7,11 Sekunden bei Dropbox die aktuelle Liste. Unabhängige Abrufe bestätigten die Datei-IDs und Inhalte. Der Nachtest lief ohne App-Fenster.
+
 ### Ausbleibende OneDrive-Freigabebestätigung prüfen
 
 1. In einem separaten Testprofil mit einer eigenen Datei den Freigabedialog öffnen und abbrechen. Der Testadapter muss null Freigabeanfragen sehen.
