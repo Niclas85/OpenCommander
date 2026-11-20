@@ -62,7 +62,7 @@ Der Code von Mac-Build 421 nutzt für die Kontoprüfung eine Frist von 30 Sekund
 3. Innerhalb der Wartezeit erneut aktualisieren und den unveränderten Zähler prüfen. Nach der Wartezeit erneut laden. Die aktuelle Liste muss erscheinen, während die alte Antwort noch zurückgehalten wird.
 4. Die alte Antwort freigeben. Die aktuelle Liste und den Warnstatus erneut prüfen. Anbieterseitig müssen Datei-ID und Inhalt den Ausgangswerten entsprechen. Für den Test ohne vorherige Liste zusätzlich eine wiederholbare Fehlermeldung erwarten.
 
-Mac-Build 424 nutzt im normalen Betrieb 30 Sekunden für den eigentlichen Ordnerabruf. Im Live-Nachtest mit einer auf 8 Sekunden verkürzten Frist bestanden Google Drive und Dropbox den Ablauf mit vorhandener Liste. Die beiden Aufrufer erhielten sie nach 8,122 bzw. 8,133 Sekunden. Der Nachtest verwendete die Anwendungslogik mit echten Anbieterantworten. Build 425 meldete ohne vorherige Liste bei beiden Anbietern nach 8,399 bzw. 8,510 Sekunden Zeitlimit-Fehler mit Wiederholhinweis. Der erste erfolgreiche Abruf war fertig, während die ursprüngliche Antwort noch zurückgehalten wurde. Die sichtbare Darstellung steht aus.
+Mac-Build 424 nutzt im normalen Betrieb 30 Sekunden für den eigentlichen Ordnerabruf. Im Live-Nachtest mit einer auf 8 Sekunden verkürzten Frist bestanden Google Drive und Dropbox den Ablauf mit vorhandener Liste. Die beiden Aufrufer erhielten sie nach 8,122 bzw. 8,133 Sekunden. Der Nachtest verwendete die Anwendungslogik mit echten Anbieterantworten. Build 425 meldete ohne vorherige Liste bei beiden Anbietern nach 8,399 bzw. 8,510 Sekunden Zeitlimit-Fehler mit Wiederholhinweis. Der erste erfolgreiche Abruf war fertig, während die ursprüngliche Antwort noch zurückgehalten wurde.
 
 ### Cloud-Zeitlimit bei unveränderter Systemzeit prüfen (REG-CLOUD-40)
 
@@ -71,7 +71,11 @@ Mac-Build 424 nutzt im normalen Betrieb 30 Sekunden für den eigentlichen Ordner
 3. Während der Wartefrist erneut öffnen. Die App muss dieselbe Fehlermeldung ohne Dateiliste und ohne weiteren Abruf liefern. Die Testuhr bis zum Ende der Wartefrist vorsetzen.
 4. Den Ordner erneut öffnen und die aktuelle Liste anzeigen lassen. Die zurückgehaltene Antwort erst danach freigeben. Ein weiterer Abruf muss dieselben aktuellen Dateieinträge liefern. Datei-ID und Inhalt unabhängig beim Anbieter prüfen.
 
-Im Live-Vergleich benötigte Build 424 bei angehaltener Testuhr 12,362 Sekunden und zwei Google-Drive-Abrufe. Nach der Korrektur antwortete Build 425 bei einer Prüffrist von 8 Sekunden nach 8,399 Sekunden für Google Drive und 8,510 Sekunden für Dropbox. Der Nachtest verwendete die Anwendungslogik mit echten Anbieterantworten. Die Bedienung im App-Fenster steht aus.
+Im Live-Vergleich benötigte Build 424 bei angehaltener Testuhr 12,362 Sekunden und zwei Google-Drive-Abrufe. Nach der Korrektur antwortete Build 425 bei einer Prüffrist von 8 Sekunden nach 8,399 Sekunden für Google Drive und 8,510 Sekunden für Dropbox. Der Nachtest verwendete die Anwendungslogik mit echten Anbieterantworten.
+
+Im Fenster des isolierten Mac-Builds 425 zeigte ein simulierter OneDrive-Abruf über rclone nach 30,159 Sekunden die Zeitlimit-Meldung mit Schaltfläche und Countdown. Eine Datei im lokalen Bereich liess sich per Mausklick auswählen. Der automatische Wiederabruf zeigte die erste aktuelle Dateiliste. Der Testadapter zählte genau einen ursprünglichen Abruf und genau einen Wiederabruf.
+
+Mit demselben Testadapter startete Befehl-R für beide Cloud-Ansichten einen gemeinsamen Abruf. Nach 30,31 Sekunden zeigten beide dieselbe datierte Ersatzliste mit Zeitlimit-Warnung und Countdown. Ein Klick auf Schliessen führte links in den lokalen Ordner zurück. Nur der rechte Bereich zeigte nach genau einem automatischen Wiederabruf die neue Datei. In beiden Läufen blieben die Kontrolldateien und die leere Historie unverändert.
 
 ### Ausbleibende OneDrive-Freigabebestätigung prüfen
 
