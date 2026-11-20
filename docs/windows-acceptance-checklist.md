@@ -5,7 +5,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 ## Vollständige Prüfliste
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
-- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
+- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 107 Fälle nativ belegt, 44 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
 - [126 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
@@ -329,6 +329,14 @@ In Build 388 war «Alle fortsetzen» bei ausschliesslich fehlgeschlagenen und ab
 **Tastatur-Nachtest.** Die Transferübersicht mit der dafür vorgesehenen Tastenkombination öffnen und Escape drücken. Die Übersicht muss schliessen. Erneut öffnen, den fehlgeschlagenen Auftrag über den Tastaturbefehl für «Alle fortsetzen» starten und nach dem Abschluss erneut mit Escape schliessen. Danach den Tastaturbefehl für die Ordnernavigation prüfen. Bei automatisierter Eingabe einen uneinheitlichen Tastendruck separat festhalten.
 
 Im signierten Build 389 öffnete ⌘⇧T die Transferübersicht. Escape schloss sie vor und nach dem Fortsetzen. ⇧R führte einen gespeicherten fehlgeschlagenen Auftrag unter derselben ID bis zu bytegenauem Ziel und genau einem Historieneintrag fort. Der abgebrochene Auftrag blieb beendet. Nach dem Schliessen war die Ordnernavigation mit ⌘L wieder erreichbar. Die automatisierte Escape-Zustellung war im gemischten Versuch uneinheitlich. Deshalb ist für diese Variante kein Tastaturergebnis eingetragen.
+
+### Zwei Kopien bei einem Online-Namenskonflikt prüfen (FILE-07)
+
+1. Eine eigene Datei auf dem Cloud-Ziel vorbereiten und ihre Datei-ID sowie Prüfsumme erfassen. Lokal eine gleichnamige Datei mit anderen Bytes im D1-Testordner anlegen.
+2. Die lokale Datei ins Online-Ziel kopieren. Den Vorschlag «Beide behalten» mit der Eingabetaste bestätigen. Nach dem Abschluss müssen das Original und die erste Kopie vorhanden sein.
+3. OpenCommander im selben Testprofil neu öffnen und die Kopie wiederholen. Die zweite Kopie muss einen anderen Namen erhalten. Beide Kopien müssen der Quelle entsprechen. Die IDs und Prüfsummen des Originals und der ersten Kopie dürfen sich beim zweiten Lauf nicht ändern. Zwei abgeschlossene Aufträge und die zugehörigen Historieneinträge prüfen.
+
+Dieser Prüffall ist für Mac-Build 426 mit Google Drive und Dropbox belegt. Beide Anbieter lieferten im separaten Kontrollabruf das unveränderte Original sowie Kopien mit den Zusätzen «(2)» und «(3)». Das lokale Manifest mit je 35 Dateien blieb exakt.
 
 ### Pausierten Auftrag mit F5 oder F6 erneut auswählen
 

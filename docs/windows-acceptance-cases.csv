@@ -97,7 +97,7 @@ FILE-05;Dateiaktionen und Konflikte;P1;Zwischenablage;"D1; leere lokale Ziele A/
 FILE-06;Dateiaktionen und Konflikte;P0;Lokaler Namenskonflikt;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. Gleichnamige unterschiedliche Dateien vorbereiten
 2. Je einen Durchlauf Behalten, Ersetzen und Abbrechen";"Behalten erhält beide Inhalte unter eindeutigen Namen; Ersetzen hat nachvollziehbare Wiederherstellung; Abbrechen verändert keine Nutzdaten.";Nativ belegt;REG-DROP-01, REG-FS-01, REG-QUEUE-02;;Nicht ausgeführt;;;
 FILE-07;Dateiaktionen und Konflikte;P0;Online-Namenskonflikt;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. Datei auf Online-Ziel mit vorhandenem Namen kopieren
-2. Zweite Kopie starten";"Online-Pfade verwenden sicherheitshalber Behalten mit eindeutigem Namen; vorhandener Inhalt bleibt erhalten; keine stille Überschreibung.";Teilweise belegt;REG-CLOUD-01, REG-CLOUD-04, REG-CLOUD-07, REG-GDOC-04, REG-GDOC-05;;Nicht ausgeführt;;;
+2. Zweite Kopie starten";"Online-Pfade verwenden sicherheitshalber Behalten mit eindeutigem Namen; vorhandener Inhalt bleibt erhalten; keine stille Überschreibung.";Nativ belegt;REG-CLOUD-01, REG-CLOUD-04, REG-CLOUD-07, REG-GDOC-04, REG-GDOC-05;;Nicht ausgeführt;;;
 FILE-08;Dateiaktionen und Konflikte;P1;Umbenennen und neuer Ordner;"D1; leere lokale Ziele A/B und schreibgeschütztes Ziel R; Ausgangsmanifest mit SHA-256.";"1. F2 mit Unicode verwenden
 2. Bestehenden Namen und ungültigen Namen versuchen
 3. Strg+Umschalt+N";"Gültige Aktionen sichtbar; Kollision/ungültiger Name verständlich abgelehnt; kein Datenverlust.";Nativ belegt;;;Nicht ausgeführt;;;
