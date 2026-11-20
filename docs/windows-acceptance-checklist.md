@@ -628,6 +628,15 @@ Mac-Build 429 zeigte dieselbe datierte Liste und den Countdown auch über einen 
 
 21. November 2026. Das native Testprogramm kopierte den eigenen Dropbox-D1-Ordner über die Warteschlange auf die echte SMB-Freigabe. Nach 6 bestätigten Dateien pausierte der Download. Das Testprogramm startete neu und setzte dieselbe Auftrags-ID mit erhaltenem Fortschritt fort. Die Historie speicherte genau einen Eintrag für 40 Dateien und 1’049’793 Bytes. Eine separate Nur-Lese-SMB-Verbindung prüfte 37 Originaldateien, vier Unterordner und drei Wiederherstellungskopien samt SHA-256-Werten. «Rückgängig» las den gespeicherten Beleg in einem weiteren Prozess und entfernte den kopierten Zielnamen. Eine neu aufgebaute Nur-Lese-Verbindung bestätigte den fehlenden Zielordner und die unveränderte Kontrolldatei. Die Dropbox-IDs und lokale Quelle blieben gleich. Der eigene NAS-Testordner wurde entfernt. Die Prüfung im App-Fenster steht aus.
 
+### D2-Abweichung mit eigenständigem SMB-Schreibtest eingrenzen (SAFE-06, PROP-02)
+
+1. Die vier grossen Dateien des D2-Satzes mit einem separaten Schreibprogramm parallel in einen eigenen SMB-Testordner kopieren und die Eingabedaten gegen das Manifest prüfen.
+2. Zwei unabhängige SMB-Verbindungen öffnen und alle vier Zielprüfsummen vergleichen. Bei einer Abweichung den eigenen Testordner für einen dritten Bytevergleich erhalten.
+
+21. November 2026. Ein von OpenCommander unabhängiger POSIX-Kontrolltest schrieb die vier grossen D2-Dateien parallel auf einen eigenen SMB-Testordner. Die Eingabedaten stimmten beim Schreiben vollständig mit dem D2-Manifest überein. Zwei separat aufgebaute Nur-Lese-Verbindungen lieferten dieselben Prüfsummen. Bei zwei der vier Zieldateien zeigte ein dritter Vergleich je genau ein geändertes Bit. Beide Abweichungen lagen an Position 348 im jeweiligen 4-KiB-Block mit XOR-Maske 0x02, an unterschiedlichen Dateioffsets. Betroffen waren ein gepufferter Schreibvorgang und ein Schreibvorgang mit angefordertem Cache-Verzicht. Die Quelle blieb bytegenau und die eigenen NAS-Testdateien wurden zur Untersuchung behalten. Der unabhängige Versuch reproduziert den Fehler auf derselben SMB-Strecke. Die genaue Fehlerquelle und der vollständige D2-Zweistundenlauf bleiben offen.
+
+21. November 2026. Die Python-Prüfhilfe meldete für die SMB-Freigabe rund 4,2 GiB frei. Die native macOS-Abfrage und Foundation meldeten rund 8 TiB. Ein separat kompiliertes Testprogramm für die OpenCommander-Dateieigenschaften bestätigte die vollständigen Kapazitätswerte auf der echten SMB-Freigabe. Die Kontrollprüfung verwendet den nativen Wert. Die Bedienprüfung in der vollständigen Auflösungsmatrix steht aus.
+
 ### Einen begonnenen Cloud-Ordnerdownload fortsetzen (CLOUD-03, REC-03)
 
 1. Einen eigenen D1-Ordner aus der Cloud in einen leeren lokalen Testordner herunterladen. Während des Lesens pausieren und die bestätigten Byte- und Dateizähler erfassen.
