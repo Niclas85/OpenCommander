@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 116 Fälle nativ belegt, 35 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [137 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [138 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -837,6 +837,15 @@ Zwei native App-Durchläufe von Build 385 verwendeten einen simulierten OneDrive
 2. Eine andere Datei markieren und den Testordner per Rechtsklick öffnen. «Eigenschaften» muss den angeklickten Ordner betreffen. Die rekursive Grösse muss als unberechnet erscheinen, bis die Berechnung ausdrücklich gestartet wird.
 3. Die Grösse berechnen. Das Teilresultat muss 6’000 Dateien, 2’016’000 Bytes und einen Lesefehler anzeigen. Die Inhalte der verlinkten Ordner dürfen nicht mitgezählt werden.
 4. Den Zugriff auf den gesperrten Testordner wieder erlauben und erneut berechnen. Erwartet sind 6’001 Dateien, 13 Unterordner und 2’016’199 Bytes. Beim signierten Mac-Build 322 stimmten beide Resultate. Nach beiden Scans war der andere Dateibereich bedienbar. Die Testdateien und die separate Kontrolldatei behielten ihren Inhalt.
+
+### Ordnergrösse nach einem Austausch des ausgewählten Ordners prüfen (REG-PROP-01)
+
+1. Zwei eigene Ordner mit je einer Datei vorbereiten. Die Dateien müssen unterschiedliche Grössen und Inhalte haben. Die Eigenschaften des ersten Ordners öffnen. Die Grösse bleibt bis zum ausdrücklichen Berechnen unbekannt.
+2. Den ersten Ordner bei offenem Dialog im Explorer wegverschieben und den zweiten an dessen bisherigen Pfad setzen. Im offenen Dialog «Ordnergrösse berechnen» wählen. Der Dialog muss den Austausch melden. Grösse, Dateianzahl und Eigenschaften des Ersatzordners gehören erst in einen neu geöffneten Dialog für diesen Ordner.
+3. In einer weiteren Variante den Austausch während einer laufenden Grössenberechnung auslösen. Das Ergebnis darf dem ursprünglichen Ordner keine Werte des Ersatzes zuordnen. Danach beide Dateien unabhängig mit ihren ursprünglichen SHA-256-Werten vergleichen.
+4. Im isolierten Test denselben Pfad einmal durch ein anderes Volume und einmal durch eine symbolische Verknüpfung ersetzen. Anschliessend die ursprüngliche Zuordnung wiederherstellen und die Eigenschaften erneut öffnen.
+
+Der frühere Mac-Code zeigte nach einem Austausch die Grösse des Ersatzordners im offenen Dialog. Die Swift-Nachtests bestätigten die Ablehnung vor und während der Berechnung, den Ersatz durch einen symbolischen Link und die erneute Berechnung nach Wiederherstellung des ursprünglichen Ordners. Auf zwei eingehängten APFS-Testabbildern bestand auch der Volumewechsel. Nach erneutem Öffnen zeigte die Berechnung 17 B auf dem ursprünglichen und 71 B auf dem anderen Volume. Beide Dateien blieben bytegenau. Der Fenstertest steht aus.
 
 ### Verzögerte Ordnergrösse und Wiederholung prüfen (PROP-03)
 
