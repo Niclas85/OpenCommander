@@ -335,6 +335,12 @@ Beide APFS-Ziele dieses Build-445-Laufs erreichten im Fenster «Abgeschlossen» 
 
 Eine separate POSIX-Probe schrieb denselben 1-MiB-Quellbereich an den ursprünglichen Dateioffset der Build-445-Bitabweichung. Ein verschobener Bereich diente als Kontrolle. Die vier Bereiche aus gepufferten und nicht gepufferten Schreibvorgängen stimmten direkt nach dem Schreiben und auf zwei neuen Nur-Lese-SMB-Verbindungen bytegenau. Der fehlerhafte Zielbestand bleibt separat belegt. Die Ursache bleibt offen.
 
+### Vollständigen D2-Auftrag nach normalem Schliessen fortsetzen (REC-01)
+
+Build 447 startete die vollständige D2-Kopie über F5. Beim normalen Schliessen speicherte die App 1’650 bereits geprüfte Dateien. Der neue App-Prozess zeigte dieselbe Auftrags-ID als pausiert und setzte sie erst auf «Fortsetzen» fort. Alle 20’004 Dateien und 108 Ordner einschliesslich Wurzel entsprachen nach Abschluss dem ursprünglichen Manifest. Der unabhängige SHA-256-Vergleich bestätigte 7’522’886’128 Bytes. Für 17 bereits geprüfte Dateien blieben Kennungen, Zeitstempel und Prüfsummen erhalten. Das Fenster zeigte 100 Prozent. Die gespeicherten Daten enthielten genau einen Abschlussbeleg und genau einen Historieneintrag. REC-01 ist damit nativ abgenommen.
+
+Für den Windows-Nachtest D2 über die Oberfläche in ein separates leeres Testziel kopieren. Die Auftrags-ID und den Stand bereits geprüfter Dateien erfassen. Während des Kopierens das Fenster normal schliessen, warten bis die Pause gespeichert ist und die App neu öffnen. Erst danach «Fortsetzen» wählen. Anschliessend die vollständige Zielstruktur, alle SHA-256-Werte und genau einen Abschlussbeleg plus Historieneintrag prüfen.
+
 ### Unterbrochenen SMB-Auftrag wieder verbinden (REG-NAS-25)
 
 1. In der isolierten Testinstanz einen SMB-Kopiervorgang mit gespeichertem Zwischenstand vorbereiten. Den Testadapter beim nächsten Zugriff einen Verbindungsabbruch oder Zeitablauf melden lassen.
