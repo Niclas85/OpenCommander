@@ -946,6 +946,8 @@ Der signierte Mac-Build 322 stoppte «Rückgängig» für beide isoliert geteste
 
 Der macOS-Nachtest für Build 416 lud den gespeicherten Historieneintrag mit kontrollierten OneDrive-Antworten und echten APFS-Testdateien. Er bestätigte beide Wiederaufnahmepunkte und den sicheren Stopp bei fehlender Online-Datei. Zwei ergänzende automatisierte Nachtests für Build 417 bestätigten die Fälle mit geänderter Pfad-ID und fremder Datei für Google Drive und Dropbox mit kontrollierten Provider-Antworten.
 
+Mit echten Google-Drive- und Dropbox-Testdateien bestand der Ablauf auch im Transfer- und Historiencode. Pro Dienst wurde ein isolierter Testprozess nach dem Speichern des Wiederherstellungsstands und ein weiterer nach dem Weglegen der neueren lokalen Datei beendet. Ein neuer Prozess lehnte das gleichnamige Ersatzobjekt ab. Nach Rückkehr der ursprünglichen Provider-ID stellte «Rückgängig» die vorherige lokale Version bytegenau aus derselben Historie wieder her. Der anschliessende Kontrolllauf löste keinen weiteren Provider-Schreibzugriff aus. Der Durchlauf über die sichtbare App steht aus.
+
 ### Rückgängig bei einer Änderung der Sicherung während der Wiederherstellung
 
 1. In einem isolierten Windows-Testprofil eine eigene lokale Testdatei durch eine gleichnamige Datei mit anderem Inhalt ersetzen. Prüfsummen der Quelle, des sichtbaren Ziels und der erstellten Sicherung erfassen. Eine unabhängige Kontrolldatei daneben anlegen.
