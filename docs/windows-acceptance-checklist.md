@@ -850,6 +850,8 @@ Zwei native App-Durchläufe von Build 385 verwendeten einen simulierten OneDrive
 3. Die Grösse berechnen. Das Teilresultat muss 6’000 Dateien, 2’016’000 Bytes und einen Lesefehler anzeigen. Die Inhalte der verlinkten Ordner dürfen nicht mitgezählt werden.
 4. Den Zugriff auf den gesperrten Testordner wieder erlauben und erneut berechnen. Erwartet sind 6’001 Dateien, 13 Unterordner und 2’016’199 Bytes. Beim signierten Mac-Build 322 stimmten beide Resultate. Nach beiden Scans war der andere Dateibereich bedienbar. Die Testdateien und die separate Kontrolldatei behielten ihren Inhalt.
 
+Build 445 zeigte auf einer separaten SMB-Testfreigabe für 0 Byte, 1 Byte mit Unicode-Namen und 1 MiB die exakten Dateigrössen, Änderungszeiten und vom Dateisystem gemeldeten Rechte. Bei diesem NAS wich der zuerst gelesene Zeitstempel vom stabilen Wert nach direkter Inhaltslektüre ab. Vier separate POSIX-Proben reproduzierten das Verhalten ausserhalb von OpenCommander, zwei davon mit vorherigem `fsync`. Für den Windows-Vergleich zuerst die Dateien lesen, danach Grösse, Rechte und Zeitstempel zweimal unabhängig erfassen und mit den Dialogwerten vergleichen. Falls die Werte nach der ersten Lektüre wechseln, das Verhalten der Freigabe als separate Beobachtung erfassen. Alle 33 Testdateien blieben bytegenau. Der SMB-Ordner mit 25 Dateien in einem Unterordner zeigte erst nach einem Klick die unabhängig bestätigten 590 Bytes.
+
 ### Ordnergrösse nach einem Austausch des ausgewählten Ordners prüfen (REG-PROP-01)
 
 1. Zwei eigene Ordner mit je einer Datei vorbereiten. Die Dateien müssen unterschiedliche Grössen und Inhalte haben. Die Eigenschaften des ersten Ordners öffnen. Die Grösse bleibt bis zum ausdrücklichen Berechnen unbekannt.
