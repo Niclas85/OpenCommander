@@ -156,6 +156,8 @@ Im signierten Mac-Build 357 erschien die Ablehnung als unvollständige Einrichtu
 
 Für REG-AUTH-05 den Microsoft-Ablauf mit Anmeldecode in einem Testprofil auf Deutsch wiederholen. Den Token-Endpunkt nacheinander eine abgelehnte Anmeldung, einen abgelaufenen oder ungültigen Code und einen unbekannten Fehler mit synthetischem Detail liefern lassen. Einen ungültigen Client getrennt beim Anfordern des Anmeldecodes prüfen. Der deutsche Hinweis muss Ablehnung, Codeproblem und ungültige Registrierung unterscheiden. Beim unbekannten Fehler einen allgemeinen Hinweis erwarten. Prüfen, dass das Testdetail weder in der Meldung noch in der Historie erscheint und eine bereits gespeicherte Anmeldung weiterhin verfügbar ist. [Microsoft-Dokumentation zum Anmeldecode](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-device-code)
 
+Der native Mac-Testbuild 447 zeigte beim Microsoft-Anmeldeablauf die deutschen Meldungen für Abbruch, Ablehnung und einen abgelaufenen Code. Die absichtlich internen Anbieterdetails erschienen nicht. Beim lokal abgelaufenen Code wurde kein Token abgefragt. Vor dem anschliessenden erfolgreichen Anlauf wurde keine Dateiliste angefordert. Der erfolgreiche Anlauf lud genau einmal die erwartete Testdatei. Die lokalen Kontrolldateien blieben bytegenau. Der Anbieter war simuliert.
+
 ### Persönlichen OneDrive-Speicher auswählen (AUTH-04)
 
 1. In einem separaten Profil mit einem Testkonto oder einem Testadapter mehrere Laufwerke anbieten. Den technischen Speicher zuerst und den persönlichen OneDrive-Speicher später in der Liste liefern. Für beide Einträge eindeutige Testdateien verwenden. Der Assistent muss den persönlichen Speicher kennzeichnen und bevorzugt anzeigen.
@@ -556,6 +558,8 @@ Den ersten Abruf des eigenen Cloud-Ordners anhalten und denselben Ort rechts öf
 Den Ort danach in beiden Bereichen öffnen und mit einem zweiten Client eine neue Testdatei anlegen. Manuell links aktualisieren, den Abruf verzögern und rechts ebenfalls aktualisieren. Sobald beide Bereiche laden, den Abruf freigeben. Die neue Datei muss in beiden Listen erscheinen. Falls der Testaufbau Anbieteraufrufe protokolliert, die Zahl der Listenabrufe während der Überlappung erfassen. Build 322 bestand beide Varianten mit Dropbox und Google Drive.
 
 Ein separater App-Test mit Build 384 und simuliertem OneDrive-Transport protokollierte je einen Abruf beim Öffnen desselben Ordners in beiden Bereichen, beim manuellen Aktualisieren beider Bereiche und beim späteren Verlassen des linken Bereichs. Der rechte Bereich erhielt die verspätete Liste. Links blieb der eigene lokale Ordner sichtbar.
+
+Im nativen Mac-Testbuild 447 zeigte ⌘R für zwei sichtbare Bereiche im selben Testordner gleichzeitig die Ladeanzeige. Der Graph-Testadapter erhielt dennoch genau einen Ordnerabruf und verzögerte die Antwort um zwölf Sekunden. Links wechselte die App währenddessen zu lokalen Dateien. Rechts erschien die erwartete aktuelle Liste, während links die lokale Kontrolldatei sichtbar blieb. Das Protokoll bestätigte einen gemeinsamen Listenabruf. Die lokalen Kontrolldateien und die leere Historie wurden danach geprüft. Der vollständige Live-Anbieterabgleich bleibt offen.
 
 ### Beide Bereiche mit einem Tastendruck aktualisieren
 
