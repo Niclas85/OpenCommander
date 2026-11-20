@@ -243,7 +243,7 @@ AUTH-10;Cloud-Anmeldung und Profilverwaltung;P0;Trennen und erneutes Verbinden;"
 CLOUD-01;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Erste Liste und Warmstart;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Ort erstmals öffnen
 2. Unterordner öffnen
 3. Zurück
-4. Wieder öffnen";"Ladezustand und Stopp erreichbar; richtige aktuelle Liste; keine unbegrenzte Blockade. Kalte und warme Ladezeit getrennt erfassen.";Teilweise belegt;REG-CLOUD-03;;Nicht ausgeführt;;;
+4. Wieder öffnen";"Ladezustand und Stopp erreichbar; richtige aktuelle Liste; keine unbegrenzte Blockade. Kalte und warme Ladezeit getrennt erfassen.";Teilweise belegt;REG-CLOUD-03, REG-CLOUD-37;;Nicht ausgeführt;;;
 CLOUD-02;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Google-Drive-Hänger als Regression;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Drive mehrfach öffnen
 2. Während verzögerter Antwort navigieren
 3. Erneut laden";"Keine dauerhaft leere, unbedienbare Ansicht; Timeout/Fehler mit Wiederholen; lokale Bereiche weiter bedienbar.";Teilweise belegt;;;Nicht ausgeführt;;;
@@ -256,9 +256,9 @@ CLOUD-05;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Abgelaufene Autorisierung;
 2. Liste öffnen";"Anmeldefehler klar; keine alte Cacheliste als frisch/live ausgeben; erneute Anmeldung zugänglich.";Teilweise belegt;REG-AUTH-02, REG-AUTH-04;;Nicht ausgeführt;;;
 CLOUD-06;Cloud-Dateien, Live-Zugriff und Freigaben;P1;Rate-Limit und temporäre Fehler;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Über Testadapter 429/temporären Backendfehler liefern
 2. Retry beobachten
-3. Wegnavigieren";"Begrenzte Wiederholungen mit Wartezeit; kein Request-Sturm; ältere Ersatzliste nur mit Alters-/Warnhinweis; Navigation beendet Retry.";Teilweise belegt;REG-CLOUD-34;;Nicht ausgeführt;;;
+3. Wegnavigieren";"Begrenzte Wiederholungen mit Wartezeit; kein Request-Sturm; ältere Ersatzliste nur mit Alters-/Warnhinweis; Navigation beendet Retry.";Teilweise belegt;REG-CLOUD-34, REG-CLOUD-37;;Nicht ausgeführt;;;
 CLOUD-07;Cloud-Dateien, Live-Zugriff und Freigaben;P1;Parallele identische Listen;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Beide Bereiche auf selben Online-Ordner
-2. Gleichzeitig aktualisieren";"Anfragen sinnvoll zusammengeführt; beide Bereiche korrekt; kein gegenseitiges Überschreiben nach Navigation.";Teilweise belegt;REG-CLOUD-15, REG-KEY-03;;Nicht ausgeführt;;;
+2. Gleichzeitig aktualisieren";"Anfragen sinnvoll zusammengeführt; beide Bereiche korrekt; kein gegenseitiges Überschreiben nach Navigation.";Teilweise belegt;REG-CLOUD-15, REG-KEY-03, REG-CLOUD-37;;Nicht ausgeführt;;;
 CLOUD-08;Cloud-Dateien, Live-Zugriff und Freigaben;P1;Externe rclone-Einbindung;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Separaten eigenen Testmount mit bekanntem Provider öffnen
 2. Namen/Icon/Kontextmenü prüfen";"Provider erkannt, soweit unterstützte eigene Mount-Konfiguration lesbar; keine fremden Konfigurationsgeheimnisse abgefragt.";Teilweise belegt;REG-CLOUD-14;;Nicht ausgeführt;;;
 CLOUD-09;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Teilen bei Drive, OneDrive, Dropbox;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Einzelne Testdatei rechtsklicken
