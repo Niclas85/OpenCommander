@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 116 Fälle nativ belegt, 35 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [130 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [137 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -1075,6 +1075,17 @@ Alle fünf Varianten bestanden auf dem Mac mit simulierten Anbietern und echten 
 4. Als Kontrolle auch nach dem Sichern der bisherigen OneDrive-Datei und während eines noch unbestätigten Uploads abbrechen. Die App muss die Sicherung behalten. Eine unbestätigte Datei darf keinen abgeschlossenen Kopiereintrag erzeugen.
 
 Die sechs isolierten macOS-Varianten bestanden mit simulierten Microsoft-Graph-Antworten. Die Warteschlange und die Historie wurden von der Festplatte neu geöffnet. Die drei Varianten mit vorübergehend fehlender oder fremder Zieldatei behielten den Abbruch und prüften die korrekte Kopie bis «Rückgängig». Der Live-Test mit einem OneDrive-Konto bleibt offen.
+
+### Abbruch einer bereits ausgeführten Cloud-Verschiebung prüfen (REG-QUEUE-08)
+
+1. Eine eigene Testdatei von Dropbox nach Google Drive verschieben und dabei eine gleichnamige Zieldatei mit anderem Inhalt ersetzen. Die ursprünglichen Anbieter-IDs und SHA-256-Prüfsummen beider Dateien erfassen.
+2. Den isolierten App-Prozess gezielt beenden, sobald die neue Zieldatei veröffentlicht und die Quelle in den Wiederherstellungsbereich verschoben ist. Zu diesem Zeitpunkt darf der Abschlussbeleg noch fehlen. Über einen separaten Anbieterabruf die neue Zieldatei sowie beide gesicherten Originale prüfen.
+3. Die App erneut starten. Beim ursprünglichen pausierten Auftrag «Abbrechen» wählen. Die Prüfung muss den bereits ausgeführten Auftrag abschliessen und genau einen Verschiebeeintrag in der Historie speichern. Sie darf keine Datei beim Anbieter neu hochladen, kopieren, umbenennen oder löschen. Die ausgeklappte Auftragskarte muss jetzt «Dateien 1 / 1» zeigen, auch wenn der letzte gespeicherte Fortschritt noch 0 / 1 war. Bei unbekannter Byte-Gesamtgrösse muss das Feld unbekannt bleiben.
+4. «Rückgängig» am gespeicherten Eintrag ausführen. Beide Originaldateien müssen mit ihrer ursprünglichen Anbieter-ID und Prüfsumme zurückkehren. Nach einem weiteren Neustart den Zustand der Historie prüfen. Den Ablauf auch in der Gegenrichtung ausführen.
+
+Die isolierten Mac-Live-Tests bestätigten den Abbruch nach Prozessende in beiden Richtungen. Für Dropbox → Google Drive bestätigten ein weiterer Prozessstart und ein unabhängiger Abruf nach «Rückgängig» beide ursprünglichen Anbieter-IDs und Prüfsummen. In der Gegenrichtung scheiterte der erste Rückgängig-Lauf bei einem Umbenennungsaufruf. Dieser Lauf wird weiter untersucht.
+
+Im Live-Test zeigte der gespeicherte Fortschritt trotz erfolgreicher Abbruchprüfung noch 0 / 1 Dateien. Der korrigierte Warteschlangencode übernimmt die bestätigte Einzeldatei aus dem Abschlussbeleg. Die automatisierten Mac-Nachtests bestätigen 1 / 1 nach der Abbruchprüfung und beim erneuten Öffnen eines veralteten Warteschlangenstands. Unbekannte Byte-Gesamtgrössen und die Fortschrittswerte von Ordneraufträgen bleiben erhalten. Die sichtbare Karte benötigt noch einen Fenstertest.
 
 ### Cloud-Rückgängig nach Prozessabbruch fortsetzen
 
