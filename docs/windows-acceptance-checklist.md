@@ -610,6 +610,14 @@ Mac-Build 429 zeigte dieselbe datierte Liste und den Countdown auch über einen 
 
 20. November 2026. F5 in Mac-Testbuild 452 lud den vollständigen eigenen Dropbox-D1-Ordner hoch. Der abgeschlossene Auftrag bestätigte 37 Dateien und 1’049’688 Bytes mit genau einem Historieneintrag. Ein separater Dropbox-Abruf verglich das gesamte Verzeichnis mit dem lokalen Original. Die SHA-256-Werte, vier Unterordner einschliesslich leerer Ordner und die Namen stimmten überein. Die Objekt-IDs blieben beim erneuten Abruf gleich. Die unabhängige Kontrolldatei blieb unverändert. Der Download über die App und die nachfolgenden Dateiaktionen stehen für diesen Dropbox-Durchlauf aus.
 
+### Cloud-Datei nach Umbenennen und Entfernen wiederherstellen (CLOUD-03)
+
+1. Einen leeren Ordner neben dem eigenen Cloud-D1-Datensatz anlegen und ihn direkt beim Anbieter prüfen.
+2. Eine Testdatei umbenennen. Appsitzung schliessen, erneut öffnen und Umbenennen rückgängig machen. Nach jedem Schritt den sichtbaren Namen und die Objekt-ID direkt beim Anbieter prüfen.
+3. Dieselbe Datei entfernen und Rückgängig erneut nach App-Neustart prüfen. Die Datei muss mit gleichem Inhalt und ursprünglicher ID erscheinen. Den vollständigen D1-Datensatz und die Kontrolldatei unabhängig vergleichen und vorgesehene Wiederherstellungskopien mit erfassen.
+
+21. November 2026. Das native Testprogramm verwendete die Dropbox-Dateiaktionen und die gespeicherten Rückgängig-Belege von OpenCommander im gleichen eigenen D1-Testordner. Ein separater Dropbox-Abruf bestätigte einen neu angelegten leeren Ordner und nach jedem Schritt den erwarteten Dateinamen sowie die Objekt-ID und exakten Inhalte der Testdatei. Separate Prozesse machten zuerst das Umbenennen und später das Entfernen rückgängig. Die ursprüngliche ID war nach beiden Wiederherstellungen wieder unter dem Originalnamen sichtbar. Der abschliessende Direktabruf bestätigte alle 37 Originaldateien, vier Unterordner und drei erwartete Wiederherstellungskopien mit exakten SHA-256-Werten. Die lokale Quelle, der lokale Download und die entfernte Kontrolldatei stimmten mit den Ausgangsdaten überein. Die Bedienung dieser Schritte im App-Fenster und die vollständige C1-Anbietermatrix stehen aus.
+
 ### Einen begonnenen Cloud-Ordnerdownload fortsetzen (CLOUD-03, REC-03)
 
 1. Einen eigenen D1-Ordner aus der Cloud in einen leeren lokalen Testordner herunterladen. Während des Lesens pausieren und die bestätigten Byte- und Dateizähler erfassen.
