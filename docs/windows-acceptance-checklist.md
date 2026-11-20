@@ -535,7 +535,9 @@ Zwei gestoppte Mac-D2-Aufträge zeigten dieses Muster nach dem erneuten Einhäng
 1. Im Testprofil einen Ordner mit einer eigenen Datei über 1 MiB und einer kleineren Kontrolldatei auf eine SMB-Testfreigabe kopieren. Dateikennung, Grösse, Schreibzeit und SHA-256 des Ziels erfassen.
 2. Für den zeitgenauen Nachtest einen Prüfpunkt nach dem Hashen der Zieldatei für den Abschlussbeleg und vor der letzten Prüfung ihrer Dateimerkmale verwenden. Über einen separaten Dateizugriff ein Byte derselben Datei ändern und den vorherigen Schreibzeitpunkt wiederherstellen. Die Dateikennung und Grösse müssen gleich bleiben.
 3. Den Auftrag weiterlaufen lassen. Die App muss den betroffenen relativen Pfad nennen und darf keinen erfolgreichen Abschlussbeleg schreiben. Über eine unabhängige Verbindung die geänderte Zieldatei, unveränderte Quelle und Kontrolldatei prüfen.
-4. Für die Variante ohne Prüfpunkt eine bestätigte Kopie nachträglich wie in Schritt 2 ändern. Die App neu starten und «Rückgängig» wählen. Die geänderte Datei muss sichtbar erhalten bleiben. In einem ausschliesslich diesem Test gehörenden Ordner das ursprüngliche Byte und den ursprünglichen Schreibzeitpunkt wiederherstellen. Danach muss derselbe Historieneintrag die Kopie rückgängig machen können.
+4. Für die Variante ohne Prüfpunkt eine bestätigte Kopie nachträglich wie in Schritt 2 ändern. Die App neu starten und «Rückgängig» wählen. Die geänderte Datei muss sichtbar erhalten bleiben. In einem ausschliesslich diesem Test gehörenden Ordner das ursprüngliche Byte sowie die ursprüngliche Erstellungs- und Schreibzeit wiederherstellen und die Testfreigabe neu verbinden. Danach muss derselbe Historieneintrag die Kopie rückgängig machen können.
+
+Im physischen SMB-Nachtest meldete der Server nach der Änderung dieselbe Schreib- und Statusänderungszeit. Die erste Mac-Korrektur akzeptierte den Nachweis trotz des abweichenden Bytes. Mit der erneuten Inhaltsprüfung über einen frisch geöffneten Zugriff ohne Lesecache wurde die Änderung abgewiesen. Eine eigene Nur-Lese-Verbindung bestätigte das abweichende Byte und die intakten Kontrolldaten.
 
 ## Ergebnis festhalten
 
