@@ -49,11 +49,14 @@ Im sichtbaren Test mit dem signierten Mac-Build 321 blieb die Testdatei nach «A
 
 ### Cloud-Freigabe bei Namenswechsel prüfen (REG-CLOUD-42)
 
-1. Zwei eigene Dateien mit verschiedenen Inhalten und Datei-IDs im selben Google-Drive-Testordner anlegen. Beide müssen privat sein. In OpenCommander den Linkdialog für die erste Datei öffnen.
+1. Je einen eigenen Testordner für Google Drive, Dropbox und OneDrive anlegen. Zwei eigene Dateien mit verschiedenen Inhalten und Datei-IDs im selben Ordner anlegen. Beide müssen privat sein. In OpenCommander den Linkdialog für die erste Datei öffnen.
 2. Mit einem Testadapter die Freigabe zwischen der letzten Pfadprüfung und dem Schreibaufruf anhalten. Über einen zweiten Client die erste Datei umbenennen und der zweiten den ursprünglichen Namen geben. Beide IDs am Anbieter prüfen und den Schreibaufruf fortsetzen.
-3. Die Freigabe muss sich auf die bestätigte Datei-ID beziehen. Wird der Namenswechsel schon bei der Pfadprüfung erkannt, muss die Freigabe abgelehnt werden. Die zweite Datei bleibt in beiden Fällen privat und beide Inhalte bleiben identisch. Bei angelegter Freigabe beim Anbieter genau eine Leserberechtigung ohne Auffindbarkeit prüfen, widerrufen und beide Dateien erneut prüfen.
+3. Die Freigabe muss sich auf die bestätigte Datei-ID beziehen. Wird der Namenswechsel schon bei der Pfadprüfung erkannt, muss die Freigabe abgelehnt werden. Die zweite Datei bleibt in beiden Fällen privat und beide Inhalte bleiben identisch.
+4. Beim Anbieter genau einen öffentlichen Leselink prüfen. Bei Google Drive muss die Freigabe von der öffentlichen Suche ausgeschlossen sein. Bei OneDrive müssen geerbte Berechtigungen erhalten bleiben. Bei Dropbox die Aktion für die umbenannte Originaldatei erneut bestätigen und prüfen, dass dieselbe URL zurückkommt und genau ein Link besteht. Die eigene Freigabe widerrufen und beide Dateien erneut prüfen.
 
 Der Mac-Live-Nachtest mit der nativen Anwendungslogik hielt den Schreibaufruf direkt vor dem Versand an. Google Drive bestätigte genau eine Leserfreigabe für die ursprüngliche Datei-ID. Die gleichnamige Ersatzdatei blieb privat, beide Inhalte waren bytegenau. Nach dem Widerruf bestätigte ein unabhängiger Abruf, dass beide Dateien wieder privat waren. Die Testdateien und der Testordner wurden entfernt.
+
+Der Dropbox-Live-Nachtest bestätigte denselben Namenswechsel. Die unabhängige Prüfung fand einen öffentlichen Viewer-Link für die ursprüngliche Datei-ID und keinen Link für die Ersatzdatei. Nach der erneuten Bestätigung blieb die URL identisch. Beide Inhalte, der Widerruf und die Bereinigung wurden geprüft. Der OneDrive-Test mit kontrollierten Graph-Antworten bestätigt die richtige Laufwerks- und Objekt-ID, die Behandlung bestehender Links und die Meldung bei abgelehnter Freigabe. Die OneDrive-Verbindung über rclone braucht noch einen Live-Nachtest. [Microsoft Graph](https://learn.microsoft.com/en-us/graph/api/driveitem-createlink?view=graph-rest-1.0) · [Dropbox-API-Spezifikation](https://github.com/dropbox/dropbox-api-spec/blob/main/sharing.stone)
 
 ### Cloud-Ordner bei gesperrter Kontokonfiguration prüfen (REG-CLOUD-37)
 
