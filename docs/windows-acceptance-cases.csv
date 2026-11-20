@@ -307,7 +307,7 @@ DEVICE-01;Datenträger und Dateisysteme;P0;Datenträger entdecken;"Entbehrliche 
 DEVICE-02;Datenträger und Dateisysteme;P1;Mount und Auswerfen;"Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.";"1. Nicht eingehängtes Testmedium öffnen
 2. Nach Nutzung sicher auswerfen";"Einbinden über Windows funktioniert; Auswerfen nur sicher im Leerlauf; Ort aktualisiert sich; Fehler verständlich.";Nativ belegt;;;Nicht ausgeführt;;;
 DEVICE-03;Datenträger und Dateisysteme;P0;Datenträger während Kopie verlieren;"Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.";"1. Kopie auf Testmedium starten
-2. Kontrollierten Disconnect simulieren";"Fehler/Unterbrechung sichtbar; kein falscher Abschluss; Quelle erhalten; kein Schreiben in leeres lokales Mountverzeichnis.";Teilweise belegt;REG-NAS-15;;Nicht ausgeführt;;;
+2. Kontrollierten Disconnect simulieren";"Fehler/Unterbrechung sichtbar; kein falscher Abschluss; Quelle erhalten; kein Schreiben in leeres lokales Mountverzeichnis.";Nativ belegt;REG-NAS-15;;Nicht ausgeführt;;;
 DEVICE-04;Datenträger und Dateisysteme;P0;NTFS lesen und schreiben;"Entbehrliche USB-Testmedien und VM-Testvolumes; niemals reale Partitionen reparieren oder formatieren.";"1. Gesundes beschreibbares NTFS-Testvolume nutzen
 2. Kopieren/rename/delete/undo
 3. Read-only-Volume wiederholen";"Schreiben nur bei geeignetem Treiber/Mountrechten; Read-only klar gemeldet. OpenCommander repariert keine Superblocks und erzwingt keinen Schreibzugriff.";Umgebung erforderlich;REG-NTFS-01, REG-QUEUE-04, REG-NTFS-03, REG-NTFS-04;;Nicht ausgeführt;;;

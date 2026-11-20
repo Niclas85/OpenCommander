@@ -5,7 +5,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 ## Vollständige Prüfliste
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
-- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 114 Fälle nativ belegt, 37 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
+- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 115 Fälle nativ belegt, 36 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
 - [126 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
@@ -770,6 +770,14 @@ Der signierte Mac-Build 322 zeigte bei Dropbox und Google Drive vier geprüfte M
 OneDrive Online zeigte in Mac-Build 156 die erste und letzte der 30 Bildzeilen, den leeren Nachbarordner und die erneut geöffnete Galerie. Im Protokoll stehen 30 gestartete und 30 gerenderte Miniaturen, höchstens zwei gleichzeitige Abrufe und nach der Rückkehr 30 Cache-Ereignisse auf Zellenebene ohne weitere Downloads. Auf APFS und im eingebundenen macOS-iCloud-Drive-Ordner zeigte Build 153 nach dem Scrollen und Wiederöffnen die erwarteten Miniaturen. Für den iCloud-Ordner bestätigte macOS alle 30 Dateien als hochgeladen und aktuell, und der Bytevergleich stimmte. Für diesen Lauf fehlen Messwerte zur Cache-Nutzung und ein Lauf über die direkte iCloud-Verbindung.
 
 Der FTP-Loopback-Test mit Mac-Build 366 belegte zusätzlich, dass beim Ordnerwechsel zwei absichtlich verzögerte Inhaltsabrufe abbrachen. Die erste Miniatur erschien beim erneuten Öffnen aus dem Cache ohne weitere Inhaltsanfrage. MEDIA-12 bleibt in der Mac-Abnahme teilweise belegt.
+
+### NTFS-Ziel während einer Kopie trennen (DEVICE-03)
+
+1. In einem isolierten Profil eine eigene 96-MiB-Datei mit bekannter SHA-256-Prüfsumme auf ein beschreibbares virtuelles NTFS-Testlaufwerk kopieren. Auf dem Ziel eine separate Kontrolldatei anlegen.
+2. Nach bestätigtem Schreibfortschritt das eigene virtuelle Laufwerk kontrolliert trennen. Auf der Auftragskarte den Hinweis zur Wiederverbindung prüfen. Quelle, leerer Einhängepfad und Historie kontrollieren. Der Auftrag darf noch keinen erfolgreichen Abschluss anzeigen.
+3. Dasselbe Abbild einhängen und den ursprünglichen Auftrag fortsetzen. Zielprüfsumme und genau einen gespeicherten Kopiereintrag prüfen. Die App neu öffnen, «Rückgängig» wählen und Quelle sowie Kontrolldatei erneut prüfen.
+
+Mac-Build 428 zeigte beim kontrollierten Aushängen nach 2 MiB den Verlust des Laufwerks. Der leere Einhängepfad blieb leer. Nach der Wiederverbindung kopierte dieselbe Auftrags-ID alle 96 MiB mit korrekter Prüfsumme. Nach einem App-Neustart entfernte «Rückgängig» die Kopie, während Quelle und Kontrolldatei erhalten blieben. Der Test verwendete den installierten FSKit-Treiber aus Build 268.
 
 ### Schreibschutz in den NTFS-Dateieigenschaften prüfen
 
