@@ -618,6 +618,14 @@ Mac-Build 429 zeigte dieselbe datierte Liste und den Countdown auch über einen 
 
 21. November 2026. Das native Testprogramm verwendete die Dropbox-Dateiaktionen und die gespeicherten Rückgängig-Belege von OpenCommander im gleichen eigenen D1-Testordner. Ein separater Dropbox-Abruf bestätigte einen neu angelegten leeren Ordner und nach jedem Schritt den erwarteten Dateinamen sowie die Objekt-ID und exakten Inhalte der Testdatei. Separate Prozesse machten zuerst das Umbenennen und später das Entfernen rückgängig. Die ursprüngliche ID war nach beiden Wiederherstellungen wieder unter dem Originalnamen sichtbar. Der abschliessende Direktabruf bestätigte alle 37 Originaldateien, vier Unterordner und drei erwartete Wiederherstellungskopien mit exakten SHA-256-Werten. Die lokale Quelle, der lokale Download und die entfernte Kontrolldatei stimmten mit den Ausgangsdaten überein. Die Bedienung dieser Schritte im App-Fenster und die vollständige C1-Anbietermatrix stehen aus.
 
+### Cloud-Ordner auf SMB kopieren und aus der Historie rückgängig machen (CLOUD-03, SERVER-08)
+
+1. Einen eigenen D1-Ordner aus Dropbox auf eine beschreibbare SMB-Testfreigabe kopieren. Den Download pausieren und nach einem App-Neustart unter derselben Auftrags-ID fortsetzen.
+2. Die fertige Kopie über eine getrennte SMB-Verbindung prüfen und ihre SHA-256-Werte vergleichen.
+3. Die App erneut starten und Rückgängig über die gespeicherte Historie ausführen. Über die getrennte SMB-Verbindung Quelle, Ziel und Testkontrolle abgleichen.
+
+21. November 2026. Das native Testprogramm kopierte den eigenen Dropbox-D1-Ordner über die Warteschlange auf die echte SMB-Freigabe. Nach 6 bestätigten Dateien pausierte der Download. Das Testprogramm startete neu und setzte dieselbe Auftrags-ID mit erhaltenem Fortschritt fort. Die Historie speicherte genau einen Eintrag für 40 Dateien und 1’049’793 Bytes. Eine separate Nur-Lese-SMB-Verbindung prüfte 37 Originaldateien, vier Unterordner und drei Wiederherstellungskopien samt SHA-256-Werten. «Rückgängig» las den gespeicherten Beleg in einem weiteren Prozess und entfernte den kopierten Zielnamen. Eine neu aufgebaute Nur-Lese-Verbindung bestätigte den fehlenden Zielordner und die unveränderte Kontrolldatei. Die Dropbox-IDs und lokale Quelle blieben gleich. Der eigene NAS-Testordner wurde entfernt. Die Prüfung im App-Fenster steht aus.
+
 ### Einen begonnenen Cloud-Ordnerdownload fortsetzen (CLOUD-03, REC-03)
 
 1. Einen eigenen D1-Ordner aus der Cloud in einen leeren lokalen Testordner herunterladen. Während des Lesens pausieren und die bestätigten Byte- und Dateizähler erfassen.
