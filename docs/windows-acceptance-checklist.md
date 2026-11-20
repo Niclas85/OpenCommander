@@ -68,7 +68,7 @@ Mac-Build 424 nutzt im normalen Betrieb 30 Sekunden für den eigentlichen Ordner
 
 1. In einem eigenen Testprofil einen Cloud-Unterordner ohne gespeicherte Dateiliste öffnen. Im Testadapter nur die Uhr für Zeitstempel anhalten. Die Uhr des Rechners muss dafür nicht geändert werden.
 2. Die Antwort des ersten Listenabrufs zurückhalten, auch wenn die App den Abbruch anfordert. Nach dem Zeitlimit muss eine Meldung mit Wiederholhinweis erscheinen. Genau einen Anbieterabruf zählen.
-3. Während der Wartefrist erneut öffnen. Die App muss dieselbe Fehlermeldung ohne Dateiliste und ohne weiteren Abruf liefern. Die Testuhr bis zum Ende der Wartefrist vorsetzen.
+3. Während der Wartefrist erneut öffnen. Die App muss dieselbe Fehlermeldung ohne Dateiliste und ohne weiteren Abruf liefern. Die Wartefrist verstreichen lassen oder nur die Testuhr für verstrichene Zeit bis zur Frist vorsetzen.
 4. Den Ordner erneut öffnen und die aktuelle Liste anzeigen lassen. Die zurückgehaltene Antwort erst danach freigeben. Ein weiterer Abruf muss dieselben aktuellen Dateieinträge liefern. Datei-ID und Inhalt unabhängig beim Anbieter prüfen.
 
 Im Live-Vergleich benötigte Build 424 bei angehaltener Testuhr 12,362 Sekunden und zwei Google-Drive-Abrufe. Nach der Korrektur antwortete Build 425 bei einer Prüffrist von 8 Sekunden nach 8,399 Sekunden für Google Drive und 8,510 Sekunden für Dropbox. Der Nachtest verwendete die Anwendungslogik mit echten Anbieterantworten.
@@ -76,6 +76,8 @@ Im Live-Vergleich benötigte Build 424 bei angehaltener Testuhr 12,362 Sekunden 
 Im Fenster des isolierten Mac-Builds 425 zeigte ein simulierter OneDrive-Abruf über rclone nach 30,159 Sekunden die Zeitlimit-Meldung mit Schaltfläche und Countdown. Eine Datei im lokalen Bereich liess sich per Mausklick auswählen. Der automatische Wiederabruf zeigte die erste aktuelle Dateiliste. Der Testadapter zählte genau einen ursprünglichen Abruf und genau einen Wiederabruf.
 
 Mit demselben Testadapter startete Befehl-R für beide Cloud-Ansichten einen gemeinsamen Abruf. Nach 30,31 Sekunden zeigten beide dieselbe datierte Ersatzliste mit Zeitlimit-Warnung und Countdown. Ein Klick auf Schliessen führte links in den lokalen Ordner zurück. Nur der rechte Bereich zeigte nach genau einem automatischen Wiederabruf die neue Datei. In beiden Läufen blieben die Kontrolldateien und die leere Historie unverändert.
+
+Für den Nachtest der Wartefrist zuerst eine gültige Liste laden. Beim nächsten Abruf eine Drosselung mit 60 Sekunden Wartezeit auslösen und die Störung wieder aufheben. Nach 12 Sekunden die Uhr für Zeitstempel im Testadapter einmal um eine Stunde vor- und einmal um eine Stunde zurückstellen. Nach jeder Änderung manuell aktualisieren. Beide Aktualisierungen müssen dieselbe datierte Ersatzliste und 48 Sekunden Restzeit liefern, ohne eine weitere Anbieteranfrage auszulösen. Nach weiteren 48 Sekunden muss genau ein neuer Abruf die aktuelle Liste laden. Die Uhr des Testrechners kann dabei unverändert bleiben.
 
 ### Ausbleibende OneDrive-Freigabebestätigung prüfen
 
