@@ -5,7 +5,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 ## Vollständige Prüfliste
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
-- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 107 Fälle nativ belegt, 44 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
+- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 108 Fälle nativ belegt, 43 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
 - [126 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
@@ -1043,6 +1043,10 @@ Im signierten Mac-Build 376 endete der gehaltene FTP-Abruf nach 30,03 Sekunden. 
 3. OpenCommander öffnen und den abgeschlossenen Auftrag rückgängig machen. Die App muss die geänderte Zieldatei melden und den Historieneintrag behalten. Zieldatei, Kontrolldatei und Cloud-Quelle anhand ihrer Prüfsummen prüfen. Bei Zugriff auf die Sicherung auch die frühere lokale Version prüfen.
 
 Der signierte Mac-Build 322 stoppte «Rückgängig» für beide isoliert getesteten Kopien aus Dropbox und Google Drive und meldete die Änderung. Die bearbeitete Version, die ursprüngliche lokale Sicherung, die Kontrolldatei und die Cloud-Quelle blieben bytegenau erhalten.
+
+Für den Gegenversuch eine eigene lokale Datei per F6 verschieben und die gleichnamige Zieldatei ersetzen. Danach am ursprünglichen Quellpfad eine andere eigene Datei anlegen. «Rückgängig» muss den Konflikt melden und Quelle, Ziel und Sicherung bitgenau erhalten. Die neu angelegte Datei aus dem Quellpfad weglegen und denselben Historieneintrag erneut rückgängig machen.
+
+Beide Varianten sind in Mac-Build 426 mit eigenen D1-Testdateien belegt. Beim bearbeiteten Google-Drive-Kopierziel blieb sogar bei gleicher Grösse, gleichem Inode und gleicher Änderungszeit die neue Version geschützt. Im Verschiebeversuch blieb der neu belegte Quellpfad erhalten. «Rückgängig» stellte in beiden Fällen nach Behebung des Konflikts die vorherigen Inhalte bytegenau wieder her.
 
 ### Lokalen Ersatz nach einem Cloud-Verschieben rückgängig machen
 
