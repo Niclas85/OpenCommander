@@ -331,6 +331,8 @@ Im separaten Build-445-Lauf wurden alle 20’004 Quelldateien nach der lokalen W
 
 Beide APFS-Ziele dieses Build-445-Laufs erreichten im Fenster «Abgeschlossen» und 100 Prozent. Der unabhängige SHA-256-Vergleich bestätigte für jedes Ziel genau 20’004 Dateien, 7’522’886’128 Bytes, 108 Ordner einschliesslich Wurzel und drei leere Ordner. Je ein Abschlussbeleg und Historieneintrag lagen vor. Das zweite SMB-Ziel stoppte bei 28 Prozent. 20. November 2026. Die vollständige unabhängige Lektüre von Quelle und fehlgeschlagenem SMB-Ziel in Build 445 bestätigte bei «Large2GiB.bin» genau ein abweichendes Bit. Der absolute Dateioffset war 2’066’751’836, die Position im 4-KiB-Block 348 und die XOR-Maske 0x02. Zwei neue, getrennte Nur-Lese-SMB-Einhängungen bestätigten dieselbe Abweichung im gelesenen 1-MiB-Bereich. Die lokale SHA-256-Prüfsumme entsprach dem ursprünglichen Manifest. Der angehaltene Auftrag blieb ohne Abschlussbeleg und Historieneintrag. Die Ursache der Bitabweichung ist offen. Das wiederverbundene SMB-Ziel kopierte zum Zeitpunkt der Prüfung weiter. Der Lauf erreichte die zweistündige gemeinsame Laufzeit nicht.
 
+Eine separate POSIX-Probe schrieb denselben 1-MiB-Quellbereich an den ursprünglichen Dateioffset der Build-445-Bitabweichung. Ein verschobener Bereich diente als Kontrolle. Die vier Bereiche aus gepufferten und nicht gepufferten Schreibvorgängen stimmten direkt nach dem Schreiben und auf zwei neuen Nur-Lese-SMB-Verbindungen bytegenau. Der fehlerhafte Zielbestand bleibt separat belegt. Die Ursache bleibt offen.
+
 ### Unterbrochenen SMB-Auftrag wieder verbinden (REG-NAS-25)
 
 1. In der isolierten Testinstanz einen SMB-Kopiervorgang mit gespeichertem Zwischenstand vorbereiten. Den Testadapter beim nächsten Zugriff einen Verbindungsabbruch oder Zeitablauf melden lassen.
@@ -985,6 +987,8 @@ Im signierten Mac-Build 370 erschien bei fehlendem exFAT-Quelllaufwerk die Auffo
 
 Der macOS-Komponententest mit Quick Look bestätigte die Cache-Identität und die erzeugten Pixel. Im sichtbaren Nachtest scrollte der signierte Build 358 von den ersten neun der 40 eigenen PNGs bis zum Listenende und zeigte in Zeile 36 die erwartete grüne Miniatur. Nach einem Wechsel in einen leeren Nachbarordner und zurück zeigte Build 338 nach atomarem Ersatz mit gleicher Dateigrösse und Schreibzeit weiterhin die alte magentafarbene Miniatur. Build 358 zeigte die blaue Ersatzversion und die unveränderte magentafarbene Nachbarminiatur. Auch beim direkten Umschreiben derselben Datei mit erhaltener Grösse und Schreibzeit erschien die neue Farbe. Der gezielt verzögerte Auftrag aus Schritt 3 bleibt ein eigener Nachtest.
 
+Im sichtbaren Build 446 enthielt der simulierte Cloud-Ordner 48 nummerierte Miniaturkandidaten. Beim Scrollen erreichte die Anzeige Eintrag 48. Nach dem Wechsel in den leeren Ordner und zurück waren zwölf beobachtete Miniaturen aus dem Cache vorhanden. Das Backend hatte jede dieser zwölf Dateien genau einmal geladen. Es waren höchstens zwei Dateiabrufe gleichzeitig aktiv. Die TMP-Dateien waren nach dem Verlassen der Ansicht entfernt.
+
 ### Miniaturen auf Netzlaufwerken begrenzen
 
 Für REG-THUMB-06 zwei eigene PNGs in unterschiedlichen Ordnern derselben SMB-Einhängung vorbereiten. Den ersten Miniaturabruf im Testadapter anhalten und den zweiten einreihen. Danach eine Miniatur über eine direkte Cloud-Verbindung abrufen. Diese muss fertig werden, während der erste SMB-Abruf angehalten bleibt. Der zweite SMB-Abruf beginnt erst nach dem tatsächlichen Ende des ersten. Wenn die App den ersten inzwischen abgebrochen hat, darf das verspätete Ergebnis keine andere Bildzeile überschreiben. Beide PNGs und die Cloud-Quelle danach unabhängig mit ihren ursprünglichen Prüfsummen vergleichen.
@@ -1217,6 +1221,8 @@ Der signierte Mac-Build 376 bestand den Durchlauf am lokalen FTP-Testserver. Die
 
 Mac-Build 426 wiederholte die Bildfolge mit echten Downloads bei Google Drive und Dropbox. Beide Pixelmessungen bestätigten das richtige Bild. Nach dem Schliessen endeten die Downloadprozesse und die temporären Dateien verschwanden. Ein Durchlauf im iCloud-Drive-Ordner bestätigte mit zurückgehaltenem Dateizugriff, dass verspätete Ergebnisse weder das ausgewählte Bild austauschen noch die geschlossene Vorschau erneut öffnen. Bei Dropbox wurde zusätzlich ein Video während laufender Wiedergabe geschlossen. Die Liste kehrte zurück und die geprüfte temporäre Datei verschwand. Für die Abnahme in OneDrive bleibt dieselbe Pfeiltastenfolge mit einem echten Konto zu prüfen.
 
+Der sichtbare Build 446 wechselte im simulierten Cloud-Ordner per Pfeiltaste vom gehaltenen Download zum schnellen Bild. Escape brach den folgenden Bild-Download beim Schliessen ab. Der Backend-Mitschnitt und die verschwundenen temporären Dateien bestätigten beide Abbrüche.
+
 ### Online-Video bei einem Stillstand erneut laden (MEDIA-04 und MEDIA-09)
 
 1. Ein kurzes eigenes MP4 und eine Datei mit einer Grösse von 2 GiB plus einem Byte am FTP-Testserver bereitstellen. Den ersten Inhaltsabruf des kurzen Videos bestätigen und anschliessend ohne Datenübertragung offen halten.
@@ -1229,6 +1235,8 @@ Im signierten Mac-Build 376 endete der gehaltene FTP-Abruf nach 30,03 Sekunden. 
 Beim regulären Online-Abruf ein eigenes MP4 mit sichtbarer Downloadgrösse wählen und den Fortschritt vor Wiedergabestart protokollieren. Mit Mac-Build 426 bestand ein 18-Sekunden-MP4 lokal, auf Google Drive, Dropbox und im iCloud-Drive-Ordner die sichtbare Wiedergabe, Pause und Zeitleiste. Der sichtbare Vorschau-Download zeigte in den Google-Drive-Läufen 78 %, 93 % und in den Dropbox-Läufen 93 %. Für OneDrive Online bestätigte Build 167 die Ladeanzeige und die Steuerung im nativen Fenster. Ein früherer iCloud-Drive-Lauf bestätigte auch, dass die Vorschau ein zuvor ausgelagertes Testvideo nachlud.
 
 Für die Miniaturprüfung eine kleine Kontrollgrafik sowie eine Grafik mit 32 MiB plus einem Byte im selben FTP-Testordner ablegen. Der Server muss den Abruf der kleinen Grafik sehen. Für die grössere Grafik darf beim automatischen Laden der Miniaturen kein Inhaltsabruf ankommen. In Build 426 wies auch die explizite Vorschau das 128-MiB-Bild und das 2-GiB-Video jeweils vor einem Inhaltsabruf ab. Beide Dateien lagen genau ein Byte über dem jeweiligen Limit. Der kontrolliert blockierte Videoabruf endete nach 30,01 Sekunden und «Erneut versuchen» öffnete den Player. Der aktuelle Testtreiber bestätigte die Zeitleistenänderung in diesem Durchlauf nicht. Die drei kontrollierten Anbieterprofile forderten nur die kleine Kontrollminiatur an.
+
+In Build 446 zeigte der stockende simulierte Videoabruf 33 Prozent. Der Testadapter bestätigte den Abbruch nach 1,163 Sekunden. Die App bot «Erneut versuchen» an. Ein separates gültiges Video spielte ab und konnte geschlossen werden. Der Miniaturtest verglich exakt 32 MiB mit 32 MiB plus einem Byte. Nur die Datei am Grenzwert wurde als Miniatur geladen. Die explizite Bild- und Videovorschau lehnte die Testeinträge über 128 MiB und 2 GiB vor dem ersten Abruf ab.
 
 ### Rückgängig nach einer Änderung am lokalen Cloud-Kopierziel prüfen (TRASH-06)
 
