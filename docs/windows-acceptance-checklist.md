@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [115 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [116 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -969,6 +969,15 @@ Im isolierten Mac-Build 411 wurden beide Prozessabbrüche nach echten Mausaufruf
 4. Den fremden Testinhalt beiseitelegen und eine bereits wiederhergestellte Originalquelle mit ihrer ursprünglichen Kennung zurücklegen. Denselben Historieneintrag erneut wählen. Beide Quell- und Zielversionen müssen ihre ursprünglichen Prüfsummen haben. Der unabhängige Inhalt muss erhalten bleiben, und die Historie darf keinen zweiten Abschluss für die Gruppe erzeugen.
 
 Mac-Build 414 bestand alle drei Unterbrechungsvarianten auf APFS. Zwei tatsächliche Verschiebevorgänge mit Ersetzen wurden für den Test in einem Historieneintrag zusammengefasst. Nach dem Prozessneustart hielt der belegte Quellpfad die Wiederherstellung an. Nach Behebung des Konflikts stimmten die ursprüngliche Quellkennung und die SHA-256-Prüfsummen sämtlicher 1’800 Dateien je Ordnerversion. Auch die zweite, bereits wiederhergestellte Datei und die Kontrolldatei blieben erhalten.
+
+### Rückgängig nach erneutem Einhängen des ursprünglichen Laufwerks
+
+1. Ein entbehrliches Testvolume und ein zweites eigenes Volume mit anderer Kennung bereitstellen. Zwei Testordner mit unterschiedlichen Inhalten zwischen einem lokalen Ordner und dem Testvolume verschieben. Bei «Ersetzen» die Prüfsummen der ursprünglichen Quelle, des früheren Ziels und einer Kontrolldatei erfassen.
+2. «Rückgängig» starten und den Testprozess nach dem Wiederherstellen der Quelle, aber vor dem Wiederherstellen des vorherigen Ziels beenden. Das Testvolume aushängen. In der neu gestarteten App muss «Rückgängig» das fehlende ursprüngliche Laufwerk melden. Der leere Einhängepfad muss leer bleiben.
+3. Das zweite Volume am selben Pfad einhängen und dort einen unabhängigen Testordner anlegen. «Rückgängig» muss das ursprüngliche Laufwerk anfordern. Das Inventar und die Prüfsummen auf dem zweiten Volume müssen unverändert bleiben.
+4. Das ursprüngliche Volume am gewohnten Pfad mit neuer vorübergehender Gerätekennung einhängen und seine unveränderte Volume-ID separat prüfen. «Rückgängig» für denselben Historieneintrag erneut wählen. Dateikennungen und SHA-256 der wiederhergestellten Quelle, der früheren Zielversion und der unabhängigen Dateien prüfen. Den gesamten Ablauf jeweils mit dem Quell- und dem Ziellaufwerk wiederholen.
+
+Mac-Build 415 bestand beide Varianten mit APFS-Abbildern. Am leeren Einhängepfad entstanden beim Rückgängig-Versuch keine Dateien. Die App meldete das fehlende ursprüngliche Laufwerk auch bei einem anderen Volume mit derselben vorübergehenden Gerätenummer. Nach dem erneuten Einhängen des Originals mit einer neuen Gerätenummer stellte sie je 1’800 Dateien der beiden Ordnerversionen mit exakten SHA-256-Prüfsummen wieder her. Der ursprüngliche Historieneintrag und die Daten auf dem zweiten Volume wurden separat geprüft.
 
 ### Rückgängig bei verändertem exFAT-Ziel oder belegter Quelle
 
