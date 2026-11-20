@@ -5,7 +5,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 ## Vollständige Prüfliste
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
-- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 115 Fälle nativ belegt, 36 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
+- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 116 Fälle nativ belegt, 35 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
 - [126 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
@@ -826,6 +826,15 @@ Im signierten Mac-Build 368 blieb der Auftrag bei leerem Einhängepfad pausiert 
 Beim Versionswechsel von Build 367 auf 368 verwendete die signierte Test-App eine echte ältere Warteschlange mit einer Teildatei und einem bereits abgeschlossenen Auftrag. Ein erneuter Versuch am eingebundenen exFAT-Laufwerk ergänzte den gespeicherten Einhängepfad. Nach erneutem App-Start mit abgezogenem Laufwerk erschien die passende Meldung. Mit dem Original wurde derselbe Auftrag fortgesetzt und bytegenau abgeschlossen. Beide Kopien liessen sich über ihre Historieneinträge rückgängig machen.
 
 Für REC-09 mit dem vollständigen D2-Quellbestand den Auftrag starten, nach bestätigtem Schreibfortschritt pausieren und seine ID erfassen. Das Testziel aushängen und ein zweites eigenes Abbild am selben Pfad einhängen. Den Zwischenstand auf das Ersatzabbild kopieren und erst dann «Fortsetzen» wählen. Build 428 pausierte die Kopie von 20’004 Dateien nach 177’209’344 geschriebenen Bytes. Die App wies das Ersatzvolume ausdrücklich ab. Auftrags-ID, Bytezähler und Prüfsummen beider Zwischenstände blieben gleich. Die App legte weder die Endkopie noch einen Abschlussbeleg oder einen Historieneintrag an. Beide virtuellen APFS-Abbilder wurden nach dem Test ausgehängt.
+
+### D2-Auftrag bei getrenntem Ziel abbrechen (REC-11)
+
+1. Den vollständigen D2-Quellbestand in einem isolierten Profil auf ein eigenes Testabbild kopieren. Nach bestätigtem Schreibfortschritt pausieren. Die Auftrags-ID und die Prüfsummen der Teildaten sowie einer unabhängigen Datei auf dem Ziel erfassen.
+2. Das Ziel aushängen und in der Auftragskarte «Abbrechen» wählen. Die ausstehende Abbruchprüfung muss sichtbar sein und einen App-Neustart überstehen. Der leere Einhängepfad bleibt leer.
+3. Ein zweites eigenes Abbild am selben Pfad mit einer Kopie des Zwischenstands einhängen. «Fortsetzen» wählen und prüfen, dass der Abbruch ausstehend bleibt. Alle Dateien auf dem Ersatzvolume müssen unverändert bleiben.
+4. Das Original einhängen und denselben Auftrag erneut prüfen lassen. Die Teildaten müssen verschwinden. Die unabhängige Datei und die Quelle müssen erhalten bleiben. Die App darf keine Endkopie und keinen Historieneintrag erzeugen. Wenn nur noch interne Journale vorhanden sind, soll die Karte melden, dass keine Teildaten geblieben sind.
+
+Build 428 bestätigte bei 14 MiB gespeichertem Fortschritt den ausstehenden Abbruch, den Schutz des Ersatzvolumes und die Bereinigung am Original. Die Karte verwechselte danach das verbliebene Journal mit Teildaten. Build 429 wiederholte die ausstehende Abbruchprüfung auf einer Kopie desselben Testabbilds. Die englische Oberfläche meldete «Cancelled — no partial transfer data». Eine zusätzliche Komponentenprüfung bestätigte, dass eine unbekannte Datei neben dem Journal erhalten bleibt und bei der Statusanzeige berücksichtigt wird.
 
 ### exFAT-Quelllaufwerk nach einem Prozessabbruch prüfen
 

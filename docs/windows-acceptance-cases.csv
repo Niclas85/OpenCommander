@@ -181,7 +181,7 @@ REC-10;Neustart, Unterbrechung und Datenintegrität;P0;Verschieben: Cleanup unte
 REC-11;Neustart, Unterbrechung und Datenintegrität;P0;Abbruch bei offline befindlichem Ziel;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Aktiven Job unterbrechen
 2. Testziel unerreichbar machen
 3. Abbrechen
-4. Ziel wieder verbinden";"Ausstehende Bereinigung gespeichert und kenntlich; kein Löschen fremder Ordner; nach Erreichbarkeit nur zugehöriger Zwischenstand bereinigt.";Teilweise belegt;REG-CLOUD-05, REG-NAS-03, REG-CLOUD-09, REG-CLOUD-12, REG-CLOUD-13, REG-CLOUD-26, REG-CLOUD-27, REG-CLOUD-28, REG-CLOUD-29;;Nicht ausgeführt;;;
+4. Ziel wieder verbinden";"Ausstehende Bereinigung gespeichert und kenntlich; kein Löschen fremder Ordner; nach Erreichbarkeit nur zugehöriger Zwischenstand bereinigt.";Nativ belegt;REG-CLOUD-05, REG-NAS-03, REG-CLOUD-09, REG-CLOUD-12, REG-CLOUD-13, REG-CLOUD-26, REG-CLOUD-27, REG-CLOUD-28, REG-CLOUD-29;;Nicht ausgeführt;;;
 REC-12;Neustart, Unterbrechung und Datenintegrität;P1;Beschädigtes Testjournal;"Nur isolierte Testinstanz mit D2 und eigenem Journal; Fehler/Prozessabbruch ausschließlich in Windows-Test-VM.";"1. Kopie des Testprofils sichern
 2. Journal in Testkopie beschädigen
 3. Starten";"Keine Endlosschleife oder stille Nutzdatenlöschung; Fehler und Wiederherstellungsbedarf erkennbar; Original-Testbackup bleibt nutzbar.";Nativ belegt;;;Nicht ausgeführt;;;
