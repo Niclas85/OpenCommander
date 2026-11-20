@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [112 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [113 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -942,6 +942,15 @@ Der signierte Mac-Build 322 stoppte «Rückgängig» für beide isoliert geteste
 4. OpenCommander schliessen, neu öffnen und denselben Historieneintrag erneut rückgängig machen. Vorherige Version, Dateianzahl und SHA-256 am Ziel prüfen. Die Kontrolldatei und die Quelle der Kopie bleiben unverändert.
 
 Im isolierten Mac-Build 410 waren beim Maus-Abbruch 258 von 4’800 Dateien im Zwischenstand sichtbar. Die App bereinigte den Zwischenstand, erhielt das sichtbare Ziel und speicherte den Abbruch in der Historie. Nach dem Neustart der App stellte derselbe Eintrag alle 4’800 Dateien mit den ursprünglichen SHA-256-Prüfsummen wieder her.
+
+### Rückgängig nach einem Prozessabbruch fortsetzen
+
+1. In einem separaten Testprofil eine lokale Datei oder einen Ordner per Kopie ersetzen. Die beiden Dateiversionen mit SHA-256 und getrennten Inventaren prüfen. Einen unabhängigen Kontrollinhalt hinzufügen.
+2. «Rückgängig» aus der Historie starten. Den isolierten Testprozess einmal direkt nach dem Weglegen der aktuellen Version beenden und in einem separaten Lauf direkt nach dem Sichtbarwerden der früheren Version. Jeweils vor dem Abschluss des Historieneintrags unterbrechen. Die Zeitpunkte mit einem Prüfpunkt im Test-Build oder durch Beobachtung des sichtbaren Zielpfads bestätigen.
+3. OpenCommander neu öffnen und den ursprünglichen Historieneintrag prüfen. Für die Konfliktvariante eine unabhängige Testdatei am Zielpfad ablegen, bei Bedarf die bereits wiederhergestellte Version vorher separat weglegen. Auch eine neue Datei mit identischen Bytes darf als fremdes Objekt erhalten bleiben.
+4. Die unabhängige Datei weglegen. Falls die frühere Version vor dem Prozessende bereits sichtbar geworden war, genau das ursprüngliche wiederhergestellte Objekt zurücklegen. Denselben Historieneintrag erneut rückgängig machen. Ziel, Kopierquelle und die weggelegte neuere Version anhand ihrer Prüfsummen prüfen. Es darf nur ein Abschluss für die ursprüngliche Aktion entstehen.
+
+Im isolierten Mac-Build 411 wurden beide Prozessabbrüche nach echten Mausaufrufen von «Rückgängig» auf APFS ausgeführt. Nach dem erneuten Öffnen hielt ein fremdes Objekt am Ziel die Wiederherstellung an. Nach Behebung des Konflikts stellte derselbe Historieneintrag alle 4’800 Dateien der vorherigen Version mit exakten SHA-256-Prüfsummen wieder her. Die neuere Version und der unabhängige Kontrollinhalt blieben erhalten.
 
 ### Rückgängig bei verändertem exFAT-Ziel oder belegter Quelle
 
