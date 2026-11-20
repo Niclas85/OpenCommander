@@ -1056,7 +1056,7 @@ struct HistoryFailure: Codable, Equatable {
             case ENOENT: key = "history_error_missing"
             case EACCES, EPERM, EROFS: key = "history_error_permission"
             case EEXIST, ENOTEMPTY: key = "history_error_exists"
-            case ENOSPC: key = "history_error_space"
+            case ENOSPC, EDQUOT: key = "history_error_space"
             case ECANCELED: key = "history_error_cancelled"
             default: key = "history_error_generic"
             }

@@ -305,6 +305,15 @@ enum CloudConfigurationValidator {
 }
 
 enum CloudProviderErrors {
+    private static let storageQuotaDiagnostic = try! NSRegularExpression(pattern: #"""
+        (?x)
+          \b (?: http (?: /[0-9.]+ )? (?: \s+status (?: \s+code )? )? | status (?: \s+code )? ) ["':=\s]+ 507 \b
+        | "reason" \s* : \s* "storagequotaexceeded"
+        | , \s* storagequotaexceeded \b
+        | "\.tag" \s* : \s* "insufficient_space"
+        | (?: ^ | : \s+ | "error_summary" \s* : \s* " ) path/ (?: reason/ )? insufficient_space (?= $ | [/\s"',}] )
+        """#)
+
     static func temporary(_ key: String, cooldown: TimeInterval = 10) -> NSError {
         NSError(domain: "OpenCommander.Cloud", code: 2,
             userInfo: [NSLocalizedDescriptionKey: key, "retryAfter": cooldown])
@@ -318,6 +327,11 @@ enum CloudProviderErrors {
         let text = String(decoding: data.prefix(16 * 1024), as: UTF8.self).lowercased()
         if ["invalid_grant", "unauthorized", "401", "token expired", "invalid credentials", "invalid session", "couldn't decrypt password"].contains(where: text.contains) {
             return CloudConnection.failure("cloud_login_incomplete")
+        }
+        // Destination storage is user-actionable, whereas request quota
+        // belongs to the read retry and cache policy below.
+        if storageQuotaDiagnostic.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil {
+            return POSIXError(.EDQUOT) as NSError
         }
         if text.contains("defaultperminuteperproject") { return temporary("cloud_google_quota", cooldown: 60) }
         if ["ratelimitexceeded", "rate_limit_exceeded", "userratelimitexceeded", "quota exceeded", "429", "too many requests", "too_many_write_operations", "too_many_requests"].contains(where: text.contains) {

@@ -39,6 +39,35 @@ final class MockMicrosoft: URLProtocol {
     static func check(_ condition: @autoclosure () -> Bool, _ label: String) {
         if !condition() { fatalError("FAIL: " + label) }
     }
+    @MainActor static func testStorageQuota(_ api: OneDriveClient, small: URL, large: URL) async throws {
+        for (source, acceptSession) in [(small, false), (large, false), (large, true)] {
+            var quotaRequests: [URLRequest] = []
+            MockMicrosoft.handler = { request in
+                quotaRequests.append(request)
+                if acceptSession, request.url?.host == "graph.microsoft.com" {
+                    return (200, #"{"uploadUrl":"https://upload.example/quota-fixture"}"#)
+                }
+                return (507, #"{"error":{"code":"insufficientStorage","message":"fixture-sensitive-provider-detail"}}"#)
+            }
+            let originalSource = try OneDriveClient.localSnapshot(source)
+            do {
+                try await api.upload(source, parent: nil)
+                fatalError("Storage quota response falsely completed the upload")
+            } catch {
+                let failure = HistoryFailure(error)
+                check(failure.domain == NSPOSIXErrorDomain && failure.code == Int(EDQUOT) &&
+                      failure.message == L10n.get("history_error_space"), "HTTP 507 must report destination storage quota")
+            }
+            check(quotaRequests.count == (acceptSession ? 2 : 1), "Storage quota rejection retried a write")
+            let retainedSource = try OneDriveClient.localSnapshot(source)
+            check(retainedSource == originalSource, "Quota rejection changed source identity or content")
+            if acceptSession {
+                check(quotaRequests.last?.value(forHTTPHeaderField: "Authorization") == nil,
+                      "Quota response from upload host must not involve the Graph bearer")
+            }
+        }
+        print("PASS OneDrive storage quota stops both upload sizes and preserves the source")
+    }
     @MainActor static func main() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [MockMicrosoft.self]
@@ -137,6 +166,8 @@ final class MockMicrosoft: URLProtocol {
         check(count + 1 == requests.count && requests.last?.url?.path.hasSuffix("createUploadSession") == true, "Large upload uses a session")
         print("PASS failed upload propagates, collision refusal, encoding, upload-session failure")
 
+        try await testStorageQuota(api, small: local, large: large)
+
         var offset = 0
         let total = 20 * 1024 * 1024 + 1
         MockMicrosoft.handler = { request in
@@ -182,6 +213,26 @@ final class MockMicrosoft: URLProtocol {
         let relaunched = OneDriveClient(clientID: id, session: session, store: MemoryTokens())
         relaunched.uploadRecoveryAccount = "fixture-account"
         relaunched.uploadSessionDirectory = checkpointRoot
+        let savedSessions = try FileManager.default.contentsOfDirectory(at: checkpointRoot, includingPropertiesForKeys: nil)
+        check(savedSessions.count == 1, "Interrupted upload retains one checkpoint")
+        let originalCheckpoint = try Data(contentsOf: savedSessions[0])
+        var quotaStatusReads = 0
+        MockMicrosoft.handler = { request in
+            check(request.url?.host == "upload.example" && request.httpMethod == "GET" &&
+                  request.value(forHTTPHeaderField: "Authorization") == nil, "Quota recovery may only read the saved session")
+            quotaStatusReads += 1
+            return (507, #"{"error":{"code":"insufficientStorage"}}"#)
+        }
+        do {
+            _ = try await relaunched.resumePendingUpload(large, parent: nil)
+            fatalError("Storage quota was reported as a resumed upload")
+        } catch {
+            let failure = HistoryFailure(error)
+            check(failure.domain == NSPOSIXErrorDomain && failure.code == Int(EDQUOT), "Lost the quota error during session recovery")
+        }
+        let retainedCheckpoint = try Data(contentsOf: savedSessions[0])
+        check(quotaStatusReads == 1 && retainedCheckpoint == originalCheckpoint, "Quota recovery changed the checkpoint")
+        print("PASS OneDrive storage quota during checkpoint lookup preserves the checkpoint")
         var statusReads = 0
         MockMicrosoft.handler = { request in
             check(request.url!.host == "upload.example", "Resume reuses existing session, no new upload session")

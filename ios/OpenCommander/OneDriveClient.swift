@@ -524,6 +524,7 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
         }
             if http.statusCode == 401 { accessToken = nil; expiresAt = .distantPast }
             if http.statusCode == 409 { throw OneDriveFailure.nameConflict }
+            if http.statusCode == 507 { throw POSIXError(.EDQUOT) }
             if [429, 502, 503, 504].contains(http.statusCode) {
                 throw OneDriveFailure.temporarilyUnavailable(http.statusCode, retryAfter: max(10, Self.retryDelay(http, fallback: 10)))
             }
@@ -701,6 +702,7 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
                 // process may have exited after the server accepted a fragment.
                 let (stateData, response) = try await session.data(for: URLRequest(url: saved.url))
                 guard let http = response as? HTTPURLResponse, http.url?.scheme == "https", generation == sessionGeneration else { throw CancellationError() }
+                if http.statusCode == 507 { throw POSIXError(.EDQUOT) }
                 if http.statusCode == 404 || http.statusCode == 410 {
                     try FileManager.default.removeItem(at: checkpoint)
                 } else {
@@ -742,6 +744,7 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
             // The upload URL is preauthenticated. Never send our Graph token.
             let (reply, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse, http.url?.scheme == "https" else { throw OneDriveFailure.message("Invalid upload response.") }
+            if http.statusCode == 507 { throw POSIXError(.EDQUOT) }
             offset += chunk.count
             if offset == size {
                 guard http.statusCode == 200 || http.statusCode == 201 else { throw OneDriveFailure.message("Upload was not committed (HTTP \(http.statusCode)). Source retained.") }

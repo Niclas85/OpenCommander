@@ -1322,6 +1322,30 @@ import Darwin
         require(freshDisplay.cachedAt == nil && freshDisplay.warningKey == nil, "restored access not fresh")
         print("PASS direct-cloud quota cooldown, explicit localized stale cache, fresh tools and authentication cache refusal")
 
+        for diagnostic in [
+            "googleapi: Error 403: The user's Drive storage quota has been exceeded., storageQuotaExceeded",
+            #"{"error":{"errors":[{"reason":"storageQuotaExceeded"}],"code":403}}"#,
+            #"{"error_summary":"path/insufficient_space/..","error":{".tag":"path"}}"#,
+            "upload returned HTTP 507"
+        ] {
+            let diagnosticWithDetail = diagnostic + "\nfixture-sensitive-provider-detail"
+            let storageFull = CloudProviderErrors.classify(Data(diagnosticWithDetail.utf8))
+            let failure = HistoryFailure(storageFull)
+            let saved = try JSONEncoder().encode(failure)
+            require(failure.domain == NSPOSIXErrorDomain && failure.code == Int(EDQUOT) &&
+                    failure.message == L10n.get("history_error_space") &&
+                    CloudProviderErrors.cooldown(storageFull) == nil, "destination storage quota was not classified")
+            require(!String(decoding: saved, as: UTF8.self).contains("fixture-sensitive-provider-detail"),
+                    "raw provider diagnostic was persisted")
+        }
+        for path in ["/tests/storageQuotaExceeded.txt", "/tests/path/insufficient_space.txt", "/tests/507/a.txt"] {
+            let missingFile = CloudProviderErrors.classify(Data("could not open \(path), item missing".utf8))
+            require(missingFile.domain != NSPOSIXErrorDomain, "a filename was mistaken for a provider storage quota")
+        }
+        let rateLimit = CloudProviderErrors.classify(Data("HTTP 429: Request quota exceeded".utf8))
+        require(CloudProviderErrors.cooldown(rateLimit) != nil, "request quota lost its cooldown")
+        print("PASS provider storage quota, persistence, and request cooldown are distinct")
+
         var attempts = 0, retryDelays: [TimeInterval] = []
         let retry = CloudFileClient(displayProfile, transport: { _, _, _, _, _, _, callback in
             attempts += 1
