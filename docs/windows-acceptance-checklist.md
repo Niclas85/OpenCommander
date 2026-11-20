@@ -749,13 +749,17 @@ Mac-Build 426 bestand die Pixelprüfung beider Miniaturen und beider Vorschauen 
 
 ### Miniaturen beim Scrollen und Ordnerwechsel prüfen (MEDIA-12)
 
-1. In einem eigenen Cloud-Testordner 30 nummerierte, synthetische PNGs mit unterschiedlichen Farben ablegen. Daneben einen leeren Ordner anlegen. IDs und Prüfsummen der Bilder erfassen.
-2. Den Bilderordner über die direkte Verbindung in OpenCommander öffnen. Zwei sichtbare Miniaturen mit ihren Dateien vergleichen. Mit dem Mausrad nach unten scrollen und zwei weitere sichtbare Miniaturen vergleichen.
+1. Lokal und pro Cloud einen eigenen Ordner mit 30 nummerierten, synthetischen PNGs mit unterschiedlichen Farben anlegen. Daneben jeweils einen leeren Ordner anlegen. Prüfsummen und bei Cloud-Anbietern die verfügbaren Objekt-IDs erfassen. Einen eingebundenen Sync-Ordner und eine direkte Online-Verbindung als separate Läufe protokollieren.
+2. Den Bilderordner in OpenCommander öffnen. Zwei sichtbare Miniaturen mit ihren Dateien vergleichen. Mit dem Mausrad nach unten scrollen und zwei weitere sichtbare Miniaturen vergleichen. Wenn der Testadapter Anfragen verzögern kann, zuerst zwei Inhaltsabrufe halten und direkt in den leeren Ordner wechseln. Die App soll dort keine alten Bilder zeigen. Maximale Parallelität und den Zeitpunkt des tatsächlichen Endes der alten Abrufe erfassen.
 3. Den leeren Ordner öffnen und warten, bis er vollständig geladen ist. Die Bildzeilen des vorherigen Ordners dürfen dort nicht auftauchen. Den Bilderordner erneut öffnen und dieselben vier Miniaturen überprüfen.
 4. Wenn ein Testadapter Inhaltsanfragen erfasst, die Zähler für die vier bereits vollständig geladenen Miniaturen vor und nach dem Wiederöffnen vergleichen. Sie müssen gleich bleiben. Bei pixelgenauen Vergleichen Bildschirmaufnahmen anhand ihres Farbprofils nach sRGB umrechnen. IDs und Prüfsummen aller Testbilder am Anbieter erneut prüfen.
 5. Eines der sichtbaren Testbilder über einen unabhängigen Client durch ein andersfarbiges PNG gleicher Grösse ersetzen. Nach Möglichkeit Objekt-ID und Änderungsdatum beibehalten. Die geänderte Prüfsumme erfassen, den Ordner neu laden und beide Miniaturen vergleichen. Das ersetzte Bild muss seine neue Farbe zeigen. Beim unveränderten Nachbarbild darf der Zähler für Inhaltsanfragen gleich bleiben.
 
 Der signierte Mac-Build 322 zeigte bei Dropbox und Google Drive vier geprüfte Miniaturen nach dem Wiederöffnen ohne erneuten Download. Beim separaten Google-Drive-Test aktualisierte die App das geänderte Bild mit einem Download und verwendete für das unveränderte Nachbarbild weiter den Cache.
+
+OneDrive Online zeigte in Mac-Build 156 die erste und letzte der 30 Bildzeilen, den leeren Nachbarordner und die erneut geöffnete Galerie. Im Protokoll stehen 30 gestartete und 30 gerenderte Miniaturen, höchstens zwei gleichzeitige Abrufe und nach der Rückkehr 30 Cache-Ereignisse auf Zellenebene ohne weitere Downloads. Auf APFS und im eingebundenen macOS-iCloud-Drive-Ordner zeigte Build 153 nach dem Scrollen und Wiederöffnen die erwarteten Miniaturen. Für den iCloud-Ordner bestätigte macOS alle 30 Dateien als hochgeladen und aktuell, und der Bytevergleich stimmte. Für diesen Lauf fehlen Messwerte zur Cache-Nutzung und ein Lauf über die direkte iCloud-Verbindung.
+
+Der FTP-Loopback-Test mit Mac-Build 366 belegte zusätzlich, dass beim Ordnerwechsel zwei absichtlich verzögerte Inhaltsabrufe abbrachen. Die erste Miniatur erschien beim erneuten Öffnen aus dem Cache ohne weitere Inhaltsanfrage. MEDIA-12 bleibt in der Mac-Abnahme teilweise belegt.
 
 ### Schreibschutz in den NTFS-Dateieigenschaften prüfen
 
