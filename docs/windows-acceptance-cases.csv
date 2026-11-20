@@ -320,7 +320,7 @@ MEDIA-01;Vorschau, Thumbnails und Medien;P0;JPG-Absturzregression;"D3 lokal und 
 3. Schließen";"Bild erscheint ohne Absturz; Reihenfolge entspricht unterstützten Medien der Ansicht; Fokus kehrt sinnvoll zurück.";Nativ belegt;;;Nicht ausgeführt;;;
 MEDIA-02;Vorschau, Thumbnails und Medien;P0;Online-JPG und Thumbnails;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. JPG in jedem Cloud-Testordner anzeigen
 2. Miniatur abwarten
-3. Vorschau öffnen";"Thumbnail und Bild korrekt oder konkreter Ladefehler; UI bleibt bedienbar; keine leere dauerhafte Vorschau ohne Status.";Teilweise belegt;REG-THUMB-02;;Nicht ausgeführt;;;
+3. Vorschau öffnen";"Thumbnail und Bild korrekt oder konkreter Ladefehler; UI bleibt bedienbar; keine leere dauerhafte Vorschau ohne Status.";Teilweise belegt;REG-THUMB-02, REG-THUMB-06;;Nicht ausgeführt;;;
 MEDIA-03;Vorschau, Thumbnails und Medien;P1;Bildformate und defekte Dateien;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";1. PNG/WebP/GIF sowie beschädigte und nur umbenannte Bilddatei öffnen;"Unterstützte Decoder zeigen korrekt; ungültige Datei verständlich abgefangen; kein Crash/unkontrollierter Speicherverbrauch.";Nativ belegt;;;Nicht ausgeführt;;;
 MEDIA-04;Vorschau, Thumbnails und Medien;P0;Video online mit Ladeanzeige;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. Unter 2 GiB liegendes Online-Testvideo öffnen
 2. Laden beobachten
@@ -344,7 +344,7 @@ MEDIA-11;Vorschau, Thumbnails und Medien;P1;Archiv-Medien;"D3 lokal und pro Clou
 3. Löschen suchen";"Temporäre schreibgeschützte Vorschau; kein scheinbares Löschen aus Archiv; Extraktion nur über dafür vorgesehenen Ablauf.";Nativ belegt;;;Nicht ausgeführt;;;
 MEDIA-12;Vorschau, Thumbnails und Medien;P1;Thumbnail-Last und Cache;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. Ordner mit vielen Online-Bildern scrollen
 2. Ordner wechseln
-3. Nochmals öffnen";"Begrenzte parallele Arbeit; sichtbare Einträge priorisiert; keine veralteten Bilder anderer Dateien; Cache verhindert unnötige Wiederholung soweit vorgesehen.";Teilweise belegt;REG-THUMB-01, REG-THUMB-02, REG-THUMB-03, REG-THUMB-04, REG-THUMB-05;;Nicht ausgeführt;;;
+3. Nochmals öffnen";"Begrenzte parallele Arbeit; sichtbare Einträge priorisiert; keine veralteten Bilder anderer Dateien; Cache verhindert unnötige Wiederholung soweit vorgesehen.";Teilweise belegt;REG-THUMB-01, REG-THUMB-02, REG-THUMB-03, REG-THUMB-04, REG-THUMB-05, REG-THUMB-06;;Nicht ausgeführt;;;
 ARCH-01;Archive und sichere Extraktion;P0;Unterstützte Formate öffnen;"D4 in dediziertem Testverzeichnis; bösartige Archive nur als nicht ausführbare Testdaten.";1. ZIP, TAR, TGZ/TAR.GZ, TAR.BZ2, TAR.XZ, TAR.ZST, 7z und RAR jeweils öffnen;"Mit enthaltenem libarchive unterstützte Varianten lesbar; Baum, Namen und Größen plausibel; jedes Format einzeln protokollieren.";Nativ belegt;REG-ARCH-04, REG-ARCH-07;;Nicht ausgeführt;;;
 ARCH-02;Archive und sichere Extraktion;P0;Gezielt und vollständig entpacken;"D4 in dediziertem Testverzeichnis; bösartige Archive nur als nicht ausführbare Testdaten.";"1. Einzelne Mitglieder wählen und entpacken
 2. Ohne Auswahl ganze Ansicht/aktuellen Präfix entpacken";"Ziel anderer Bereich; richtige Auswahl/Struktur; keine unbeabsichtigte Gesamtentpackung bei Auswahl; Hashes korrekt.";Nativ belegt;REG-ARCH-02, REG-ARCH-04, REG-ARCH-05, REG-ARCH-06, REG-ARCH-07;;Nicht ausgeführt;;;
