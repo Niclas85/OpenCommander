@@ -610,6 +610,14 @@ Mac-Build 429 zeigte dieselbe datierte Liste und den Countdown auch über einen 
 
 20. November 2026. F5 in Mac-Testbuild 452 lud den vollständigen eigenen Dropbox-D1-Ordner hoch. Der abgeschlossene Auftrag bestätigte 37 Dateien und 1’049’688 Bytes mit genau einem Historieneintrag. Ein separater Dropbox-Abruf verglich das gesamte Verzeichnis mit dem lokalen Original. Die SHA-256-Werte, vier Unterordner einschliesslich leerer Ordner und die Namen stimmten überein. Die Objekt-IDs blieben beim erneuten Abruf gleich. Die unabhängige Kontrolldatei blieb unverändert. Der Download über die App und die nachfolgenden Dateiaktionen stehen für diesen Dropbox-Durchlauf aus.
 
+### Einen begonnenen Cloud-Ordnerdownload fortsetzen (CLOUD-03, REC-03)
+
+1. Einen eigenen D1-Ordner aus der Cloud in einen leeren lokalen Testordner herunterladen. Während des Lesens pausieren und die bestätigten Byte- und Dateizähler erfassen.
+2. Die App schliessen, erneut öffnen und denselben Auftrag fortsetzen. Die bestätigten Zähler müssen während der Cloud-Lesephase erhalten bleiben. Die anschliessende lokale Kopie hat eine eigene Phase.
+3. Nach Abschluss Dateinamen, Anzahl, SHA-256-Werte und einen einzigen Historieneintrag prüfen. Die Quelle anhand einer separaten Anbieterabfrage mit der Ausgangsinventur vergleichen.
+
+20./21. November 2026. Das native Warteschlangen-Testprogramm lud denselben Dropbox-D1-Ordner herunter. Es pausierte nach sechs bestätigten Dateien. Der neu gestartete Prozess öffnete denselben Auftrag. Er las die 31 verbleibenden Dateien und speicherte nach Abschluss genau einen Historieneintrag. Der separate Vergleich bestätigte 37 Dateien, vier Unterordner, 1’049’688 Bytes, sämtliche SHA-256-Werte und dieselben Objekt-IDs bei Dropbox. Die beiden Kontrolldateien blieben unverändert. Der erste Lauf zeigte beim Fortsetzen kurz null bestätigte Dateien. Der korrigierte Echtlauf hielt in allen 245 Meldungen der Lesephase mindestens den bestätigten Fortschritt. Der kontrollierte Prozessabbruchtest mit zwei bestätigten Dateien und die Download-Suite mit 67 Prüfungen bestanden ebenfalls. Ein erster Nachtest hatte die anschliessende lokale Kopierphase mitgezählt. Die abschliessende Messung endet beim verifizierten Abschluss des Cloud-Lesens. Mac-Testbuild 455 wurde kompiliert. Der Download im App-Fenster und die übrigen Dropbox-Dateiaktionen stehen aus.
+
 ### Symbolische Links beim Cloud-Upload prüfen (CLOUD-03, PROP-08)
 
 1. Einen eigenen Testordner mit einer regulären Datei und einem symbolischen Link anlegen. Den Ordner ins isolierte Cloud-Ziel kopieren.
