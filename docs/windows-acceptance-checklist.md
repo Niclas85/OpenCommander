@@ -256,6 +256,8 @@ Im D2-Versuch mit Build 384 bewegte sich in einer früheren Stichprobe der Inhal
 
 Die spätere Nur-Lese-Kontrolle desselben Build-384-Laufs fand drei fehlgeschlagene Aufträge und einen gespeicherten Zustand «laufend». Der Steuerprozess war beendet und der App-Prozess befand sich im Austritt. Beide SMB-Einhängeoperationen warteten im Kernel. Für keinen der vier Aufträge lagen Abschlussbeleg oder Historieneintrag vor. Beim Windows-Nachtest den Prozesszustand und den gespeicherten Auftragszustand getrennt erfassen. Ordner, ursprüngliche Auftrags-ID und das unabhängige Zielmanifest nach Wiederherstellung der Verbindung abgleichen.
 
+Über die bestehende, separat eingebundene SMB-Freigabe fand ein Nur-Lese-Nachtest den ursprünglichen Zielordner des gespeicherten Auftrags. Die SHA-256-Prüfsummen einer kleinen Stichprobe und der vollständig gelesenen 2-GiB-Datei stimmten mit dem ursprünglichen Manifest überein. Beim grossen Lesevorgang blieb die Dateikennung stabil, und der Prüfprozess forderte einen Lesezugriff ohne Dateicache an. Die Verzeichnisauflistung des vollständigen Zielbaums wartete während der Prozessprobe im macOS-Aufruf `getdirentries64`. Der vollständige Zielvergleich und der Abschlussbeleg bleiben offen. Beim Nachtest die Prüfsummen bekannter Pfade und die vollständige Verzeichnisauflistung getrennt dokumentieren.
+
 ### Lokale Grössenanzeige bei wartendem NAS prüfen (REG-NAS-24)
 
 1. Links einen eigenen lokalen Ordner mit zwei Dateien zu 17 und 24 Bytes öffnen. Eine Datei liegt im Unterordner. Rechts einen eigenen lokalen Ordner mit einer Datei zu 5 Bytes öffnen.
