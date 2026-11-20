@@ -205,7 +205,7 @@ TRASH-06;Papierkorb, Historie und Rückgängig;P0;Undo mit nachträglich geände
 TRASH-07;Papierkorb, Historie und Rückgängig;P0;Undo abbrechen und erneut versuchen;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Großen Undo mit Verifikation starten
 2. Abbrechen
 3. App neu starten
-4. Erneut versuchen";"Kein falscher vollständiger Undo; gespeicherter Teilfortschritt konsistent; später sichere Fortsetzung oder klarer Konflikt.";Teilweise belegt;REG-NAS-10, REG-HISTORY-04, REG-HISTORY-05, REG-HISTORY-06, REG-FS-05, REG-CLOUD-36;;Nicht ausgeführt;;;
+4. Erneut versuchen";"Kein falscher vollständiger Undo; gespeicherter Teilfortschritt konsistent; später sichere Fortsetzung oder klarer Konflikt.";Nativ belegt;REG-NAS-10, REG-HISTORY-04, REG-HISTORY-05, REG-HISTORY-06, REG-FS-05, REG-CLOUD-36;;Nicht ausgeführt;;;
 TRASH-08;Papierkorb, Historie und Rückgängig;P1;Historieninformationen und Bilder;"D1; pro Vorgang frische Testdateien; Hashmanifest und unabhängige Provider-Ansicht.";"1. Gemischte Vorgänge ausführen
 2. Historie aufklappen
 3. Bildvorgang wählen";"Aktion, Quelle/Ziel, Zeit, Ergebnis/Warnungen und passende Vorschau soweit verfügbar; Undo dem richtigen Vorgang zugeordnet.";Nativ belegt;REG-HISTORY-01;;Nicht ausgeführt;;;
