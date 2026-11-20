@@ -374,6 +374,14 @@ Dieser Prüffall ist für Mac-Build 426 mit Google Drive und Dropbox belegt. Bei
 
 Der signierte Mac-Build 356 bestand den sichtbaren Suchnachtest. ⌘F öffnete die Suche im aktiven Ordner. Der Pfad liess sich ändern, die Treffer zeigten den absoluten Pfad und die standardmässig abgewählte Gross-/Kleinschreibung liess sich einschalten. Mit zwei eigenen Dateien, etwa `Links\Mixed.txt` und `Rechts\mixed.txt`, lässt sich derselbe Wechsel auf Windows mit der dortigen Such-Tastenkombination prüfen.
 
+### Einstellungen und Transferübersicht per Tastatur bedienen (PROP-07)
+
+1. Zwei eigene Orte und zwei pausierte Kopieraufträge mit verschiedenen Quelldateien vorbereiten. Einstellungen über den Menü-Tastaturbefehl öffnen. Die Sprachwahl mit Tab und Enter öffnen, mit den Pfeiltasten Deutsch wählen und mit Enter bestätigen. Die Bedienhilfe soll den Namen der Einstellung und den ausgewählten Wert melden. Der Zeilenfokus soll auf der Sprache bleiben.
+2. Mit Tab zur Darstellung wechseln und mit der Leertaste den Dunkelmodus aktivieren. Zu den eigenen Orten wechseln, die Sichtbarkeit mit Leertaste umschalten und einen Ort über den Tastaturbefehl zum Umordnen verschieben. Mit Umschalt-Tab und Enter den Nachbarort bearbeiten. Den Namensdialog und die Einstellungen mit Escape verlassen. In der Dateiansicht den Ordnerdialog über seinen Tastaturbefehl öffnen und wieder schliessen.
+3. Die Transferübersicht per Tastatur öffnen. Mit Tab den anderen Auftrag auswählen und nur diesen über den Befehl zum Fortsetzen starten. Die Zielbytes und den einzelnen Historieneintrag prüfen. Der ungewählte Auftrag muss pausiert bleiben. Escape soll die Übersicht schliessen und der Tastaturbefehl zum Öffnen eines Ordners wieder funktionieren.
+
+Mac-Build 429 speicherte die gewählte Sprache. Die Bedienhilfe des Dropdowns meldete nur den Einstellungsnamen. Build 430 meldete zusätzlich «Deutsch» als Wert und behielt den Zeilenfokus nach dem Wechsel. Beide lokalen Abläufe bestanden bei 900 × 600 und 1366 × 768 Fensterpunkten. Die NAS-, Cloud- und Skalierungsvarianten bleiben offen.
+
 ### Tastaturfokus zwischen Hilfe und Dateiliste
 
 1. Eine eigene Textdatei markieren, mit F2 den Umbenennen-Dialog öffnen und ihn mit Escape schliessen. Dateiname und Historie prüfen.

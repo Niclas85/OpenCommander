@@ -693,6 +693,7 @@ private final class DesktopLocationSettingsViewController: UITableViewController
         navigationItem.leftBarButtonItem?.title = L10n.get("settings_done")
         navigationItem.rightBarButtonItem?.title = L10n.get("location_add")
         tableView.reloadData()
+        if let keyboardSelection { focusSetting(keyboardSelection) }
     }
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -767,9 +768,11 @@ private final class DesktopLocationSettingsViewController: UITableViewController
             languageDropdown = dropdown
             let selected = UserDefaults.standard.string(forKey: "language") ?? ""
             let choices = ViewController.languageChoices
-            dropdown.setTitle((choices.first { $0.1 == selected }?.0 ?? L10n.get("language_system")) + " ▾", for: .normal)
+            let selectedLanguage = choices.first { $0.1 == selected }?.0 ?? L10n.get("language_system")
+            dropdown.setTitle(selectedLanguage + " ▾", for: .normal)
             dropdown.accessibilityIdentifier = "SettingsLanguageDropdown"
             dropdown.accessibilityLabel = L10n.get("language")
+            dropdown.accessibilityValue = selectedLanguage
             dropdown.addTarget(self, action: #selector(showLanguageChoices), for: .touchUpInside)
             dropdown.sizeToFit()
             cell.accessoryView = dropdown
