@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [118 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [119 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -603,6 +603,28 @@ Für FTP auf einem lokalen Testserver zusätzlich ein synthetisches MP4 mit gena
 Mit einem kleinen, abspielbaren H.264-Testvideo den ersten `RETR` auf dem lokalen Server annehmen und die Datenverbindung ohne Nutzdaten offen halten. Ladezustand und Abbruchmöglichkeit müssen sichtbar sein. Nach dem Timeout «Erneut versuchen» wählen und den zweiten `RETR` normal bedienen. Die Wiedergabe muss starten, und nach dem Schliessen muss dieselbe Datei sichtbar sein. Der signierte Mac-Build 322 bestand beide FTP-Varianten. Der Server bestätigte die Trennung der blockierten Verbindung nach 30,0 Sekunden und lieferte das kleine Video genau einmal vollständig aus. Beide Quelldateien und die Kontrolldatei blieben bytegenau erhalten, die Historie blieb leer.
 
 Für den Wiedergabetest ein 18 Sekunden langes FTP-Testvideo verwenden. Zuerst pausieren, auf etwa 55 % der Zeitleiste klicken, wieder abspielen und erneut pausieren. Im signierten Mac-Build 366 sprang der Abspielkopf auf 9,9 Sekunden. Er lief beim Fortsetzen weiter und hielt beim Pausieren wieder an. Nach dem Schliessen erschien dieselbe Datei. Der Server lieferte das kleine Video einmal und meldete für das grosse Video keinen `RETR`. Beide Quelldateien und die lokale Kontrolle blieben bytegenau erhalten.
+
+### Textvorschau mit unbekannter Endung und UTF-8-Grenzfällen
+
+Diese PowerShell-Befehle erzeugen vier eigene Dateien im temporären Testordner.
+
+```powershell
+$root = Join-Path ([IO.Path]::GetTempPath()) ("OpenCommander-QA-Preview-" + [Guid]::NewGuid())
+[IO.Directory]::CreateDirectory($root) | Out-Null
+$utf8 = [Text.UTF8Encoding]::new($false)
+[IO.File]::WriteAllText((Join-Path $root ".gitignore"), "Grüße 日本語", $utf8)
+[IO.File]::WriteAllText((Join-Path $root "Notiz.opencommander-unknown-format"), "Grüße 日本語", $utf8)
+$prefix = [Text.Encoding]::ASCII.GetBytes("A" * (2MB - 1))
+[IO.File]::WriteAllBytes((Join-Path $root "Gueltig.txt"), [byte[]]($prefix + $utf8.GetBytes("👋ENDE")))
+[IO.File]::WriteAllBytes((Join-Path $root "Ungueltig.txt"), [byte[]]($prefix + @(0xE2, 0x41)))
+$root
+```
+
+1. Die Vorschau von `.gitignore` und der Datei mit unbekannter Endung öffnen. Beide müssen den Unicode-Text lesbar anzeigen und das externe Öffnen anbieten.
+2. `Gueltig.txt` öffnen. Die Vorschau soll die Kürzung anzeigen und vor dem geteilten Emoji enden. Bei `Ungueltig.txt` muss sie den ungeeigneten Inhalt erklären und externes Öffnen anbieten.
+3. In einem isolierten Netzwerk-Testordner den Dateizugriff kontrolliert zurückhalten. Die Vorschau muss bedienbar bleiben und nach der Wartefrist einen Hinweis zeigen. Die Vorschau schliessen, eine andere Testdatei öffnen und die zurückgehaltene Antwort freigeben. Die zweite Vorschau darf ihren Inhalt behalten. Die SHA-256-Werte der vier Dateien vor und nach den Tests vergleichen.
+
+Der Mac-Nachtest vom 20. November 2026 prüfte alle vier Dateien lokal und mit je einem Satz aus Google Drive und Dropbox. Für beide Cloud-Sätze lagen unabhängige Downloads mit identischen SHA-256-Werten und unveränderten Objekt-IDs vor. Der Test verwendete den Textleser aus Build 419. Der neue Wartehinweis wurde in allen 20 App-Sprachen geprüft. Die Bedienung im Mac-Fenster und der absichtlich verzögerte Dateizugriff stehen für diesen Build noch aus.
 
 ### Kleine Fenster und lange Dateinamen prüfen (PROP-06)
 
