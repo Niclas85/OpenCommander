@@ -75,6 +75,15 @@ Der Code von Mac-Build 421 nutzt für die Kontoprüfung eine Frist von 30 Sekund
 
 Der alte Mac-Client wartete bei beiden Aufrufern weiter. Mit der Korrektur erhielten beide in den kontrollierten Vor- und Nachprüfungen einen Zeitlimitfehler, während die gestoppte Antwort noch ausstand. Beim Wiederholen erschien die frische Liste. Die verspätete Antwort änderte sie nicht. Der Komponententest verwendete eine verkürzte Frist von einer halben Sekunde. Im normalen Betrieb gilt eine Frist von 30 Sekunden pro Kontoprüfung.
 
+### Cloud-Ordner nach einem Konfigurationswechsel erneut laden (REG-CLOUD-44)
+
+1. Zwei eigene Testordner beim gleichen Cloud-Anbieter öffnen. Die Ordneranfrage links mit dem Testadapter zurückhalten. Rechts einen neuen Abruf starten und vor der Anfrage eine geänderte Test-Kontokonfiguration melden.
+2. Links muss der alte Abruf abgebrochen werden. Den Ordner erneut anfragen, solange die alte Antwort aussteht. Genau einen neuen Anbieterabruf erwarten. Rechts muss die Anfrage, die bereits mit der neuen Konfiguration arbeitet, abgeschlossen werden können. Ein weiterer Aufrufer für denselben rechten Ordner soll sich dieser laufenden Anfrage anschliessen.
+3. Den Wechsel separat nach der Antwort des Anbieters rechts simulieren. Die alte Antwort rechts darf keine Liste liefern. Links muss die neue Anfrage auch in diesem Fall ohne die alte Antwort fertig werden.
+4. Die verspätete linke Antwort freigeben. Beide Ordner erneut laden und die aktuellen Inhalte prüfen. Der alte Stand darf weder als aktuelle Liste noch als Ersatzliste erscheinen.
+
+Im Vergleich blieb der neue linke Abruf im alten Client an der zurückgehaltenen Antwort hängen. Im korrigierten Komponententest erschien die frisch geprüfte Liste vor der Freigabe dieser Antwort. Das galt für einen Wechsel vor und nach der rechten Anbieteranfrage. Bei der Variante vor der Anfrage teilten zwei rechte Aufrufer weiterhin genau einen Anbieterabruf. Die Anbieterantworten und der Konfigurationswechsel waren kontrolliert simuliert.
+
 ### Verspätete Cloud-Ordnerantwort prüfen (REG-CLOUD-39)
 
 1. Einen eigenen Testordner in Google Drive und Dropbox mit einer Datei öffnen. Namen, Datei-ID und Inhalt unabhängig abrufen. Den Ordner in beiden App-Bereichen laden.
