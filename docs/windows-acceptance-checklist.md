@@ -5,7 +5,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 ## Vollständige Prüfliste
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
-- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 111 Fälle nativ belegt, 40 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
+- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 112 Fälle nativ belegt, 39 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
 - [126 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
@@ -736,6 +736,14 @@ Der signierte Mac-Build 363 zeigte über den lokal eingebundenen NFS-Testserver 
 Für REG-CLOUD-38 einen eigenen Online-Ordner mit einer Datei zu 5 Bytes und einem Unterordner mit einer Datei zu 7 Bytes vorbereiten. Die Antwort auf die Liste des Unterordners im Testadapter zurückhalten, auch nachdem die App den Abbruch angefordert hat. Die Grössenberechnung muss bei Fristablauf 5 Bytes als Teilresultat melden. Noch bevor die alte Antwort freigegeben wird, erneut berechnen. Das neue Ergebnis muss 12 Bytes betragen. Dann die alte Antwort freigeben und prüfen, dass weder das neue Ergebnis noch die aktuelle Dateiliste geändert wird. Die Original-IDs und Inhalte unabhängig beim Anbieter vergleichen. Bei einem getrennten Versuch die erste Metadatenprüfung anhalten. Zu diesem Zeitpunkt sind noch keine Dateibytes verifiziert.
 
 Der Live-Test mit dem Code von Mac-Build 423 hielt echte Antworten von Google Drive und Dropbox nach dem Anbieterabruf zurück. Die Berechnung meldete 5 Bytes nach rund 8,2 Sekunden. Die Wiederholung lieferte bei weiterhin zurückgehaltener Antwort 12 Bytes. Nach Freigabe der alten Antwort blieb die aktuelle Liste korrekt. Separate Anbieterabrufe bestätigten alle ursprünglichen IDs und Dateiinhalte. Der Komponententest deckte zusätzlich die verzögerte erste Metadatenprüfung ab. Die Abnahme im sichtbaren App-Fenster steht noch aus.
+
+### JPEG-Miniatur und beschädigtes Bild prüfen (MEDIA-02)
+
+1. Je ein rotes und ein blaues JPEG mit 640 × 480 Pixeln erzeugen. Dazwischen eine kleine Textdatei mit der Endung `.jpg` ablegen. Alle drei eigenen Testdateien sowohl lokal als auch in je einem Cloud-Testordner bereitstellen. Vor Beginn die Prüfsummen und bei Online-Orten die verfügbaren Objekt-IDs erfassen.
+2. In der Dateiliste auf die beiden Miniaturen warten. Beide müssen die Farbe der richtigen Datei anzeigen. Das rote Bild öffnen und mit der Pfeiltaste zum absichtlich beschädigten Bild wechseln. Ein Hinweis und «Erneut versuchen» müssen erscheinen. Mit der Pfeiltaste zum blauen Bild weitergehen und die Vorschau schliessen.
+3. Die ursprüngliche Liste, die unveränderten Prüfsummen und eine separate Kontrolldatei bestätigen. Bei einem direkten Anbieter dieselben Objekt-IDs und Bytes unabhängig kontrollieren. Die Historie und die Übertragungsliste sollen keine neuen Einträge enthalten.
+
+Mac-Build 426 bestand die Pixelprüfung beider Miniaturen und beider Vorschauen auf APFS, Google Drive, Dropbox und im macOS-iCloud-Drive-Ordner. Auch der Fehler mit «Erneut versuchen» und die Rückkehr in den Ordner waren sichtbar. Der frühere OneDrive-Online-Lauf mit Build 152 belegte die native Miniatur und das vollständig geöffnete JPEG.
 
 ### Miniaturen beim Scrollen und Ordnerwechsel prüfen (MEDIA-12)
 

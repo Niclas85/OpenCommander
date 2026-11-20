@@ -320,7 +320,7 @@ MEDIA-01;Vorschau, Thumbnails und Medien;P0;JPG-Absturzregression;"D3 lokal und 
 3. Schließen";"Bild erscheint ohne Absturz; Reihenfolge entspricht unterstützten Medien der Ansicht; Fokus kehrt sinnvoll zurück.";Nativ belegt;;;Nicht ausgeführt;;;
 MEDIA-02;Vorschau, Thumbnails und Medien;P0;Online-JPG und Thumbnails;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. JPG in jedem Cloud-Testordner anzeigen
 2. Miniatur abwarten
-3. Vorschau öffnen";"Thumbnail und Bild korrekt oder konkreter Ladefehler; UI bleibt bedienbar; keine leere dauerhafte Vorschau ohne Status.";Teilweise belegt;REG-THUMB-02, REG-THUMB-06;;Nicht ausgeführt;;;
+3. Vorschau öffnen";"Thumbnail und Bild korrekt oder konkreter Ladefehler; UI bleibt bedienbar; keine leere dauerhafte Vorschau ohne Status.";Nativ belegt;REG-THUMB-02, REG-THUMB-06;;Nicht ausgeführt;;;
 MEDIA-03;Vorschau, Thumbnails und Medien;P1;Bildformate und defekte Dateien;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";1. PNG/WebP/GIF sowie beschädigte und nur umbenannte Bilddatei öffnen;"Unterstützte Decoder zeigen korrekt; ungültige Datei verständlich abgefangen; kein Crash/unkontrollierter Speicherverbrauch.";Nativ belegt;;;Nicht ausgeführt;;;
 MEDIA-04;Vorschau, Thumbnails und Medien;P0;Video online mit Ladeanzeige;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. Unter 2 GiB liegendes Online-Testvideo öffnen
 2. Laden beobachten
