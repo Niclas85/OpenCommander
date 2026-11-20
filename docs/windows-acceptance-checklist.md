@@ -677,6 +677,8 @@ Mit einem kleinen, abspielbaren H.264-Testvideo den ersten `RETR` auf dem lokale
 
 Für den Wiedergabetest ein 18 Sekunden langes FTP-Testvideo verwenden. Zuerst pausieren, auf etwa 55 % der Zeitleiste klicken, wieder abspielen und erneut pausieren. Im signierten Mac-Build 366 sprang der Abspielkopf auf 9,9 Sekunden. Er lief beim Fortsetzen weiter und hielt beim Pausieren wieder an. Nach dem Schliessen erschien dieselbe Datei. Der Server lieferte das kleine Video einmal und meldete für das grosse Video keinen `RETR`. Beide Quelldateien und die lokale Kontrolle blieben bytegenau erhalten.
 
+Der native Nachtest mit Mac-Build 426 bestätigte die Grössenlimits erneut. Der FTP-Server protokollierte einen Abruf für die kleine Kontrollminiatur und keinen für das PNG mit 32 MiB plus einem Byte, das Bild mit 128 MiB plus einem Byte oder das Video mit 2 GiB plus einem Byte. Beim angehaltenen Videoabruf zeigte die App nach rund 30 Sekunden den Zeitablauf. Die temporäre Ablage des abgebrochenen Abrufs war vor dem zweiten Abruf entfernt. Die App spielte das beim zweiten Versuch geladene Video ab, dessen temporäre Datei bytegenau der Quelle entsprach. Beim Schliessen verschwand auch diese temporäre Datei, während die App weiterlief. Die Live-Varianten mit übergrossen Dateien bei den einzelnen Cloud-Anbietern bleiben offen.
+
 ### Textvorschau mit unbekannter Endung und UTF-8-Grenzfällen
 
 Diese PowerShell-Befehle erzeugen vier eigene Dateien im temporären Testordner.
