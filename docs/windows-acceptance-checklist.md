@@ -437,6 +437,14 @@ Im signierten Mac-Build 322 lagen die gemessenen Zeiten inklusive Bedienautomati
 
 Für den Abbruchnachtest den Listenabruf eines eigenen Testordners gezielt verzögern. Während die Ladeanzeige sichtbar ist, den Cloud-Bereich schliessen. Der lokale Ordner muss sofort wieder erreichbar sein. Sobald der verzögerte Abruf beendet ist, darf keine alte Cloud-Liste die lokale Ansicht ersetzen. Denselben Cloud-Ort erneut öffnen und die Dateiliste unabhängig prüfen.
 
+### Google-Drive-Hänger mit dem D1-Bestand prüfen (CLOUD-02)
+
+1. Einen frischen App-Testbereich und einen eigenen D1-Ordner in Google Drive vorbereiten. Den Ordnerabruf im Testadapter zurückhalten. Währenddessen im lokalen Bereich eine eigene Datei auswählen und danach die Cloud-Ansicht schliessen. Der Abruf soll enden, und beide lokalen Bereiche müssen erreichbar sein.
+2. Den Abruf beim erneuten Öffnen bis zur regulären Lesefrist halten. Den Zeitlimit-Hinweis, «Erneut versuchen» und den automatischen Wiederholungszeitpunkt prüfen. Die Störung aufheben. Beim nächsten Abruf muss die tatsächliche Liste erscheinen. Einen Unterordner öffnen und zurück navigieren.
+3. Unabhängig eine neue Testdatei bei Google Drive ablegen. Den manuellen Listenabruf erneut halten. Die datierte bisherige Liste muss nach der Frist sichtbar bleiben. Die Störung aufheben und die neue Datei nach dem Wiederabruf prüfen. Provider-IDs und Dateibytes unabhängig mit dem Testbestand vergleichen.
+
+Mac-Build 430 beendete beim Schliessen den gehaltenen Abruf nach 1,19 Sekunden. Die Zeitlimit-Meldung erschien ohne bisherige Liste nach 30,78 Sekunden und bei vorhandener Liste nach 30,42 Sekunden. Der lokale Bereich blieb bedienbar. Der unabhängige Google-Drive-Download bestätigte die exakten Bytes aller 33 Testdateien einschliesslich der neu hinzugefügten Datei.
+
 ### Anfragedrosselung beim Ordnerabruf prüfen (CLOUD-06)
 
 1. Einen eigenen Ordner über die direkte Cloud-Verbindung laden. Nur beim Listenabruf für diesen Testordner den Testadapter mit `HTTP 429: too_many_requests` antworten lassen. Die App muss die bisherige Liste mit Zeitangabe und einem Hinweis auf die Drosselung zeigen. Den anderen Dateibereich auf einer lokalen Kontrolldatei lassen.
