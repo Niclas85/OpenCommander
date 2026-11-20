@@ -47,6 +47,14 @@ Für CLOUD-09 und CLOUD-10 vor der Bestätigung direkt beim Anbieter prüfen, da
 
 Im sichtbaren Test mit dem signierten Mac-Build 321 blieb die Testdatei nach «Abbrechen» auf Google Drive und Dropbox privat. Erst die Bestätigung erstellte den Link. Getrennte abgemeldete Chrome-Sitzungen zeigten die Dateien und verweigerten den Zugriff nach dem Widerruf beim Anbieter. Der Dropbox-Download aus Chrome und der unabhängig abgerufene anonyme Google-Drive-Download waren bytegenau. Bei Google Drive war die Leserfreigabe per Link erreichbar und von der Suche ausgeschlossen.
 
+### Cloud-Freigabe bei Namenswechsel prüfen (REG-CLOUD-42)
+
+1. Zwei eigene Dateien mit verschiedenen Inhalten und Datei-IDs im selben Google-Drive-Testordner anlegen. Beide müssen privat sein. In OpenCommander den Linkdialog für die erste Datei öffnen.
+2. Mit einem Testadapter die Freigabe zwischen der letzten Pfadprüfung und dem Schreibaufruf anhalten. Über einen zweiten Client die erste Datei umbenennen und der zweiten den ursprünglichen Namen geben. Beide IDs am Anbieter prüfen und den Schreibaufruf fortsetzen.
+3. Die Freigabe muss sich auf die bestätigte Datei-ID beziehen. Wird der Namenswechsel schon bei der Pfadprüfung erkannt, muss die Freigabe abgelehnt werden. Die zweite Datei bleibt in beiden Fällen privat und beide Inhalte bleiben identisch. Bei angelegter Freigabe beim Anbieter genau eine Leserberechtigung ohne Auffindbarkeit prüfen, widerrufen und beide Dateien erneut prüfen.
+
+Der Mac-Live-Nachtest mit der nativen Anwendungslogik hielt den Schreibaufruf direkt vor dem Versand an. Google Drive bestätigte genau eine Leserfreigabe für die ursprüngliche Datei-ID. Die gleichnamige Ersatzdatei blieb privat, beide Inhalte waren bytegenau. Nach dem Widerruf bestätigte ein unabhängiger Abruf, dass beide Dateien wieder privat waren. Die Testdateien und der Testordner wurden entfernt.
+
 ### Cloud-Ordner bei gesperrter Kontokonfiguration prüfen (REG-CLOUD-37)
 
 1. In einem eigenen Cloud-Testprofil einen bereits geladenen Ordner öffnen. Die Kontokonfiguration mit einem Testadapter sperren, bevor die nächste Ordnerliste den Anbieter erreicht. Dieselbe Ansicht in beiden Bereichen aktualisieren. Einen Bereich verlassen und die Sperre dann freigeben. Die andere Ansicht muss dieselbe aktuelle Liste über genau einen Anbieterabruf erhalten.

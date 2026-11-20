@@ -263,10 +263,10 @@ CLOUD-08;Cloud-Dateien, Live-Zugriff und Freigaben;P1;Externe rclone-Einbindung;
 2. Namen/Icon/Kontextmenü prüfen";"Provider erkannt, soweit unterstützte eigene Mount-Konfiguration lesbar; keine fremden Konfigurationsgeheimnisse abgefragt.";Teilweise belegt;REG-CLOUD-14;;Nicht ausgeführt;;;
 CLOUD-09;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Teilen bei Drive, OneDrive, Dropbox;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Einzelne Testdatei rechtsklicken
 2. Link erstellen ausdrücklich bestätigen
-3. Link in abgemeldeter Testbrowser-Sitzung prüfen";"Geeignete Online-Aktion vorhanden; HTTPS-Link zum richtigen Objekt mit erklärten Rechten; Kontorichtlinienfehler verständlich. Testfreigabe anschließend beim Provider zurücknehmen.";Teilweise belegt;REG-CLOUD-30, REG-CLOUD-35;;Nicht ausgeführt;;;
+3. Link in abgemeldeter Testbrowser-Sitzung prüfen";"Geeignete Online-Aktion vorhanden; HTTPS-Link zum richtigen Objekt mit erklärten Rechten; Kontorichtlinienfehler verständlich. Testfreigabe anschließend beim Provider zurücknehmen.";Teilweise belegt;REG-CLOUD-30, REG-CLOUD-35, REG-CLOUD-42;;Nicht ausgeführt;;;
 CLOUD-10;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Keine Freigabe ohne Zustimmung;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Menü nur öffnen
 2. Dialog abbrechen
-3. Mehrfachauswahl, Wurzel und Link/Symlink prüfen";"Keine Freigabe allein durch Menüöffnung; unzulässige Auswahl nicht freigebbar; Abbruch nach bereits gestarteter Provider-Aktion kann vorhandenen Link nicht garantiert widerrufen und wird so kommuniziert.";Teilweise belegt;REG-CLOUD-30, REG-CLOUD-35;;Nicht ausgeführt;;;
+3. Mehrfachauswahl, Wurzel und Link/Symlink prüfen";"Keine Freigabe allein durch Menüöffnung; unzulässige Auswahl nicht freigebbar; Abbruch nach bereits gestarteter Provider-Aktion kann vorhandenen Link nicht garantiert widerrufen und wird so kommuniziert.";Teilweise belegt;REG-CLOUD-30, REG-CLOUD-35, REG-CLOUD-42;;Nicht ausgeführt;;;
 CLOUD-11;Cloud-Dateien, Live-Zugriff und Freigaben;P1;iCloud, Weböffnung und Online-Pfad;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. iCloud-Menü öffnen
 2. Im Browser öffnen
 3. Online-Pfad kopieren";"Unterstützte Funktionen korrekt; keine vorgetäuschte iCloud-Linkfreigabe; Weböffnung darf zur Provider-Startseite führen, nicht zwingend zur exakten Datei.";Teilweise belegt;REG-CLOUD-14;;Nicht ausgeführt;;;
