@@ -324,7 +324,7 @@ MEDIA-02;Vorschau, Thumbnails und Medien;P0;Online-JPG und Thumbnails;"D3 lokal 
 MEDIA-03;Vorschau, Thumbnails und Medien;P1;Bildformate und defekte Dateien;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";1. PNG/WebP/GIF sowie beschädigte und nur umbenannte Bilddatei öffnen;"Unterstützte Decoder zeigen korrekt; ungültige Datei verständlich abgefangen; kein Crash/unkontrollierter Speicherverbrauch.";Nativ belegt;;;Nicht ausgeführt;;;
 MEDIA-04;Vorschau, Thumbnails und Medien;P0;Video online mit Ladeanzeige;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. Unter 2 GiB liegendes Online-Testvideo öffnen
 2. Laden beobachten
-3. Abspielen/Seek";"Ladefortschritt sichtbar; Wiedergabe nach nötiger Bereitstellung; Play/Zeitleiste reagieren; kein Versprechen sofortigen Streamings.";Teilweise belegt;;;Nicht ausgeführt;;;
+3. Abspielen/Seek";"Ladefortschritt sichtbar; Wiedergabe nach nötiger Bereitstellung; Play/Zeitleiste reagieren; kein Versprechen sofortigen Streamings.";Nativ belegt;;;Nicht ausgeführt;;;
 MEDIA-05;Vorschau, Thumbnails und Medien;P1;Bedienelemente nach Medientyp;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. Bild, Video und Audio nacheinander öffnen
 2. Leertaste prüfen";"Play und Zeitleiste bei Video, nicht bei Bildern; Audio über unterstützte Steuerung; kein alter Videozustand auf Bild.";Nativ belegt;;;Nicht ausgeführt;;;
 MEDIA-06;Vorschau, Thumbnails und Medien;P0;Schneller Wechsel und Schließen;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. Langsames Online-Bild öffnen

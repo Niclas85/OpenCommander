@@ -5,7 +5,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 ## Vollständige Prüfliste
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
-- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 112 Fälle nativ belegt, 39 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
+- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 113 Fälle nativ belegt, 38 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
 - [126 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
@@ -1047,6 +1047,8 @@ Der signierte Mac-Build 376 bestand den Durchlauf am lokalen FTP-Testserver. Die
 4. Die Datei über 2 GiB zur Vorschau wählen. Die App muss ihre Grössengrenze melden. Der Server darf für diese Datei keinen Inhaltsabruf sehen. Beide SHA-256-Werte, die lokale Kontrolldatei und die leere Historie prüfen.
 
 Im signierten Mac-Build 376 endete der gehaltene FTP-Abruf nach 30,03 Sekunden. «Erneut versuchen» startete die Wiedergabe. Springen in der Zeitleiste, Wiedergabe und Pause funktionierten. Der Server erhielt zwei Abrufe für das kurze Video. Die App lehnte die Datei über 2 GiB vor dem ersten Abruf ab.
+
+Beim regulären Online-Abruf ein eigenes MP4 mit sichtbarer Downloadgrösse wählen und den Fortschritt vor Wiedergabestart protokollieren. Mit Mac-Build 426 bestand ein 18-Sekunden-MP4 lokal, auf Google Drive, Dropbox und im iCloud-Drive-Ordner die sichtbare Wiedergabe, Pause und Zeitleiste. Der sichtbare Vorschau-Download zeigte in den Google-Drive-Läufen 78 %, 93 % und in den Dropbox-Läufen 93 %. Für OneDrive Online bestätigte Build 167 die Ladeanzeige und die Steuerung im nativen Fenster. Ein früherer iCloud-Drive-Lauf bestätigte auch, dass die Vorschau ein zuvor ausgelagertes Testvideo nachlud.
 
 ### Rückgängig nach einer Änderung am lokalen Cloud-Kopierziel prüfen (TRASH-06)
 
