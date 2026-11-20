@@ -1346,6 +1346,27 @@ import Darwin
         require(CloudProviderErrors.cooldown(rateLimit) != nil, "request quota lost its cooldown")
         print("PASS provider storage quota, persistence, and request cooldown are distinct")
 
+        for diagnostic in [
+            "googleapi: Error 403: User does not have sufficient permissions for file, insufficientFilePermissions",
+            #"{"error":{"errors":[{"reason":"insufficientFilePermissions"}],"code":403}}"#,
+            #"{"error":{"code":"accessDenied","message":"fixture-only-provider-detail"}}"#,
+            #"{"error_summary":"path/no_write_permission/..","error":{".tag":"path"}}"#
+        ] {
+            let denial = CloudProviderErrors.classify(Data(diagnostic.utf8))
+            let stored = try JSONEncoder().encode(HistoryFailure(denial))
+            let failure = try JSONDecoder().decode(HistoryFailure.self, from: stored)
+            require(failure.domain == NSPOSIXErrorDomain && failure.code == Int(EACCES) &&
+                    failure.message == L10n.get("history_error_permission") &&
+                    CloudProviderErrors.cooldown(denial) == nil, "provider permission denial was not classified")
+            require(!String(decoding: stored, as: UTF8.self).contains("fixture-only-provider-detail"),
+                    "permission failure persisted provider details")
+        }
+        let filename = CloudProviderErrors.classify(Data("could not read /tests/path/no_write_permission.txt".utf8))
+        require(filename.domain != NSPOSIXErrorDomain, "a filename was mistaken for a provider permission denial")
+        let nearbyQuota = CloudProviderErrors.classify(Data("googleapi: Error 403: Rate Limit Exceeded, rateLimitExceeded".utf8))
+        require(CloudProviderErrors.cooldown(nearbyQuota) != nil, "A request quota response became a permission denial")
+        print("PASS provider permission denial is distinct from request quota and safe to persist")
+
         var attempts = 0, retryDelays: [TimeInterval] = []
         let retry = CloudFileClient(displayProfile, transport: { _, _, _, _, _, _, callback in
             attempts += 1

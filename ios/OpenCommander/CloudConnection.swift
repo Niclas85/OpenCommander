@@ -314,6 +314,15 @@ enum CloudProviderErrors {
         | (?: ^ | : \s+ | "error_summary" \s* : \s* " ) path/ (?: reason/ )? insufficient_space (?= $ | [/\s"',}] )
         """#)
 
+    private static let permissionDeniedDiagnostic = try! NSRegularExpression(pattern: #"""
+        (?x)
+          "reason" \s* : \s* "insufficientfilepermissions"
+        | , \s* insufficientfilepermissions (?= $ | [\s"',}] )
+        | "code" \s* : \s* "accessdenied"
+        | "\.tag" \s* : \s* "no_write_permission"
+        | (?: ^ | : \s+ | "error_summary" \s* : \s* " ) path/ (?: reason/ )? no_write_permission (?= $ | [/\s"',}] )
+        """#)
+
     static func temporary(_ key: String, cooldown: TimeInterval = 10) -> NSError {
         NSError(domain: "OpenCommander.Cloud", code: 2,
             userInfo: [NSLocalizedDescriptionKey: key, "retryAfter": cooldown])
@@ -332,6 +341,9 @@ enum CloudProviderErrors {
         // belongs to the read retry and cache policy below.
         if storageQuotaDiagnostic.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil {
             return POSIXError(.EDQUOT) as NSError
+        }
+        if permissionDeniedDiagnostic.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil {
+            return POSIXError(.EACCES) as NSError
         }
         if text.contains("defaultperminuteperproject") { return temporary("cloud_google_quota", cooldown: 60) }
         if ["ratelimitexceeded", "rate_limit_exceeded", "userratelimitexceeded", "quota exceeded", "429", "too many requests", "too_many_write_operations", "too_many_requests"].contains(where: text.contains) {

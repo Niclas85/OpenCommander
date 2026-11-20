@@ -39,7 +39,9 @@ final class MockMicrosoft: URLProtocol {
     static func check(_ condition: @autoclosure () -> Bool, _ label: String) {
         if !condition() { fatalError("FAIL: " + label) }
     }
-    @MainActor static func testStorageQuota(_ api: OneDriveClient, small: URL, large: URL) async throws {
+    @MainActor static func testUploadRejection(_ status: Int, _ api: OneDriveClient, small: URL, large: URL) async throws {
+        let information = status == 403 ? ("OpenCommander.Cloud", 403, "history_error_permission", "accessDenied")
+            : (NSPOSIXErrorDomain, Int(EDQUOT), "history_error_space", "insufficientStorage")
         for (source, acceptSession) in [(small, false), (large, false), (large, true)] {
             var quotaRequests: [URLRequest] = []
             MockMicrosoft.handler = { request in
@@ -47,26 +49,31 @@ final class MockMicrosoft: URLProtocol {
                 if acceptSession, request.url?.host == "graph.microsoft.com" {
                     return (200, #"{"uploadUrl":"https://upload.example/quota-fixture"}"#)
                 }
-                return (507, #"{"error":{"code":"insufficientStorage","message":"fixture-sensitive-provider-detail"}}"#)
+                return (status, """
+                    {"error":{"code":"\(information.3)","message":"fixture-sensitive-provider-detail"}}
+                    """)
             }
             let originalSource = try OneDriveClient.localSnapshot(source)
             do {
                 try await api.upload(source, parent: nil)
-                fatalError("Storage quota response falsely completed the upload")
+                fatalError("A denied upload falsely completed")
             } catch {
-                let failure = HistoryFailure(error)
-                check(failure.domain == NSPOSIXErrorDomain && failure.code == Int(EDQUOT) &&
-                      failure.message == L10n.get("history_error_space"), "HTTP 507 must report destination storage quota")
+                let saved = try JSONEncoder().encode(HistoryFailure(error))
+                let failure = try JSONDecoder().decode(HistoryFailure.self, from: saved)
+                check(failure.domain == information.0 && failure.code == information.1 &&
+                      failure.message == L10n.get(information.2), "HTTP \(status) lost the localized reason")
+                check(!String(decoding: saved, as: UTF8.self).contains("fixture-sensitive-provider-detail"),
+                      "Upload history retained the provider message")
             }
-            check(quotaRequests.count == (acceptSession ? 2 : 1), "Storage quota rejection retried a write")
+            check(quotaRequests.count == (acceptSession ? 2 : 1), "The rejection caused another write")
             let retainedSource = try OneDriveClient.localSnapshot(source)
-            check(retainedSource == originalSource, "Quota rejection changed source identity or content")
+            check(retainedSource == originalSource, "Rejection changed source identity or content")
             if acceptSession {
                 check(quotaRequests.last?.value(forHTTPHeaderField: "Authorization") == nil,
                       "Quota response from upload host must not involve the Graph bearer")
             }
         }
-        print("PASS OneDrive storage quota stops both upload sizes and preserves the source")
+        print("PASS OneDrive HTTP \(status) stops both upload sizes and preserves the source")
     }
     @MainActor static func main() async throws {
         let configuration = URLSessionConfiguration.ephemeral
@@ -166,7 +173,8 @@ final class MockMicrosoft: URLProtocol {
         check(count + 1 == requests.count && requests.last?.url?.path.hasSuffix("createUploadSession") == true, "Large upload uses a session")
         print("PASS failed upload propagates, collision refusal, encoding, upload-session failure")
 
-        try await testStorageQuota(api, small: local, large: large)
+        try await testUploadRejection(403, api, small: local, large: large)
+        try await testUploadRejection(507, api, small: local, large: large)
 
         var offset = 0
         let total = 20 * 1024 * 1024 + 1

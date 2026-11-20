@@ -1041,7 +1041,8 @@ struct HistoryFailure: Codable, Equatable {
     }
     var message: String {
         let key: String
-        if domain == "OpenCommander.FileSafety" { key = "undo_changed" }
+        if domain == "OpenCommander.Cloud", code == 403 { key = "history_error_permission" }
+        else if domain == "OpenCommander.FileSafety" { key = "undo_changed" }
         else if domain == NSCocoaErrorDomain {
             switch code {
             case 4, 260: key = "history_error_missing"

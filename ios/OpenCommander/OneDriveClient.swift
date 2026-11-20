@@ -524,7 +524,7 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
         }
             if http.statusCode == 401 { accessToken = nil; expiresAt = .distantPast }
             if http.statusCode == 409 { throw OneDriveFailure.nameConflict }
-            if http.statusCode == 507 { throw POSIXError(.EDQUOT) }
+            try Self.checkPermissionAndQuota(http.statusCode)
             if [429, 502, 503, 504].contains(http.statusCode) {
                 throw OneDriveFailure.temporarilyUnavailable(http.statusCode, retryAfter: max(10, Self.retryDelay(http, fallback: 10)))
             }
@@ -532,6 +532,18 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
         }
         throw OneDriveFailure.message("OneDrive read retry budget exhausted.")
     }
+    private static func checkPermissionAndQuota(_ status: Int) throws {
+        switch status {
+        case 403:
+            throw NSError(domain: "OpenCommander.Cloud", code: status,
+                          userInfo: [NSLocalizedDescriptionKey: "history_error_permission"])
+        case 507:
+            throw POSIXError(.EDQUOT)
+        default:
+            break
+        }
+    }
+
     private static func retryDelay(_ response: HTTPURLResponse, fallback: TimeInterval) -> TimeInterval {
         guard let value = response.value(forHTTPHeaderField: "Retry-After") else { return fallback }
         if let seconds = TimeInterval(value), seconds.isFinite, seconds >= 0 { return seconds }
@@ -702,7 +714,7 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
                 // process may have exited after the server accepted a fragment.
                 let (stateData, response) = try await session.data(for: URLRequest(url: saved.url))
                 guard let http = response as? HTTPURLResponse, http.url?.scheme == "https", generation == sessionGeneration else { throw CancellationError() }
-                if http.statusCode == 507 { throw POSIXError(.EDQUOT) }
+                try Self.checkPermissionAndQuota(http.statusCode)
                 if http.statusCode == 404 || http.statusCode == 410 {
                     try FileManager.default.removeItem(at: checkpoint)
                 } else {
@@ -744,7 +756,7 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
             // The upload URL is preauthenticated. Never send our Graph token.
             let (reply, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse, http.url?.scheme == "https" else { throw OneDriveFailure.message("Invalid upload response.") }
-            if http.statusCode == 507 { throw POSIXError(.EDQUOT) }
+            try Self.checkPermissionAndQuota(http.statusCode)
             offset += chunk.count
             if offset == size {
                 guard http.statusCode == 200 || http.statusCode == 201 else { throw OneDriveFailure.message("Upload was not committed (HTTP \(http.statusCode)). Source retained.") }
