@@ -243,10 +243,10 @@ AUTH-10;Cloud-Anmeldung und Profilverwaltung;P0;Trennen und erneutes Verbinden;"
 CLOUD-01;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Erste Liste und Warmstart;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Ort erstmals öffnen
 2. Unterordner öffnen
 3. Zurück
-4. Wieder öffnen";"Ladezustand und Stopp erreichbar; richtige aktuelle Liste; keine unbegrenzte Blockade. Kalte und warme Ladezeit getrennt erfassen.";Teilweise belegt;REG-CLOUD-03, REG-CLOUD-37, REG-CLOUD-40;;Nicht ausgeführt;;;
+4. Wieder öffnen";"Ladezustand und Stopp erreichbar; richtige aktuelle Liste; keine unbegrenzte Blockade. Kalte und warme Ladezeit getrennt erfassen.";Teilweise belegt;REG-CLOUD-03, REG-CLOUD-37, REG-CLOUD-40, REG-CLOUD-43;;Nicht ausgeführt;;;
 CLOUD-02;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Google-Drive-Hänger als Regression;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Drive mehrfach öffnen
 2. Während verzögerter Antwort navigieren
-3. Erneut laden";"Keine dauerhaft leere, unbedienbare Ansicht; Timeout/Fehler mit Wiederholen; lokale Bereiche weiter bedienbar.";Teilweise belegt;REG-CLOUD-39, REG-CLOUD-40;;Nicht ausgeführt;;;
+3. Erneut laden";"Keine dauerhaft leere, unbedienbare Ansicht; Timeout/Fehler mit Wiederholen; lokale Bereiche weiter bedienbar.";Teilweise belegt;REG-CLOUD-39, REG-CLOUD-40, REG-CLOUD-43;;Nicht ausgeführt;;;
 CLOUD-03;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Online-Grundoperationen;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. D1 hochladen, herunterladen, umbenennen, Ordner anlegen, entfernen und wiederherstellen
 2. Provider unabhängig prüfen";"Dateien/Inhalte und Namen stimmen; Änderungen auch beim Provider sichtbar; Cache allein zählt nicht als Erfolg.";Teilweise belegt;"REG-CLOUD-01, REG-CLOUD-02, REG-CLOUD-07, REG-GDOC-01, REG-GDOC-02, REG-CLOUD-08, REG-GDOC-03, REG-GDOC-04, REG-GDOC-05, REG-CLOUD-09, REG-CLOUD-11, REG-CLOUD-13, REG-CLOUD-16, REG-GDOC-07, REG-CLOUD-17, REG-CLOUD-18, REG-CLOUD-20, REG-ARCH-07, REG-DROP-05", REG-CLOUD-36;;Nicht ausgeführt;;;
 CLOUD-04;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Netzausfall und Wiederkehr;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Während Listen und Kopieren nur Testnetz unterbrechen
@@ -258,7 +258,7 @@ CLOUD-06;Cloud-Dateien, Live-Zugriff und Freigaben;P1;Rate-Limit und temporäre 
 2. Retry beobachten
 3. Wegnavigieren";"Begrenzte Wiederholungen mit Wartezeit; kein Request-Sturm; ältere Ersatzliste nur mit Alters-/Warnhinweis; Navigation beendet Retry.";Teilweise belegt;REG-CLOUD-34, REG-CLOUD-37, REG-CLOUD-39, REG-CLOUD-40, REG-CLOUD-41;;Nicht ausgeführt;;;
 CLOUD-07;Cloud-Dateien, Live-Zugriff und Freigaben;P1;Parallele identische Listen;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Beide Bereiche auf selben Online-Ordner
-2. Gleichzeitig aktualisieren";"Anfragen sinnvoll zusammengeführt; beide Bereiche korrekt; kein gegenseitiges Überschreiben nach Navigation.";Teilweise belegt;REG-CLOUD-15, REG-KEY-03, REG-CLOUD-37, REG-CLOUD-39;;Nicht ausgeführt;;;
+2. Gleichzeitig aktualisieren";"Anfragen sinnvoll zusammengeführt; beide Bereiche korrekt; kein gegenseitiges Überschreiben nach Navigation.";Teilweise belegt;REG-CLOUD-15, REG-KEY-03, REG-CLOUD-37, REG-CLOUD-39, REG-CLOUD-43;;Nicht ausgeführt;;;
 CLOUD-08;Cloud-Dateien, Live-Zugriff und Freigaben;P1;Externe rclone-Einbindung;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Separaten eigenen Testmount mit bekanntem Provider öffnen
 2. Namen/Icon/Kontextmenü prüfen";"Provider erkannt, soweit unterstützte eigene Mount-Konfiguration lesbar; keine fremden Konfigurationsgeheimnisse abgefragt.";Teilweise belegt;REG-CLOUD-14;;Nicht ausgeführt;;;
 CLOUD-09;Cloud-Dateien, Live-Zugriff und Freigaben;P0;Teilen bei Drive, OneDrive, Dropbox;"Matrix C1 vollständig je Testdienst; dedizierter Testordner mit externer Kontrollansicht und D1.";"1. Einzelne Testdatei rechtsklicken

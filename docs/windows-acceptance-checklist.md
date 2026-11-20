@@ -66,6 +66,15 @@ Der Dropbox-Live-Nachtest bestätigte denselben Namenswechsel. Die unabhängige 
 
 Der Code von Mac-Build 421 nutzt für die Kontoprüfung eine Frist von 30 Sekunden pro Prüfung. Mit verkürzter Frist im Live-Test bestanden Google Drive und Dropbox alle drei Varianten bei einer real gehaltenen Konfigurationssperre. Der überlebende Abruf und die spätere Wiederholung lieferten je eine frische Liste. Unabhängige Anbieterabrufe bestätigten dieselben Datei-IDs und Inhalte. Ein separater Regressionstest prüfte, dass der Timeout keine sofortige Aktualisierung auslöst. Der Live-Lauf verwendete die Anwendungslogik ohne App-Fenster.
 
+### Wartezeit für die Cloud-Kontoprüfung begrenzen (REG-CLOUD-43)
+
+1. Eine gültige Cloud-Ordnerliste laden und den Ordner in beiden Bereichen öffnen. Den Testadapter bei der nächsten Aktualisierung die Kontoprüfung vor der Anbieteranfrage zurückhalten lassen. Auch nach der Abbruchanforderung keine Antwort liefern.
+2. Beide Bereiche müssen nach der Wartefrist einen wiederholbaren Zeitlimitfehler liefern. Für den gemeinsamen Abruf genau eine Kontoprüfung und keine Anbieteranfrage zählen. Die App darf dabei keine Ersatzliste als geprüft zurückgeben.
+3. Das Gleiche mit der Kontoprüfung nach dem Anbieterabruf wiederholen. Genau einen Anbieterabruf zählen. Seine Dateiliste darf vor bestätigter Kontoprüfung weder angezeigt noch gespeichert werden.
+4. Beide Varianten erneut laden, solange die erste Prüfung weiter wartet. Jetzt eine gültige Kontoprüfung und eine neue Dateiliste liefern. Anschliessend die alte Prüfung mit einer abweichenden Konfigurationskennung freigeben. Der aktuelle Ordnerinhalt muss erhalten bleiben.
+
+Der alte Mac-Client wartete bei beiden Aufrufern weiter. Mit der Korrektur erhielten beide in den kontrollierten Vor- und Nachprüfungen einen Zeitlimitfehler, während die gestoppte Antwort noch ausstand. Beim Wiederholen erschien die frische Liste. Die verspätete Antwort änderte sie nicht. Der Komponententest verwendete eine verkürzte Frist von einer halben Sekunde. Im normalen Betrieb gilt eine Frist von 30 Sekunden pro Kontoprüfung.
+
 ### Verspätete Cloud-Ordnerantwort prüfen (REG-CLOUD-39)
 
 1. Einen eigenen Testordner in Google Drive und Dropbox mit einer Datei öffnen. Namen, Datei-ID und Inhalt unabhängig abrufen. Den Ordner in beiden App-Bereichen laden.
