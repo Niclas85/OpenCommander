@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 116 Fälle nativ belegt, 35 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [126 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [127 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -78,6 +78,12 @@ Im Fenster des isolierten Mac-Builds 425 zeigte ein simulierter OneDrive-Abruf �
 Mit demselben Testadapter startete Befehl-R für beide Cloud-Ansichten einen gemeinsamen Abruf. Nach 30,31 Sekunden zeigten beide dieselbe datierte Ersatzliste mit Zeitlimit-Warnung und Countdown. Ein Klick auf Schliessen führte links in den lokalen Ordner zurück. Nur der rechte Bereich zeigte nach genau einem automatischen Wiederabruf die neue Datei. In beiden Läufen blieben die Kontrolldateien und die leere Historie unverändert.
 
 Für den Nachtest der Wartefrist zuerst eine gültige Liste laden. Beim nächsten Abruf eine Drosselung mit 60 Sekunden Wartezeit auslösen und die Störung wieder aufheben. Nach 12 Sekunden die Uhr für Zeitstempel im Testadapter einmal um eine Stunde vor- und einmal um eine Stunde zurückstellen. Nach jeder Änderung manuell aktualisieren. Beide Aktualisierungen müssen dieselbe datierte Ersatzliste und 48 Sekunden Restzeit liefern, ohne eine weitere Anbieteranfrage auszulösen. Nach weiteren 48 Sekunden muss genau ein neuer Abruf die aktuelle Liste laden. Die Uhr des Testrechners kann dabei unverändert bleiben.
+
+### Abgelaufene Cloud-Ersatzliste prüfen (REG-CLOUD-41)
+
+1. Einen eigenen Cloud-Testordner mit der Datei `Alt.txt` laden. Nach 299 Sekunden einen vorübergehenden Lesefehler ohne `Retry-After` auslösen. Genau einen Anbieterabruf zählen. Die App muss `Alt.txt` mit dem Zeitstempel der letzten gültigen Liste und einer Wartefrist zeigen.
+2. Zehn Sekunden später erneut aktualisieren. Den Testadapter bei den ersten zwei Abrufen wieder vorübergehend scheitern lassen. Beim dritten Abruf nur `Neu.txt` liefern.
+3. Zwei Wiederholungen mit Wartezeiten von zwei und vier Sekunden erwarten. Danach muss genau ein Eintrag `Neu.txt` ohne Cache-Zeitstempel erscheinen. `Alt.txt` darf nach Ablauf der fünf Minuten auch während eines weiteren Fehlers nicht als Ersatz erscheinen.
 
 ### Ausbleibende OneDrive-Freigabebestätigung prüfen
 
