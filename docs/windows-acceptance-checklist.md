@@ -440,6 +440,8 @@ Der signierte Mac-Build 322 bestand diese Varianten für Dropbox und Google Driv
 
 Build 384 behandelte die explizite Diagnose «HTTP 503: serviceNotAvailable» im rclone-Transport als allgemeinen Fehler. Build 385 zeigte die datierte letzte Liste und den Wiederholungszeitpunkt. Ein einziger automatischer Abruf lud danach die neuen Daten. Nach HTTP 429 beendete das Verlassen des Ordners weitere Abrufe. Der App-Test verwendete einen simulierten OneDrive-Transport. Den Adapter für diese Variante mit `HTTP 503: serviceNotAvailable` antworten lassen.
 
+Mac-Build 429 zeigte dieselbe datierte Liste und den Countdown auch über einen simulierten direkten iCloud-Transport. Beide Bereiche teilten sich den Abruf. Die drei automatischen Versuche folgten nach 15,78 s, 21,09 s, 31,53 s. Nach Erreichen des Limits kam während 35 Sekunden kein weiterer Abruf hinzu. Ein manuelles Aktualisieren nach Aufheben der Störung zeigte die neue Datei in beiden Listen. Nach HTTP 503 beendete das Schliessen beider Cloud-Bereiche die Wiederholungen im beobachteten Zeitraum von 25 Sekunden. Für einen Windows-Nachtest denselben Testordner in beiden Bereichen öffnen und die gemeinsame Zahl der Abrufe mitzählen. Die direkte Apple-Anmeldung steht separat aus.
+
 ### Verzögerter Abruf in beiden Bereichen (CLOUD-07)
 
 Den ersten Abruf des eigenen Cloud-Ordners anhalten und denselben Ort rechts öffnen. Beide Bereiche müssen den Ladezustand zeigen. Links den Cloud-Bereich schliessen und prüfen, dass links wieder der lokale Ordner und rechts weiterhin die Ladeanzeige erscheint. Den Abruf freigeben. Die Cloud-Dateien müssen nur rechts erscheinen.
