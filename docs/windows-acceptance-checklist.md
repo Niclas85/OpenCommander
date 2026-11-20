@@ -1039,6 +1039,8 @@ Bei «Entpacken» direkt aus der Online-Dateiliste konnte Build 382 noch aus der
 
 Der signierte Mac-Build 376 bestand den Durchlauf am lokalen FTP-Testserver. Die Vorschau zeigte bei beiden Messungen die erwarteten blauen Pixel. Der Server bestätigte, dass alle drei absichtlich verzögerten Abrufe abgebrochen wurden. Der Nachweis ergänzt die getrennten Google-Drive- und Dropbox-Durchläufe.
 
+Mac-Build 426 wiederholte die Bildfolge mit echten Downloads bei Google Drive und Dropbox. Beide Pixelmessungen bestätigten das richtige Bild. Nach dem Schliessen endeten die Downloadprozesse und die temporären Dateien verschwanden. Ein Durchlauf im iCloud-Drive-Ordner bestätigte mit zurückgehaltenem Dateizugriff, dass verspätete Ergebnisse weder das ausgewählte Bild austauschen noch die geschlossene Vorschau erneut öffnen. Bei Dropbox wurde zusätzlich ein Video während laufender Wiedergabe geschlossen. Die Liste kehrte zurück und die geprüfte temporäre Datei verschwand. Für die Abnahme in OneDrive bleibt dieselbe Pfeiltastenfolge mit einem echten Konto zu prüfen.
+
 ### Online-Video bei einem Stillstand erneut laden (MEDIA-04 und MEDIA-09)
 
 1. Ein kurzes eigenes MP4 und eine Datei mit einer Grösse von 2 GiB plus einem Byte am FTP-Testserver bereitstellen. Den ersten Inhaltsabruf des kurzen Videos bestätigen und anschliessend ohne Datenübertragung offen halten.
