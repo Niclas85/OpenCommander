@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [114 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [115 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -960,6 +960,15 @@ Im isolierten Mac-Build 410 waren beim Maus-Abbruch 258 von 4’800 Dateien im Z
 4. Die unabhängige Datei weglegen. Falls die frühere Version vor dem Prozessende bereits sichtbar geworden war, genau das ursprüngliche wiederhergestellte Objekt zurücklegen. Denselben Historieneintrag erneut rückgängig machen. Ziel, Kopierquelle und die weggelegte neuere Version anhand ihrer Prüfsummen prüfen. Es darf nur ein Abschluss für die ursprüngliche Aktion entstehen.
 
 Im isolierten Mac-Build 411 wurden beide Prozessabbrüche nach echten Mausaufrufen von «Rückgängig» auf APFS ausgeführt. Nach dem erneuten Öffnen hielt ein fremdes Objekt am Ziel die Wiederherstellung an. Nach Behebung des Konflikts stellte derselbe Historieneintrag alle 4’800 Dateien der vorherigen Version mit exakten SHA-256-Prüfsummen wieder her. Die neuere Version und der unabhängige Kontrollinhalt blieben erhalten.
+
+### Verschiebegruppe nach einem Prozessabbruch rückgängig machen
+
+1. In einem isolierten Profil zwei eigene Testobjekte gemeinsam verschieben und am Ziel jeweils eine andere frühere Version ersetzen. Vor dem Verschieben Dateikennungen und SHA-256-Prüfsummen für Quelle, frühere Zielversion und eine separate Kontrolldatei erfassen.
+2. «Rückgängig» für die Gruppe starten. Sobald das erste Objekt wiederhergestellt ist, den Testprozess während des zweiten Objekts gezielt beenden. Die drei Zeitpunkte separat prüfen. Die neue Zielversion wurde weggelegt, die Quelle wurde bereits wiederhergestellt oder die frühere Zielversion ist bereits wieder sichtbar.
+3. Die Test-App neu öffnen. Am ursprünglichen Quellpfad des zweiten Objekts einen unabhängigen Inhalt ablegen. Falls die Quelle bereits wiederhergestellt war, genau dieses Objekt vorher vorübergehend weglegen. «Rückgängig» muss den belegten Quellpfad melden. Für das erste Objekt muss genau eine Wiederherstellung festgehalten sein.
+4. Den fremden Testinhalt beiseitelegen und eine bereits wiederhergestellte Originalquelle mit ihrer ursprünglichen Kennung zurücklegen. Denselben Historieneintrag erneut wählen. Beide Quell- und Zielversionen müssen ihre ursprünglichen Prüfsummen haben. Der unabhängige Inhalt muss erhalten bleiben, und die Historie darf keinen zweiten Abschluss für die Gruppe erzeugen.
+
+Mac-Build 414 bestand alle drei Unterbrechungsvarianten auf APFS. Zwei tatsächliche Verschiebevorgänge mit Ersetzen wurden für den Test in einem Historieneintrag zusammengefasst. Nach dem Prozessneustart hielt der belegte Quellpfad die Wiederherstellung an. Nach Behebung des Konflikts stimmten die ursprüngliche Quellkennung und die SHA-256-Prüfsummen sämtlicher 1’800 Dateien je Ordnerversion. Auch die zweite, bereits wiederhergestellte Datei und die Kontrolldatei blieben erhalten.
 
 ### Rückgängig bei verändertem exFAT-Ziel oder belegter Quelle
 
