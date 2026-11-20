@@ -329,7 +329,7 @@ MEDIA-05;Vorschau, Thumbnails und Medien;P1;Bedienelemente nach Medientyp;"D3 lo
 2. Leertaste prüfen";"Play und Zeitleiste bei Video, nicht bei Bildern; Audio über unterstützte Steuerung; kein alter Videozustand auf Bild.";Nativ belegt;;;Nicht ausgeführt;;;
 MEDIA-06;Vorschau, Thumbnails und Medien;P0;Schneller Wechsel und Schließen;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. Langsames Online-Bild öffnen
 2. Mehrfach Pfeiltasten
-3. Während Laden schließen";"Alte Worker-Ergebnisse überschreiben neues Bild nicht; Download beendet/begrenzt; keine Hintergrundwiedergabe nach Schließen.";Teilweise belegt;;;Nicht ausgeführt;;;
+3. Während Laden schließen";"Alte Worker-Ergebnisse überschreiben neues Bild nicht; Download beendet/begrenzt; keine Hintergrundwiedergabe nach Schließen.";Teilweise belegt;REG-PREVIEW-02;;Nicht ausgeführt;;;
 MEDIA-07;Vorschau, Thumbnails und Medien;P0;Löschen in der Vorschau;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. Testbild entfernen
 2. Abbrechen/Bestätigen prüfen
 3. Parallel anderen Kopierjob abschließen lassen";"Nur eigener Löschabschluss schaltet Vorschau weiter; Abbruch lässt Bild und Bedienelemente intakt; Datei in Papierkorb wiederherstellbar.";Nativ belegt;;;Nicht ausgeführt;;;
@@ -337,7 +337,7 @@ MEDIA-08;Vorschau, Thumbnails und Medien;P1;Vorschau letzter/erster Eintrag;"D3 
 2. Öffnen/entfernen
 3. Am Anfang/Ende navigieren";"Keine ungültigen Indizes oder Endlosschleifen; leerer Zustand sinnvoll; nicht zu fremdem Ordner wechseln.";Nativ belegt;;;Nicht ausgeführt;;;
 MEDIA-09;Vorschau, Thumbnails und Medien;P1;Größen- und Zeitlimits;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. Testbilder über Thumbnail-/Preview-Limit und Video über 2 GiB wählen
-2. Downloadstillstand simulieren";"Klare Grenze/Timeout; begrenzter Speicher und temporäre Dateien; kein unendliches Laden. Aktuell: Thumbnail 32 MiB, Bildvorschau 128 MiB; Decoderlimit separat.";Teilweise belegt;REG-OPEN-02, REG-THUMB-03, REG-PREVIEW-01;;Nicht ausgeführt;;;
+2. Downloadstillstand simulieren";"Klare Grenze/Timeout; begrenzter Speicher und temporäre Dateien; kein unendliches Laden. Aktuell: Thumbnail 32 MiB, Bildvorschau 128 MiB; Decoderlimit separat.";Teilweise belegt;REG-OPEN-02, REG-THUMB-03, REG-PREVIEW-01, REG-PREVIEW-02;;Nicht ausgeführt;;;
 MEDIA-10;Vorschau, Thumbnails und Medien;P1;Text und Binärvorschau;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";1. UTF-8-Text, Text über 2 MiB und Binärdatei öffnen;"Begrenzte Textvorschau; ungeeignete Datei sicher erklärt/extern öffnbar; kein Laden beliebig großer Datei in GUI-Thread.";Nativ belegt;REG-OPEN-01, REG-OPEN-02, REG-PREVIEW-01;;Nicht ausgeführt;;;
 MEDIA-11;Vorschau, Thumbnails und Medien;P1;Archiv-Medien;"D3 lokal und pro Cloud; optional ffmpeg; synthetische Medien ohne private Motive.";"1. Bild in ZIP öffnen
 2. Pfeiltasten/Schließen

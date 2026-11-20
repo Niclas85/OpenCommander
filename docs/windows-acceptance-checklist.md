@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 116 Fälle nativ belegt, 35 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [129 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [130 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -725,6 +725,12 @@ Mit einem kleinen, abspielbaren H.264-Testvideo den ersten `RETR` auf dem lokale
 Für den Wiedergabetest ein 18 Sekunden langes FTP-Testvideo verwenden. Zuerst pausieren, auf etwa 55 % der Zeitleiste klicken, wieder abspielen und erneut pausieren. Im signierten Mac-Build 366 sprang der Abspielkopf auf 9,9 Sekunden. Er lief beim Fortsetzen weiter und hielt beim Pausieren wieder an. Nach dem Schliessen erschien dieselbe Datei. Der Server lieferte das kleine Video einmal und meldete für das grosse Video keinen `RETR`. Beide Quelldateien und die lokale Kontrolle blieben bytegenau erhalten.
 
 Der native Nachtest mit Mac-Build 426 bestätigte die Grössenlimits erneut. Der FTP-Server protokollierte einen Abruf für die kleine Kontrollminiatur und keinen für das PNG mit 32 MiB plus einem Byte, das Bild mit 128 MiB plus einem Byte oder das Video mit 2 GiB plus einem Byte. Beim angehaltenen Videoabruf zeigte die App nach rund 30 Sekunden den Zeitablauf. Die temporäre Ablage des abgebrochenen Abrufs war vor dem zweiten Abruf entfernt. Die App spielte das beim zweiten Versuch geladene Video ab, dessen temporäre Datei bytegenau der Quelle entsprach. Beim Schliessen verschwand auch diese temporäre Datei, während die App weiterlief. Die Live-Varianten mit übergrossen Dateien bei den einzelnen Cloud-Anbietern bleiben offen.
+
+### Verspätete Antwort nach beendetem Vorschauabruf (REG-PREVIEW-02)
+
+1. Eine eigene Datei als direkte Online-Vorschau öffnen. Der Testadapter hält die laufende Anfrage und wartet auch nach einer Abbruchanforderung mit der Antwort.
+2. In einem Lauf das Vorschauzeitlimit abwarten. Im zweiten Lauf die Vorschau beim Laden abbrechen. Der jeweilige Hinweis muss erscheinen, während der Testadapter die alte Antwort noch zurückhält.
+3. Eine zweite Testdatei öffnen. Sobald sie angezeigt wird, die alte Antwort ausliefern. Die Anzeige muss bei der neuen Datei bleiben. Das temporäre Verzeichnis des alten Downloads muss anschliessend entfernt sein. Inhalt und Prüfsumme der neuen Datei und einer separaten Kontrolldatei müssen stimmen.
 
 ### Textvorschau mit unbekannter Endung und UTF-8-Grenzfällen
 
