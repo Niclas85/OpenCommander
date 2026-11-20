@@ -35,6 +35,23 @@ let displayedNames = try fm.contentsOfDirectory(atPath: folder.path)
 check(displayedNames.contains("mIxEd-NAME.txt") && !displayedNames.contains("MiXeD-Name.TxT"))
 try check(Data(contentsOf: folder.appendingPathComponent("MIXED-NAME.TXT")) == payload)
 print("PASS FSKit exact case-preserving listing, case-insensitive access and case-only rename")
+let unicodeCaseOriginal = folder.appendingPathComponent("Δ.txt")
+let unicodeCaseRenamed = folder.appendingPathComponent("δ.txt")
+try payload.write(to: unicodeCaseOriginal)
+let originalIdentity = try fm.attributesOfItem(atPath: unicodeCaseOriginal.path)[.systemFileNumber] as? NSNumber
+check(originalIdentity != nil)
+// Match the exclusive rename used by OpenCommander and verify the stored
+// spelling. Both spellings may resolve to the same inode after success.
+if renamex_np(unicodeCaseOriginal.path, unicodeCaseRenamed.path, UInt32(RENAME_EXCL)) != 0 {
+    throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+}
+let unicodeCaseNames = try fm.contentsOfDirectory(atPath: folder.path)
+precondition(unicodeCaseNames.contains("δ.txt") && !unicodeCaseNames.contains("Δ.txt"),
+             "Exclusive Unicode case-only rename did not update the stored NTFS name")
+let renamedIdentity = try fm.attributesOfItem(atPath: unicodeCaseRenamed.path)[.systemFileNumber] as? NSNumber
+check(renamedIdentity == originalIdentity)
+try check(Data(contentsOf: unicodeCaseRenamed) == payload)
+print("PASS FSKit exclusive Unicode case-only rename preserves identity and contents")
 let dated = folder.appendingPathComponent("Zeitstempel.txt")
 try payload.write(to: dated)
 let birth = Date(timeIntervalSince1970: 1_234_567_890)

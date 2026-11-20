@@ -25,6 +25,10 @@ precondition(displayedNames.contains("Grüsse-文件.txt") && displayedNames.con
              "Original spelling and case-only rename must persist on disk")
 let mixed = try Data(contentsOf: folder.appendingPathComponent("mIxEd-NAME.txt"))
 precondition(mixed == payload)
+precondition(displayedNames.contains("δ.txt") && !displayedNames.contains("Δ.txt"),
+             "The Unicode case-only rename must persist on disk")
+let unicodeCase = try Data(contentsOf: folder.appendingPathComponent("δ.txt"))
+precondition(unicodeCase == payload)
 let large = try Data(contentsOf: folder.appendingPathComponent("large.bin"))
 precondition(large == Data((0..<517).map { UInt8($0 % 251) }), "Truncated file did not persist")
 precondition(!fm.fileExists(atPath: folder.appendingPathComponent("copy.bin").path))
