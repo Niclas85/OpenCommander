@@ -877,6 +877,15 @@ Im Info-Dialog von Build 385 erreichte Tab die Grössenberechnung nicht. Build 3
 
 Zwei native App-Durchläufe von Build 385 verwendeten einen simulierten OneDrive-Ordner. Nach Auswahl einer anderen Datei zeigte «Informationen» aus dem Kontextmenü die frisch gelesenen 99 B, den korrekten Namen, Pfad, Typ und Zeitstempel der angeklickten Datei. Ein gleichnamiges Ersatzobjekt mit anderer Anbieter-ID wurde abgewiesen. Die Testdaten und die leere Historie wurden unabhängig geprüft.
 
+### Eigenschaften per Rechtsklick trotz anderer Auswahl prüfen (PROP-01, PROP-02)
+
+1. Die D1-Struktur lokal, auf SMB und in einer eingerichteten Cloud-Verbindung öffnen. Eine andere Datei auswählen und dann auf die Prüfdatei rechtsklicken.
+2. «Informationen» öffnen. Angezeigten Namen, Typ, Ort, exakte Bytezahl und Änderungszeit mit einer unabhängigen Abfrage der Prüfdatei vergleichen.
+3. Gemeldete NAS-Rechte und den Hinweis auf synthetische Rechte prüfen. Fehlende POSIX-Angaben beim Cloud-Anbieter müssen als unbekannt oder nicht gemeldet erscheinen.
+4. Die SHA-256-Werte der D1-Dateien, Historie und Warteschlange vor und nach dem Test vergleichen.
+
+20. November 2026. Build 449 prüfte den nativen Rechtsklick auf APFS, der echten SMB-Freigabe und Google Drive mit je einer vollständigen eigenen D1-Struktur. In allen drei Bereichen war zuerst «EinByte.txt» markiert. «Informationen» aus dem Kontextmenü zeigte Name, Typ, Pfad, Änderungszeit und exakt 1’048’576 Bytes von «EinsMiB.bin». Die Dateisystemabfragen und der separate Drive-Abruf bestätigten das jeweilige Datum. Der SMB-Dialog zeigte die vom Einhängepunkt gemeldeten Rechte 0700 samt Hinweis auf mögliche synthetische Anbieterrechte. Drive führte fehlende POSIX-Rechte ausdrücklich als nicht gemeldet auf. Die Vorher-/Nachher-Prüfung bestätigte pro Speicherort 35 Dateien mit gleichen SHA-256-Werten, in Drive zusätzlich die unveränderten Objekt-IDs. Historie und Warteschlange blieben leer. Die Testordner wurden aufgeräumt. Die Anzeigeprüfung lief mit einem Layout bei 2×. Die übrige Auflösungs- und Skalierungsmatrix bleibt offen.
+
 ### Ordnergrösse mit Zugriffsfehler und symbolischen Links prüfen (PROP-01, PROP-03)
 
 1. In einem eigenen Testordner zwölf Unterordner mit je 500 Dateien zu 336 Bytes anlegen. In einem dreizehnten Unterordner eine Datei mit 199 Bytes anlegen und den lesenden Zugriff auf diesen Unterordner für das Testkonto sperren. Zwei symbolische Links erstellen. Einer verweist auf den Testordner selbst, der andere auf einen separaten, bekannten Testordner.
