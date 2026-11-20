@@ -279,6 +279,8 @@ Die spätere Nur-Lese-Kontrolle desselben Build-384-Laufs fand drei fehlgeschlag
 3. In einem getrennten Lauf die Freigabe aushängen und am bisherigen Pfad ein leeres lokales Verzeichnis bereitstellen. Beim Fortsetzen muss der Wiedereinbindungshinweis erscheinen. Das lokale Verzeichnis muss leer bleiben.
 4. Die ursprüngliche Freigabe wieder verbinden und denselben Auftrag fortsetzen. Die Quelldatei, den Zielinhalt und genau einen Abschlussbeleg prüfen.
 
+Beim ergänzenden macOS-Test wurde ein beschreibbares NTFS-Abbild ausgehängt. Der gespeicherte Auftrag behielt seinen Zwischenstand und der lokale Einhängepfad blieb leer. Ein zweites Abbild mit identischen Journalpfaden und einer anderen NTFS-Seriennummer wurde abgewiesen. Nach dem erneuten Einhängen des Originals stellten Fortsetzen und Rückgängig die erwarteten Dateiinhalte her. Der Test verwendete die neue Warteschlangenlogik mit der installierten FSKit-Erweiterung.
+
 ### Lokale Grössenanzeige bei wartendem NAS prüfen (REG-NAS-24)
 
 1. Links einen eigenen lokalen Ordner mit zwei Dateien zu 17 und 24 Bytes öffnen. Eine Datei liegt im Unterordner. Rechts einen eigenen lokalen Ordner mit einer Datei zu 5 Bytes öffnen.
