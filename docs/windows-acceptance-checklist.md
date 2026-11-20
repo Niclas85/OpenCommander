@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 106 Fälle nativ belegt, 45 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [124 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [125 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -62,7 +62,16 @@ Der Code von Mac-Build 421 nutzt für die Kontoprüfung eine Frist von 30 Sekund
 3. Innerhalb der Wartezeit erneut aktualisieren und den unveränderten Zähler prüfen. Nach der Wartezeit erneut laden. Die aktuelle Liste muss erscheinen, während die alte Antwort noch zurückgehalten wird.
 4. Die alte Antwort freigeben. Die aktuelle Liste und den Warnstatus erneut prüfen. Anbieterseitig müssen Datei-ID und Inhalt den Ausgangswerten entsprechen. Für den Test ohne vorherige Liste zusätzlich eine wiederholbare Fehlermeldung erwarten.
 
-Mac-Build 424 nutzt im normalen Betrieb 30 Sekunden für den eigentlichen Ordnerabruf. Im Live-Nachtest mit einer auf 8 Sekunden verkürzten Frist bestanden Google Drive und Dropbox den Ablauf mit vorhandener Liste. Die beiden Aufrufer erhielten sie nach 8,122 bzw. 8,133 Sekunden. Der Nachtest verwendete die Anwendungslogik mit echten Anbieterantworten. Die sichtbare Darstellung und die Variante ohne vorherige Liste stehen aus.
+Mac-Build 424 nutzt im normalen Betrieb 30 Sekunden für den eigentlichen Ordnerabruf. Im Live-Nachtest mit einer auf 8 Sekunden verkürzten Frist bestanden Google Drive und Dropbox den Ablauf mit vorhandener Liste. Die beiden Aufrufer erhielten sie nach 8,122 bzw. 8,133 Sekunden. Der Nachtest verwendete die Anwendungslogik mit echten Anbieterantworten. Build 425 meldete ohne vorherige Liste bei beiden Anbietern nach 8,399 bzw. 8,510 Sekunden Zeitlimit-Fehler mit Wiederholhinweis. Der erste erfolgreiche Abruf war fertig, während die ursprüngliche Antwort noch zurückgehalten wurde. Die sichtbare Darstellung steht aus.
+
+### Cloud-Zeitlimit bei unveränderter Systemzeit prüfen (REG-CLOUD-40)
+
+1. In einem eigenen Testprofil einen Cloud-Unterordner ohne gespeicherte Dateiliste öffnen. Im Testadapter nur die Uhr für Zeitstempel anhalten. Die Uhr des Rechners muss dafür nicht geändert werden.
+2. Die Antwort des ersten Listenabrufs zurückhalten, auch wenn die App den Abbruch anfordert. Nach dem Zeitlimit muss eine Meldung mit Wiederholhinweis erscheinen. Genau einen Anbieterabruf zählen.
+3. Während der Wartefrist erneut öffnen. Die App muss dieselbe Fehlermeldung ohne Dateiliste und ohne weiteren Abruf liefern. Die Testuhr bis zum Ende der Wartefrist vorsetzen.
+4. Den Ordner erneut öffnen und die aktuelle Liste anzeigen lassen. Die zurückgehaltene Antwort erst danach freigeben. Ein weiterer Abruf muss dieselben aktuellen Dateieinträge liefern. Datei-ID und Inhalt unabhängig beim Anbieter prüfen.
+
+Im Live-Vergleich benötigte Build 424 bei angehaltener Testuhr 12,362 Sekunden und zwei Google-Drive-Abrufe. Nach der Korrektur antwortete Build 425 bei einer Prüffrist von 8 Sekunden nach 8,399 Sekunden für Google Drive und 8,510 Sekunden für Dropbox. Der Nachtest verwendete die Anwendungslogik mit echten Anbieterantworten. Die Bedienung im App-Fenster steht aus.
 
 ### Ausbleibende OneDrive-Freigabebestätigung prüfen
 
@@ -234,6 +243,8 @@ Der letzte Auftrag speicherte nach 2 Stunden 29 Minuten einen Abschlussbeleg und
 Ein unabhängiges Prüfprogramm schrieb auf derselben SMB-Freigabe über vier getrennte Einhängungen 7 GiB aus denselben grossen Quelldateien. Es verwendete direkte Systemaufrufe mit 1‑MiB-Blöcken und verglich nach jedem Schreibvorgang den Block. Alle unmittelbaren Vergleiche stimmten. Erst beim vollständigen SHA‑256-Vergleich nach erneutem Einhängen zeigte eine 2‑GiB-Datei ein abweichendes Bit bei Byteposition 1’437’254’233 mit XOR-Maske 0x02. Zwei weitere Nur-Lese-Einhängungen bestätigten dasselbe Bit. Die übrigen drei grossen Dateien und alle Quellprüfsummen stimmten. Für den Windows-Nachtest den unabhängigen Kopierlauf und den App-Lauf separat protokollieren und jeweils nach einer neuen Verbindung vergleichen. Die genaue Schicht, in der die Abweichung entsteht, bleibt offen.
 
 Im noch laufenden D2-Versuch mit Build 384 bewegte sich der Inhaltszähler eines Auftrags nach einem längeren Stillstand wieder und erreichte in der letzten Stichprobe vor dem Phasenwechsel 7’506’108’912 Bytes. Derselbe Auftrag begann danach die Prüfung von 20’112 Metadateneinträgen. Eine Prozessprobe erfasste dabei Zugriffe auf erweiterte Dateiattribute. Der Abschlussbeleg und der unabhängige Zielvergleich stehen für diesen Auftrag noch aus.
+
+20. November 2026. Der ursprüngliche D2-Auftrag aus Build 384 wechselte nach der Prüfung der Metadaten in die Prüfung des Abschlussbelegs. Eine Prozessprobe bei vier geprüften Einträgen zeigte, dass die Verzeichnisabfrage in der macOS-Funktion getattrlistbulk wartete. Die unabhängige Quellenprüfung glich 20’004 Dateien und 108 Verzeichnisse sowie 7’522’886’128 Bytes anhand des ursprünglichen Manifests ab. Bei der Stichprobe fehlten der Abschlussbeleg und der unabhängige Zielvergleich. Drei weitere Aufträge desselben Dauerlaufs sind fehlgeschlagen.
 
 ### Kleine und grosse SMB-Dateiattribute prüfen (REG-NAS-23)
 
