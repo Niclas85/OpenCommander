@@ -252,5 +252,6 @@
   "media_music_protected": "此歌曲受保护，或不是可导出的本地文件。",
   "media_source_note": "直接浏览已授权的媒体库。导出会创建副本，原始项目保留在媒体库中。",
   "media_artists": "艺人",
-  "media_disconnect": "断开连接"
+  "media_disconnect": "断开连接",
+  "remote_unsupported_item": "传输需要普通文件或文件夹。请从所选项目中移除符号链接和其他特殊文件，然后重试。"
 }

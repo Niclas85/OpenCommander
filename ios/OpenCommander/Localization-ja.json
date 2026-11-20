@@ -252,5 +252,6 @@
   "media_music_protected": "この曲は保護されているか、書き出し可能なローカルファイルではありません。",
   "media_source_note": "許可されたライブラリを直接閲覧します。書き出しはコピーを作成し、オリジナルはライブラリに残ります。",
   "media_artists": "アーティスト",
-  "media_disconnect": "接続解除"
+  "media_disconnect": "接続解除",
+  "remote_unsupported_item": "転送には通常のファイルまたはフォルダが必要です。シンボリックリンクやその他の特殊ファイルを選択から外し、再試行してください。"
 }

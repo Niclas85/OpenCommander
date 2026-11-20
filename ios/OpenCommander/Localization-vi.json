@@ -252,5 +252,6 @@
   "media_music_protected": "Bài hát được bảo vệ hoặc không có dưới dạng tệp cục bộ có thể xuất.",
   "media_source_note": "Duyệt trực tiếp thư viện được cho phép. Xuất tạo bản sao; bản gốc vẫn nằm trong thư viện.",
   "media_artists": "Nghệ sĩ",
-  "media_disconnect": "Ngắt kết nối"
+  "media_disconnect": "Ngắt kết nối",
+  "remote_unsupported_item": "Để truyền, hãy chọn tệp thông thường hoặc thư mục. Bỏ chọn các liên kết tượng trưng và tệp đặc biệt khác rồi thử lại."
 }

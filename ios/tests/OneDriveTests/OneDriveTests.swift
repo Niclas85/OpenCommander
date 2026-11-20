@@ -281,7 +281,26 @@ final class MockMicrosoft: URLProtocol {
         check(afterSnapshot != beforeSnapshot, "Same-size edits change source fingerprint")
         let link = fixture.appendingPathComponent("link")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: local)
-        do { _ = try OneDriveClient.localSnapshot(link); fatalError("Link followed") } catch { }
+        do {
+            _ = try OneDriveClient.localSnapshot(link)
+            fatalError("Link followed while creating an upload fingerprint")
+        } catch {
+            check((error as NSError).localizedDescription == "remote_unsupported_item", "Wrong link source error")
+        }
+        var linkUploadRequests = 0
+        MockMicrosoft.handler = { _ in
+            linkUploadRequests += 1
+            return (500, "{}")
+        }
+        do {
+            try await api.upload(link, parent: nil)
+            fatalError("Symbolic link uploaded")
+        } catch {
+            let value = error as NSError
+            check(value.domain == "OpenCommander.Remote" && value.localizedDescription == "remote_unsupported_item",
+                  "The native upload did not identify the unsupported link")
+        }
+        check(linkUploadRequests == 0, "An unsupported link reached the provider")
         print("PASS large-file streaming, byte ranges, credential separation, fingerprints, links")
 
         requests = []

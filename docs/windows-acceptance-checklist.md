@@ -593,6 +593,14 @@ Mac-Build 429 zeigte dieselbe datierte Liste und den Countdown auch über einen 
 
 20. November 2026. In der dunklen Darstellung von Build 452 wurde ein eigener Cloud-Upload mit einem simulierten Verbindungsfehler unterbrochen. Der Dialog erklärte den Fehler und bot Fortsetzen oder Später an. Ziel und Quelle blieben unverändert. Nach Rückkehr der Verbindung setzte Fortsetzen den gespeicherten Auftrag einmal fort. Die unabhängige Prüfung bestätigte Zielbytes und einen abgeschlossenen Historieneintrag. Nach App-Neustart entfernte Rückgängig den öffentlichen Zielnamen, behielt die exakten Wiederherstellungsbytes und liess die Quelle sowie die Kontrolldatei unverändert. Der erste Durchlauf wurde nach Korrektur des temporären Pfads im Testadapter neu angesetzt. Der Nachtest verwendete einen kontrollierten Anbieter. Die übrigen Anbieter-, Netz-, Auflösungs- und Skalierungsvarianten bleiben offen.
 
+### Symbolische Links beim Cloud-Upload prüfen (CLOUD-03, PROP-08)
+
+1. Einen eigenen Testordner mit einer regulären Datei und einem symbolischen Link anlegen. Den Ordner ins isolierte Cloud-Ziel kopieren.
+2. Prüfen, dass die App den Quelldateityp nennt und den Vorgang in der Historie als gestoppt zeigt. Quelle und Ziel unabhängig kontrollieren. Die Ablehnung darf keinen Anbieter-Schreibzugriff auslösen.
+3. Den Link aus der Testauswahl entfernen. Mit einer regulären Datei prüfen, dass die Übertragung weiterhin angeboten wird.
+
+20. November 2026. F5 auf einem eigenen lokalen Ordner mit symbolischem Link wurde beim echten Dropbox-Ziel sicher gestoppt. Build 452 zeigte dabei irrtümlich einen FTP-Hinweis. Build 453 meldete bei einem getrennten kontrollierten Online-Ziel den nicht unterstützten Quelldateityp und zeigte in der Historie den gestoppten Vorgang mit deaktiviertem Rückgängig. Der Adapter erhielt keine Schreibanfrage und die Quelle blieb exakt. Die Komponentenprüfungen bestätigten denselben Fehlergrund für symbolische Links und benannte Pipes, den Erhalt regulärer Dateien und die direkte OneDrive-Ablehnung vor der ersten Anbieteranfrage. Die Historienprüfung lief erfolgreich in allen 20 App-Sprachen. Die vollständige Live-D1-Abnahme ist separat offen.
+
 ### Verzögerter Abruf in beiden Bereichen (CLOUD-07)
 
 Den ersten Abruf des eigenen Cloud-Ordners anhalten und denselben Ort rechts öffnen. Beide Bereiche müssen den Ladezustand zeigen. Links den Cloud-Bereich schliessen und prüfen, dass links wieder der lokale Ordner und rechts weiterhin die Ladeanzeige erscheint. Den Abruf freigeben. Die Cloud-Dateien müssen nur rechts erscheinen.

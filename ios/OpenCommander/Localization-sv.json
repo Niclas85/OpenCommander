@@ -252,5 +252,6 @@
   "media_music_protected": "Låten är skyddad eller inte tillgänglig som en lokal exporterbar fil.",
   "media_source_note": "Bläddra direkt i tillåtna bibliotek. Export skapar en kopia; originalen stannar i biblioteket.",
   "media_artists": "Artister",
-  "media_disconnect": "Koppla från"
+  "media_disconnect": "Koppla från",
+  "remote_unsupported_item": "Överföringar kräver vanliga filer eller mappar. Ta bort symboliska länkar och andra specialfiler från urvalet och försök igen."
 }

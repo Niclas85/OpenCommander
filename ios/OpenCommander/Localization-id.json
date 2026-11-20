@@ -252,5 +252,6 @@
   "media_music_protected": "Lagu dilindungi atau tidak tersedia sebagai berkas lokal yang dapat diekspor.",
   "media_source_note": "Jelajahi langsung perpustakaan yang diizinkan. Ekspor membuat salinan; aslinya tetap di perpustakaan.",
   "media_artists": "Artis",
-  "media_disconnect": "Putuskan"
+  "media_disconnect": "Putuskan",
+  "remote_unsupported_item": "Transfer memerlukan berkas biasa atau folder. Keluarkan tautan simbolis dan berkas khusus lainnya dari pilihan, lalu coba lagi."
 }

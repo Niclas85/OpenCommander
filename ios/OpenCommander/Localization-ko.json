@@ -252,5 +252,6 @@
   "media_music_protected": "이 곡은 보호되어 있거나 내보낼 수 있는 로컬 파일이 아닙니다.",
   "media_source_note": "허용된 라이브러리를 직접 탐색합니다. 내보내기는 복사본을 만들며 원본은 라이브러리에 남습니다.",
   "media_artists": "아티스트",
-  "media_disconnect": "연결 해제"
+  "media_disconnect": "연결 해제",
+  "remote_unsupported_item": "전송하려면 일반 파일이나 폴더가 필요합니다. 심볼릭 링크와 기타 특수 파일을 선택에서 제외한 후 다시 시도하세요."
 }

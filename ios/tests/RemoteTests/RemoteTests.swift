@@ -21,6 +21,36 @@ func check(_ value: Bool, _ message: String) {
         print("PASS profiles, traversal/option rejection, MLSD and SFTP parsing")
         check(try CommanderOnlineTools.matches("Grüße.TXT", query: "grÜße.*", caseSensitive: false), "online Unicode/glob search")
         check(try !CommanderOnlineTools.matches("Grüße.TXT", query: "grüße.*", caseSensitive: true), "online match-case option")
+        do {
+            func expectsUnsupported(_ action: () throws -> Void) {
+                do {
+                    try action()
+                    fatalError("Unsupported transfer source was accepted")
+                } catch {
+                    let value = error as NSError
+                    check(value.domain == "OpenCommander.Remote" && value.localizedDescription == "remote_unsupported_item",
+                          "Wrong reason for refusing an unsupported transfer source")
+                }
+            }
+            let files = FileManager.default
+            let fixture = files.temporaryDirectory.appendingPathComponent("OpenCommander-RemoteSource-" + UUID().uuidString)
+            try files.createDirectory(at: fixture, withIntermediateDirectories: false)
+            defer { try? files.removeItem(at: fixture) }
+            let control = fixture.appendingPathComponent("regular.txt")
+            let bytes = Data("owned source control".utf8)
+            try bytes.write(to: control)
+            let valid = try RemoteContent.snapshot(fixture)
+            check(valid["regular.txt"]?.hasPrefix("sha256:") == true, "regular transfer sources must remain supported")
+            let link = fixture.appendingPathComponent("link")
+            try files.createSymbolicLink(at: link, withDestinationURL: control)
+            expectsUnsupported { _ = try RemoteContent.snapshot(fixture) }
+            try files.removeItem(at: link)
+            let fifo = fixture.appendingPathComponent("special")
+            check(mkfifo(fifo.path, 0o600) == 0, "named pipe fixture creation failed")
+            expectsUnsupported { _ = try RemoteContent.snapshot(fixture) }
+            check(try Data(contentsOf: control) == bytes, "source refusal modified the regular file")
+            print("PASS symbolic links and special files are refused with a source-specific transfer error")
+        }
         fflush(stdout)
         guard CommandLine.arguments.count == 4 else { return }
         let python = CommandLine.arguments[1], directory = URL(fileURLWithPath: CommandLine.arguments[2])

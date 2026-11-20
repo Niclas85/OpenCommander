@@ -133,7 +133,7 @@ enum RemoteContent {
             try Task.checkCancellation()
             guard depth < 100, result.count < 100_000 else { throw RemoteConnection.failure("remote_limit") }
             let values = try url.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey])
-            guard values.isSymbolicLink != true else { throw RemoteConnection.failure("remote_listing") }
+            guard values.isSymbolicLink != true else { throw RemoteConnection.failure("remote_unsupported_item") }
             if values.isDirectory == true {
                 result[relative] = "directory"
                 for child in try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil) {
@@ -142,7 +142,7 @@ enum RemoteContent {
                     try visit(child, relative: relative.isEmpty ? child.lastPathComponent : relative + "/" + child.lastPathComponent, depth: depth + 1)
                 }
             } else {
-                guard values.isRegularFile == true else { throw RemoteConnection.failure("remote_listing") }
+                guard values.isRegularFile == true else { throw RemoteConnection.failure("remote_unsupported_item") }
                 let file = try FileHandle(forReadingFrom: url); defer { try? file.close() }
                 var digest = SHA256()
                 while let data = try file.read(upToCount: 1024 * 1024), !data.isEmpty { try Task.checkCancellation(); digest.update(data: data) }

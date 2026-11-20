@@ -247,7 +247,9 @@ import CryptoKit
     func upload(_ url: URL, parent: String?) async throws {
         try await vacant(url.lastPathComponent, parent: parent)
         let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
-        guard values.isRegularFile == true, values.isSymbolicLink != true else { throw RemoteConnection.failure("remote_invalid") }
+        guard values.isRegularFile == true, values.isSymbolicLink != true else {
+            throw RemoteConnection.failure("remote_unsupported_item")
+        }
         let base = try path(parent), temporary = try childPath(base, ".opencommander-" + UUID().uuidString)
         _ = try await perform("upload", temporary, local: url)
         // Read back before reporting success or allowing local source removal.

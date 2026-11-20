@@ -252,5 +252,6 @@
   "media_music_protected": "Utwór jest chroniony lub niedostępny jako lokalny plik do eksportu.",
   "media_source_note": "Przeglądaj bezpośrednio udostępnione biblioteki. Eksport tworzy kopię; oryginały pozostają w bibliotece.",
   "media_artists": "Wykonawcy",
-  "media_disconnect": "Odłącz"
+  "media_disconnect": "Odłącz",
+  "remote_unsupported_item": "Do przesłania potrzebne są zwykłe pliki lub foldery. Usuń z zaznaczenia dowiązania symboliczne i inne pliki specjalne, a następnie spróbuj ponownie."
 }

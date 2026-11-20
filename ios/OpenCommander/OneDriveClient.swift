@@ -646,7 +646,8 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
         func visit(_ url: URL, path: String, depth: Int) throws {
             guard depth < 100, result.count < 100_000 else { throw OneDriveFailure.message("Folder transfer limit exceeded.") }
             let values = try url.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey, .isRegularFileKey, .fileResourceIdentifierKey, .contentModificationDateKey])
-            guard values.isSymbolicLink != true, Self.validName(url.lastPathComponent) else { throw OneDriveFailure.message("Unsupported link or OneDrive filename: " + url.lastPathComponent) }
+            guard values.isSymbolicLink != true else { throw RemoteConnection.failure("remote_unsupported_item") }
+            guard Self.validName(url.lastPathComponent) else { throw OneDriveFailure.message("Unsupported OneDrive filename: " + url.lastPathComponent) }
             let identity = String(describing: values.fileResourceIdentifier) + String(describing: values.contentModificationDate)
             if values.isDirectory == true {
                 result[path] = "directory:" + identity
@@ -654,7 +655,7 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
                     try visit(child, path: path + "/" + child.lastPathComponent, depth: depth + 1)
                 }
             } else {
-                guard values.isRegularFile == true else { throw OneDriveFailure.message("Only regular files and folders can be transferred.") }
+                guard values.isRegularFile == true else { throw RemoteConnection.failure("remote_unsupported_item") }
                 let file = try FileHandle(forReadingFrom: url); defer { try? file.close() }
                 var hash = SHA256()
                 while let bytes = try file.read(upToCount: 1024 * 1024), !bytes.isEmpty { hash.update(data: bytes) }
@@ -672,7 +673,7 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
         try Task.checkCancellation()
         guard depth < 100 else { throw OneDriveFailure.message("Folder transfer limit exceeded.") }
         let values = try url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
-        guard values.isSymbolicLink != true else { throw OneDriveFailure.message("Symbolic links cannot be uploaded.") }
+        guard values.isSymbolicLink != true else { throw RemoteConnection.failure("remote_unsupported_item") }
         if values.isDirectory == true {
             let body = try JSONSerialization.data(withJSONObject: ["name": url.lastPathComponent, "folder": [:], "@microsoft.graph.conflictBehavior": "fail"] as [String: Any])
             let folder = try JSONDecoder().decode(OneDriveItem.self, from: try await request(itemPath(parent) + "/children", method: "POST", body: body))
@@ -683,8 +684,11 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
     }
     func upload(_ url: URL, parent: String?) async throws {
         guard Self.validName(url.lastPathComponent) else { throw OneDriveFailure.message("Invalid OneDrive name.") }
-        let values = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
-        guard values.isRegularFile == true, let size = values.fileSize else { throw OneDriveFailure.message("Select a regular file.") }
+        let values = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
+        guard values.isRegularFile == true, values.isSymbolicLink != true else {
+            throw RemoteConnection.failure("remote_unsupported_item")
+        }
+        guard let size = values.fileSize else { throw OneDriveFailure.message("Select a regular file.") }
         if size > 10 * 1024 * 1024 { try await uploadChunks(url, size: size, parent: parent); return }
         let data = try Data(contentsOf: url)
         guard data.count <= 20 * 1024 * 1024 else { throw OneDriveFailure.message("The file exceeds 20 MB.") }

@@ -252,5 +252,6 @@
   "media_music_protected": "Şarkı korumalı veya dışa aktarılabilir yerel dosya olarak kullanılamıyor.",
   "media_source_note": "İzin verilen kitaplıklara doğrudan göz atın. Dışa aktarma bir kopya oluşturur; asıllar kitaplıkta kalır.",
   "media_artists": "Sanatçılar",
-  "media_disconnect": "Bağlantıyı kes"
+  "media_disconnect": "Bağlantıyı kes",
+  "remote_unsupported_item": "Aktarım için normal dosyalar veya klasörler gerekir. Sembolik bağlantıları ve diğer özel dosyaları seçimden çıkarıp tekrar deneyin."
 }
