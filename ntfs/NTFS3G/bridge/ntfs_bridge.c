@@ -686,6 +686,73 @@ int nk_sync(nk_volume *v) {
     return ntfs_device_sync(v->vol->dev) ? -1 : 0;
 }
 
+static int is_case_only_path_change(nk_volume *v, const char *old_path, const char *destination) {
+    ntfschar *old_name = NULL, *new_name = NULL;
+    int old_length = ntfs_mbstoucs(old_path, &old_name);
+    int new_length = old_length < 0 ? -1 : ntfs_mbstoucs(destination, &new_name);
+    if (new_length < 0) {
+        int saved = errno;
+        free(old_name);
+        free(new_name);
+        errno = saved;
+        return -1;
+    }
+    const ntfschar *upcase = v->vol->upcase;
+    u32 upcase_length = v->vol->upcase_len;
+    int different_spelling = !ntfs_names_are_equal(old_name, old_length, new_name, new_length,
+                                                   CASE_SENSITIVE, upcase, upcase_length);
+    int same_lookup = ntfs_names_are_equal(old_name, old_length, new_name, new_length,
+                                           IGNORE_CASE, upcase, upcase_length);
+    free(old_name);
+    free(new_name);
+    return different_spelling && same_lookup;
+}
+
+struct case_rename_lookup {
+    ntfs_volume *volume;
+    const ntfschar *requested;
+    int requested_length;
+    uint64_t inode;
+    char *stored;
+    int error;
+};
+
+static int find_case_rename_name(void *context, const ntfschar *name, const int length,
+                                 const int type, const s64 position, const MFT_REF reference,
+                                 const unsigned item_type) {
+    (void)position;
+    (void)item_type;
+    struct case_rename_lookup *lookup = context;
+    if (type == FILE_NAME_DOS || MREF(reference) != lookup->inode ||
+        !ntfs_names_are_equal(name, length, lookup->requested, lookup->requested_length, IGNORE_CASE,
+                              lookup->volume->upcase, lookup->volume->upcase_len))
+        return 0;
+    if (lookup->stored) lookup->error = EEXIST;
+    else if (ntfs_ucstombs(name, length, &lookup->stored, 0) < 0 || !lookup->stored)
+        lookup->error = errno ? errno : EILSEQ;
+    return lookup->error != 0;
+}
+
+static char *stored_case_rename_name(nk_volume *v, const char *directory,
+                                     const char *requested_name, uint64_t inode) {
+    ntfs_inode *parent = ntfs_pathname_to_inode(v->vol, NULL, directory);
+    if (!parent) return NULL;
+    ntfschar *requested = NULL;
+    int length = ntfs_mbstoucs(requested_name, &requested);
+    struct case_rename_lookup lookup = {v->vol, requested, length, inode, NULL, 0};
+    s64 cursor = 0;
+    int result = length < 0 ? -1 : ntfs_readdir(parent, &cursor, &lookup, find_case_rename_name);
+    int saved = lookup.error ? lookup.error : (result ? (errno ? errno : EIO) : 0);
+    if (ntfs_inode_close(parent) && !saved) saved = errno ? errno : EIO;
+    free(requested);
+    if (saved || !lookup.stored) {
+        free(lookup.stored);
+        errno = saved ? saved : ENOENT;
+        return NULL;
+    }
+    return lookup.stored;
+}
+
 int nk_move(nk_volume *v, const char *old_path, const char *new_dir,
             const char *new_name, int replace, char *recovery_path, size_t recovery_size) {
     if (!writable(v) || !valid_name(new_name)) return -1;
@@ -702,8 +769,10 @@ int nk_move(nk_volume *v, const char *old_path, const char *new_dir,
     }
     if (!strcmp(old_path, destination)) return 0;
     if (source.inode == target.inode) {
-        // Case-only rename is handled below using an intermediate name.
-        if (strcasecmp(old_path, destination)) return 0; // distinct hard links
+        // Use the volume's lookup rules to distinguish a case change from
+        // distinct hard links. Byte-wise case folding misses Unicode names.
+        int case_only = is_case_only_path_change(v, old_path, destination);
+        if (case_only <= 0) return case_only;
     } else {
         if (!replace) { errno = EEXIST; return -1; }
         if (source.is_dir != target.is_dir) { errno = source.is_dir ? ENOTDIR : EISDIR; return -1; }
@@ -720,8 +789,20 @@ int nk_move(nk_volume *v, const char *old_path, const char *new_dir,
     snprintf(backup_name, sizeof(backup_name), ".opencommander-recovery-%08x%08x", arc4random(), arc4random());
     n = snprintf(backup, sizeof(backup), "%s/%s", !strcmp(new_dir, "/") ? "" : new_dir, backup_name);
     if (n < 0 || n >= (int)sizeof(backup)) { errno = ENAMETOOLONG; return -1; }
+    char *stored_name = NULL;
+    if (source.inode == target.inode) {
+        // The caller can use a case-insensitive alias for the source. Recover
+        // the directory's actual spelling before changing either name.
+        stored_name = stored_case_rename_name(v, new_dir, new_name, source.inode);
+        if (!stored_name) return -1;
+    }
     // Preserve the old destination under another name BEFORE replacing it.
-    if (nk_rename(v, destination, new_dir, backup_name)) return -1;
+    if (nk_rename(v, destination, new_dir, backup_name)) {
+        int saved = errno;
+        free(stored_name);
+        errno = saved;
+        return -1;
+    }
     const char *move_source = source.inode == target.inode ? backup : old_path;
     int move_result;
     #ifdef NK_TESTING
@@ -734,12 +815,15 @@ int nk_move(nk_volume *v, const char *old_path, const char *new_dir,
     move_result = nk_rename(v, move_source, new_dir, new_name);
     if (move_result) {
         int saved = errno;
-        if (nk_rename(v, backup, new_dir, new_name)) {
+        int rollback = nk_rename(v, backup, new_dir, stored_name ? stored_name : new_name);
+        free(stored_name);
+        if (rollback) {
             snprintf(recovery_path, recovery_size, "%s", backup);
             errno = EIO;
         } else errno = saved;
         return -1;
     }
+    free(stored_name);
     if (source.inode != target.inode && nk_delete(v, backup)) {
         snprintf(recovery_path, recovery_size, "%s", backup);
         return -1;

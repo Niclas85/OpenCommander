@@ -245,6 +245,31 @@ int main(int argc, char **argv) {
     CHECK(nk_write(v, "/HELLO.TXT", 0, 13, "Hello NTFS!\r\n") == 13);
     puts("PASS replace existing file and case-only rename");
 
+    CHECK(!nk_mkdir(v, "/", "unicode-rename"));
+    CHECK(!nk_create(v, "/unicode-rename", "Δ.txt"));
+    CHECK(nk_write(v, "/unicode-rename/Δ.txt", 0, 3, "abc") == 3);
+    nk_stat uppercase, lowercase;
+    CHECK(!nk_stat_path(v, "/unicode-rename/Δ.txt", &uppercase));
+    nk_test_fail_move_after_backup = 1;
+    CHECK(nk_move(v, "/unicode-rename/Δ.TXT", "/unicode-rename", "δ.txt", 0,
+                  recovery, sizeof(recovery)) == -1);
+    CHECK(errno == ENOSPC && !recovery[0]);
+    const char *original_names[] = {"Δ.txt"};
+    struct expected_names original = {original_names, 1, 0, 0, v};
+    CHECK(!nk_list(v, "/unicode-rename", exact_entry, &original) && original.seen == 1);
+    verify(v, "/unicode-rename/Δ.txt", "abc", 3);
+    puts("PASS failed case-only rename restores the original stored spelling");
+
+    CHECK(!nk_move(v, "/unicode-rename/Δ.txt", "/unicode-rename", "δ.txt", 0,
+                   recovery, sizeof(recovery)));
+    const char *renamed_names[] = {"δ.txt"};
+    struct expected_names unicode = {renamed_names, 1, 0, 0, v};
+    CHECK(!nk_list(v, "/unicode-rename", exact_entry, &unicode) && unicode.seen == 1);
+    CHECK(!nk_stat_path(v, "/unicode-rename/δ.txt", &lowercase));
+    CHECK(uppercase.inode == lowercase.inode);
+    verify(v, "/unicode-rename/δ.txt", "abc", 3);
+    puts("PASS case-only Unicode rename keeps the inode and stores the requested spelling");
+
     CHECK(!nk_create(v, "/", "fill.bin"));
     long long filled = 0;
     int reached_full = 0;
