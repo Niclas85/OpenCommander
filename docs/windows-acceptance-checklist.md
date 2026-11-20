@@ -224,6 +224,8 @@ Mit einem eigenen Baum aus mindestens 20 Dateien auf SMB testen. Soweit der Serv
 
 Für den Mac-Nachtest mit Build 420 lasen der frühere und der korrigierte Stand denselben 20-Dateien-Baum über getrennte Nur-Lese-Verbindungen. Beide lieferten identische Inhalts- und Metadaten-Prüfsummen. Die instrumentierten Läufe zählten 130 beziehungsweise 70 `fgetxattr`-Aufrufe. Separate Abfragen bestätigten alle gezielt gesetzten Testattribute und die unveränderte AppleDouble-Begleitdatei. Die Laufzeit schwankte zwischen den Läufen. In der SMB-Suite blieben unter anderem Finder-Infos, Tags, ein Ressourcen-Fork mit 3’089 Bytes und ein Attribut mit 8’193 Bytes beim Kopieren in beide Richtungen erhalten. Ein überlanges Attribut für die portablen POSIX-Rechte stoppte das Verschieben vor der Zielanlage.
 
+Die Journal-Suite prüfte zusätzlich die Statusdaten zum Zielordner während der Belegprüfung. Sie meldeten den Ordner bei null geprüften Einträgen. Danach zählte der Auftrag jeden erfolgreich geprüften Eintrag einmal.
+
 ### Quelle und Ziel beim SMB-Fortsetzen unterscheiden
 
 1. Einen Kopierauftrag mit einer eigenen SMB-Datei und separater Kontrolldatei anlegen. Den SHA-256 der Quelle ausserhalb der App erfassen. Mit einem Testadapter nach vollständig gespeicherten Dateibytes und vor dem Abschlussbeleg pausieren. Quelle und Ziel müssen zu diesem Zeitpunkt denselben Hash haben.
