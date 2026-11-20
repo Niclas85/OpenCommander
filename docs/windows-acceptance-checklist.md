@@ -603,6 +603,13 @@ Mac-Build 429 zeigte dieselbe datierte Liste und den Countdown auch über einen 
 
 20. November 2026. Der Nachtest mit echtem Google Drive hielt den ersten Upload im nativen Warteschlangen-Testprogramm zurück. Genau dieser aktive Auftrag speicherte «Datei hochladen», 0 von 2 bestätigten Dateien und 0 von 153 Bytes. Der Test beobachtete auch die Prüfphase. Eine unabhängige Abfrage lud nach Abschluss beide Dateien erneut und bestätigte die exakten Inhalte und unveränderten Anbieter-IDs. Genau ein Historieneintrag war gespeichert. Der erste Versuch war an der Pfadprüfung der Prüfhilfe für macOS gescheitert. Nach der Korrektur setzte das Testprogramm dieselbe Auftrags-ID fort. Die lokalen und entfernten Kontrolldateien blieben unverändert, der eigene Testordner wurde entfernt. Die entsprechende Prüfung der Anzeige im App-Fenster steht aus.
 
+### Einen vollständigen D1-Ordner in die Cloud kopieren (CLOUD-03)
+
+1. Den vollständigen D1-Datensatz in einen eigenen Cloud-Testordner kopieren. Die Dateianzahl, Bytezahl und den Historieneintrag des fertigen Auftrags erfassen.
+2. Den gesamten Zielordner unabhängig von OpenCommander herunterladen. Dateinamen, leere Unterordner und SHA-256-Werte mit der Quelle vergleichen. Falls die API Objekt-IDs liefert, diese bei einem zweiten Abruf vergleichen.
+
+20. November 2026. F5 in Mac-Testbuild 452 lud den vollständigen eigenen Dropbox-D1-Ordner hoch. Der abgeschlossene Auftrag bestätigte 37 Dateien und 1’049’688 Bytes mit genau einem Historieneintrag. Ein separater Dropbox-Abruf verglich das gesamte Verzeichnis mit dem lokalen Original. Die SHA-256-Werte, vier Unterordner einschliesslich leerer Ordner und die Namen stimmten überein. Die Objekt-IDs blieben beim erneuten Abruf gleich. Die unabhängige Kontrolldatei blieb unverändert. Der Download über die App und die nachfolgenden Dateiaktionen stehen für diesen Dropbox-Durchlauf aus.
+
 ### Symbolische Links beim Cloud-Upload prüfen (CLOUD-03, PROP-08)
 
 1. Einen eigenen Testordner mit einer regulären Datei und einem symbolischen Link anlegen. Den Ordner ins isolierte Cloud-Ziel kopieren.
