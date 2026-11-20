@@ -731,6 +731,8 @@ Der native Nachtest mit Mac-Build 426 bestätigte die Grössenlimits erneut. Der
 1. Eine eigene Datei als direkte Online-Vorschau öffnen. Der Testadapter hält die laufende Anfrage und wartet auch nach einer Abbruchanforderung mit der Antwort.
 2. In einem Lauf das Vorschauzeitlimit abwarten. Im zweiten Lauf die Vorschau beim Laden abbrechen. Der jeweilige Hinweis muss erscheinen, während der Testadapter die alte Antwort noch zurückhält.
 3. Eine zweite Testdatei öffnen. Sobald sie angezeigt wird, die alte Antwort ausliefern. Die Anzeige muss bei der neuen Datei bleiben. Das temporäre Verzeichnis des alten Downloads muss anschliessend entfernt sein. Inhalt und Prüfsumme der neuen Datei und einer separaten Kontrolldatei müssen stimmen.
+4. Die alte Antwort auch nach einem erkannten Downloadstillstand zurückhalten. In einer zweiten Variante einen zu gross gewordenen temporären Download simulieren. Die Meldung muss den richtigen Grund zeigen. Der Adapter muss genau einen Abbruch für diese Anfrage sehen. Das temporäre Verzeichnis erst nach der zurückgehaltenen Antwort auf Entfernung prüfen.
+5. Den Stillstand bei einer Miniatur wiederholen. Während der Adapter den Abbruch noch verarbeitet, darf die Miniatur ihren Platz in der Warteschlange weiterhin belegen. Erst nach Ende der alten Anfrage darf der Platz neu vergeben werden.
 
 ### Textvorschau mit unbekannter Endung und UTF-8-Grenzfällen
 
