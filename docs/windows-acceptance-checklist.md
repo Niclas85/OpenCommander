@@ -6,7 +6,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
 - [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 116 Fälle nativ belegt, 35 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
-- [138 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
+- [139 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
 
@@ -83,6 +83,14 @@ Der alte Mac-Client wartete bei beiden Aufrufern weiter. Mit der Korrektur erhie
 4. Die verspätete linke Antwort freigeben. Beide Ordner erneut laden und die aktuellen Inhalte prüfen. Der alte Stand darf weder als aktuelle Liste noch als Ersatzliste erscheinen.
 
 Im Vergleich blieb der neue linke Abruf im alten Client an der zurückgehaltenen Antwort hängen. Im korrigierten Komponententest erschien die frisch geprüfte Liste vor der Freigabe dieser Antwort. Das galt für einen Wechsel vor und nach der rechten Anbieteranfrage. Bei der Variante vor der Anfrage teilten zwei rechte Aufrufer weiterhin genau einen Anbieterabruf. Die Anbieterantworten und der Konfigurationswechsel waren kontrolliert simuliert.
+
+### OneDrive-Ordnerabruf bei langsamer Token-Erneuerung prüfen (REG-CLOUD-45)
+
+1. Im isolierten Profil mit einem kontrollierten Microsoft-Graph-Adapter einen OneDrive-Ordner laden. Der Adapter lässt das erste Zugriffstoken sofort ablaufen, behält aber das gültige Erneuerungstoken. Beim nächsten Abruf hält er nur die Antwort zur Token-Erneuerung zurück.
+2. Zwei Ansichten des schon geladenen Ordners und einen Abruf für einen neuen Ordner prüfen. Die Lesefrist beginnt mit dem Abruf. Sobald sie abläuft, müssen die wieder geöffneten Ansichten eine datierte Ersatzliste und der neue Ordner einen wiederholbaren Verbindungsfehler zeigen. Eine lokale Datei in einem anderen Bereich muss währenddessen bedienbar sein.
+3. Genau eine ausstehende Token-Erneuerung prüfen. Die beendeten Abrufe dürfen nach der verspäteten Antwort keine Graph-Dateilisten mehr abrufen. Die Antwort freigeben und nach der Wartefrist neu laden. Die frische Liste muss mit dem erneuerten Token erscheinen und die Ersatzliste ablösen.
+
+Im Mac-Vergleich wartete der alte Client bei verkürzter Prüffrist bis zur Microsoft-Antwort. Mit der Korrektur endeten die kalten und gemeinsamen warmen Abrufe vorher. Der vorhandene Cache behielt Datum und Warnstatus. Der nächste Abruf verwendete das einmal erneuerte Token und lieferte die frische Liste. Der Komponententest verwendete kontrollierte Microsoft-Antworten und einen Speicher für Testtokens. Im Mac-Fenster von Build 445 erschien bei 30 Sekunden Lesefrist die datierte Ersatzliste oder, nach Neustart ohne gespeicherte Liste, «Erneut versuchen». Die Microsoft-Antwort war für 45 Sekunden zurückgehalten worden. In beiden Läufen blieb der lokale Bereich bedienbar. Genau ein neuer Listenabruf zeigte anschliessend die aktuelle Datei.
 
 ### Verspätete Cloud-Ordnerantwort prüfen (REG-CLOUD-39)
 
