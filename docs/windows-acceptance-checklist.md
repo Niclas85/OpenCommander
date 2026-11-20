@@ -293,6 +293,8 @@ Die Journal-Suite prüfte zusätzlich die Statusdaten zum Zielordner während de
 3. Während der SMB-Ordner lädt, rechts einen lokalen Ordner öffnen und filtern. Die lokale Liste und Bedienelemente müssen reagieren. Den verzögerten Bereich zu einem lokalen Pfad wechseln, die Testverbindung wieder freigeben und prüfen, dass die frühere Antwort den neuen Pfad nicht überschreibt.
 4. In einem getrennten Lauf einen gültigen Ordneralias mit Sonderzeichen wählen. Die Anzeige soll den gewählten Pfad behalten und der Baum nach der Auflösung zum passenden Ordner springen.
 
+Die Meldung nach der Wartefrist braucht einen eigenen Nachtest. Bei einer live wartenden SMB-Auflistung fror Mac-Build 426 ein, als die Fehleranzeige auf dem Hauptthread die Erreichbarkeit des Pfads erneut prüfte. Mac-Build 427 bestimmte den Anbieter anhand des vorhandenen Pfadtexts. Die Warte-Meldung und «Erneut versuchen» erschienen, während die SMB-Auflistung weiter wartete. Im lokalen Bereich liess sich die eigene Testdatei mit der Maus auswählen. Beide lokalen Testdateien blieben bytegenau und die Historie blieb leer. Ein erfolgreicher SMB-Kopiervorgang war in diesem Lauf nicht belegt.
+
 ### Eingegebenen Netzpfad während der Prüfung ersetzen
 
 1. Beide Paneele einer Testinstanz in lokalen Testordnern öffnen. Rechts zwei Dateien mit unterscheidbaren Namen anlegen. Einen bisher in dieser Instanz nicht geöffneten Ordner einer eigenen Testfreigabe vorbereiten.
