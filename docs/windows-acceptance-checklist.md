@@ -258,6 +258,8 @@ Die spätere Nur-Lese-Kontrolle desselben Build-384-Laufs fand drei fehlgeschlag
 
 Über die bestehende, separat eingebundene SMB-Freigabe fand ein Nur-Lese-Nachtest den ursprünglichen Zielordner des gespeicherten Auftrags. Die SHA-256-Prüfsummen einer kleinen Stichprobe und der vollständig gelesenen 2-GiB-Datei stimmten mit dem ursprünglichen Manifest überein. Beim grossen Lesevorgang blieb die Dateikennung stabil, und der Prüfprozess forderte einen Lesezugriff ohne Dateicache an. Die Verzeichnisauflistung des vollständigen Zielbaums wartete während der Prozessprobe im macOS-Aufruf `getdirentries64`. Der vollständige Zielvergleich und der Abschlussbeleg bleiben offen. Beim Nachtest die Prüfsummen bekannter Pfade und die vollständige Verzeichnisauflistung getrennt dokumentieren.
 
+Der zusätzliche Direktvergleich bekannter Manifestpfade bestätigte zunächst 17’001 von 20’004 Dateien und 7’521’903’760 Bytes ohne Prüfsummenabweichung. Danach warteten alle vier Lese-Worker beim Öffnen weiterer Dateien in macOS. Die Zahl stammt aus dem letzten protokollierten Prüfpunkt. Die vollständige Auflistung, der Rest der Dateiprüfung und der Abschlussbeleg stehen weiterhin aus.
+
 ### Lokale Grössenanzeige bei wartendem NAS prüfen (REG-NAS-24)
 
 1. Links einen eigenen lokalen Ordner mit zwei Dateien zu 17 und 24 Bytes öffnen. Eine Datei liegt im Unterordner. Rechts einen eigenen lokalen Ordner mit einer Datei zu 5 Bytes öffnen.
@@ -294,6 +296,8 @@ Die Journal-Suite prüfte zusätzlich die Statusdaten zum Zielordner während de
 4. In einem getrennten Lauf einen gültigen Ordneralias mit Sonderzeichen wählen. Die Anzeige soll den gewählten Pfad behalten und der Baum nach der Auflösung zum passenden Ordner springen.
 
 Die Meldung nach der Wartefrist braucht einen eigenen Nachtest. Bei einer live wartenden SMB-Auflistung fror Mac-Build 426 ein, als die Fehleranzeige auf dem Hauptthread die Erreichbarkeit des Pfads erneut prüfte. Mac-Build 427 bestimmte den Anbieter anhand des vorhandenen Pfadtexts. Die Warte-Meldung und «Erneut versuchen» erschienen, während die SMB-Auflistung weiter wartete. Im lokalen Bereich liess sich die eigene Testdatei mit der Maus auswählen. Beide lokalen Testdateien blieben bytegenau und die Historie blieb leer. Ein erfolgreicher SMB-Kopiervorgang war in diesem Lauf nicht belegt.
+
+Beim Nachtest desselben Bereichs den Dateipfad zu einem eigenen lokalen Ordner wechseln, während zwei Listenvorgänge am Netzlaufwerk warten. Mac-Build 427 nahm den neuen Pfad an, zeigte die lokale Liste aber erst nach Freigabe der Netzabfragen. Mac-Build 428 zeigte den lokalen Ordner in einem kontrollierten Loopback-NFS-Test nach 190 ms, während beide Netzabfragen noch warteten. Nach Wiederaufnahme des NFS-Servers blieb der lokale Ordner sichtbar. Die Testdateien und die leere Historie stimmten.
 
 ### Eingegebenen Netzpfad während der Prüfung ersetzen
 
