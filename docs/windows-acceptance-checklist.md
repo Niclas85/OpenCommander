@@ -5,7 +5,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 ## Vollständige Prüfliste
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
-- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 108 Fälle nativ belegt, 43 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
+- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 20. November 2026 waren 109 Fälle nativ belegt, 42 teilweise belegt und 7 von einer fehlenden Testumgebung abhängig.
 - [126 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
@@ -949,6 +949,8 @@ Für jeden Durchlauf zwei frische Testordner und ein eigenes App-Profil verwende
 Jeweils genau einen passenden Historieneintrag prüfen und dessen eigene Schaltfläche «Rückgängig» verwenden. Bei Ordner, ZIP-Erstellung und Entpacken vor dem Rückgängig die App normal neu starten. Anschliessend die beiden Ausgangsmanifeste vergleichen und prüfen, dass der Eintrag aus der aktiven Historie verschwunden ist.
 
 Der signierte Mac-Build 372 bestand diese sieben getrennten Durchläufe auf APFS. Beide Dateibereiche entsprachen nach jedem Rückgängig exakt dem jeweiligen Ausgangsmanifest. Bei den drei Neustartvarianten blieb genau der ursprüngliche Historieneintrag verfügbar.
+
+Build 426 wiederholte die sieben Durchläufe mit einem regulären App-Neustart vor jedem Rückgängig. Beide Ausgangsmanifeste stimmten in allen sieben Fällen. Ein zusätzlicher Durchlauf machte gezielt einen älteren Kopiereintrag rückgängig. Der später angelegte Ordner und sein Historieneintrag blieben unverändert. Bei einer separaten Kopie aus Google Drive bestätigte ein unabhängiger Anbieterabruf nach dem Rückgängig unveränderte Objekt-IDs und Inhalte.
 
 ### Leere und beschädigte Archive am Online-Ort prüfen (ARCH-07)
 
