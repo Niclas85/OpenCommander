@@ -384,7 +384,7 @@ PROP-02;Eigenschaften, Einstellungen und Ergonomie;P1;NAS-Metadaten;"D1 lokal/NA
 2. Providerdaten vergleichen";"Remote-Metadaten soweit verfügbar richtig; nicht ermittelbare Felder als unbekannt, nicht als 0 oder falsche lokale Rechte.";Teilweise belegt;REG-NAS-06, REG-NTFS-02, REG-NAS-23;;Nicht ausgeführt;;;
 PROP-03;Eigenschaften, Einstellungen und Ergonomie;P1;Ordnergröße freiwillig berechnen;"D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.";"1. Eigenschaften großer Teststruktur öffnen
 2. Größe berechnen
-3. Fehler/Timeout simulieren";"Kein ungefragtes tiefes Scannen beim Öffnen; Links nicht rekursiv verfolgen; Teilresultat/Grenze/Fehlerzahl klar; UI frei.";Teilweise belegt;REG-KEY-02;;Nicht ausgeführt;;;
+3. Fehler/Timeout simulieren";"Kein ungefragtes tiefes Scannen beim Öffnen; Links nicht rekursiv verfolgen; Teilresultat/Grenze/Fehlerzahl klar; UI frei.";Teilweise belegt;REG-KEY-02, REG-CLOUD-38;;Nicht ausgeführt;;;
 PROP-04;Eigenschaften, Einstellungen und Ergonomie;P1;Dunkelmodus und Sprache;"D1 lokal/NAS/Cloud; Testauflösungen 1366×768 und 1920×1080, Skalierung 100/150/200 %.";"1. Dunkelmodus-Checkbox umschalten
 2. Deutsch/Englisch wechseln
 3. Dialoge öffnen
