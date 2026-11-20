@@ -323,7 +323,16 @@ Mit einem eigenen Baum aus mindestens 20 Dateien auf SMB testen. Soweit der Serv
 
 Für den Mac-Nachtest mit Build 420 lasen der frühere und der korrigierte Stand denselben 20-Dateien-Baum über getrennte Nur-Lese-Verbindungen. Beide lieferten identische Inhalts- und Metadaten-Prüfsummen. Die instrumentierten Läufe zählten 130 beziehungsweise 70 `fgetxattr`-Aufrufe. Separate Abfragen bestätigten alle gezielt gesetzten Testattribute und die unveränderte AppleDouble-Begleitdatei. Die Laufzeit schwankte zwischen den Läufen. In der SMB-Suite blieben unter anderem Finder-Infos, Tags, ein Ressourcen-Fork mit 3’089 Bytes und ein Attribut mit 8’193 Bytes beim Kopieren in beide Richtungen erhalten. Ein überlanges Attribut für die portablen POSIX-Rechte stoppte das Verschieben vor der Zielanlage.
 
-Die Journal-Suite prüfte zusätzlich die Statusdaten zum Zielordner während der Belegprüfung. Sie meldeten den Ordner bei null geprüften Einträgen. Danach zählte der Auftrag jeden erfolgreich geprüften Eintrag einmal.
+Die Journal-Suite prüfte zusätzlich die Statusdaten zum Zielordner während der Belegprüfung. Der damalige Stand meldete den Ordner zu Beginn. Der Nachtest REG-NAS-26 verlegt dessen Inhaltsprüfung ans Ende und prüft, dass jeder erfolgreich geprüfte Eintrag weiterhin genau einmal gezählt wird.
+
+### Später hinzugefügte Datei bei der NAS-Belegprüfung erkennen (REG-NAS-26)
+
+1. Einen eigenen Ordner mit zwei Dateien kopieren. Eine Datei liegt im Zielordner, die andere in einem Unterordner. Die Pfade und Prüfsummen von Quelle und Ziel erfassen.
+2. Mit einem Testadapter die Belegprüfung nach zwei erfolgreich geprüften Einträgen anhalten. Eine zusätzliche eigene Datei im Wurzelordner des Ziels anlegen. Den ursprünglichen Schreibzeitpunkt des Ordners wiederherstellen und die Prüfung fortsetzen.
+3. Dasselbe für den Unterordner wiederholen. Die Prüfung muss beide Male die Änderung erkennen, ohne einen Abschlussbeleg auszugeben oder eine der Dateien zu verändern. Die zugehörige Statusanzeige muss bei der abschliessenden Ordnerprüfung den geprüften Ordner nennen.
+4. Jeweils nur die zusätzliche eigene Testdatei entfernen und den ursprünglichen Schreibzeitpunkt wiederherstellen. Den ursprünglichen Beleg erneut prüfen und alle Inhalte und Verzeichniseinträge unabhängig vergleichen.
+
+Der Vergleich auf APFS bestätigte den Fehler im alten Stand. Die korrigierte Belegprüfung erkannte den zusätzlichen Eintrag im Wurzelordner und im Unterordner. Die Testdateien blieben bytegenau. Nach dem Entfernen der zusätzlichen Datei und dem Wiederherstellen der Ordnerzeit liess sich der Beleg erneut prüfen. Die Journal-Suite bestätigte ausserdem, dass jeder erfolgreich geprüfte Eintrag genau einmal gezählt wird. Die Überprüfung auf der echten SMB-Freigabe steht aus.
 
 ### Quelle und Ziel beim SMB-Fortsetzen unterscheiden
 
