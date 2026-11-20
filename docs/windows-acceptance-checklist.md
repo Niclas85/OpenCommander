@@ -781,6 +781,10 @@ OneDrive Online zeigte in Mac-Build 156 die erste und letzte der 30 Bildzeilen, 
 
 Der FTP-Loopback-Test mit Mac-Build 366 belegte zusätzlich, dass beim Ordnerwechsel zwei absichtlich verzögerte Inhaltsabrufe abbrachen. Die erste Miniatur erschien beim erneuten Öffnen aus dem Cache ohne weitere Inhaltsanfrage. MEDIA-12 bleibt in der Mac-Abnahme teilweise belegt.
 
+Mac-Build 430 prüfte den direkten iCloud-Pfad mit simuliertem rclone-Transport. Beim Wechsel aus der Galerie endete der gehaltene Abruf nach 0,62 Sekunden. Nach dem Wiederöffnen bestätigten sRGB-Pixelmessungen vier Miniaturen ohne zusätzlichen Inhaltsabruf. Der Austausch eines gleich grossen PNGs löste genau einen neuen Abruf aus. Der Testadapter meldete beim Bildaustausch dieselbe Objekt-ID, Grösse und Änderungszeit mit geänderter Prüfsumme. Die echte direkte iCloud-Anmeldung steht für diesen Lauf aus.
+
+Mac-Build 430 prüfte einen echten Dropbox-Testordner mit gezielt angehaltener erster Inhaltsanfrage. Beim Wechsel aus der Galerie endete der gehaltene Abruf nach 0,57 Sekunden. Nach dem Wiederöffnen bestätigten sRGB-Pixelmessungen vier Miniaturen ohne zusätzlichen Inhaltsabruf. Der Austausch eines gleich grossen PNGs löste genau einen neuen Abruf aus. Die neue Datei hatte dieselbe Grösse und dieselbe Anbieter-ID. Ein unabhängiger Dropbox-Abruf bestätigte die Anbieter-IDs der übrigen Bilder sowie Prüfsummen und exakte Bytes aller 41 Dateien. Im ersten Lauf wurden beim Ablauf der 18-Sekunden-Prüffrist noch Miniaturen der unteren Zeilen geladen. Der Nachtest verwendete 38 Sekunden als Obergrenze für die Pixelprüfung.
+
 ### NTFS-Ziel während einer Kopie trennen (DEVICE-03)
 
 1. In einem isolierten Profil eine eigene 96-MiB-Datei mit bekannter SHA-256-Prüfsumme auf ein beschreibbares virtuelles NTFS-Testlaufwerk kopieren. Auf dem Ziel eine separate Kontrolldatei anlegen.
