@@ -669,6 +669,8 @@ Im sichtbaren Folgetest wurde der OneDrive-Bereich während des Countdowns gesch
 
 21. November 2026. Die Python-Prüfhilfe meldete für die SMB-Freigabe rund 4,2 GiB frei. Die native macOS-Abfrage und Foundation meldeten rund 8 TiB. Ein separat kompiliertes Testprogramm für die OpenCommander-Dateieigenschaften bestätigte die vollständigen Kapazitätswerte auf der echten SMB-Freigabe. Die Kontrollprüfung verwendet den nativen Wert. Die Bedienprüfung in der vollständigen Auflösungsmatrix steht aus.
 
+21. November 2026. Ein weiterer unabhängiger POSIX-Kontrolltest verwendete dieselbe 2-GiB-Quelldatei, bei der zuvor ein paralleler SMB-Schreibtest eine Bitabweichung ergeben hatte. Diesmal schrieb ein einzelner Prozess die Datei seriell in einen neuen eigenen NAS-Ordner. Der vollständige SHA-256-Vergleich stimmte nach fsync über denselben offenen Dateideskriptor und danach über zwei getrennt neu aufgebaute Nur-Lese-Verbindungen. Auch an der früher betroffenen Position 848’875’868 stimmten die Bytes. Die Quelldatei und der Kontrollinhalt blieben unverändert. Der eigene Testordner wurde entfernt. Der Einzelschreibtest reproduzierte den alten Parallelbefund nicht. Die Ursache der Abweichung im Parallelbetrieb und der Vier-Aufträge-Dauerlauf über mindestens zwei Stunden bleiben offen.
+
 ### SMB-Verschieben eines Ordners mit Unicode-Namen fortsetzen (REG-NAS-28)
 
 1. Einen eigenen Ordner mit `Nested/Grüße.bin`, einer zweiten Datei und einem leeren Unterordner auf eine beschreibbare SMB-Testfreigabe verschieben. Für die Fehlervariante mit einem Testadapter während der Zielprüfung ein Byte der eigenen Zieldatei über eine zweite Verbindung ändern.
