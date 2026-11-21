@@ -682,6 +682,15 @@ Den Unicode-Ordner aus REG-NAS-28 zwischen einer eigenen SMB-Testfreigabe und ei
 
 21. November 2026. Der native Transfercode bestand beide Richtungen. Beim getrennten NTFS-Abbild blieb das SMB-Ziel bytegenau erhalten, und der leere Einhängepunkt blieb unverändert. Nach dem Wiederverbinden schloss dasselbe Journal ab. Rückgängig stellte die Datei und den leeren Unterordner wieder her. Apples schreibgeschützter NTFS-Treiber und eine getrennte Nur-Lese-SMB-Verbindung bestätigten das Ergebnis. Die Namen der AppleDouble-Metadatendateien auf NTFS entsprachen einer separat angelegten Kontrollprobe. Verwendet wurde ein NTFS-Abbild mit dem installierten FSKit-Treiber aus Build 268. Physisches Laufwerk, Test-VM und sichtbare Bedienung waren in diesem Lauf nicht Teil der Prüfung.
 
+### NTFS und SMB im App-Fenster kopieren und rückgängig machen (DEVICE-04, SERVER-08)
+
+1. Ein eigenes, beschreibbares NTFS-Testabbild und einen eigenen SMB-Testordner in den beiden Bereichen öffnen. Auf jeder Seite eine Datei mit eigenem Namen sowie eine Kontrolldatei anlegen.
+2. Je eine Datei in beide Richtungen kopieren und die Zielinhalte vergleichen. Die NAS-Kopie zusätzlich über eine getrennte Nur-Lese-SMB-Verbindung prüfen.
+3. Die App vor jedem «Rückgängig» neu starten und den betreffenden Kopiervorgang im Verlauf auswählen. Kopien müssen verschwinden, Originale und Kontrolldateien erhalten bleiben.
+4. Das NTFS-Abbild aushängen und schreibgeschützt neu einhängen. Lesen und einen Kopierversuch auf NTFS prüfen. Die App soll den Schreibschutz melden. Anschliessend die SHA-256-Prüfsumme des Abbilds vergleichen.
+
+21. November 2026. Im App-Fenster von Mac-Testbuild 468 wurden zwei eigene Dateien mit F5 zwischen der echten SMB-Freigabe und einem 64-MiB-NTFS-Testabbild kopiert. Das beschreibbare NTFS verwendete den installierten FSKit-Treiber aus Build 268. Die Zielinhalte stimmten bytegenau. Eine eigene Nur-Lese-SMB-Verbindung bestätigte die NAS-Zielkopie. Nach je einem App-Neustart entfernte «Rückgängig» im Verlauf die jeweilige Kopie. Beide Originale und die Kontrolldateien blieben unverändert. Mit Apples schreibgeschütztem NTFS-Treiber konnte die App das Abbild lesen und meldete beim Kopierversuch den Schreibschutz ausdrücklich. Es entstanden weder eine Zielkopie noch ein Historieneintrag oder ein neuer Auftrag. Die SHA-256-Prüfsumme des gesamten Abbilds blieb über den Nur-Lese-Test gleich. Die eigenen Testdaten wurden aufgeräumt. Ein physisches NTFS-Laufwerk war beim Test nicht angeschlossen.
+
 ### Ordner mit Punktdateien zwischen exFAT und SMB ersetzen
 
 1. Einen eigenen Testordner mit Unicode-Namen, einer Punktdatei und einem leeren Unterordner vorbereiten. Am Ziel einen gleichnamigen Ordner mit anderen Testdateien anlegen. Beide Ordner vor dem Test anhand von Namen, Zeitstempeln und SHA-256-Prüfsummen erfassen. Falls die gerade geschriebene SMB-Dateizeit schwankt, die separate Testverbindung neu öffnen und erneut prüfen.
