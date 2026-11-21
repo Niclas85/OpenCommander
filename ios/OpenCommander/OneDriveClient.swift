@@ -514,8 +514,8 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
         if (200..<300).contains(http.statusCode) {
             return data
         }
-        let retryableResponse = [429, 502, 503, 504].contains(http.statusCode) ||
-            (method == "GET" && http.statusCode == 500)
+        let retryableResponse = Self.retryableHTTPStatuses.contains(http.statusCode) &&
+            (method == "GET" || http.statusCode != 500)
         if method == "GET", attempt < 2, retryableResponse {
             let delay = Self.retryDelay(http, fallback: TimeInterval(2 << attempt))
             if delay < deadline.timeIntervalSinceNow {
@@ -528,7 +528,7 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
             if http.statusCode == 409 { throw OneDriveFailure.nameConflict }
             try Self.checkPermissionAndQuota(http.statusCode)
             if retryableResponse {
-                throw OneDriveFailure.temporarilyUnavailable(http.statusCode, retryAfter: max(10, Self.retryDelay(http, fallback: 10)))
+                throw Self.temporaryHTTPFailure(http)
             }
             throw OneDriveFailure.message("OneDrive request failed (HTTP \(http.statusCode)). \(http.statusCode == 401 ? "Reconnect your account." : "No success was reported; refresh before retrying a change.")")
         }
@@ -543,6 +543,21 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
             throw POSIXError(.EDQUOT)
         default:
             break
+        }
+    }
+
+    private static let retryableHTTPStatuses: Set<Int> = [429, 500, 502, 503, 504]
+
+    private static func temporaryHTTPFailure(_ response: HTTPURLResponse) -> OneDriveFailure {
+        .temporarilyUnavailable(response.statusCode, retryAfter: max(10, retryDelay(response, fallback: 10)))
+    }
+
+    private static func checkUploadSessionResponse(_ response: HTTPURLResponse) throws {
+        try checkPermissionAndQuota(response.statusCode)
+        if retryableHTTPStatuses.contains(response.statusCode) {
+            // A failed reply may follow an accepted fragment. Leave the
+            // checkpoint intact and let the next attempt ask for the offset.
+            throw temporaryHTTPFailure(response)
         }
     }
 
@@ -720,12 +735,13 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
                 // process may have exited after the server accepted a fragment.
                 let (stateData, response) = try await session.data(for: URLRequest(url: saved.url))
                 guard let http = response as? HTTPURLResponse, http.url?.scheme == "https", generation == sessionGeneration else { throw CancellationError() }
-                try Self.checkPermissionAndQuota(http.statusCode)
+                try Self.checkUploadSessionResponse(http)
                 if http.statusCode == 404 || http.statusCode == 410 {
                     try FileManager.default.removeItem(at: checkpoint)
                 } else {
+                    guard http.statusCode == 200 else { throw OneDriveFailure.message("Unable to verify upload checkpoint. Source retained.") }
                     let state = try JSONSerialization.jsonObject(with: stateData) as? [String: Any]
-                    guard http.statusCode == 200, let next = Self.nextUploadOffset(state?["nextExpectedRanges"] as? [String], size: size),
+                    guard let next = Self.nextUploadOffset(state?["nextExpectedRanges"] as? [String], size: size),
                           next % 327_680 == 0 else { throw OneDriveFailure.message("Unable to verify upload checkpoint. Source retained.") }
                     uploadURL = saved.url; offset = next
 #if DEBUG && targetEnvironment(macCatalyst)
@@ -762,15 +778,16 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
             // The upload URL is preauthenticated. Never send our Graph token.
             let (reply, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse, http.url?.scheme == "https" else { throw OneDriveFailure.message("Invalid upload response.") }
-            try Self.checkPermissionAndQuota(http.statusCode)
+            try Self.checkUploadSessionResponse(http)
             offset += chunk.count
             if offset == size {
                 guard http.statusCode == 200 || http.statusCode == 201 else { throw OneDriveFailure.message("Upload was not committed (HTTP \(http.statusCode)). Source retained.") }
                 let item = try JSONDecoder().decode(OneDriveItem.self, from: reply)
                 guard item.size == Int64(size) else { throw OneDriveFailure.message("Uploaded size mismatch. Source retained.") }
             } else {
+                guard http.statusCode == 202 else { throw OneDriveFailure.message("Unexpected upload offset. Source retained; refresh before retrying.") }
                 let state = try JSONSerialization.jsonObject(with: reply) as? [String: Any]
-                guard http.statusCode == 202, Self.nextUploadOffset(state?["nextExpectedRanges"] as? [String], size: size) == offset else { throw OneDriveFailure.message("Unexpected upload offset. Source retained; refresh before retrying.") }
+                guard Self.nextUploadOffset(state?["nextExpectedRanges"] as? [String], size: size) == offset else { throw OneDriveFailure.message("Unexpected upload offset. Source retained; refresh before retrying.") }
 #if DEBUG && targetEnvironment(macCatalyst)
                 if Bundle.main.bundleIdentifier == "com.github.niklaus85.OpenCommander.MacUITests", let root = AppDelegate.macUITestRoot {
                     let pause = root.appendingPathComponent("PauseCloudUploadAfterFragment")

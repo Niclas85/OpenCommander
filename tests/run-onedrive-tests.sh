@@ -11,6 +11,7 @@ xcrun swiftc -parse-as-library \
     "$task_root/ios/OpenCommander/OneDriveClient.swift" \
     "$task_root/ios/OpenCommander/RemoteConnection.swift" \
     "$task_root/ios/OpenCommander/RemoteFileClient.swift" \
+    "$task_root/ios/tests/OneDriveTests/UploadOutage.swift" \
     "$task_root/ios/tests/OneDriveTests/OneDriveTests.swift" \
     -o "$task_output/onedrive-tests"
-"$task_output/onedrive-tests"
+"$task_output/onedrive-tests" "$@"

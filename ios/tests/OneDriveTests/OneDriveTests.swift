@@ -76,6 +76,11 @@ final class MockMicrosoft: URLProtocol {
         print("PASS OneDrive HTTP \(status) stops both upload sizes and preserves the source")
     }
     @MainActor static func main() async throws {
+        if CommandLine.arguments.count == 1 || CommandLine.arguments.dropFirst().elementsEqual(["--upload-outage-only"]) {
+            do { try await OneDriveUploadOutageTest.run() }
+            catch { fputs("FAIL upload outage: \(error)\n", stderr); exit(1) }
+            if CommandLine.arguments.count == 2 { return }
+        }
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [MockMicrosoft.self]
         let session = URLSession(configuration: configuration)

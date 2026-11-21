@@ -1272,6 +1272,14 @@ Mit simulierten Anbietern bestanden der Austausch der Zielkopie, der Austausch d
 
 Alle fünf Varianten bestanden auf dem Mac mit simulierten Anbietern und echten Prozessabbrüchen. Die Quelle blieb am ursprünglichen Ort. Ein Vergleichslauf mit der früheren Fassung setzte nach Rückkehr der ursprünglichen Zieldatei noch das Verschieben fort. Die Live-Abnahme bleibt offen.
 
+### Einen grossen OneDrive-Upload nach Serverfehlern fortsetzen (CLOUD-04, CLOUD-06)
+
+1. Eine eigene Datei mit mindestens vier Upload-Blöcken hochladen. Der Testadapter nimmt den ersten Block an und lässt die Verbindung vor der Antwort abbrechen. Einen neuen Client mit demselben gespeicherten Auftragsstand starten.
+2. Die Abfrage der Upload-Sitzung nacheinander mit HTTP 503 und HTTP 429 beantworten. Als Antworttext HTML und als `Retry-After` 47 Sekunden liefern. Beide Versuche müssen den Status und die Wartezeit melden. Der Client darf weder einen Block senden noch eine zweite Sitzung anlegen.
+3. Die Sitzung wieder erreichbar machen. Den zweiten Block annehmen und HTTP 500 zurückgeben. Nach erneutem Start muss der Client die Sitzung abfragen und am bestätigten Offset mit dem dritten Block beginnen. Am Ende müssen alle Bytes übereinstimmen. Der bestätigte Upload darf seinen lokalen Sitzungsstand erst nach dem erfolgreichen Abschluss entfernen.
+
+21. November 2026. Der ältere macOS-Client scheiterte bei der HTML-Fehlerantwort mit einem JSON-Fehler. Der korrigierte Client behielt dieselbe Sitzung und den bytegenauen lokalen Sitzungsstand bis zur Bestätigung. Der Testadapter empfing die vier Blöcke genau einmal und in der richtigen Folge. Die drei Serverfehler wurden mit der vorgegebenen Wartezeit gemeldet. Die Prüfung verwendete kontrollierte Graph-Antworten und neue Client-Instanzen. Die sichtbare App-Bedienung im Testnetz bleibt separat offen.
+
 ### Abbruch nach bestätigtem OneDrive-Upload prüfen
 
 1. Eine eigene Datei von einem anderen Cloud-Anbieter nach OneDrive Online verschieben. Die Prüfsumme der Quelle und bei «Ersetzen» die Prüfsumme der bisherigen OneDrive-Datei festhalten. Im Testlauf den Auftrag nach Bestätigung der Zieldatei durch OneDrive und vor dem Entfernen der Quelle unterbrechen.
