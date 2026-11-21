@@ -664,6 +664,14 @@ Zwei weitere Varianten prüften «Abbrechen» in einem neuen Prozess vor und nac
 
 Ein weiterer Nachtest änderte zwischen Planung und Ausführung nur die Änderungszeit einer Datei im früheren Zielordner über eine zweite SMB-Verbindung. Der alte Plan musste stoppen und durfte den Ordner für einen frisch bestätigten Auftrag nicht sperren. In Mac-Testbuild 459 gelang danach das erneute Verschieben mit «Ersetzen». Rückgängig stellte die exakten Originale einschliesslich des bewusst geänderten Zeitstempels wieder her. Eine frische Nur-Lese-Verbindung bestätigte das Ergebnis.
 
+#### SMB-Freigabe während eines pausierten Verschiebeauftrags trennen (REC-08)
+
+1. In beiden Richtungen einen Testordner mit «Ersetzen» verschieben und innerhalb einer grösseren Datei pausieren. Auftrags-ID und bestätigte Bytes erfassen. Nur die eigene SMB-Testeinbindung trennen.
+2. Das Testprogramm neu öffnen und «Fortsetzen» auslösen. Der Auftrag muss mit einem Hinweis auf die fehlende Einbindung pausiert bleiben. ID und bestätigte Bytes müssen gleich bleiben. Es darf keinen Abschlussbeleg geben. Ein leer bereitgestellter Einhängeordner muss leer bleiben.
+3. Dieselbe Freigabe am selben Pfad wieder einbinden. Den ursprünglichen Auftrag fortsetzen, das vollständige Ziel unabhängig prüfen und in einem neuen Prozess den gespeicherten Verschiebebeleg rückgängig machen. Prüfsummen und Struktur des ursprünglichen Quellordners sowie des früheren Zielordners müssen wieder stimmen.
+
+21. November 2026. Beide Richtungen bestanden in zwei Läufen auf einem exFAT-Abbild und einer separaten Einbindung der echten SMB-Freigabe. Im zweiten Lauf lagen bei der Unterbrechung je 2’097’163 bestätigte Bytes vor. Pro Richtung wurden 35 Dateien und fünf Unterordner geprüft, darunter eine 24-MiB-Datei. Eine frische Nur-Lese-Verbindung und das erneut schreibgeschützt eingehängte exFAT-Abbild bestätigten die Ergebnisse. Verwendet wurde die native Warteschlange aus dem macOS-Quellstand. Die sichtbare Bedienung und der vollständige D2-Test in der Test-VM bleiben offen.
+
 ### Einen begonnenen Cloud-Ordnerdownload fortsetzen (CLOUD-03, REC-03)
 
 1. Einen eigenen D1-Ordner aus der Cloud in einen leeren lokalen Testordner herunterladen. Während des Lesens pausieren und die bestätigten Byte- und Dateizähler erfassen.
