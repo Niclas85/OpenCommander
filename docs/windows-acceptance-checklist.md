@@ -1075,6 +1075,14 @@ Im signierten Mac-Build 392 bestanden sechs sichtbare Läufe bei 900 × 600 Fens
 
 20. November 2026. Mac-Build 448 stellte einen gespeicherten Rahmen von 1’920 × 1’080 Punkten teilweise ausserhalb des sichtbaren Bildschirms wieder her. Build 449 begrenzt beim Wiederöffnen Grösse und Position auf den sichtbaren Bereich des passenden Bildschirms. Mit demselben gespeicherten Rahmen lagen beide Dateibereiche im verfügbaren Bereich von 1’710 × 993 Punkten. Ein kompakter Rahmen von 900 × 600 Punkten behielt seine Grösse. In beiden Testfenstern liess sich die Sprachauswahl öffnen. Die Informationen zeigten den vollständigen langen Unicode-Dateinamen und 47 Bytes. «Alle fortsetzen» beendete jeweils den gespeicherten Kopierauftrag. «Alle abgeschlossenen entfernen» entfernte die Karte und erhielt die exakte Zieldatei sowie den Historieneintrag. Die Systemskalierung blieb bei 2×. Die restliche Auflösungs- und Skalierungsmatrix bleibt offen.
 
+### Sprache und Darstellung bei zwei Fenstergrössen prüfen (PROP-04)
+
+1. Ein separates Testprofil starten und die Suche einmal auf Englisch in heller Ansicht öffnen. Suchpfad, Hinweis zum Dateinamen, Start und Schliessen prüfen.
+2. In den Einstellungen auf Deutsch umstellen und den Dunkelmodus aktivieren. Die App regulär beenden und mit demselben Profil neu öffnen.
+3. Sprache und Dunkelmodus erneut in den Einstellungen prüfen. Die Suche auf Deutsch öffnen und kontrollieren, dass die vollständigen Beschriftungen und beide Schaltflächen ins Fenster passen.
+
+21. November 2026. Mac-Build 485 bestand die Sprach- und Einstellungsprüfung bei 1’366 × 768 Fensterpunkten mit 2×-Darstellung sowie bei 1’920 × 1’080 Fensterpunkten mit 1×-Darstellung. Sprache und Dunkelmodus blieben nach dem App-Neustart erhalten. Beide Suchschaltflächen lagen innerhalb des sichtbaren Fensters. Die Aufnahme des kompakten dunklen Suchdialogs zeigte jedoch einen abgeschnittenen deutschen Hinweis zum Dateinamen. Die 150-Prozent-Variante und der vollständige Abgleich über die vorgesehenen Speicherorte bleiben offen.
+
 ### Info-Dialog mit der Tastatur bedienen
 
 1. Einen eigenen Ordner mit zwei Testdateien von 187 und 368 Bytes anlegen. Den Ordner auswählen und über den im Menü angegebenen Tastaturbefehl «Informationen» öffnen. Die Ordnergrösse muss als unberechnet erscheinen.
