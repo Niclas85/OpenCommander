@@ -1760,6 +1760,8 @@ Der erste Wiederaufnahmetest für einen gemischten Ordner stoppte, als Google nu
 
 Im macOS-App-Fenster verschob Build 488 den eigenen gemischten Ordner mit F6. Die Historie zeigte genau einen Verschiebeeintrag. Nach Betätigung seiner Schaltfläche «Rückgängig» bestätigte ein separater Abruf bei Google die ursprünglichen IDs und Inhalte aller Einträge. Der Test verwendete eine separate App-Instanz und entfernte anschliessend die eigenen Testdaten.
 
+Für «Beide behalten» lag im Ziel bereits ein eigener Ordner mit gleichem Namen und anderer ID. Im kontrollierten Test ging die Antwort nach dem Verschieben verloren. Der Auftrag wurde unter dem neuen Zielnamen wiederaufgenommen, der bestehende Ordner blieb erhalten und «Rückgängig» stellte den ursprünglichen Namen wieder her. Ein zweiter Aufruf bestätigte die Wiederherstellung ohne weiteren Schreibzugriff. Die Suiten meldeten 597 bestandene Warteschlangenprüfungen und 61 bestandene Prüfungen für Speicheridentität und Transport. Im Live-Fenster von Build 489 startete der Auftrag nach Auswahl von «Beide behalten». Innerhalb des 240-Sekunden-Intervalls des Testtreibers lag kein dauerhafter Abschlussbeleg vor. Der Test bestätigte die Bereinigung der eigenen Daten. Ein abgeschlossener Live-Namenskonflikt bleibt offen.
+
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
 1. Ein natives Google-Dokument im eigenen Testordner anlegen und ID, Typ und Text erfassen. In einen leeren Dropbox-Testordner **verschieben**. In Dropbox muss der DOCX-Export mit dem erwarteten Text erscheinen. Das ursprüngliche Google-Dokument muss unter einem internen Wiederherstellungsnamen mit derselben ID erhalten bleiben.
