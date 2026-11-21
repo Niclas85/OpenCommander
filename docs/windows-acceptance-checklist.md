@@ -5,7 +5,7 @@ Referenz ist die macOS-Abnahme von OpenCommander. Die Windows-Ergebnisse werden 
 ## Vollständige Prüfliste
 
 - [158 Prüffälle für Windows](windows-acceptance-cases.csv) enthält pro Fall Voraussetzungen, Schritte, Soll und Felder für Build, Status, Ist-Ergebnis, Beleg und Fehler-ID. In Excel über **Daten → Aus Text/CSV** als UTF-8 mit Semikolon importieren. Der Windows-Status startet bei «Nicht ausgeführt».
-- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 21. November 2026 waren 119 Fälle vollständig geprüft, 32 teilweise geprüft und 7 benötigten eine passende Testumgebung.
+- [Mac-Ergebnisse nach Fall-ID](macos-acceptance-findings-for-windows.json) enthält die dokumentierten Beobachtungen und die jeweilige Zahl der Belegverweise. Am 21. November 2026 waren 120 Fälle vollständig geprüft, 31 teilweise geprüft und 7 benötigten eine passende Testumgebung.
 - [140 gezielte Regressionsnachtests](windows-regressions-from-macos.md) beschreiben die Mac-Befunde und das erwartete Windows-Verhalten. Die Spalte «Mac-Regressionen» verweist aus der CSV auf diese Nachtests. Mehrere Fälle können auf dieselbe Regression verweisen. Zusätzliche Einzelbefunde stehen im Mac-Protokoll. Die Zahl zählt Nachtests. Sammelbefunde können mehrere Fehler enthalten.
 
 Jede benötigte Variante als eigene Zeile erfassen und die ursprüngliche Fall-ID beibehalten. Beispiel `FILE-03 / Explorer → App / Ctrl / exFAT`. Falls eine Funktion im Windows-Build fehlt, die Abweichung festhalten. «Blockiert» für tatsächlich fehlende Konten, Hardware oder Testumgebungen verwenden und den Grund angeben. «Nicht anwendbar» für belegte plattformspezifische Ausnahmen. Bei Bedientasten gelten Windows-Handbuch und sichtbare Menübefehle. Bei Finder-Fällen Windows-Explorer verwenden. Bei SERVER-08 nur SMB/NAS prüfen.
@@ -1807,6 +1807,8 @@ Der separate Live-Test bei Google Drive bestätigte das ursprüngliche Objekt un
 Der kontrollierte Nachtest mit verlorener Anbieterantwort rekonstruierte den Löschbeleg aus dem bereits gesicherten Original. Die erneute Ausführung blieb schreibfrei. «Rückgängig» stellte den Ordner an seinem ursprünglichen Pfad wieder her. Der Wiederholungsversuch bestätigte den Zustand ebenfalls ohne Schreibzugriff.
 
 Im App-Fenster von Build 492 erzeugte «In die Cloud-Wiederherstellung verschieben» genau einen Warteschlangenauftrag und einen Löschbeleg. «Box» verschwand unter seinem ursprünglichen Namen aus der Dateiliste. Ein unabhängiger Abruf bei Google bestätigte dieselbe Ordner-ID am Wiederherstellungsort. «Rückgängig» stellte in derselben App-Sitzung den ursprünglichen Namen, alle IDs und Inhalte wieder her. Die beiden lokalen Kontrolldateien blieben unverändert und die eigenen Testdaten wurden entfernt.
+
+21. November 2026. Ein Live-Test mit der macOS-Cloud-Anbindung beendete den isolierten Testprozess, nachdem Google den Ordner gesichert hatte. Beim nächsten Start stellte die Warteschlange denselben Auftrag wieder her und schrieb genau einen Löschbeleg ohne zweiten Schreibzugriff bei Google. Ein weiterer frischer Prozess stellte den ursprünglichen Namen, die IDs, das native Dokument, die Dateibytes und den leeren Ordner über Rückgängig wieder her. Ein wiederholtes Rückgängig blieb schreibfrei. Die Testdaten wurden entfernt.
 
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
