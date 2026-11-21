@@ -323,6 +323,12 @@ enum CloudProviderErrors {
         | (?: ^ | : \s+ | "error_summary" \s* : \s* " ) path/ (?: reason/ )? no_write_permission (?= $ | [/\s"',}] )
         """#)
 
+    // Go's HTTP client reports rejected proxy CONNECT requests as a method,
+    // quoted URL and reason phrase, without the HTTP status number.
+    private static let proxyFailureDiagnostic = try! NSRegularExpression(
+        pattern: #"(?:^|:[ \t]+)(?:get|head|post|put|patch|delete|options) "https?://[^"\r\n]+": (?:bad gateway|service unavailable|gateway timeout|internal server error)[ \t]*$"#,
+        options: [.anchorsMatchLines])
+
     static func temporary(_ key: String, cooldown: TimeInterval = 10) -> NSError {
         NSError(domain: "OpenCommander.Cloud", code: 2,
             userInfo: [NSLocalizedDescriptionKey: key, "retryAfter": cooldown])
@@ -349,7 +355,8 @@ enum CloudProviderErrors {
         if ["ratelimitexceeded", "rate_limit_exceeded", "userratelimitexceeded", "quota exceeded", "429", "too many requests", "too_many_write_operations", "too_many_requests"].contains(where: text.contains) {
             return temporary("cloud_rate_limited", cooldown: text.contains("too_many_") ? 15 : 10)
         }
-        if ["timeout", "timed out", "temporary failure", "connection reset", "connection refused", "network is unreachable", "no such host", "server error", "503 service", "502 bad gateway", "504 gateway", "500 internal"].contains(where: text.contains) {
+        if proxyFailureDiagnostic.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil ||
+            ["timeout", "timed out", "temporary failure", "connection reset", "connection refused", "network is unreachable", "no such host", "server error", "503 service", "502 bad gateway", "504 gateway", "500 internal"].contains(where: text.contains) {
             return temporary("cloud_temporarily_unavailable")
         }
         // Credential-bearing provider output is never included in this error.

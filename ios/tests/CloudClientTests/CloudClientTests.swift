@@ -1366,6 +1366,20 @@ import Darwin
         let nearbyQuota = CloudProviderErrors.classify(Data("googleapi: Error 403: Rate Limit Exceeded, rateLimitExceeded".utf8))
         require(CloudProviderErrors.cooldown(nearbyQuota) != nil, "A request quota response became a permission denial")
         print("PASS provider permission denial is distinct from request quota and safe to persist")
+        let proxyFailure = CloudProviderErrors.classify(Data(#"""
+            ERROR : error listing: Post "https://api.dropboxapi.com/2/files/list_folder": Service Unavailable
+            NOTICE: Failed to lsjson with 2 errors: last error was: error in ListJSON: Post "https://api.dropboxapi.com/2/files/list_folder": Service Unavailable
+            """#.utf8))
+        require(proxyFailure.localizedDescription == "cloud_temporarily_unavailable" &&
+                CloudProviderErrors.cooldown(proxyFailure) == 10,
+                "a rejected proxy CONNECT without a status number was not recognized as transient")
+        for diagnostic in [#"Failed to open "https://example.invalid/Service Unavailable": not found"#,
+                           #"Failed to open file "Service Unavailable": not found"#,
+                           #"Could not stat post "https://example.invalid/": Service Unavailable.txt"#] {
+            require(CloudProviderErrors.cooldown(CloudProviderErrors.classify(Data(diagnostic.utf8))) == nil,
+                    "a filename or URL became a proxy failure")
+        }
+        print("PASS rejected HTTPS proxy CONNECT is transient without matching filenames or URLs")
 
         var attempts = 0, retryDelays: [TimeInterval] = []
         let retry = CloudFileClient(displayProfile, transport: { _, _, _, _, _, _, callback in
