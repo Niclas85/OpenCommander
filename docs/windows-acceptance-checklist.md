@@ -1785,11 +1785,21 @@ Ein kontrollierter Test liess die Antwort nach der Änderung von «Box» zu «bO
 
 Im macOS-Live-Test endete der isolierte Testprozess unmittelbar nach Googles Bestätigung. Ein unabhängiger Abruf bestätigte danach «bOX» mit unveränderten IDs und Inhalten. Der nächste Prozess setzte denselben gespeicherten Auftrag fort und schrieb einen Verlaufseintrag. Ein dritter Prozess führte «Rückgängig» zweimal aus. Google bestätigte anschliessend «Box», den ursprünglichen Dokumenttyp und -text, die exakten Dateibytes und den leeren Unterordner.
 
+Das App-Fenster von Build 491 führte die F2-Umbenennung über genau einen Warteschlangenauftrag aus. Die sichtbare Historie zeigte eine Umbenennung. «Rückgängig» stellte «Box» wieder her. Ein unabhängiger Google-Abruf bestätigte die ursprünglichen IDs und Inhalte. Die lokalen Kontrolldateien blieben erhalten und die eigenen Testdaten wurden entfernt.
+
 ### Google-Metadaten lesen und gemeinsame Listen prüfen (REG-CLOUD-46)
 
 1. Beide Dateibereiche auf denselben eigenen Google-Drive-Ordner mit einem nativen Dokument einstellen. Die Listen laden und im Testadapter Listenabrufe und Aktualisierungsmeldungen ab jetzt zählen.
 2. Die Metadatenprüfung für eine Umbenennung vorbereiten und vor dem Schreibzugriff stoppen. Die unveränderten Listen und Auswahlen sollen sichtbar bleiben. Allein die geprüften Metadaten dürfen keine Listenänderung melden.
 3. Die Umbenennung ausführen. Die gemeinsame Liste muss sich aktualisieren. Beide Bereiche müssen den neuen Namen zum ursprünglichen Objekt anzeigen. Die unabhängige Google-Abfrage muss den neuen Namen und die ursprüngliche ID bestätigen.
+
+### Gemischten Google-Ordner wiederherstellbar entfernen (REG-GDOC-09)
+
+1. In einem eigenen Google-Drive-Testordner eine reguläre Datei, ein natives Google-Dokument und einen leeren Unterordner anlegen. Die IDs, den Nutzinhalt und die ursprünglichen Pfade beim Anbieter erfassen.
+2. Den Ordner zur Wiederherstellung entfernen. In der Dateiliste muss der bisherige Name verschwinden. Der Wiederherstellungsort muss das ursprüngliche Objekt mit denselben untergeordneten IDs und Inhalten enthalten. Genau einen Löschvorgang im Verlauf erwarten.
+3. Mit demselben Testprofil erneut starten und den Vorgang über die Historie rückgängig machen. Der ursprüngliche Name, die ursprünglichen IDs, der Dokumenttyp, der Dokumenttext und die Dateibytes müssen beim Anbieter übereinstimmen. Ein erneuter Aufruf muss den bereits wiederhergestellten Zustand bestätigen.
+
+Der kontrollierte Mac-Test bestätigte, dass Abbrechen vor dem Start keinen Schreibzugriff auslöst. Nach dem Entfernen behielt der Ordner seine ursprüngliche ID am Wiederherstellungsort. Der Löschbeleg stellte den ursprünglichen Namen wieder her. Ein zweiter Aufruf blieb schreibfrei. Die separate sichtbare Abnahme mit echtem Google Drive steht aus.
 
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
