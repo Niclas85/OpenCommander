@@ -725,6 +725,14 @@ Für den Wiederherstellungsfall einen pausierten Testauftrag mit eigener Sperre 
 
 21. November 2026. Beide Richtungen bestanden in zwei Läufen auf einem exFAT-Abbild und einer separaten Einbindung der echten SMB-Freigabe. Im zweiten Lauf lagen bei der Unterbrechung je 2’097’163 bestätigte Bytes vor. Pro Richtung wurden 35 Dateien und fünf Unterordner geprüft, darunter eine 24-MiB-Datei. Eine frische Nur-Lese-Verbindung und das erneut schreibgeschützt eingehängte exFAT-Abbild bestätigten die Ergebnisse. Verwendet wurde die native Warteschlange aus dem macOS-Quellstand. Die sichtbare Bedienung und der vollständige D2-Test in der Test-VM bleiben offen.
 
+### Denselben Kopierauftrag nach einem Fehler fortsetzen
+
+1. Eine Kopie einer eigenen Testdatei pausieren, nachdem der Auftrag einen Prüfpunkt gespeichert hat. Dieselbe Quelle und denselben Zielordner auswählen und erneut «Kopieren» auslösen. Prüfen, dass die vorhandene Auftrags-ID weiterläuft, die Zielbytes stimmen und keine zweite Kopie erscheint.
+2. In einem separaten Test nach vollständigem Schreiben, aber vor der Veröffentlichung, am Zielpfad eine eigene Datei mit anderem Inhalt anlegen. Der Auftrag muss den Konflikt melden und beide Inhalte erhalten. Die konkurrierende Datei umbenennen. Erneut «Kopieren» auslösen und prüfen, dass derselbe Auftrag die bereits geschriebenen Bytes verwendet.
+3. Einen pausierten Auftrag gemeinsam mit einer noch nicht eingereihten Quelle auswählen, für die ein Namenskonflikt besteht. Vor der Konfliktentscheidung darf der pausierte Auftrag nicht anlaufen. Ein expliziter Verschiebeauftrag muss separat bleiben.
+
+21. November 2026. Erneute macOS-Regression gegen das Kopieren und Fortsetzen des Linux-Commits db8de8f. 21 Prüfgruppen für dauerhafte Ordnertransfers, 85 für die Übertragungswarteschlange und 30 für koordinierte Aufträge bestanden. Ein eigener abrupt beendeter Testprozess hinterliess gültige Prüfpunkte. Fortsetzen erhielt die Bytes und Rückgängig war verifizierbar. Nach einer späten Veröffentlichungskollision erhielt der erneute Kopierbefehl die Auftrags-ID und verwendete die vorhandene vollständige Kopie wieder. Gemischte Auswahlen lösten kein vorzeitiges Fortsetzen aus. Die Prüfungen verwendeten den aktuellen macOS-Quellstand auf dem Host und die von der Oberfläche aufgerufenen Schnittstellen. Die vollständige Bedienprüfung und der ursprüngliche Test in der VM bleiben offen.
+
 ### Einen begonnenen Cloud-Ordnerdownload fortsetzen (CLOUD-03, REC-03)
 
 1. Einen eigenen D1-Ordner aus der Cloud in einen leeren lokalen Testordner herunterladen. Während des Lesens pausieren und die bestätigten Byte- und Dateizähler erfassen.
