@@ -423,6 +423,10 @@ Eine separate SMB-Testfreigabe und zwei eigene Ordner verwenden. In einem Bereic
 
 Beim Versuch eines Cloud-Transfers auf SMB wartete der Hauptthread von Mac-Build 405 beim Abgleichen der Speicherorte in `faccessat`. Build 406 vergleicht die bereits bekannten Pfadkomponenten. Beim erneuten Versuch blieb der Hauptthread in der normalen Ereignisschleife. Die SMB-Abfrage wartete weiterhin im Hintergrund. Die Freigabe lieferte keine Zielzeile, daher bleibt der Transfer offen. Die Pfadtests decken den Originalpfad, den aufgelösten Pfad, lokale Pfadaliase und benachbarte Namen ab.
 
+### Signierten macOS-Release-Kandidaten prüfen
+
+21. November 2026. Mac-Release-Kandidat 472 mit schreibfähigem NTFS-Modul und der korrigierten Namensauflösung wurde mit Developer ID signiert. Der exakte signierte Kandidat startete mit einem getrennten Profil, hielt dessen Sperre und initialisierte Historie und Transfers. Beide eigenen Kontrolldateien, die installierten Programmdateien und die Registrierung des installierten NTFS-Treibers wurden nach dem Test geprüft. Apple akzeptierte den Kandidaten. Die Paketprüfung bestätigte das angeheftete Notarisierungsticket, Gatekeeper, die Verteilungsprofile, den NTFS-Helfer und das schreibfähige FSKit-Modul. Die sichtbare Abnahme des Release-Builds und der Austausch der installierten Version stehen aus.
+
 ### Start mit gespeichertem Netzordner prüfen
 
 1. In einem eigenen Testprofil links einen Ordner auf einer Testfreigabe öffnen und rechts einen lokalen Ordner mit zwei unterscheidbaren Dateien. Die App beenden und die gespeicherten Pfade dokumentieren.
