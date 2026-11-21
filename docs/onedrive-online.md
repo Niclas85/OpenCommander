@@ -1,9 +1,13 @@
 # OneDrive online (macOS, experimental)
 
-OpenCommander now embeds its native online browser in the active left or right pane
-under **Settings → OneDrive online** or the **OneDrive online** location shortcut.
-The OneDrive recovery button also opens this screen. It uses Microsoft Graph, not the
-local File Provider folder, and does not depend on the OneDrive sync application.
+The **OneDrive online** location shortcut opens the native browser in the active
+left or right pane. It uses Microsoft Graph and works without a synced folder.
+
+If the saved sign-in is missing or has expired, select **Connect OneDrive online**
+in the pane. The same action is available in **Settings / Locations** and
+**Connections**. In older builds, open **Actions → Connect to Microsoft** in the
+OneDrive pane. Choose **Copy code and open browser**, enter the code on the Microsoft
+page, and review the requested access before approving your account.
 
 The macOS locations bar also offers **OneDrive online** directly. Under
 **Settings / Locations**, users can rename or hide this shortcut and local locations,
@@ -14,10 +18,9 @@ shortcuts never changes the provider account or deletes files.
 
 ## One-time developer setup
 
-The developer-owned OpenCommander registration is now bundled using public client ID
-`215df982-ff55-4272-9125-beacc651b2c3`. Users only need to select **Actions → Connect to
-Microsoft**, sign in and review the permissions. A website login alone is not an OAuth
-grant to OpenCommander. No secret or browser credential is bundled.
+OpenCommander ships the developer's public client ID
+`215df982-ff55-4272-9125-beacc651b2c3`. The Microsoft flow started inside OpenCommander
+authorizes the app to access your account.
 
 The following steps document the registration and are only needed to replace it with
 another developer-owned registration:
@@ -31,8 +34,8 @@ another developer-owned registration:
 4. Under **API permissions**, add delegated Microsoft Graph **Files.ReadWrite**.
    The login additionally requests **offline_access** for a renewable session.
    Do not add application permissions or create a client secret.
-5. Copy **Application (client) ID** (a public UUID). In OpenCommander, choose
-   **Settings → OneDrive online → Actions → Configure Microsoft app**, paste it and save.
+5. Copy **Application (client) ID** (a public UUID). Open **OneDrive online** from
+   the locations bar, choose **Actions → Configure Microsoft app**, then paste and save it.
 6. Open the Microsoft verification page shown by the app, enter the displayed code,
    select your account and review/approve the requested access yourself.
 

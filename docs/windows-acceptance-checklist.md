@@ -160,6 +160,10 @@ Der native Mac-Testbuild 447 zeigte beim Microsoft-Anmeldeablauf die deutschen M
 
 21. November 2026. Ein lokaler Test mit einer echten Loopback-Verbindung stellte einen synthetischen Rückruf bereit und verzögerte dessen Verarbeitung bis nach Ablauf der Frist. Der vorherige macOS-Code akzeptierte noch den Code. Die Korrektur verwendet wie der Linux-Referenzcode eine monotone Uhr und prüft die Frist vor der Auswertung und vor der Rückgabe. Der Nachtest weist den abgelaufenen Rückruf mit «Zeitüberschreitung» ab. Nach Ablehnung, Abbruch und Zeitüberschreitung kannten neue Versuche auf demselben Port nur ihren eigenen gültigen Rückruf. Der Lauf verwendete weder Browser-Oberfläche noch ein Anbieterkonto. Release-Kandidat 472 wurde vor dieser Korrektur gebaut.
 
+**OneDrive erneut verbinden.** Mit einem Testprofil ohne gespeichertes OneDrive-Konto die Anmeldung aus dem OneDrive-Bereich, den Einstellungen und der Verbindungsliste starten. Jeden Anmeldedialog abbrechen. Der Knopf muss danach wieder verfügbar sein.
+
+21. November 2026. In einem frischen macOS-Testprofil ohne gespeicherte OneDrive-Anmeldung öffneten drei Wege den echten Microsoft-Anmeldedialog: der Knopf im OneDrive-Bereich, die Ordner-Einstellungen und die Verbindungsliste. Nach Abbrechen blieb die Anmeldung erneut erreichbar. Die lokalen Kontrollinhalte blieben gleich. Es wurde keine Microsoft-Kontoauswahl bestätigt.
+
 ### Persönlichen OneDrive-Speicher auswählen (AUTH-04)
 
 1. In einem separaten Profil mit einem Testkonto oder einem Testadapter mehrere Laufwerke anbieten. Den technischen Speicher zuerst und den persönlichen OneDrive-Speicher später in der Liste liefern. Für beide Einträge eindeutige Testdateien verwenden. Der Assistent muss den persönlichen Speicher kennzeichnen und bevorzugt anzeigen.
