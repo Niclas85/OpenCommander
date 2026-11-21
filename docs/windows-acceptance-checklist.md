@@ -1801,6 +1801,8 @@ Das App-Fenster von Build 491 führte die F2-Umbenennung über genau einen Warte
 
 Der kontrollierte Mac-Test bestätigte, dass Abbrechen vor dem Start keinen Schreibzugriff auslöst. Nach dem Entfernen behielt der Ordner seine ursprüngliche ID am Wiederherstellungsort. Der Löschbeleg stellte den ursprünglichen Namen wieder her. Ein zweiter Aufruf blieb schreibfrei. Die separate sichtbare Abnahme mit echtem Google Drive steht aus.
 
+Der separate Live-Test bei Google Drive bestätigte das ursprüngliche Objekt unter dem Wiederherstellungsnamen und nach der Rückkehr zu «Box». Der Dokumenttyp, der Text, die Prüfsumme der regulären Datei und der leere Unterordner blieben erhalten. Google gab pro Änderung genau die nächste Ordnerrevision zurück. Eine Anfrage mit falschem ETag wurde mit HTTP 412 abgewiesen. Die eigenen Testdaten wurden entfernt. Die vollständige kontrollierte Warteschlangensuite mit diesem Löschfall lieferte 600 PASS-Meldungen.
+
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
 1. Ein natives Google-Dokument im eigenen Testordner anlegen und ID, Typ und Text erfassen. In einen leeren Dropbox-Testordner **verschieben**. In Dropbox muss der DOCX-Export mit dem erwarteten Text erscheinen. Das ursprüngliche Google-Dokument muss unter einem internen Wiederherstellungsnamen mit derselben ID erhalten bleiben.
