@@ -1694,6 +1694,8 @@ Der anschliessende Test mit Google Drive als echtem Ziel fand einen weiteren Feh
 
 Ein zweiter Google-Drive-Lauf hängte den Export nach der Anbieterbestätigung vollständig aus und wieder ein. Ein neuer Testprozess öffnete die gespeicherte Historie und prüfte sowohl den Abschlussbeleg als auch die gesicherte Vorversion. Ein unabhängiger Anbieterabruf bestätigte vor und nach dem erneuten Einhängen identische Objekt-IDs für beide Versionen und bytegenaue Inhalte. Die eigenen Testdateien und der Testordner wurden entfernt.
 
+Ein Live-Lauf mit Dropbox als eingebundenem NFS-Ziel unterbrach den lokalen Kopiermotor zwischen dem Sichern und der Veröffentlichung. Der unabhängige Dropbox-Abruf bestätigte die Vorversion im Wiederherstellungsordner und den vorübergehend fehlenden öffentlichen Namen. Ein neuer Prozess brach denselben gespeicherten Auftrag ab. Danach bestätigte ein unabhängiger Dropbox-Abruf die exakten bisherigen Dateibytes am ursprünglichen Namen und die unveränderte Objekt-ID der Sicherung. Das lokale Original blieb erhalten. Das Auftragsjournal blieb lokal, und der eigene Testordner wurde entfernt.
+
 ### Cloud-Download bei getrenntem Ziellaufwerk wiederaufnehmen
 
 1. Einen eigenen Cloud-Download auf ein separates Testlaufwerk vorbereiten. Mit einem Testadapter nach erfolgreichem Dateisystemtransfer und vor dem Warteschlangenabschluss den App-Prozess beenden. Die Auftrags-ID und den SHA-256 der Testdatei erfassen. Anschliessend das Testlaufwerk trennen.
