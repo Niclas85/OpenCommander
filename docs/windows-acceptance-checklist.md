@@ -497,6 +497,8 @@ Dieser Prüffall ist für Mac-Build 426 mit Google Drive und Dropbox belegt. Bei
 
 Der signierte Mac-Build 356 bestand den sichtbaren Suchnachtest. ⌘F öffnete die Suche im aktiven Ordner. Der Pfad liess sich ändern, die Treffer zeigten den absoluten Pfad und die standardmässig abgewählte Gross-/Kleinschreibung liess sich einschalten. Mit zwei eigenen Dateien, etwa `Links\Mixed.txt` und `Rechts\mixed.txt`, lässt sich derselbe Wechsel auf Windows mit der dortigen Such-Tastenkombination prüfen.
 
+Für **Drag-and-drop-Fehlermeldungen** zusätzlich mit einer Test-Quell-App prüfen, die keine lesbare Datei anbietet oder die Bereitstellung verzögert. In einer nicht englischen Sprache müssen die beiden Ursachen unterscheidbar sein. In beiden Fällen darf kein erfolgreicher Transfer erscheinen. Mac-Build 476 enthält die Meldungen für 20 Sprachen. Die Drag-and-drop- und Lokalisierungskomponenten sowie die enthaltenen Sprachressourcen wurden geprüft. Die sichtbare Wiederholung mit Fremdprogrammen steht aus.
+
 ### Einstellungen und Transferübersicht per Tastatur bedienen (PROP-07)
 
 1. Zwei eigene Orte und zwei pausierte Kopieraufträge mit verschiedenen Quelldateien vorbereiten. Einstellungen über den Menü-Tastaturbefehl öffnen. Die Sprachwahl mit Tab und Enter öffnen, mit den Pfeiltasten Deutsch wählen und mit Enter bestätigen. Die Bedienhilfe soll den Namen der Einstellung und den ausgewählten Wert melden. Der Zeilenfokus soll auf der Sprache bleiben.
