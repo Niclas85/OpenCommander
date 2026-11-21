@@ -814,10 +814,11 @@ enum SafeFileOperations {
               source.deletingLastPathComponent().standardizedFileURL == destination.deletingLastPathComponent().standardizedFileURL,
               !["", ".", ".."].contains(destination.lastPathComponent) else { throw CocoaError(.fileWriteInvalidFileName) }
         if source.path == destination.path { return }
+        let parent = destination.deletingLastPathComponent()
         let fm = FileManager.default
         // Two distinct hard links can share an inode. Their existing spelling
         // must still be a conflict, not mistaken for a case-only alias.
-        if try fm.contentsOfDirectory(atPath: destination.deletingLastPathComponent().path).contains(destination.lastPathComponent) {
+        if try fm.contentsOfDirectory(atPath: parent.path).contains(destination.lastPathComponent) {
             throw CocoaError(.fileWriteFileExists)
         }
 #if os(macOS) || targetEnvironment(macCatalyst)
@@ -825,6 +826,12 @@ enum SafeFileOperations {
         // refusing a target introduced after the directory preflight.
         guard renamex_np(source.path, destination.path, UInt32(RENAME_EXCL)) == 0 else {
             throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        // A case-insensitive lookup can resolve both spellings even when a
+        // filesystem acknowledged the rename without changing the directory.
+        if source.lastPathComponent.caseInsensitiveCompare(destination.lastPathComponent) == .orderedSame,
+           try !fm.contentsOfDirectory(atPath: parent.path).contains(destination.lastPathComponent) {
+            throw POSIXError(.EIO)
         }
 #else
         try fm.moveItem(at: source, to: destination)
