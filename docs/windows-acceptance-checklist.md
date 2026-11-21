@@ -577,6 +577,8 @@ Im Test der direkten OneDrive-Verbindung einen Ordnerabruf mit HTTP 500 beantwor
 
 Mac-Testbuild 464 bestand den sichtbaren Nachtest mit direktem OneDrive und kontrollierten Graph-Antworten. Nach HTTP 503 zeigte der linke Bereich die datierte letzte Liste und den Countdown. Der rechte lokale Bereich blieb sichtbar. Zwei manuelle Aktualisierungen lösten während der Wartezeit keine weitere Anfrage aus. Nach 48,27 Sekunden erschien der frische Eintrag, der Countdown verschwand, und insgesamt wurden genau drei Antworten aufgezeichnet: HTTP 200, 503, 200.
 
+Im sichtbaren Folgetest wurde der OneDrive-Bereich während des Countdowns geschlossen. Der lokale Ordner erschien, und in den nächsten 50 Sekunden ging keine weitere Anfrage an den Testanbieter. Erst das manuelle Wiederöffnen löste genau einen neuen Abruf aus und zeigte den frischen Eintrag.
+
 ### Cloud-Speichergrenze und Abfragelimit getrennt prüfen (CLOUD-06, PROP-08)
 
 1. Mit einem kontrollierten Cloud-Adapter eine Datei zum Testort kopieren und die Schreibanfrage mit HTTP 507 oder einem ausdrücklichen Speichergrenzen-Code beantworten.
@@ -697,6 +699,8 @@ Für den Wiederherstellungsfall einen pausierten Testauftrag mit eigener Sperre 
 20. November 2026. F5 auf einem eigenen lokalen Ordner mit symbolischem Link wurde beim echten Dropbox-Ziel sicher gestoppt. Build 452 zeigte dabei irrtümlich einen FTP-Hinweis. Build 453 meldete bei einem getrennten kontrollierten Online-Ziel den nicht unterstützten Quelldateityp und zeigte in der Historie den gestoppten Vorgang mit deaktiviertem Rückgängig. Der Adapter erhielt keine Schreibanfrage und die Quelle blieb exakt. Die Komponentenprüfungen bestätigten denselben Fehlergrund für symbolische Links und benannte Pipes, den Erhalt regulärer Dateien und die direkte OneDrive-Ablehnung vor der ersten Anbieteranfrage. Die Historienprüfung lief erfolgreich in allen 20 App-Sprachen. Die vollständige Live-D1-Abnahme ist separat offen.
 
 ### Verzögerter Abruf in beiden Bereichen (CLOUD-07)
+
+In Mac-Testbuild 464 wurde der zweite Bereich über die Oberfläche während des verzögerten ersten Abrufs geöffnet. Beide zeigten die Ladeanzeige und danach dieselbe Liste. Ein Tastendruck auf ⌘R startete die sichtbare Aktualisierung beider Bereiche. Der Graph-Testadapter zählte für jeden der beiden Vorgänge genau eine Anfrage. Während der Aktualisierung wurde links zu einer lokalen Testdatei gewechselt. Die verspätete Antwort aktualisierte nur den rechten Bereich.
 
 Den ersten Abruf des eigenen Cloud-Ordners anhalten und denselben Ort rechts öffnen. Beide Bereiche müssen den Ladezustand zeigen. Links den Cloud-Bereich schliessen und prüfen, dass links wieder der lokale Ordner und rechts weiterhin die Ladeanzeige erscheint. Den Abruf freigeben. Die Cloud-Dateien müssen nur rechts erscheinen.
 
