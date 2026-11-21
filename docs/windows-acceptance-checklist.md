@@ -174,6 +174,8 @@ Der native Mac-Testbuild 447 zeigte beim Microsoft-Anmeldeablauf die deutschen M
 
 21. November 2026. Der signierte Mac-Build 497 öffnete den echten Microsoft-Anmeldedialog über «Erneut anmelden» im OneDrive-Dateifenster, beim OneDrive-Ort in den Einstellungen, über den allgemeinen OneDrive-Eintrag der Einstellungen und unter «Verbindungen». Jeder Dialog liess sich abbrechen. Für eine separate Testverbindung öffnete «Verbindung reparieren» in den Ortseinstellungen das Menü mit Wiederanmeldung. Ein automatisierter Test bestätigte die lokalisierten Meldungen für verweigerte und abgelaufene Anmeldungen sowie den Erhalt der vorigen Anmeldedaten. Eine persönliche Anmeldung wurde in diesem Lauf nicht abgeschlossen.
 
+22. November 2026. Im notarisierten Mac-Build 502 war «Neu anmelden» unter «Verbindungen» direkt sichtbar, auch nach Aktualisieren der Liste. Der echte Microsoft-Anmeldedialog öffnete sich über diesen Eintrag, direkt im OneDrive-Dateifenster, über den OneDrive-Ort und über die allgemeinen Einstellungen. Alle vier Dialoge wurden abgebrochen. Die Reparatur einer getrennten Testverbindung zeigte die Wiederanmeldung. Eine persönliche Kontoanmeldung fand in diesem Lauf nicht statt.
+
 ### Persönlichen OneDrive-Speicher auswählen (AUTH-04)
 
 1. In einem separaten Profil mit einem Testkonto oder einem Testadapter mehrere Laufwerke anbieten. Den technischen Speicher zuerst und den persönlichen OneDrive-Speicher später in der Liste liefern. Für beide Einträge eindeutige Testdateien verwenden. Der Assistent muss den persönlichen Speicher kennzeichnen und bevorzugt anzeigen.
