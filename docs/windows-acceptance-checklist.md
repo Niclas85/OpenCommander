@@ -662,6 +662,8 @@ Den Unicode-Ordner aus REG-NAS-28 zwischen einer eigenen SMB-Testfreigabe und ei
 
 Zwei weitere Varianten prüften «Abbrechen» in einem neuen Prozess vor und nach dem Weglegen der Quelle. Vor dem Weglegen stellte Abbrechen den ursprünglichen Zielordner wieder her. Nach dem Weglegen erkannte die Prüfung die bereits ausgeführte Verschiebung. Rückgängig stellte dann beide Originale wieder her. Beide Varianten bestanden jeweils in beide Richtungen mit 35 Dateien und fünf Unterordnern. Zwei ältere Aufträge mit abweichendem gespeichertem Zielnachweis blieben pausiert und behielten ihre Daten und Wiederherstellungsdateien.
 
+Ein weiterer Nachtest änderte zwischen Planung und Ausführung nur die Änderungszeit einer Datei im früheren Zielordner über eine zweite SMB-Verbindung. Der alte Plan musste stoppen und durfte den Ordner für einen frisch bestätigten Auftrag nicht sperren. In Mac-Testbuild 459 gelang danach das erneute Verschieben mit «Ersetzen». Rückgängig stellte die exakten Originale einschliesslich des bewusst geänderten Zeitstempels wieder her. Eine frische Nur-Lese-Verbindung bestätigte das Ergebnis.
+
 ### Einen begonnenen Cloud-Ordnerdownload fortsetzen (CLOUD-03, REC-03)
 
 1. Einen eigenen D1-Ordner aus der Cloud in einen leeren lokalen Testordner herunterladen. Während des Lesens pausieren und die bestätigten Byte- und Dateizähler erfassen.
