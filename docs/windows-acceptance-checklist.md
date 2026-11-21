@@ -1268,6 +1268,14 @@ Im Live-Test zeigte der gespeicherte Fortschritt trotz erfolgreicher Abbruchprü
 
 20. November 2026. Im sichtbaren Build 449 verschob F6 eine eigene Dropbox-Testdatei mit «Ersetzen» nach Google Drive. Der Testadapter hielt die Dropbox-Antwort nach dem bestätigten Umbenennen der Quelle zurück. Der gezielte Abbruch des Testprozesses liess die neue Zieldatei und die beiden Originale in ihren Wiederherstellungsorten zurück. Ein unabhängiger Abruf bestätigte ihre IDs und Inhalte. Nach dem Neustart zeigte dieselbe Auftragskarte «Pausiert» und «Dateien 0 / 1». «Abbrechen» prüfte den bereits ausgeführten Auftrag und zeigte danach «Abgeschlossen», 100 Prozent und «Dateien 1 / 1». Das Transportprotokoll zeigte dabei nur Listen- und Inhaltsabrufe. Genau ein erfolgreicher Verschiebeeintrag wurde gespeichert. «Rückgängig» stellte beide ursprünglichen Dateinamen, Anbieter-IDs und SHA-256-Prüfsummen wieder her. Nach erneutem Öffnen blieb der Historieneintrag als rückgängig angezeigt. Die Warteschlangen-Suite bestand 69 Prüfungen. Die vollständige D2-Abnahme bleibt offen.
 
+### Cloud-Verschieben mit Ersetzen nach zwei Prozessabbrüchen fortsetzen
+
+1. Eine eigene Dropbox-Datei nach Google Drive verschieben und dort eine gleichnamige Testdatei mit anderen Bytes ersetzen. Den isolierten Testprozess nach Veröffentlichung des Ziels und vor dem Weglegen der Quelle beenden.
+2. Nach dem Neustart den ursprünglichen Auftrag fortsetzen. In der zweiten Abbruchsvariante den Testprozess nochmals beenden, nachdem die Quelle weggelegt wurde und bevor die Historie Erfolg anzeigt. Mit separaten Anbieterabrufen beide Originale unter ihren Wiederherstellungsnamen sowie das veröffentlichte Ziel prüfen.
+3. Den Auftrag erneut fortsetzen. Die Auftrags-ID und die Anbieter-ID des veröffentlichten Ziels müssen gleich bleiben. Genau ein Verschiebeeintrag muss entstehen. In einem neuen Prozess «Rückgängig» ausführen und beide ursprünglichen Dateinamen, IDs und SHA-256-Werte unabhängig prüfen.
+
+21. November 2026. Der native Übertragungscode bestand diesen Ablauf mit echten Dropbox- und Google-Drive-Testdateien. Der zweite Prozessstopp erfolgte durch das Zeitlimit des Testtreibers. Nach dem nächsten Start wurde derselbe Auftrag bis zum einzigen Historieneintrag fortgesetzt. Rückgängig stellte beide Originale wieder her. Die beiden eigenen Testordner und das isolierte Testprofil wurden entfernt. Die sichtbare Bedienung und der vollständige D2-Lauf sind separat offen.
+
 ### Cloud-Rückgängig nach Prozessabbruch fortsetzen
 
 1. Mit eigenen Testdateien eine Cloud-zu-Cloud-Verschiebung mit «Ersetzen» abschliessen und die ursprünglichen Objekt-IDs sowie die Prüfsummen von Quelle und altem Ziel erfassen.
