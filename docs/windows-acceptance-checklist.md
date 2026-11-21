@@ -164,6 +164,8 @@ Der native Mac-Testbuild 447 zeigte beim Microsoft-Anmeldeablauf die deutschen M
 
 21. November 2026. In einem frischen macOS-Testprofil ohne gespeicherte OneDrive-Anmeldung öffneten drei Wege den echten Microsoft-Anmeldedialog: der Knopf im OneDrive-Bereich, die Ordner-Einstellungen und die Verbindungsliste. Nach Abbrechen blieb die Anmeldung erneut erreichbar. Die lokalen Kontrollinhalte blieben gleich. Es wurde keine Microsoft-Kontoauswahl bestätigt.
 
+21. November 2026. Alle 134 OneDrive-Clientprüfungen bestanden im seriellen Lauf. Kontrollierte Testantworten deckten unter anderem Ablehnung, Ablauf und erneute Anläufe ab. Verspätete oder verweigerte Antworten konnten eine bestehende Anmeldung nicht überschreiben.
+
 ### Persönlichen OneDrive-Speicher auswählen (AUTH-04)
 
 1. In einem separaten Profil mit einem Testkonto oder einem Testadapter mehrere Laufwerke anbieten. Den technischen Speicher zuerst und den persönlichen OneDrive-Speicher später in der Liste liefern. Für beide Einträge eindeutige Testdateien verwenden. Der Assistent muss den persönlichen Speicher kennzeichnen und bevorzugt anzeigen.
@@ -1256,6 +1258,8 @@ Für REC-09 mit dem vollständigen D2-Quellbestand den Auftrag starten, nach bes
 4. Das Original einhängen und denselben Auftrag erneut prüfen lassen. Die Teildaten müssen verschwinden. Die unabhängige Datei und die Quelle müssen erhalten bleiben. Die App darf keine Endkopie und keinen Historieneintrag erzeugen. Wenn nur noch interne Journale vorhanden sind, soll die Karte melden, dass keine Teildaten geblieben sind.
 
 Build 428 bestätigte bei 14 MiB gespeichertem Fortschritt den ausstehenden Abbruch, den Schutz des Ersatzvolumes und die Bereinigung am Original. Die Karte verwechselte danach das verbliebene Journal mit Teildaten. Build 429 wiederholte die ausstehende Abbruchprüfung auf einer Kopie desselben Testabbilds. Die englische Oberfläche meldete «Cancelled — no partial transfer data». Eine zusätzliche Komponentenprüfung bestätigte, dass eine unbekannte Datei neben dem Journal erhalten bleibt und bei der Statusanzeige berücksichtigt wird.
+
+21. November 2026. Mit neu angelegten virtuellen exFAT-Testdatenträgern bestanden 44 Prüfungen. Ein falsches Medium am selben Pfad wurde abgelehnt. Wiederaufnahme, Ersetzen und Rückgängig erhielten Daten und Unicode-Namen. Die UTF-16-Namen wurden direkt im Testabbild geprüft.
 
 ### exFAT-Quelllaufwerk nach einem Prozessabbruch prüfen
 
