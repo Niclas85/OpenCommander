@@ -129,4 +129,6 @@
     <string name="move_cleanup_failed">Nie udało się całkowicie usunąć źródła. Pełna kopia została zachowana w: %1$s</string>
     <string name="recovery_retained">Pliki odzyskiwania zostały zachowane w: %1$s</string>
     <string name="operation_cancelled">Operacja anulowana. Ukończone elementy można cofnąć.</string>
+    <string name="more_apps">Więcej aplikacji na haenggi.vip ↗</string>
+    <string name="more_apps_open_failed">Brak dostępnej przeglądarki. Otwórz https://haenggi.vip/ na innym urządzeniu.</string>
 </resources>

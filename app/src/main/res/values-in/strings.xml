@@ -129,4 +129,6 @@
     <string name="move_cleanup_failed">Sumber tidak dapat dihapus seluruhnya. Salinan lengkap disimpan di: %1$s</string>
     <string name="recovery_retained">Berkas pemulihan disimpan di: %1$s</string>
     <string name="operation_cancelled">Operasi dibatalkan. Item yang selesai dapat diurungkan.</string>
+    <string name="more_apps">Aplikasi lainnya di haenggi.vip ↗</string>
+    <string name="more_apps_open_failed">Tidak ada browser yang tersedia. Buka https://haenggi.vip/ di perangkat lain.</string>
 </resources>

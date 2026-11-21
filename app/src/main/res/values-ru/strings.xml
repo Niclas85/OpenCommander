@@ -129,4 +129,6 @@
     <string name="move_cleanup_failed">Не удалось полностью удалить источник. Полная копия сохранена здесь: %1$s</string>
     <string name="recovery_retained">Файлы для восстановления сохранены здесь: %1$s</string>
     <string name="operation_cancelled">Операция отменена. Завершённые действия можно отменить.</string>
+    <string name="more_apps">Другие приложения на haenggi.vip ↗</string>
+    <string name="more_apps_open_failed">Браузер недоступен. Откройте https://haenggi.vip/ на другом устройстве.</string>
 </resources>

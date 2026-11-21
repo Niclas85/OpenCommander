@@ -128,4 +128,6 @@
     <string name="move_cleanup_failed">स्रोत पूरी तरह नहीं हटाया जा सका। पूरी प्रतिलिपि यहाँ सुरक्षित है: %1$s</string>
     <string name="recovery_retained">पुनर्प्राप्ति फ़ाइलें यहाँ सुरक्षित हैं: %1$s</string>
     <string name="operation_cancelled">कार्रवाई रद्द की गई। पूरे हुए आइटम पहले जैसे किए जा सकते हैं।</string>
+    <string name="more_apps">haenggi.vip पर और ऐप्स ↗</string>
+    <string name="more_apps_open_failed">कोई ब्राउज़र उपलब्ध नहीं है। किसी अन्य डिवाइस पर https://haenggi.vip/ खोलें।</string>
 </resources>

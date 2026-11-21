@@ -129,4 +129,6 @@
     <string name="move_cleanup_failed">ไม่สามารถลบต้นฉบับได้ทั้งหมด สำเนาฉบับสมบูรณ์ยังอยู่ที่: %1$s</string>
     <string name="recovery_retained">เก็บไฟล์สำหรับกู้คืนไว้ที่: %1$s</string>
     <string name="operation_cancelled">ยกเลิกการดำเนินการแล้ว สามารถเลิกทำรายการที่เสร็จแล้วได้</string>
+    <string name="more_apps">แอปเพิ่มเติมที่ haenggi.vip ↗</string>
+    <string name="more_apps_open_failed">ไม่มีเบราว์เซอร์ที่ใช้ได้ โปรดเปิด https://haenggi.vip/ บนอุปกรณ์อื่น</string>
 </resources>

@@ -129,4 +129,6 @@
     <string name="move_cleanup_failed">Не вдалося повністю видалити джерело. Повну копію збережено тут: %1$s</string>
     <string name="recovery_retained">Файли відновлення збережено тут: %1$s</string>
     <string name="operation_cancelled">Операцію скасовано. Завершені дії можна скасувати.</string>
+    <string name="more_apps">Інші застосунки на haenggi.vip ↗</string>
+    <string name="more_apps_open_failed">Браузер недоступний. Відкрийте https://haenggi.vip/ на іншому пристрої.</string>
 </resources>

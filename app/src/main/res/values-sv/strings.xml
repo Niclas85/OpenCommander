@@ -129,4 +129,6 @@
     <string name="move_cleanup_failed">Källan kunde inte tas bort helt. Den fullständiga kopian finns kvar på: %1$s</string>
     <string name="recovery_retained">Återställningsfiler finns kvar på: %1$s</string>
     <string name="operation_cancelled">Åtgärden avbröts. Slutförda objekt kan ångras.</string>
+    <string name="more_apps">Fler appar på haenggi.vip ↗</string>
+    <string name="more_apps_open_failed">Ingen webbläsare tillgänglig. Öppna https://haenggi.vip/ på en annan enhet.</string>
 </resources>

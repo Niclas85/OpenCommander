@@ -129,4 +129,6 @@
     <string name="move_cleanup_failed">无法完全删除源文件。完整副本保留在：%1$s</string>
     <string name="recovery_retained">恢复文件保留在：%1$s</string>
     <string name="operation_cancelled">操作已取消。已完成的项目可以撤销。</string>
+    <string name="more_apps">haenggi.vip 上的更多应用 ↗</string>
+    <string name="more_apps_open_failed">没有可用的浏览器。请在其他设备上打开 https://haenggi.vip/。</string>
 </resources>

@@ -129,4 +129,6 @@
     <string name="move_cleanup_failed">تعذر حذف المصدر بالكامل. تم الاحتفاظ بالنسخة الكاملة في: %1$s</string>
     <string name="recovery_retained">تم الاحتفاظ بملفات الاسترداد في: %1$s</string>
     <string name="operation_cancelled">تم إلغاء العملية. يمكن التراجع عن العناصر المكتملة.</string>
+    <string name="more_apps">المزيد من التطبيقات على haenggi.vip ↗</string>
+    <string name="more_apps_open_failed">لا يوجد متصفح متاح. افتح https://haenggi.vip/ على جهاز آخر.</string>
 </resources>

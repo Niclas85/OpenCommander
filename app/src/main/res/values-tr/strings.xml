@@ -129,4 +129,6 @@
     <string name="move_cleanup_failed">Kaynak tamamen silinemedi. Tam kopya şurada korundu: %1$s</string>
     <string name="recovery_retained">Kurtarma dosyaları şurada korundu: %1$s</string>
     <string name="operation_cancelled">İşlem iptal edildi. Tamamlanan öğeler geri alınabilir.</string>
+    <string name="more_apps">haenggi.vip üzerinde daha fazla uygulama ↗</string>
+    <string name="more_apps_open_failed">Kullanılabilir tarayıcı yok. Başka bir cihazda https://haenggi.vip/ adresini açın.</string>
 </resources>

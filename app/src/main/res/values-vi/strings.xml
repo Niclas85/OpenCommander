@@ -129,4 +129,6 @@
     <string name="move_cleanup_failed">Không thể xóa toàn bộ nguồn. Bản sao đầy đủ được giữ tại: %1$s</string>
     <string name="recovery_retained">Các tệp khôi phục được giữ tại: %1$s</string>
     <string name="operation_cancelled">Đã hủy thao tác. Có thể hoàn tác các mục đã hoàn tất.</string>
+    <string name="more_apps">Thêm ứng dụng tại haenggi.vip ↗</string>
+    <string name="more_apps_open_failed">Không có trình duyệt. Hãy mở https://haenggi.vip/ trên thiết bị khác.</string>
 </resources>

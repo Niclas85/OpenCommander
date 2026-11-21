@@ -129,4 +129,6 @@
     <string name="move_cleanup_failed">コピー元を完全に削除できませんでした。完全なコピーは次の場所に保持されています: %1$s</string>
     <string name="recovery_retained">復旧用ファイルは次の場所に保持されています: %1$s</string>
     <string name="operation_cancelled">操作をキャンセルしました。完了した項目は元に戻せます。</string>
+    <string name="more_apps">haenggi.vip のその他のアプリ ↗</string>
+    <string name="more_apps_open_failed">利用できるブラウザがありません。別の端末で https://haenggi.vip/ を開いてください。</string>
 </resources>

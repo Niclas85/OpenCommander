@@ -129,4 +129,6 @@
     <string name="move_cleanup_failed">원본을 완전히 삭제하지 못했습니다. 전체 복사본이 보존된 위치: %1$s</string>
     <string name="recovery_retained">복구 파일이 보존된 위치: %1$s</string>
     <string name="operation_cancelled">작업이 취소되었습니다. 완료된 항목은 실행 취소할 수 있습니다.</string>
+    <string name="more_apps">haenggi.vip의 더 많은 앱 ↗</string>
+    <string name="more_apps_open_failed">사용 가능한 브라우저가 없습니다. 다른 기기에서 https://haenggi.vip/ 를 여세요.</string>
 </resources>
