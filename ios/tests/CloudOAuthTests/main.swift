@@ -80,6 +80,64 @@ require(try receiver.wait(timeout: 2) {} == "SYNTHETIC_CODE", "loopback didn't d
 receiver.closeListener()
 print("PASS real loopback callback receives code and returns no-store response without echoing credentials")
 
+// Exercise the real listener across failed attempts, not just its URL parser.
+// The retry deliberately reuses the port so a delayed old callback reaches the
+// new listener and must still be refused by the new state.
+func sendOwnedCallback(port: UInt16, query: String, expectReply: Bool = true) {
+    let peer = socket(AF_INET, SOCK_STREAM, 0); defer { close(peer) }
+    var address = sockaddr_in(); address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+    address.sin_family = sa_family_t(AF_INET); address.sin_addr.s_addr = inet_addr("127.0.0.1")
+    address.sin_port = port.bigEndian
+    let connected = withUnsafePointer(to: &address) { ptr in
+        ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(peer, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
+    }
+    require(connected == 0, "owned retry callback could not connect")
+    let request = Data("GET /?\(query) HTTP/1.1\r\nHost: localhost:\(port)\r\n\r\n".utf8)
+    _ = request.withUnsafeBytes { send(peer, $0.baseAddress, $0.count, 0) }
+    guard expectReply else { return }
+    var bytes = [UInt8](repeating: 0, count: 4096)
+    let count = recv(peer, &bytes, bytes.count, 0)
+    let response = String(decoding: bytes.prefix(max(0, count)), as: UTF8.self)
+    require(response.contains("Cache-Control: no-store") && !response.contains("SYNTHETIC_"), "retry callback response leaked synthetic credential")
+}
+do {
+    let listener = try OAuthLoopbackReceiver(state: "SYNTHETIC_EXPIRING_STATE", port: 0)
+    sendOwnedCallback(port: listener.port, query: "state=SYNTHETIC_EXPIRING_STATE&code=SYNTHETIC_LATE_CODE", expectReply: false)
+    var checks = 0
+    do {
+        _ = try listener.wait(timeout: 0.25) {
+            checks += 1
+            if checks == 2 { Thread.sleep(forTimeInterval: 0.3) }
+        }
+        fatalError("A queued callback completed sign-in after its deadline")
+    } catch {
+        require((error as NSError).localizedDescription == "cloud_timeout", "wrong error for expired queued callback")
+    }
+    require(checks >= 2, "test did not delay an accepted connection across the deadline")
+    print("PASS a queued callback cannot complete sign-in after the loopback deadline")
+}
+for failure in ["denied", "cancelled", "timeout"] {
+    let old = try OAuthLoopbackReceiver(state: "SYNTHETIC_OLD_STATE", port: 0)
+    let port = old.port
+    if failure == "denied" {
+        DispatchQueue.global().async { sendOwnedCallback(port: port, query: "state=SYNTHETIC_OLD_STATE&error=access_denied") }
+        rejects({ _ = try old.wait(timeout: 2) {} }, key: "cloud_oauth_denied")
+    } else if failure == "cancelled" {
+        rejects { _ = try old.wait(timeout: 1) { throw CancellationError() } }
+    } else {
+        rejects({ _ = try old.wait(timeout: 0.05) {} }, key: "cloud_timeout")
+    }
+    old.closeListener()
+    let next = try OAuthLoopbackReceiver(state: "SYNTHETIC_NEW_STATE", port: port)
+    DispatchQueue.global().async {
+        sendOwnedCallback(port: port, query: "state=SYNTHETIC_OLD_STATE&code=SYNTHETIC_STALE_CODE")
+        sendOwnedCallback(port: port, query: "state=SYNTHETIC_NEW_STATE&code=SYNTHETIC_FRESH_CODE")
+    }
+    require(try next.wait(timeout: 2) {} == "SYNTHETIC_FRESH_CODE", "old callback completed a new sign-in")
+    next.closeListener()
+    print("PASS real OAuth \(failure) then same-port retry rejects old callback and accepts only fresh state")
+}
+
 let validToken: [String: Any] = ["access_token": "SYNTHETIC_ACCESS", "refresh_token": "SYNTHETIC_REFRESH", "token_type": "Bearer", "expires_in": 3600]
 let token = try NativeCloudOAuth.tokenData(json(validToken), now: Date(timeIntervalSince1970: 0))
 let decoded = try JSONSerialization.jsonObject(with: token) as! [String: Any]

@@ -158,6 +158,8 @@ Für REG-AUTH-05 den Microsoft-Ablauf mit Anmeldecode in einem Testprofil auf De
 
 Der native Mac-Testbuild 447 zeigte beim Microsoft-Anmeldeablauf die deutschen Meldungen für Abbruch, Ablehnung und einen abgelaufenen Code. Die absichtlich internen Anbieterdetails erschienen nicht. Beim lokal abgelaufenen Code wurde kein Token abgefragt. Vor dem anschliessenden erfolgreichen Anlauf wurde keine Dateiliste angefordert. Der erfolgreiche Anlauf lud genau einmal die erwartete Testdatei. Die lokalen Kontrolldateien blieben bytegenau. Der Anbieter war simuliert.
 
+21. November 2026. Ein lokaler Test mit einer echten Loopback-Verbindung stellte einen synthetischen Rückruf bereit und verzögerte dessen Verarbeitung bis nach Ablauf der Frist. Der vorherige macOS-Code akzeptierte noch den Code. Die Korrektur verwendet wie der Linux-Referenzcode eine monotone Uhr und prüft die Frist vor der Auswertung und vor der Rückgabe. Der Nachtest weist den abgelaufenen Rückruf mit «Zeitüberschreitung» ab. Nach Ablehnung, Abbruch und Zeitüberschreitung kannten neue Versuche auf demselben Port nur ihren eigenen gültigen Rückruf. Der Lauf verwendete weder Browser-Oberfläche noch ein Anbieterkonto. Release-Kandidat 472 wurde vor dieser Korrektur gebaut.
+
 ### Persönlichen OneDrive-Speicher auswählen (AUTH-04)
 
 1. In einem separaten Profil mit einem Testkonto oder einem Testadapter mehrere Laufwerke anbieten. Den technischen Speicher zuerst und den persönlichen OneDrive-Speicher später in der Liste liefern. Für beide Einträge eindeutige Testdateien verwenden. Der Assistent muss den persönlichen Speicher kennzeichnen und bevorzugt anzeigen.

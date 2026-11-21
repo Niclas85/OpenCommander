@@ -216,34 +216,45 @@ final class OAuthLoopbackReceiver {
         var value: UInt8 = 0; for index in lhs.indices { value |= lhs[index] ^ rhs[index] }; return value == 0
     }
     func wait(timeout: TimeInterval = 600, check: () throws -> Void) throws -> String {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(timeout))
+        func pollTimeout(until limit: ContinuousClock.Instant, maximum: Int32) -> Int32 {
+            let remaining = clock.now.duration(to: limit).components
+            if remaining.seconds > 0 { return maximum }
+            if remaining.seconds < 0 { return 0 }
+            let milliseconds = Double(remaining.attoseconds) / 1_000_000_000_000_000
+            return Int32(max(0, min(Double(maximum), milliseconds.rounded(.up))))
+        }
+        while clock.now < deadline {
             try check()
             var ready = pollfd(fd: listener, events: Int16(POLLIN), revents: 0)
-            let result = poll(&ready, 1, 100)
+            let result = poll(&ready, 1, pollTimeout(until: deadline, maximum: 100))
             if result < 0 && errno == EINTR { continue }
             guard result >= 0 else { throw CloudConnection.failure("cloud_oauth_token_failed") }
-            if result == 0 { continue }
+            if result == 0 || clock.now >= deadline { continue }
             let peer = accept(listener, nil, nil)
             if peer < 0 { continue }
             defer { Darwin.close(peer) }
             var noSignal: Int32 = 1; setsockopt(peer, SOL_SOCKET, SO_NOSIGPIPE, &noSignal, socklen_t(MemoryLayout<Int32>.size))
             _ = fcntl(peer, F_SETFL, O_NONBLOCK)
-            var request = Data(); let connectionDeadline = min(deadline, Date().addingTimeInterval(0.5))
-            while Date() < connectionDeadline && request.count <= 16 * 1024 && !request.suffix(4).elementsEqual([13, 10, 13, 10]) {
+            var request = Data()
+            let connectionDeadline = min(deadline, clock.now.advanced(by: .milliseconds(500)))
+            while clock.now < connectionDeadline && request.count <= 16 * 1024 && !request.suffix(4).elementsEqual([13, 10, 13, 10]) {
                 try check()
                 var readable = pollfd(fd: peer, events: Int16(POLLIN), revents: 0)
-                if poll(&readable, 1, 50) <= 0 { continue }
+                if poll(&readable, 1, pollTimeout(until: connectionDeadline, maximum: 50)) <= 0 { continue }
                 var bytes = [UInt8](repeating: 0, count: 4096)
                 let count = recv(peer, &bytes, bytes.count, 0)
                 if count <= 0 { break }; request.append(contentsOf: bytes.prefix(count))
             }
+            guard clock.now < deadline else { break }
             let reply = parse(request)
             let valid: Bool; switch reply { case .invalid: valid = false; default: valid = true }
             let body = valid ? "Sign-in received. Return to OpenCommander. / Anmeldung empfangen. Zurück zu OpenCommander." : "Invalid callback."
             let response = Data("HTTP/1.1 \(valid ? "200 OK" : "400 Bad Request")\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: \(body.utf8.count)\r\nCache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\n\r\n\(body)".utf8)
             _ = response.withUnsafeBytes { send(peer, $0.baseAddress, $0.count, 0) }
             try check()
+            guard clock.now < deadline else { break }
             switch reply {
             case .code(let code): return code
             case .denied: throw CloudConnection.failure("cloud_oauth_denied")
