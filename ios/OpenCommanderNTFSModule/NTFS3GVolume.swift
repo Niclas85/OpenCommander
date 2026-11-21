@@ -260,7 +260,17 @@ final class NTFS3GVolume: FSVolume, FSVolume.Operations, FSVolume.ReadWriteOpera
     }
 
     func lookupItem(named name: FSFileName, inDirectory directory: FSItem) async throws -> (FSItem, FSFileName) {
-        try queue.sync { (try item(childPath(requireItem(directory), name)), name) }
+        try queue.sync {
+            let directory = try requireItem(directory)
+            guard let requested = name.string, !requested.isEmpty, requested != ".", requested != "..",
+                  !requested.contains("/"), !requested.contains("\0") else { throw error(EINVAL) }
+            // The bridge emits decomposed UTF-8, which can expand the stored UTF-16 name.
+            var spelling = [CChar](repeating: 0, count: 4096)
+            let capacity = spelling.count
+            try check(nk_lookup_name(engine, directory.path, requested, &spelling, capacity))
+            let stored = FSFileName(string: String(cString: spelling))
+            return (try item(childPath(directory, stored)), stored)
+        }
     }
     func enumerateDirectory(_ directory: FSItem, startingAt cookie: FSDirectoryCookie,
                             verifier: FSDirectoryVerifier, attributes request: FSItem.GetAttributesRequest?,

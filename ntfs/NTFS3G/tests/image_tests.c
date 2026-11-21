@@ -200,6 +200,13 @@ int main(int argc, char **argv) {
     CHECK(!nk_create(v, "/case-proof", "MiXeD.txt"));
     CHECK(!nk_create(v, "/case-proof", "Grüsse-文件.TXT"));
     CHECK(!nk_mkdir(v, "/case-proof", "NestedFolder"));
+    char stored_name[1021];
+    CHECK(!nk_lookup_name(v, "/case-proof", "mixed.TXT", stored_name, sizeof(stored_name)));
+    CHECK(!strcmp(stored_name, "MiXeD.txt"));
+    CHECK(!nk_lookup_name(v, "/case-proof", "grüsse-文件.txt", stored_name, sizeof(stored_name)));
+    CHECK(!strcmp(stored_name, "Gru\xcc\x88sse-文件.TXT"));
+    CHECK(nk_lookup_name(v, "/case-proof", "missing", stored_name, sizeof(stored_name)) == -1 && errno == ENOENT);
+    CHECK(nk_lookup_name(v, "/case-proof", "Mixed.txt", stored_name, 4) == -1 && errno == ERANGE);
     verify_case_listing(v);
     CHECK(nk_create(v, "/CASE-PROOF", "MIXED.TXT") == -1 && errno == EEXIST);
     puts("PASS exact mixed-case/Unicode listing, early stop, error path, callback lookup and collision protection");
@@ -247,6 +254,8 @@ int main(int argc, char **argv) {
 
     CHECK(!nk_mkdir(v, "/", "unicode-rename"));
     CHECK(!nk_create(v, "/unicode-rename", "Δ.txt"));
+    CHECK(!nk_lookup_name(v, "/unicode-rename", "δ.TXT", stored_name, sizeof(stored_name)));
+    CHECK(!strcmp(stored_name, "Δ.txt"));
     CHECK(nk_write(v, "/unicode-rename/Δ.txt", 0, 3, "abc") == 3);
     nk_stat uppercase, lowercase;
     CHECK(!nk_stat_path(v, "/unicode-rename/Δ.txt", &uppercase));
@@ -266,6 +275,8 @@ int main(int argc, char **argv) {
     struct expected_names unicode = {renamed_names, 1, 0, 0, v};
     CHECK(!nk_list(v, "/unicode-rename", exact_entry, &unicode) && unicode.seen == 1);
     CHECK(!nk_stat_path(v, "/unicode-rename/δ.txt", &lowercase));
+    CHECK(!nk_lookup_name(v, "/unicode-rename", "Δ.TXT", stored_name, sizeof(stored_name)));
+    CHECK(!strcmp(stored_name, "δ.txt"));
     CHECK(uppercase.inode == lowercase.inode);
     verify(v, "/unicode-rename/δ.txt", "abc", 3);
     puts("PASS case-only Unicode rename keeps the inode and stores the requested spelling");

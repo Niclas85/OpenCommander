@@ -379,6 +379,80 @@ int nk_stat_path(nk_volume *v, const char *path, nk_stat *st) {
     return ntfs_inode_close(ni);
 }
 
+int nk_lookup_name(nk_volume *v, const char *directory, const char *name,
+                   char *stored_name, size_t capacity) {
+    if (!v || !directory || !name || !*name || strchr(name, '/') || !stored_name || !capacity) {
+        errno = EINVAL;
+        return -1;
+    }
+    ntfschar *requested = NULL;
+    int requested_length = ntfs_mbstoucs(name, &requested);
+    if (requested_length < 0) return -1;
+    ntfs_inode *parent = ntfs_pathname_to_inode(v->vol, NULL, directory);
+    if (!parent) {
+        free(requested);
+        return -1;
+    }
+    MFT_REF reference = ntfs_inode_lookup_by_name(parent, requested, requested_length);
+    int saved = reference == (MFT_REF)-1 ? (errno ? errno : EIO) : 0;
+    u64 parent_number = parent->mft_no;
+    if (ntfs_inode_close(parent) && !saved) saved = errno ? errno : EIO;
+    ntfs_inode *inode = saved ? NULL : ntfs_inode_open(v->vol, reference);
+    if (!inode && !saved) saved = errno ? errno : EIO;
+    ntfs_attr_search_ctx *search = inode ? ntfs_attr_get_search_ctx(inode, NULL) : NULL;
+    if (!search && !saved) saved = errno ? errno : EIO;
+    ntfschar matched[NTFS_MAX_NAME_LEN];
+    int matched_length = 0;
+    while (search) {
+        if (ntfs_attr_lookup(AT_FILE_NAME, AT_UNNAMED, 0, CASE_SENSITIVE, 0, NULL, 0, search)) {
+            if (errno != ENOENT || !matched_length) saved = errno != ENOENT && errno ? errno : EIO;
+            break;
+        }
+        ATTR_RECORD *attribute = search->attr;
+        size_t offset = le16_to_cpu(attribute->value_offset);
+        size_t length = le32_to_cpu(attribute->value_length);
+        size_t record_length = le32_to_cpu(attribute->length);
+        size_t header_length = offsetof(FILE_NAME_ATTR, file_name);
+        if (attribute->non_resident || offset > record_length ||
+            length > record_length - offset || length < header_length) {
+            saved = EIO;
+            break;
+        }
+        const FILE_NAME_ATTR *entry = (const FILE_NAME_ATTR *)((const u8 *)attribute + offset);
+        int entry_length = entry->file_name_length;
+        if (!entry_length || (size_t)entry_length > (length - header_length) / sizeof(ntfschar)) {
+            saved = EIO;
+            break;
+        }
+        if (MREF_LE(entry->parent_directory) != parent_number) continue;
+        ntfschar spelling[NTFS_MAX_NAME_LEN];
+        memcpy(spelling, (const u8 *)entry + header_length, (size_t)entry_length * sizeof(*spelling));
+        if (!ntfs_names_are_equal(spelling, entry_length, requested, requested_length, IGNORE_CASE,
+                                  v->vol->upcase, v->vol->upcase_len)) continue;
+        int exact = entry_length == requested_length &&
+                    !memcmp(spelling, requested, (size_t)entry_length * sizeof(*spelling));
+        if (!matched_length || exact) {
+            memcpy(matched, spelling, (size_t)entry_length * sizeof(*matched));
+            matched_length = entry_length;
+        }
+        if (exact) break;
+    }
+    if (search) ntfs_attr_put_search_ctx(search);
+    if (inode && ntfs_inode_close(inode) && !saved) saved = errno ? errno : EIO;
+    free(requested);
+    if (!saved) {
+        char *utf8 = NULL;
+        int length = ntfs_ucstombs(matched, matched_length, &utf8, 0);
+        if (length < 0 || !utf8) saved = errno ? errno : EILSEQ;
+        else if ((size_t)length >= capacity) saved = ERANGE;
+        else memcpy(stored_name, utf8, (size_t)length + 1);
+        free(utf8);
+    }
+    if (!saved) return 0;
+    errno = saved;
+    return -1;
+}
+
 struct list_ctx {
     nk_volume   *v;
     nk_dirent_cb cb;

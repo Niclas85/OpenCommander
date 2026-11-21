@@ -108,6 +108,9 @@ int nk_statvfs(nk_volume *v, long long *total_bytes, long long *free_bytes,
 int nk_label(nk_volume *v, char *buf, size_t buflen);
 
 int nk_stat_path(nk_volume *v, const char *path, nk_stat *st);
+/* Resolve one directory entry and return its stored UTF-8 spelling. */
+int nk_lookup_name(nk_volume *v, const char *directory, const char *name,
+                   char *stored_name, size_t capacity);
 int nk_list(nk_volume *v, const char *dir_path, nk_dirent_cb cb, void *ctx);
 /* Start at 0, then resume only a next_cookie returned by this directory in
  * the same mutation generation. Non-zero callbacks stop promptly, not as errors. */
