@@ -47,6 +47,8 @@ Für CLOUD-09 und CLOUD-10 vor der Bestätigung direkt beim Anbieter prüfen, da
 
 Im sichtbaren Test mit dem signierten Mac-Build 321 blieb die Testdatei nach «Abbrechen» auf Google Drive und Dropbox privat. Erst die Bestätigung erstellte den Link. Getrennte abgemeldete Chrome-Sitzungen zeigten die Dateien und verweigerten den Zugriff nach dem Widerruf beim Anbieter. Der Dropbox-Download aus Chrome und der unabhängig abgerufene anonyme Google-Drive-Download waren bytegenau. Bei Google Drive war die Leserfreigabe per Link erreichbar und von der Suche ausgeschlossen.
 
+21. November 2026. Der sichtbare Mac-Test mit Build 497 prüfte neue eigene Ordner auf Dropbox und Google Drive. Nach dem Öffnen des Kontextmenüs, dem Abbruch des Warnhinweises, der Mehrfachauswahl und dem Rechtsklick auf den Stammordner bestätigte ein unabhängiger Anbieterabruf unveränderte Freigaben, Objekt-IDs und SHA-256-Werte für je vier Dateien. Für Mehrfachauswahl, Stammordner und eine separat angelegte Google-Drive-Verknüpfung war keine Freigabeaktion verfügbar. Das Ziel der Verknüpfung behielt seine Rechte und Bytes. Die eigenen Testordner und die Verknüpfung wurden bereinigt. Die Live-Prüfung mit einem OneDrive-Konto bleibt offen.
+
 ### Cloud-Freigabe bei Namenswechsel prüfen (REG-CLOUD-42)
 
 1. Je einen eigenen Testordner für Google Drive, Dropbox und OneDrive anlegen. Zwei eigene Dateien mit verschiedenen Inhalten und Datei-IDs im selben Ordner anlegen. Beide müssen privat sein. In OpenCommander den Linkdialog für die erste Datei öffnen.
