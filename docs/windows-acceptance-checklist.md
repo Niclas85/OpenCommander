@@ -695,6 +695,8 @@ Für den nächsten D2-Lauf wurden ausschliesslich zwei alte, vollständig verifi
 
 Der Quellstand von Build 475 bestand anschliessend 83 NAS-Journalprüfungen auf isolierten lokalen Testdaten. Eine absichtliche Bitänderung in einer bereits bestätigten Zieldatei stoppte denselben Auftrag beim Fortsetzen. Nach Wiederherstellung des ursprünglichen Bytes bestätigte dasselbe Journal die Datei erneut. Beim Verschieben stoppte eine spät geänderte Zieldatei vor dem Entfernen der Quelle, auch nach erneutem Öffnen. Die Erstprüfung und der Wiederholungsversuch benannten exakt «Nested/Proof.bin». Bei den Fehlerfällen blieben beide Dateiinhalte erhalten. Der NAS-Dauerlauf mit den zwei bereits dokumentierten SMB-Abweichungen läuft separat weiter.
 
+Der zusätzliche lokale Test am 21. November 2026 prüfte einen dauerhaften Prüfsummenfehler. Nach einer absichtlichen Byteänderung in «Nested/Proof.bin» meldeten Fortsetzen und Abbrechen einen Integritätsfehler. Das Journal speicherte den Abbruch und bestätigte keine Bereinigung. Eine neue Übertragung in einen anderen Zielordner lieferte exakt die ursprünglichen Bytes. Quelle und fehlerhafte Zielkopie blieben erhalten. Alle 84 Prüfgruppen des lokalen NAS-Journallaufs bestanden. Für den Windows-Nachtest diesen Ablauf zusätzlich auf einer eigenen SMB-Testfreigabe prüfen.
+
 ### SMB-Verschieben eines Ordners mit Unicode-Namen fortsetzen (REG-NAS-28)
 
 1. Einen eigenen Ordner mit `Nested/Grüße.bin`, einer zweiten Datei und einem leeren Unterordner auf eine beschreibbare SMB-Testfreigabe verschieben. Für die Fehlervariante mit einem Testadapter während der Zielprüfung ein Byte der eigenen Zieldatei über eine zweite Verbindung ändern.
