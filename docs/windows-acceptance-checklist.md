@@ -664,6 +664,8 @@ Zwei weitere Varianten prüften «Abbrechen» in einem neuen Prozess vor und nac
 
 Ein weiterer Nachtest änderte zwischen Planung und Ausführung nur die Änderungszeit einer Datei im früheren Zielordner über eine zweite SMB-Verbindung. Der alte Plan musste stoppen und durfte den Ordner für einen frisch bestätigten Auftrag nicht sperren. In Mac-Testbuild 459 gelang danach das erneute Verschieben mit «Ersetzen». Rückgängig stellte die exakten Originale einschliesslich des bewusst geänderten Zeitstempels wieder her. Eine frische Nur-Lese-Verbindung bestätigte das Ergebnis.
 
+Beim Nachtest zu «Abbrechen» den abgewiesenen Auftrag in einem neuen Prozess öffnen und stornieren. Wenn die Quelldaten und die bisherigen Zielinhalte erhalten sind und der Auftrag weder eine eigene Sperre noch ein Backup angelegt hat, muss «Abbrechen» abschliessen und den geänderten Zeitstempel erhalten. Der Mac-Test bestand mit einem exFAT-Abbild und zwei Verbindungen zur echten SMB-Freigabe. Eine separate Nur-Lese-Verbindung bestätigte Quelle und Ziel nach «Abbrechen». Ein anschliessender neuer Auftrag und «Rückgängig» bestanden ebenfalls. Bei einem separaten Test verweigerte der SMB-Server das Entfernen eines Sperrmerkmals an einem Ordner. Ein leerer Ersatzwert belegte den Namen weiterhin. Ältere Aufträge, die bereits eine solche Sperre gesetzt hatten, bleiben ein eigener Wiederherstellungsfall.
+
 #### SMB-Freigabe während eines pausierten Verschiebeauftrags trennen (REC-08)
 
 1. In beiden Richtungen einen Testordner mit «Ersetzen» verschieben und innerhalb einer grösseren Datei pausieren. Auftrags-ID und bestätigte Bytes erfassen. Nur die eigene SMB-Testeinbindung trennen.
