@@ -672,6 +672,8 @@ Im sichtbaren Folgetest wurde der OneDrive-Bereich während des Countdowns gesch
 
 21. November 2026. Die Serverprüfung meldete 21 bestandene Prüfungen mit lokalen FTP-, FTPS- und SFTP-Testservern. Falsche Passwörter und ein nicht vertrauenswürdiges FTPS-Zertifikat wurden mit unterscheidbaren Fehlern abgewiesen. SFTP lieferte nach TCP-Abbruch und bewusstem Neuversuch bytegenaue Inhalte. Geprüft wurden auch Anmeldung mit verschlüsseltem SSH-Schlüssel und der Wiederherstellungsfall nach verlorener Serverantwort.
 
+21. November 2026. Build 496 öffnete aus «Verbindungen / Erneut anmelden» den vorausgefüllten Server-Editor für FTP, SFTP und FTPS. Die FTP-Neuanmeldung wurde im Fenster zweimal mit einer eigenen Sitzung und einem echten lokalen Testserver geprüft. Die App zeigte dessen Testdatei. SFTP zeigte die Hostschlüsselprüfung und FTPS das Zertifikatsfeld. Der Nachtest bestätigte die ursprüngliche Reihenfolge, Sichtbarkeit, Anzeigenamen und Serverprofile.
+
 ### SMB-Verbindung mit Unterordner prüfen (SERVER-08)
 
 1. Eine eigene SMB-Testfreigabe mit einem Unterordner «Übung 01» und einer bekannten Testdatei vorbereiten.
@@ -739,6 +741,8 @@ Der zusätzliche lokale Test am 21. November 2026 prüfte einen dauerhaften Prü
 Den Unicode-Ordner aus REG-NAS-28 zwischen einer eigenen SMB-Testfreigabe und einem entbehrlichen NTFS-Abbild in beide Richtungen verschieben und jeweils rückgängig machen. In einer zweiten Variante den Testprozess unmittelbar nach dem Weglegen der NTFS-Quelle gezielt beenden. Das NTFS-Abbild aushängen und die Wiederaufnahme prüfen. Das geprüfte SMB-Ziel muss vorhanden bleiben und der fehlende Quellort darf keinen Erfolg auslösen. Dasselbe Abbild wieder verbinden, dasselbe Journal fortsetzen, die Verschiebung rückgängig machen und die jeweiligen Originale unabhängig anhand von Namen und Prüfsummen prüfen.
 
 21. November 2026. Der native Transfercode bestand beide Richtungen. Beim getrennten NTFS-Abbild blieb das SMB-Ziel bytegenau erhalten, und der leere Einhängepunkt blieb unverändert. Nach dem Wiederverbinden schloss dasselbe Journal ab. Rückgängig stellte die Datei und den leeren Unterordner wieder her. Apples schreibgeschützter NTFS-Treiber und eine getrennte Nur-Lese-SMB-Verbindung bestätigten das Ergebnis. Die Namen der AppleDouble-Metadatendateien auf NTFS entsprachen einer separat angelegten Kontrollprobe. Verwendet wurde ein NTFS-Abbild mit dem installierten FSKit-Treiber aus Build 268. Physisches Laufwerk, Test-VM und sichtbare Bedienung waren in diesem Lauf nicht Teil der Prüfung.
+
+21. November 2026. Drei Registrierungs- und drei Zugriffsprüfungen bestanden. Die App verweigerte unter anderem interne, schreibgeschützte und nicht eindeutig zugeordnete Datenträger, und der Helfer verweigerte direkte Aufrufe ohne Privilegien. Die signierte Erweiterung aus Build 496 stimmt in den 32 geprüften schreibgeschützten Codeabschnitten mit der vorher am virtuellen NTFS-Abbild getesteten Erweiterung überein.
 
 ### NTFS und SMB im App-Fenster kopieren und rückgängig machen (DEVICE-04, SERVER-08)
 
