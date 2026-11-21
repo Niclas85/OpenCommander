@@ -1075,6 +1075,8 @@ Im signierten Mac-Build 392 bestanden sechs sichtbare Läufe bei 900 × 600 Fens
 
 20. November 2026. Mac-Build 448 stellte einen gespeicherten Rahmen von 1’920 × 1’080 Punkten teilweise ausserhalb des sichtbaren Bildschirms wieder her. Build 449 begrenzt beim Wiederöffnen Grösse und Position auf den sichtbaren Bereich des passenden Bildschirms. Mit demselben gespeicherten Rahmen lagen beide Dateibereiche im verfügbaren Bereich von 1’710 × 993 Punkten. Ein kompakter Rahmen von 900 × 600 Punkten behielt seine Grösse. In beiden Testfenstern liess sich die Sprachauswahl öffnen. Die Informationen zeigten den vollständigen langen Unicode-Dateinamen und 47 Bytes. «Alle fortsetzen» beendete jeweils den gespeicherten Kopierauftrag. «Alle abgeschlossenen entfernen» entfernte die Karte und erhielt die exakte Zieldatei sowie den Historieneintrag. Die Systemskalierung blieb bei 2×. Die restliche Auflösungs- und Skalierungsmatrix bleibt offen.
 
+Am 21. November meldete der eingebaute Bildschirm des Test-Macs 14 verfügbare Modi. Die Pixel-zu-Punkt-Skalen waren durchgehend 1× oder 2×. Die Prüfung bei exakt 150 % bleibt für diesen Mac offen.
+
 ### Sprache und Darstellung bei zwei Fenstergrössen prüfen (PROP-04)
 
 1. Ein separates Testprofil starten und die Suche einmal auf Englisch in heller Ansicht öffnen. Suchpfad, Hinweis zum Dateinamen, Start und Schliessen prüfen.
@@ -1773,6 +1775,21 @@ Im App-Fenster von Build 490 änderte F2 den eigenen Ordner von «Box» in «bOX
 Eine reine Google-Metadatenprüfung meldete zuvor eine Listenänderung an die anderen Dateibereiche. Der Nachtest bestätigte, dass die lesende Prüfung die vorhandenen Listen jetzt weiterverwendet und eine tatsächliche Änderung weiterhin eine Aktualisierung meldet. Alle 18 Prüfungen zu gemeinsamen Cloud-Listen und Kontobindungen bestanden mit kontrolliertem Transport.
 
 Ein kontrollierter Test liess die Antwort nach der Änderung von «Box» zu «bOX» ausfallen. Die erneut geöffnete Warteschlange fand denselben Auftrag und bestätigte die Änderung anhand der Anbieter-ID, der Revision und aller Inhalte. Die Wiederaufnahme führte zu keinem zweiten Schreibzugriff und erzeugte genau einen Umbenennungseintrag. «Rückgängig» stellte den ursprünglichen Namen wieder her. Ein zweiter Aufruf bestätigte den wiederhergestellten Zustand ohne erneuten Schreibzugriff.
+
+### Google-Ordner nach Prozessabbruch umbenennen (REG-GDOC-08)
+
+1. In einer isolierten Testinstanz einen eigenen Google-Drive-Ordner «Box» vorbereiten. Eine reguläre Datei, ein natives Google-Dokument und einen leeren Unterordner anlegen. Objekt-IDs, den Inhalt der regulären Datei und den Dokumenttext unabhängig erfassen.
+2. Den Ordner mit F2 in «bOX» umbenennen. Im Testadapter die Antwort nach der bestätigten Anbieteränderung zurückhalten und nur die Testinstanz beenden. Der unabhängige Abruf muss «bOX» am selben Ort und mit unveränderten IDs und Inhalten zeigen.
+3. Die Testinstanz mit demselben Profil erneut öffnen und denselben Auftrag fortsetzen. Im Verlauf muss genau eine Umbenennung erscheinen. Das Anbieterprotokoll muss nach dem Fortsetzen weiterhin genau einen Schreibzugriff für die Namensänderung zeigen.
+4. «Rückgängig» in einer weiteren App-Instanz ausführen. Google Drive muss «Box» mit denselben IDs und Inhalten zeigen. Bei einem Wiederholungsversuch darf kein neuer Schreibzugriff entstehen. Bei einem zusätzlich abgeänderten Dokumentinhalt muss die Auftragsprüfung abbrechen und den belegten Zustand erhalten.
+
+Im macOS-Live-Test endete der isolierte Testprozess unmittelbar nach Googles Bestätigung. Ein unabhängiger Abruf bestätigte danach «bOX» mit unveränderten IDs und Inhalten. Der nächste Prozess setzte denselben gespeicherten Auftrag fort und schrieb einen Verlaufseintrag. Ein dritter Prozess führte «Rückgängig» zweimal aus. Google bestätigte anschliessend «Box», den ursprünglichen Dokumenttyp und -text, die exakten Dateibytes und den leeren Unterordner.
+
+### Google-Metadaten lesen und gemeinsame Listen prüfen (REG-CLOUD-46)
+
+1. Beide Dateibereiche auf denselben eigenen Google-Drive-Ordner mit einem nativen Dokument einstellen. Die Listen laden und im Testadapter Listenabrufe und Aktualisierungsmeldungen ab jetzt zählen.
+2. Die Metadatenprüfung für eine Umbenennung vorbereiten und vor dem Schreibzugriff stoppen. Die unveränderten Listen und Auswahlen sollen sichtbar bleiben. Allein die geprüften Metadaten dürfen keine Listenänderung melden.
+3. Die Umbenennung ausführen. Die gemeinsame Liste muss sich aktualisieren. Beide Bereiche müssen den neuen Namen zum ursprünglichen Objekt anzeigen. Die unabhängige Google-Abfrage muss den neuen Namen und die ursprüngliche ID bestätigen.
 
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
