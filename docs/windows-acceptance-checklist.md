@@ -1718,7 +1718,9 @@ Beim Verschieben gewöhnlicher Cloud-Ordner zusätzlich leere Unterordner prüfe
 2. Die Antwort im Testadapter nach dem Schreibzugriff verlieren lassen. Dieselbe Warteschlange neu öffnen und den Auftrag fortsetzen. Die Original-IDs, die leeren Ordner und die Prüfsummen am Ziel kontrollieren. Der Verlauf muss genau einen Eintrag enthalten.
 3. Vor «Rückgängig» in getrennten Varianten den Quellordner am selben Pfad oder eine verschachtelte Zieldatei durch ein anderes Objekt ersetzen. Auch bei denselben Bytes darf «Rückgängig» keinen Schreibzugriff auslösen. Den ursprünglichen Zustand wiederherstellen und anhand der IDs prüfen, dass «Rückgängig» die Originale zurückverschiebt.
 
-Die Prüfungen mit simuliertem Anbieter am 21. November 2026 bestanden für Datei und Ordner. Ein davon getrennter Rundlauf auf echtem Dropbox bestätigte, dass der Anbieter beim Verschieben und Zurückverschieben die Original-IDs, Bytes, Metadaten und leeren Verzeichnisse erhält. Der Live-Test über die OpenCommander-Warteschlange steht noch aus.
+Die Prüfungen mit simuliertem Anbieter am 21. November 2026 bestanden für Datei und Ordner. Eine zusätzliche Variante unterbrach die Sicherung vor der Verschiebung. Mit einem fremden Eintrag in der Teilsicherung blieb die Quelle unverändert. Nach Entfernen des Testeintrags ergänzte derselbe Auftrag die fehlenden Dateien in derselben Sicherung und verschob die Quelle erst nach vollständiger Inhaltsprüfung.
+
+Der Live-Test beendete den eigenen Prozess direkt nach dem bestätigten Dropbox-Ordnerwechsel und vor der Rückmeldung an die Warteschlange. Ein neuer Prozess setzte denselben Auftrag fort und speicherte genau einen Verlaufseintrag. Ein weiterer Prozess führte «Rückgängig» aus. Unabhängige Dropbox-Abrufe bestätigten alle ursprünglichen Objekt-IDs, die exakten Dateiinhalte und den leeren Unterordner. Der eigene Testordner wurde entfernt. Die sichtbare Bedienprüfung im App-Fenster und der Live-Lauf mit einer einzelnen Datei bleiben separat.
 
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
