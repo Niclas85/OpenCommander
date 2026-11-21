@@ -1766,6 +1766,8 @@ Der erneute Live-Durchlauf mit Build 489 erreichte den Warteschlangenstatus «Ab
 
 Ein weiterer Nachtest prüft das direkte Umbenennen eines gemischten Ordners im selben Elternordner. Im kontrollierten App-Code-Test blieben bei einer normalen Namensänderung und bei einer Änderung nur der Gross- und Kleinschreibung die Ordner-ID und der Inhalt erhalten. Der serialisierte Verlaufseintrag stellte den Originalnamen wieder her. Ein zweites «Rückgängig» löste keinen weiteren Schreibzugriff aus. Der Transporttest bestätigte, dass eine Änderung der Schreibweise nur den Namen übermittelt und der Elternordner erhalten bleibt.
 
+Der separate Live-Abruf gegen Google bestätigte die normale Namensänderung, die Änderung nur der Schreibweise und die Rückkehr zum Originalnamen. Bei allen drei Änderungen blieben der Elternordner, die IDs aller Einträge, die Inhalte und der Änderungszeitpunkt erhalten. Googles numerische Ordnerrevision stieg jeweils um eins, obwohl das ETag unverändert blieb. Ein absichtlich falsches ETag wurde mit HTTP 412 abgewiesen. Die vollständige Warteschlangensuite meldete 598 bestandene Prüfungen, die Suite für Speicheridentität und Transport 62.
+
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
 1. Ein natives Google-Dokument im eigenen Testordner anlegen und ID, Typ und Text erfassen. In einen leeren Dropbox-Testordner **verschieben**. In Dropbox muss der DOCX-Export mit dem erwarteten Text erscheinen. Das ursprüngliche Google-Dokument muss unter einem internen Wiederherstellungsnamen mit derselben ID erhalten bleiben.
