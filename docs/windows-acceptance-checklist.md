@@ -575,6 +575,8 @@ Mac-Build 429 zeigte dieselbe datierte Liste und den Countdown auch über einen 
 
 Im Test der direkten OneDrive-Verbindung einen Ordnerabruf mit HTTP 500 beantworten. Ohne `Retry-After` darf der Leseabruf höchstens zweimal erneut gesendet werden, nach 2 und 4 Sekunden. Bei `Retry-After: 47` muss die letzte erfolgreiche Liste als datiert gekennzeichnet bleiben. Ein Ordner ohne frühere Liste meldet HTTP 500 mit der Wartezeit. Während des Cooldowns dürfen manuelle Aktualisierungen keine neue Anfrage auslösen. Nach Ablauf muss der erste erfolgreiche Abruf die frischen Daten anzeigen und die Warnung entfernen. Eine Schreibanfrage mit HTTP 500 wird nur einmal gesendet. Der Mac-Nachtest mit kontrollierten Graph-Antworten deckte alle Varianten ab.
 
+Mac-Testbuild 464 bestand den sichtbaren Nachtest mit direktem OneDrive und kontrollierten Graph-Antworten. Nach HTTP 503 zeigte der linke Bereich die datierte letzte Liste und den Countdown. Der rechte lokale Bereich blieb sichtbar. Zwei manuelle Aktualisierungen lösten während der Wartezeit keine weitere Anfrage aus. Nach 48,27 Sekunden erschien der frische Eintrag, der Countdown verschwand, und insgesamt wurden genau drei Antworten aufgezeichnet: HTTP 200, 503, 200.
+
 ### Cloud-Speichergrenze und Abfragelimit getrennt prüfen (CLOUD-06, PROP-08)
 
 1. Mit einem kontrollierten Cloud-Adapter eine Datei zum Testort kopieren und die Schreibanfrage mit HTTP 507 oder einem ausdrücklichen Speichergrenzen-Code beantworten.
