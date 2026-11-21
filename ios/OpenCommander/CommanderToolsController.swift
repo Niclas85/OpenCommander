@@ -91,8 +91,12 @@ final class CommanderToolsController: UIViewController, UITableViewDataSource, U
             let defaults = mode == .search ? [initialQuery] : ["[N][E]", "", "", "1", "3"]
             let labels = mode == .search ? [text("Dateiname (* und ? möglich)", "File name (* and ? allowed)")] : [text("Namensmuster", "Name pattern"), text("Suchen nach", "Find"), text("Ersetzen durch", "Replace with"), text("Zähler beginnt bei", "Counter starts at"), text("Zählerstellen (1–9)", "Counter digits (1–9)")]
             for i in defaults.indices {
-                let line = UIStackView(); line.spacing = 12
-                let label = UILabel(); label.text = labels[i]; label.widthAnchor.constraint(equalToConstant: 210).isActive = true
+                let line = UIStackView(); line.spacing = 12; line.alignment = .center
+                let label = UILabel()
+                label.text = labels[i]
+                label.numberOfLines = 0
+                label.lineBreakMode = .byWordWrapping
+                label.widthAnchor.constraint(equalToConstant: 210).isActive = true
                 fields[i].borderStyle = .roundedRect; fields[i].text = defaults[i]
                 fields[i].autocorrectionType = .no; fields[i].autocapitalizationType = .none
                 fields[i].accessibilityIdentifier = "CommanderToolField-\(i)"
