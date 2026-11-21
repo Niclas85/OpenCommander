@@ -550,6 +550,10 @@ Im signierten Mac-Build 322 lagen die gemessenen Zeiten inklusive Bedienautomati
 
 Für den Abbruchnachtest den Listenabruf eines eigenen Testordners gezielt verzögern. Während die Ladeanzeige sichtbar ist, den Cloud-Bereich schliessen. Der lokale Ordner muss sofort wieder erreichbar sein. Sobald der verzögerte Abruf beendet ist, darf keine alte Cloud-Liste die lokale Ansicht ersetzen. Denselben Cloud-Ort erneut öffnen und die Dateiliste unabhängig prüfen.
 
+In Mac-Testbuild 464 wurden beide Bereiche über die Oberfläche mit direktem OneDrive geöffnet. Nach normalem Beenden enthielt das Testprofil die Orte beider Bereiche. Der neue Prozess zeigte in beiden Bereichen den Ladezustand und noch keine alten Dateien. Der simulierte Graph-Anbieter erhielt genau eine gemeinsame Anfrage. Danach zeigten beide Bereiche die frische Liste.
+
+Mit demselben Mac-Build bestand der sichtbare Dropbox-Test an einem echten Testordner mit 35 Dateien. Der erste Abruf dauerte inklusive Bedienautomation 1,770 Sekunden, das Wiederöffnen 1,708 Sekunden. Der Unterordner liess sich mit Return öffnen und mit ⌥← verlassen. Nach einem normalen App-Neustart öffnete sich wieder der Unterordner und zeigte eine Datei, die zwischenzeitlich über eine separate Verbindung hinzugefügt worden war. Der unabhängige Abruf bestätigte die exakten Inhalte und unveränderte IDs der ursprünglichen Dateien. Der eigene Testordner wurde entfernt.
+
 ### Google-Drive-Hänger mit dem D1-Bestand prüfen (CLOUD-02)
 
 1. Einen frischen App-Testbereich und einen eigenen D1-Ordner in Google Drive vorbereiten. Den Ordnerabruf im Testadapter zurückhalten. Währenddessen im lokalen Bereich eine eigene Datei auswählen und danach die Cloud-Ansicht schliessen. Der Abruf soll enden, und beide lokalen Bereiche müssen erreichbar sein.
