@@ -166,6 +166,10 @@ Der native Mac-Testbuild 447 zeigte beim Microsoft-Anmeldeablauf die deutschen M
 
 21. November 2026. Alle 134 OneDrive-Clientprüfungen bestanden im seriellen Lauf. Kontrollierte Testantworten deckten unter anderem Ablehnung, Ablauf und erneute Anläufe ab. Verspätete oder verweigerte Antworten konnten eine bestehende Anmeldung nicht überschreiben.
 
+**Gespeicherte Cloud-Verbindung reparieren.** Unter «Verbindungen / Online-Konten» eine eigene Verbindung mit Startordner und abweichendem Anzeigenamen neu anmelden. Den Ordnerabruf zunächst verweigern und die gespeicherte Verbindung prüfen. Beim erneuten Abruf müssen Startordner, ID, Anzeigename und Sichtbarkeit erhalten bleiben.
+
+21. November 2026. Build 495 zeigte «OneDrive online – Erneut anmelden…» unter «Verbindungen / Online-Konten». Die Funktion öffnete den echten Microsoft-Anmeldedialog, und nach Abbruch blieb sie nutzbar. Bei einer getrennten simulierten Cloud-Verbindung liessen sich «Erneut anmelden», «Verbindung erneut bestätigen» und die Konfigurationsauswahl erreichen. Abbruch und eine verweigerte Liste des Startordners liessen die alte Konfiguration bestehen. Die Wiederholung listete den bisherigen Startordner nach genau einer simulierten Anmeldung. Die Verbindung behielt ihre ID, den Anzeigenamen und die ausgeblendete Verknüpfung. Der alte Konfigurationsinhalt und die lokalen Kontrolldateien blieben bytegenau erhalten.
+
 ### Persönlichen OneDrive-Speicher auswählen (AUTH-04)
 
 1. In einem separaten Profil mit einem Testkonto oder einem Testadapter mehrere Laufwerke anbieten. Den technischen Speicher zuerst und den persönlichen OneDrive-Speicher später in der Liste liefern. Für beide Einträge eindeutige Testdateien verwenden. Der Assistent muss den persönlichen Speicher kennzeichnen und bevorzugt anzeigen.

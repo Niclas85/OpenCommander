@@ -4,8 +4,9 @@ The **OneDrive online** location shortcut opens the native browser in the active
 left or right pane. It uses Microsoft Graph and works without a synced folder.
 
 If the saved sign-in is missing or has expired, select **Connect OneDrive online**
-in the pane. The same action is available in **Settings / Locations** and
-**Connections**. In older builds, open **Actions → Connect to Microsoft** in the
+in the pane or in **Settings / Locations**. In **Connections → Online accounts**,
+choose **OneDrive online → Sign in again…**. In older builds, open
+**Actions → Connect to Microsoft** in the
 OneDrive pane. Choose **Copy code and open browser**, enter the code on the Microsoft
 page, and review the requested access before approving your account.
 
