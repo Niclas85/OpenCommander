@@ -89,8 +89,10 @@ enum RcloneCommandPlan {
         try profile.validate()
         guard CloudConnection.validRelative(path), path.utf8.count <= 4096,
               destination.map({ CloudConnection.validRelative($0) && $0.utf8.count <= 4096 }) != false else { throw CloudConnection.failure("cloud_invalid") }
+        // lsjson --stat can report the only failure diagnostic at NOTICE.
+        let logLevel = operation == "stat" ? "NOTICE" : "ERROR"
         var global = ["--config", profile.configPath, "--ask-password=false", "--retries", "1", "--low-level-retries", "1",
-            "--contimeout", "15s", "--timeout", "30s", "--log-level", "ERROR"]
+            "--contimeout", "15s", "--timeout", "30s", "--log-level", logLevel]
         if profile.kind == "dropbox" {
             // Dropbox namespace commits can reject concurrent server-side
             // copies, even for tiny files. Serialize files inside each command

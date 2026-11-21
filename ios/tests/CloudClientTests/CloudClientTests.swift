@@ -1373,6 +1373,18 @@ import Darwin
         require(proxyFailure.localizedDescription == "cloud_temporarily_unavailable" &&
                 CloudProviderErrors.cooldown(proxyFailure) == 10,
                 "a rejected proxy CONNECT without a status number was not recognized as transient")
+        let statFailure = CloudProviderErrors.classify(Data(
+            #"NOTICE: Failed to lsjson: Post "https://api.dropboxapi.com/2/files/list_folder": Service Unavailable"#.utf8))
+        let diagnosticProfile = CloudConnection(name: "Diagnostic fixture", kind: "dropbox", remote: "fixture",
+                                                configPath: "/private/tmp/owned-diagnostic.conf")
+        let statCommand = try RcloneCommandPlan.arguments(profile: diagnosticProfile, operation: "stat", path: "File")
+        let listCommand = try RcloneCommandPlan.arguments(profile: diagnosticProfile, operation: "list", path: "")
+        func logLevel(_ arguments: [String]) -> String? {
+            zip(arguments, arguments.dropFirst()).first { $0.0 == "--log-level" }?.1
+        }
+        require(statFailure.localizedDescription == "cloud_temporarily_unavailable" &&
+                logLevel(statCommand) == "NOTICE" && logLevel(listCommand) == "ERROR",
+                "stat lost its proxy failure diagnostic or changed the listing log level")
         for diagnostic in [#"Failed to open "https://example.invalid/Service Unavailable": not found"#,
                            #"Failed to open file "Service Unavailable": not found"#,
                            #"Could not stat post "https://example.invalid/": Service Unavailable.txt"#] {
