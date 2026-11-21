@@ -1712,6 +1712,14 @@ Der korrigierte Live-Nachtest beendete den eigenen Testprozess direkt nach Googl
 
 Beim Verschieben gewöhnlicher Cloud-Ordner zusätzlich leere Unterordner prüfen. Der macOS-Test bestätigt, dass sowohl das Ziel als auch die Wiederherstellungskopie den leeren Unterordner enthalten. rclone verwendet dafür die Option zur Übernahme leerer Verzeichnisse. [rclone-Dokumentation](https://rclone.org/commands/rclone_copy/)
 
+### Dateien und Ordner im selben Dropbox-Konto nach Abbruch verschieben
+
+1. Eine eigene Datei und einen eigenen Ordner mit verschachtelter Datei und leerem Unterordner anlegen. Quellordner-, Zielordner- und Objekt-IDs sowie die Prüfsummen erfassen.
+2. Die Antwort im Testadapter nach dem Schreibzugriff verlieren lassen. Dieselbe Warteschlange neu öffnen und den Auftrag fortsetzen. Die Original-IDs, die leeren Ordner und die Prüfsummen am Ziel kontrollieren. Der Verlauf muss genau einen Eintrag enthalten.
+3. Vor «Rückgängig» in getrennten Varianten den Quellordner am selben Pfad oder eine verschachtelte Zieldatei durch ein anderes Objekt ersetzen. Auch bei denselben Bytes darf «Rückgängig» keinen Schreibzugriff auslösen. Den ursprünglichen Zustand wiederherstellen und anhand der IDs prüfen, dass «Rückgängig» die Originale zurückverschiebt.
+
+Die Prüfungen mit simuliertem Anbieter am 21. November 2026 bestanden für Datei und Ordner. Ein davon getrennter Rundlauf auf echtem Dropbox bestätigte, dass der Anbieter beim Verschieben und Zurückverschieben die Original-IDs, Bytes, Metadaten und leeren Verzeichnisse erhält. Der Live-Test über die OpenCommander-Warteschlange steht noch aus.
+
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
 1. Ein natives Google-Dokument im eigenen Testordner anlegen und ID, Typ und Text erfassen. In einen leeren Dropbox-Testordner **verschieben**. In Dropbox muss der DOCX-Export mit dem erwarteten Text erscheinen. Das ursprüngliche Google-Dokument muss unter einem internen Wiederherstellungsnamen mit derselben ID erhalten bleiben.
