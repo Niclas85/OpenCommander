@@ -1770,6 +1770,8 @@ Der separate Live-Abruf gegen Google bestätigte die normale Namensänderung, di
 
 Im App-Fenster von Build 490 änderte F2 den eigenen Ordner von «Box» in «bOX». Die Historie enthielt genau einen Umbenennungseintrag. «Rückgängig» stellte den ursprünglichen Namen wieder her. Ein unabhängiger Google-Abruf bestätigte vor und nach «Rückgängig» dieselben IDs und Inhalte aller Einträge. Beide lokalen Kontrolldateien blieben erhalten und die eigenen Testdaten wurden entfernt.
 
+Eine reine Google-Metadatenprüfung meldete zuvor eine Listenänderung an die anderen Dateibereiche. Der Nachtest bestätigte, dass die lesende Prüfung die vorhandenen Listen jetzt weiterverwendet und eine tatsächliche Änderung weiterhin eine Aktualisierung meldet. Alle 18 Prüfungen zu gemeinsamen Cloud-Listen und Kontobindungen bestanden mit kontrolliertem Transport.
+
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
 1. Ein natives Google-Dokument im eigenen Testordner anlegen und ID, Typ und Text erfassen. In einen leeren Dropbox-Testordner **verschieben**. In Dropbox muss der DOCX-Export mit dem erwarteten Text erscheinen. Das ursprüngliche Google-Dokument muss unter einem internen Wiederherstellungsnamen mit derselben ID erhalten bleiben.
