@@ -1642,6 +1642,15 @@ Mac-Build 414 bestand alle drei Unterbrechungsvarianten auf APFS. Zwei tatsächl
 
 Mac-Build 415 bestand beide Varianten mit APFS-Abbildern. Am leeren Einhängepfad entstanden beim Rückgängig-Versuch keine Dateien. Die App meldete das fehlende ursprüngliche Laufwerk auch bei einem anderen Volume mit derselben vorübergehenden Gerätenummer. Nach dem erneuten Einhängen des Originals mit einer neuen Gerätenummer stellte sie je 1’800 Dateien der beiden Ordnerversionen mit exakten SHA-256-Prüfsummen wieder her. Der ursprüngliche Historieneintrag und die Daten auf dem zweiten Volume wurden separat geprüft.
 
+### Ordner nach einem Abbruch beim Quell-Aufräumen wiederherstellen (REC-10)
+
+1. Auf eigenen NTFS- und exFAT-Testmedien je eine Datei und einen Ordner mit einem leeren Unterordner und einer Unicode-Datei anlegen. Namen und SHA-256 erfassen.
+2. In beiden Richtungen je eine Datei und einen Ordner verschieben. Den Testprozess nach verifiziertem Ziel und gesicherter Quelle stoppen.
+3. Die Testmedien erneut einhängen. Am bisherigen Quellpfad ein anderes eigenes Objekt anlegen. Die Fortsetzung muss die neue Quelle und das verifizierte Ziel erhalten.
+4. Das neue Kontrollobjekt aus dem Quellpfad entfernen, den ursprünglichen Auftrag fortsetzen und rückgängig machen. Namen, Unterordner und Bytes prüfen.
+
+21. November 2026. Ein Regressionstest auf frischen virtuellen NTFS- und exFAT-Medien unterbrach das Verschieben einer Datei und eines Ordners in beide Richtungen nach der Zielprüfung und der Sicherung der Quelle. Nach erneutem Einhängen verweigerte jeder Auftrag eine unabhängig erstellte Quelle am gleichen Pfad und erhielt deren Inhalt. Die Fortsetzung verwendete das ursprüngliche Journal. Rückgängig stellte die ursprünglichen Dateien, den Unicode-Dateinamen, die Unterordner und den leeren Ordner vollständig wieder her. Beide Abbilder wurden ausgehängt. Der Test prüfte den unterbrochenen Cleanup mit dem signierten Treibercode aus Build 497 auf Testabbildern. Der vollständige D2-Datensatz und die sichtbare Prüfung des Auftrags waren nicht Teil dieses Laufs.
+
 ### Rückgängig bei verändertem exFAT-Ziel oder belegter Quelle
 
 1. Eine eigene Datei auf ein exFAT-Testlaufwerk kopieren. Danach direkt auf dem Laufwerk ein Byte der Zieldatei ändern. Länge, Dateikennung und den letzten Schreibzeitpunkt beibehalten. «Rückgängig» wählen. Die Meldung soll sich auf die Rückgängig-Aktion beziehen. Die geänderte Zieldatei und der Historieneintrag bleiben erhalten.
