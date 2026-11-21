@@ -1730,6 +1730,16 @@ Der Live-Test beendete den eigenen Prozess direkt nach dem bestätigten Dropbox-
 
 Beim Live-Nachtest auf macOS am 21. November 2026 konnte Google Drive die Änderungszeit des verschobenen Hauptordners aktualisieren. Die Prüfungen verglichen die ursprüngliche Ordner-ID, die IDs und Revisionen der Untereinträge sowie die exakten Dateiinhalte. Nach dem Prozessabbruch setzte ein neuer Prozess denselben Auftrag fort und schrieb einen Verlaufseintrag. Ein weiterer Prozess führte «Rückgängig» aus. Die unabhängige Anbieterabfrage bestätigte die ursprünglichen Objekte und den leeren Unterordner. Der eigene Testordner wurde anschliessend entfernt. Der Lauf verwendete die produktive macOS-Warteschlange in einem isolierten Testprogramm. Ein separater Live-Lauf mit einer gewöhnlichen Datei bestand denselben Ablauf. Nach der Wiederaufnahme und nach «Rückgängig» bestätigte der unabhängige Anbieterabruf dieselbe Datei-ID und exakt dieselben Bytes. Die Testdatei wurde entfernt. Die sichtbare Bedienprüfung im App-Fenster bleibt offen.
 
+### Google-Drive-Ordner mit nativen Dokumenten
+
+1. Einen eigenen Google-Drive-Ordner mit einer gewöhnlichen Datei, einem nativen Google-Dokument und einem leeren Unterordner anlegen. Die IDs und Inhalte erfassen.
+2. Den ganzen Ordner innerhalb desselben Kontos verschieben. Am Ziel müssen alle IDs, der native Dokumenttyp, die Inhalte und der leere Unterordner erhalten sein. Nach einer verlorenen Anbieterantwort jeweils die Wiederaufnahme und «Rückgängig» mit neuer Prozessinstanz prüfen.
+3. In einem eigenen Testordner eine veraltete Anbieterrevision simulieren. Die App darf bei einer abgewiesenen Änderung keinen Abschluss im Verlauf erzeugen.
+
+Der macOS-Nachtest vom 21. November 2026 reproduzierte die Ablehnung des gemischten Ordners vor der Auftragsaufnahme. Eine unabhängige Kontrolle bestätigte die unveränderte Quelle und den leeren Zielordner. Die eigenen Testdaten wurden entfernt. Das Verschieben dieses Ordners über die Anwendung ist weiterhin offen.
+
+Ein separater Test direkt gegen die Google-Drive-API verschob einen eigenen gemischten Ordner hin und zurück. Alle Objekt-IDs, der native Dokumenttyp, der Dokumenttext und der leere Unterordner blieben erhalten. Ein absichtlich nicht passendes ETag wurde mit HTTP 412 abgewiesen. Beim erfolgreichen Elternordnerwechsel blieben das ETag und der Änderungszeitpunkt des Hauptordners gleich, während Google die numerische Revision jeweils um eins erhöhte. Dieser Anbieterbefund ist wichtig für einen Test mit einem inzwischen geänderten Elternordner. [Google Drive API files.patch](https://developers.google.com/workspace/drive/api/reference/rest/v2/files/patch)
+
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
 1. Ein natives Google-Dokument im eigenen Testordner anlegen und ID, Typ und Text erfassen. In einen leeren Dropbox-Testordner **verschieben**. In Dropbox muss der DOCX-Export mit dem erwarteten Text erscheinen. Das ursprüngliche Google-Dokument muss unter einem internen Wiederherstellungsnamen mit derselben ID erhalten bleiben.
