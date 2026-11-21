@@ -600,6 +600,18 @@ final class MockMicrosoft: URLProtocol {
         do { _ = try await retryAPI.children(); fatalError("Long rate limit accepted") } catch { }
         check(retryCalls == 1 && delays.isEmpty, "Long Retry-After does not exceed time budget or retry early")
         MockMicrosoft.headers = [:]; retryCalls = 0; delays = []
+        MockMicrosoft.handler = { _ in
+            retryCalls += 1
+            return retryCalls < 3 ? (500, "{}") : (200, #"{"value":[]}"#)
+        }
+        _ = try await retryAPI.children()
+        check(retryCalls == 3 && delays == [2, 4], "Graph HTTP500 must recover with bounded read retries")
+        retryCalls = 0; delays = []
+        MockMicrosoft.handler = { _ in retryCalls += 1; return (500, "{}") }
+        do { try await retryAPI.createFolder("NeverReplay500", parent: nil); fatalError("Failed HTTP500 mutation accepted") } catch {}
+        check(retryCalls == 1 && delays.isEmpty, "Graph HTTP500 must not replay a mutation")
+        print("PASS Graph HTTP500 retries only reads with bounded backoff")
+        retryCalls = 0
         MockMicrosoft.handler = { _ in retryCalls += 1; return (503, "{}") }
         do { try await retryAPI.createFolder("NeverReplay", parent: nil); fatalError("Failed mutation accepted") } catch { }
         check(retryCalls == 1 && delays.isEmpty, "Mutations are never replayed")

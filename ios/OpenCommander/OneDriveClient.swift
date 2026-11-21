@@ -514,7 +514,9 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
         if (200..<300).contains(http.statusCode) {
             return data
         }
-        if method == "GET", attempt < 2, [429, 502, 503, 504].contains(http.statusCode) {
+        let retryableResponse = [429, 502, 503, 504].contains(http.statusCode) ||
+            (method == "GET" && http.statusCode == 500)
+        if method == "GET", attempt < 2, retryableResponse {
             let delay = Self.retryDelay(http, fallback: TimeInterval(2 << attempt))
             if delay < deadline.timeIntervalSinceNow {
                 try await retrySleep(delay)
@@ -525,7 +527,7 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
             if http.statusCode == 401 { accessToken = nil; expiresAt = .distantPast }
             if http.statusCode == 409 { throw OneDriveFailure.nameConflict }
             try Self.checkPermissionAndQuota(http.statusCode)
-            if [429, 502, 503, 504].contains(http.statusCode) {
+            if retryableResponse {
                 throw OneDriveFailure.temporarilyUnavailable(http.statusCode, retryAfter: max(10, Self.retryDelay(http, fallback: 10)))
             }
             throw OneDriveFailure.message("OneDrive request failed (HTTP \(http.statusCode)). \(http.statusCode == 401 ? "Reconnect your account." : "No success was reported; refresh before retrying a change.")")
