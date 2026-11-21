@@ -128,4 +128,6 @@
     <string name="move_cleanup_failed">De bron kon niet volledig worden verwijderd. De volledige kopie blijft bewaard in: %1$s</string>
     <string name="recovery_retained">Herstelbestanden blijven bewaard in: %1$s</string>
     <string name="operation_cancelled">Bewerking geannuleerd. Voltooide items kunnen ongedaan worden gemaakt.</string>
+    <string name="more_apps">Meer apps op haenggi.vip ↗</string>
+    <string name="more_apps_open_failed">Geen browser beschikbaar. Open https://haenggi.vip/ op een ander apparaat.</string>
 </resources>

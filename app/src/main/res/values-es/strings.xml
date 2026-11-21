@@ -128,4 +128,6 @@
     <string name="move_cleanup_failed">No se pudo eliminar toda la fuente. Se conserva la copia completa en: %1$s</string>
     <string name="recovery_retained">Los archivos de recuperación se conservan en: %1$s</string>
     <string name="operation_cancelled">Operación cancelada. Los elementos completados se pueden deshacer.</string>
+    <string name="more_apps">Más aplicaciones en haenggi.vip ↗</string>
+    <string name="more_apps_open_failed">No hay ningún navegador disponible. Abre https://haenggi.vip/ en otro dispositivo.</string>
 </resources>

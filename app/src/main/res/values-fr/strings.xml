@@ -128,4 +128,6 @@
     <string name="move_cleanup_failed">La source n’a pas pu être entièrement supprimée. La copie complète est conservée ici : %1$s</string>
     <string name="recovery_retained">Les fichiers de récupération sont conservés ici : %1$s</string>
     <string name="operation_cancelled">Opération annulée. Les éléments terminés peuvent être annulés.</string>
+    <string name="more_apps">Autres applications sur haenggi.vip ↗</string>
+    <string name="more_apps_open_failed">Aucun navigateur disponible. Ouvrez https://haenggi.vip/ sur un autre appareil.</string>
 </resources>

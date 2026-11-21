@@ -128,4 +128,6 @@
     <string name="move_cleanup_failed">Impossibile eliminare completamente l’origine. La copia completa è conservata in: %1$s</string>
     <string name="recovery_retained">I file di ripristino sono conservati in: %1$s</string>
     <string name="operation_cancelled">Operazione annullata. Gli elementi completati possono essere ripristinati.</string>
+    <string name="more_apps">Altre app su haenggi.vip ↗</string>
+    <string name="more_apps_open_failed">Nessun browser disponibile. Apri https://haenggi.vip/ su un altro dispositivo.</string>
 </resources>

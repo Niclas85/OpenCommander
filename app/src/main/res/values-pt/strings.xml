@@ -128,4 +128,6 @@
     <string name="move_cleanup_failed">Não foi possível excluir toda a origem. A cópia completa foi preservada em: %1$s</string>
     <string name="recovery_retained">Os arquivos de recuperação foram preservados em: %1$s</string>
     <string name="operation_cancelled">Operação cancelada. Os itens concluídos podem ser desfeitos.</string>
+    <string name="more_apps">Mais aplicações em haenggi.vip ↗</string>
+    <string name="more_apps_open_failed">Nenhum navegador disponível. Abra https://haenggi.vip/ noutro dispositivo.</string>
 </resources>
