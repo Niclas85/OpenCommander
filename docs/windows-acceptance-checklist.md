@@ -1797,11 +1797,16 @@ Das App-Fenster von Build 491 führte die F2-Umbenennung über genau einen Warte
 
 1. In einem eigenen Google-Drive-Testordner eine reguläre Datei, ein natives Google-Dokument und einen leeren Unterordner anlegen. Die IDs, den Nutzinhalt und die ursprünglichen Pfade beim Anbieter erfassen.
 2. Den Ordner zur Wiederherstellung entfernen. In der Dateiliste muss der bisherige Name verschwinden. Der Wiederherstellungsort muss das ursprüngliche Objekt mit denselben untergeordneten IDs und Inhalten enthalten. Genau einen Löschvorgang im Verlauf erwarten.
-3. Mit demselben Testprofil erneut starten und den Vorgang über die Historie rückgängig machen. Der ursprüngliche Name, die ursprünglichen IDs, der Dokumenttyp, der Dokumenttext und die Dateibytes müssen beim Anbieter übereinstimmen. Ein erneuter Aufruf muss den bereits wiederhergestellten Zustand bestätigen.
+3. In einem separaten Lauf die Antwort nach der bestätigten Anbieteränderung zurückhalten. Mit demselben Testprofil erneut starten und den gespeicherten Löschauftrag fortsetzen. Der Anbieter darf keinen zweiten Schreibzugriff für das Entfernen erhalten. Genau einen Löschbeleg erwarten.
+4. Den Vorgang über die Historie rückgängig machen. Der ursprüngliche Name, die ursprünglichen IDs, der Dokumenttyp, der Dokumenttext und die Dateibytes müssen beim Anbieter übereinstimmen. Ein erneuter Aufruf muss den bereits wiederhergestellten Zustand bestätigen.
 
-Der kontrollierte Mac-Test bestätigte, dass Abbrechen vor dem Start keinen Schreibzugriff auslöst. Nach dem Entfernen behielt der Ordner seine ursprüngliche ID am Wiederherstellungsort. Der Löschbeleg stellte den ursprünglichen Namen wieder her. Ein zweiter Aufruf blieb schreibfrei. Die separate sichtbare Abnahme mit echtem Google Drive steht aus.
+Der kontrollierte Mac-Test bestätigte, dass Abbrechen vor dem Start keinen Schreibzugriff auslöst. Nach dem Entfernen behielt der Ordner seine ursprüngliche ID am Wiederherstellungsort. Der Löschbeleg stellte den ursprünglichen Namen wieder her. Ein zweiter Aufruf blieb schreibfrei.
 
 Der separate Live-Test bei Google Drive bestätigte das ursprüngliche Objekt unter dem Wiederherstellungsnamen und nach der Rückkehr zu «Box». Der Dokumenttyp, der Text, die Prüfsumme der regulären Datei und der leere Unterordner blieben erhalten. Google gab pro Änderung genau die nächste Ordnerrevision zurück. Eine Anfrage mit falschem ETag wurde mit HTTP 412 abgewiesen. Die eigenen Testdaten wurden entfernt. Die vollständige kontrollierte Warteschlangensuite mit diesem Löschfall lieferte 600 PASS-Meldungen.
+
+Der kontrollierte Nachtest mit verlorener Anbieterantwort rekonstruierte den Löschbeleg aus dem bereits gesicherten Original. Die erneute Ausführung blieb schreibfrei. «Rückgängig» stellte den Ordner an seinem ursprünglichen Pfad wieder her. Der Wiederholungsversuch bestätigte den Zustand ebenfalls ohne Schreibzugriff.
+
+Im App-Fenster von Build 492 erzeugte «In die Cloud-Wiederherstellung verschieben» genau einen Warteschlangenauftrag und einen Löschbeleg. «Box» verschwand unter seinem ursprünglichen Namen aus der Dateiliste. Ein unabhängiger Abruf bei Google bestätigte dieselbe Ordner-ID am Wiederherstellungsort. «Rückgängig» stellte in derselben App-Sitzung den ursprünglichen Namen, alle IDs und Inhalte wieder her. Die beiden lokalen Kontrolldateien blieben unverändert und die eigenen Testdaten wurden entfernt.
 
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
