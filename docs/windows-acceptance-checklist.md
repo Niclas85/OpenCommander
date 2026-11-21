@@ -1280,6 +1280,8 @@ Alle fünf Varianten bestanden auf dem Mac mit simulierten Anbietern und echten 
 
 21. November 2026. Der ältere macOS-Client scheiterte bei der HTML-Fehlerantwort mit einem JSON-Fehler. Der korrigierte Client behielt dieselbe Sitzung und den bytegenauen lokalen Sitzungsstand bis zur Bestätigung. Der Testadapter empfing die vier Blöcke genau einmal und in der richtigen Folge. Die drei Serverfehler wurden mit der vorgegebenen Wartezeit gemeldet. Die Prüfung verwendete kontrollierte Graph-Antworten und neue Client-Instanzen. Die sichtbare App-Bedienung im Testnetz bleibt separat offen.
 
+Beim zusätzlichen Kontowechseltest die Antwort für den letzten Block zurückhalten, nachdem der Adapter alle Bytes erhalten hat. Das Testkonto trennen und erst dann HTTP 201 liefern. Die alte Client-Instanz darf den Auftrag nicht als abgeschlossen melden. Der gespeicherte Sitzungsstand und die lokale Quelle müssen erhalten bleiben. In einem zweiten Ablauf das Konto während der Prüfung vor der Sitzungseröffnung wechseln. Der abgelöste Auftrag darf keine Anfrage mit dem neuen Konto starten. Beide kontrollierten macOS-Prüfungen bestanden.
+
 ### Abbruch nach bestätigtem OneDrive-Upload prüfen
 
 1. Eine eigene Datei von einem anderen Cloud-Anbieter nach OneDrive Online verschieben. Die Prüfsumme der Quelle und bei «Ersetzen» die Prüfsumme der bisherigen OneDrive-Datei festhalten. Im Testlauf den Auftrag nach Bestätigung der Zieldatei durch OneDrive und vor dem Entfernen der Quelle unterbrechen.

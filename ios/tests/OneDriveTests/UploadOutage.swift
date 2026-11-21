@@ -128,5 +128,35 @@ enum OneDriveUploadOutageTest {
         let onDisk = try Data(contentsOf: source)
         precondition(onDisk == payload && !FileManager.default.fileExists(atPath: marker.path))
         print("PASS lost Graph fragment replies resume at the server offset with exact bytes and no replay")
+
+        let delayed = Provider(payload)
+        delayed.enter(.finish)
+        let disconnected = newClient()
+        let lastReply = DispatchSemaphore(value: 0)
+        MockMicrosoft.handler = { request in
+            let response = try delayed.respond(to: request)
+            if response.0 == 201 {
+                // The mock provider already accepted all bytes. Deliver
+                // its reply only after local account invalidation completes.
+                Task { @MainActor in
+                    try disconnected.disconnect()
+                    lastReply.signal()
+                }
+                precondition(lastReply.wait(timeout: .now() + 5) == .success)
+            }
+            return response
+        }
+        do {
+            try await disconnected.upload(source, parent: "test-folder")
+            throw NSError(domain: "OneDriveUploadOutageTest", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "Late upload success crossed account invalidation"])
+        } catch is CancellationError {}
+        delayed.verify(sessions: 1, reads: 0, offsets: [0, block, 2 * block, 3 * block], completed: true)
+        precondition(FileManager.default.fileExists(atPath: marker.path))
+        let afterDisconnect = try Data(contentsOf: source)
+        precondition(afterDisconnect == payload)
+        let stillSignedIn = try disconnected.hasSavedLogin()
+        precondition(!stillSignedIn)
+        print("PASS late Graph success cannot finish a disconnected upload or discard its saved session")
     }
 }

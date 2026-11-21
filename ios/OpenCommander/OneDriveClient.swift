@@ -716,7 +716,12 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
     }
     private func uploadChunks(_ file: URL, size: Int, parent: String?) async throws {
         let generation = sessionGeneration
+        func requireUploadContext() throws {
+            try Task.checkCancellation()
+            guard generation == sessionGeneration else { throw CancellationError() }
+        }
         let fingerprint = try await Task.detached { try Self.localSnapshot(file) }.value
+        try requireUploadContext()
         var checkpoint: URL?
         var uploadURL: URL?
         var offset = 0
@@ -734,7 +739,8 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
                 // Ask the server, not a locally remembered offset: the previous
                 // process may have exited after the server accepted a fragment.
                 let (stateData, response) = try await session.data(for: URLRequest(url: saved.url))
-                guard let http = response as? HTTPURLResponse, http.url?.scheme == "https", generation == sessionGeneration else { throw CancellationError() }
+                try requireUploadContext()
+                guard let http = response as? HTTPURLResponse, http.url?.scheme == "https" else { throw CancellationError() }
                 try Self.checkUploadSessionResponse(http)
                 if http.statusCode == 404 || http.statusCode == 410 {
                     try FileManager.default.removeItem(at: checkpoint)
@@ -753,22 +759,24 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
             }
         }
         if uploadURL == nil {
-        let body = try JSONSerialization.data(withJSONObject: ["item": ["@microsoft.graph.conflictBehavior": "fail", "name": file.lastPathComponent]])
-        let data = try await request(itemPath(parent) + ":/" + component(file.lastPathComponent) + ":/createUploadSession", method: "POST", body: body)
-        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        guard let address = object?["uploadUrl"] as? String, let url = URL(string: address), Self.secureUploadURL(url) else { throw OneDriveFailure.message("Invalid upload address.") }
-        uploadURL = url
-        if let checkpoint {
-            try JSONEncoder().encode(UploadCheckpoint(url: url, size: size, fingerprint: fingerprint)).write(to: checkpoint, options: .atomic)
-            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: checkpoint.path)
+            try requireUploadContext()
+            let body = try JSONSerialization.data(withJSONObject: ["item": ["@microsoft.graph.conflictBehavior": "fail", "name": file.lastPathComponent]])
+            let data = try await request(itemPath(parent) + ":/" + component(file.lastPathComponent) + ":/createUploadSession", method: "POST", body: body)
+            try requireUploadContext()
+            let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            guard let address = object?["uploadUrl"] as? String, let url = URL(string: address), Self.secureUploadURL(url) else { throw OneDriveFailure.message("Invalid upload address.") }
+            uploadURL = url
+            if let checkpoint {
+                try JSONEncoder().encode(UploadCheckpoint(url: url, size: size, fingerprint: fingerprint)).write(to: checkpoint, options: .atomic)
+                try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: checkpoint.path)
+            }
         }
-        }
-        guard let url = uploadURL, generation == sessionGeneration else { throw CancellationError() }
+        try requireUploadContext()
+        guard let url = uploadURL else { throw CancellationError() }
         let handle = try FileHandle(forReadingFrom: file); defer { try? handle.close() }
         try handle.seek(toOffset: UInt64(offset))
         while offset < size {
-            try Task.checkCancellation()
-            guard generation == sessionGeneration else { throw CancellationError() }
+            try requireUploadContext()
             let expected = min(10 * 327_680, size - offset)
             guard let chunk = try handle.read(upToCount: expected), chunk.count == expected else { throw OneDriveFailure.message("Source changed during upload.") }
             var request = URLRequest(url: url)
@@ -777,6 +785,7 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
             request.setValue(String(chunk.count), forHTTPHeaderField: "Content-Length")
             // The upload URL is preauthenticated. Never send our Graph token.
             let (reply, response) = try await session.data(for: request)
+            try requireUploadContext()
             guard let http = response as? HTTPURLResponse, http.url?.scheme == "https" else { throw OneDriveFailure.message("Invalid upload response.") }
             try Self.checkUploadSessionResponse(http)
             offset += chunk.count
@@ -799,6 +808,7 @@ private final class OneDrivePreviewDownloadGuard: OneDriveRedirectGuard, URLSess
 #endif
             }
         }
+        try requireUploadContext()
         if let checkpoint { try FileManager.default.removeItem(at: checkpoint) }
     }
     // Personal and business drives can describe the remaining suffix as either
