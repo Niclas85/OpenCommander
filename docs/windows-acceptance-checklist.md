@@ -433,6 +433,8 @@ Beim Versuch eines Cloud-Transfers auf SMB wartete der Hauptthread von Mac-Build
 
 21. November 2026. Release-Kandidat 474 enthält die zusätzliche Prüfung des gespeicherten Namens bei Umbenennungen, die nur Gross- und Kleinschreibung ändern. Der exakt signierte Build startete mit getrenntem Profil. Gatekeeper, angeheftetes Apple-Notarisierungsticket, beide Verteilungsprofile sowie NTFS-Helfer und schreibfähige FSKit-Erweiterung bestanden die Paketprüfung. Auf demselben Quellstand bestanden 26 Werkzeugprüfungen einschliesslich Mehrfachumbenennen und erzwungenem Prozessabbruch sowie 35 Prüfungen des Historienstores. Die sichtbare Bedienprüfung des Release-Builds und der Austausch der installierten Version stehen aus.
 
+Der signierte und notarisierte Release-Kandidat 480 bestand den Start mit separatem Profil und die Verteilungsprüfung. Alle 32 in den schreibgeschützten Mach-O-Segmenten abgelegten Abschnitte der FSKit-Erweiterung hatten dieselben SHA-256-Werte wie beim signierten Build 475. Dessen Treibercode wurde zuvor auf einem virtuellen NTFS-Abbild im Schreibmodus und anschliessend mit Apples Nur-Lese-Treiber geprüft. Für Build 480 steht der physische Datenträgertest aus.
+
 21. November 2026. Der signierte Release-Kandidat 475 enthält die vervollständigten Laufwerks- und Ordnertexte. Die native Lokalisierungssuite bestand 62 Prüfungen in 20 Sprachen. Sie öffnete die gespeicherten Fehler für fehlende Quell- und Ziellaufwerke in jeder Sprache und prüfte die Anzeige eines Unicode-Ordnernamens im Fortschritt. Der exakte Build startete in einem getrennten Profil. Apple akzeptierte die Notarisierung und die Paketprüfung bestätigte das angeheftete Ticket, Gatekeeper und das schreibfähige NTFS-Modul. Die sichtbare Abnahme und der Austausch der installierten Version stehen aus.
 
 ### Start mit gespeichertem Netzordner prüfen
@@ -1701,6 +1703,8 @@ Der Mac-Live-Test belegt die Quellensicherung und Wiederherstellung. Der vollst�
 3. «Rückgängig» aus dem neu geladenen Verlauf ausführen. Die Dokument-ID, der Inhalt und der ursprüngliche Ordner müssen übereinstimmen. In einem getrennten Lauf nach dem verlorenen Rückruf eine abweichende Dateirevision simulieren. Die Warteschlange darf daraus keinen Erfolg ableiten.
 
 Der kontrollierte macOS-Test am 21. November 2026 bestand alle Schritte mit einer simulierten Anbieterantwort. Die Wiederaufnahme verwendete denselben gespeicherten Auftrag und der Verlauf blieb auch nach doppelter Bestätigung bei einem Eintrag. «Rückgängig» stellte dieselbe Dokument-ID im Quellordner wieder her. Der getrennte Lauf mit einem echten Google-Dokument ist noch offen.
+
+Der erste Live-Nachtest erreichte den bedingten Schreibzugriff auf Google. Eine unabhängige Auflistung fand das eigene Dokument im Zielordner. Die Anbieterantwort bestätigte die unveränderte Änderungszeit, doch die App meldete «Datei geändert». Der geplante Prozessabbruch und das bestätigte Rückgängig wurden deshalb in diesem Lauf nicht erreicht. Der eigene Testordner wurde nach Prüfung entfernt.
 
 Beim Verschieben gewöhnlicher Cloud-Ordner zusätzlich leere Unterordner prüfen. Der macOS-Test bestätigt, dass sowohl das Ziel als auch die Wiederherstellungskopie den leeren Unterordner enthalten. rclone verwendet dafür die Option zur Übernahme leerer Verzeichnisse. [rclone-Dokumentation](https://rclone.org/commands/rclone_copy/)
 
