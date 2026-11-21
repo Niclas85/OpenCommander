@@ -20,6 +20,21 @@ do {
     L10n.currentLanguage = "en"
     require(reopened.errorMessage == L10n.get("history_error_space") && reopened.errorMessage!.contains("free space"), "saved ENOSPC not dynamically translated")
     require(!String(decoding: data, as: UTF8.self).contains("free space"), "queue persisted translated OS error")
+    let iCloudError = NSError(domain: NSCocoaErrorDomain, code: NSUbiquitousFileUbiquityServerNotAvailable,
+                             userInfo: [NSLocalizedDescriptionKey: "Private system diagnostic"])
+    coded.failure = HistoryFailure(iCloudError)
+    let cloudBytes = try JSONEncoder().encode(coded)
+    let cloudJob = try JSONDecoder().decode(DurableTransferQueue.Job.self, from: cloudBytes)
+    for language in ["de", "en"] {
+        L10n.currentLanguage = language
+        require(cloudJob.errorMessage == L10n.get("cloud_temporarily_unavailable") &&
+                HistoryFailure.presentation(iCloudError) == L10n.get("cloud_temporarily_unavailable"),
+                "iCloud connection errors must use the translated temporary-unavailability message")
+    }
+    require(!String(decoding: cloudBytes, as: UTF8.self).contains("Private system diagnostic"),
+            "The transfer queue preserved a raw iCloud diagnostic")
+    coded.failure = reopened.failure
+    print("PASS iCloud provider connection error remains specific and localized after queue reopen")
     var completedRetry = reopened
     completedRetry.state = .completed
     require(completedRetry.errorMessage == nil, "successful retry still displays stale failure")

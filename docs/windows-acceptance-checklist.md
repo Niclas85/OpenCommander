@@ -556,6 +556,8 @@ Mit demselben Mac-Build bestand der sichtbare Dropbox-Test an einem echten Testo
 
 Der gleiche Ablauf bestand mit Google Drive und einem separaten Testordner mit 35 Dateien. Inklusive Bedienautomation dauerte das erste Öffnen 2,218 Sekunden und das Wiederöffnen 1,610 Sekunden. Nach dem App-Neustart zeigte der wiederhergestellte Unterordner die zwischenzeitlich hinzugefügte Datei. Der unabhängige Abruf bestätigte die Prüfsummen und die ursprünglichen IDs. Der Testordner wurde entfernt.
 
+Der sichtbare iCloud-Test in Mac-Build 464 verwendete den macOS-Synchronisationsordner mit 35 eigenen Dateien. Nach dem App-Neustart öffnete sich der gespeicherte Unterordner mit einer neuen lokalen Testdatei. Die Prüfsummen stimmten. Der Apple-Dateidienst meldete beim Upload der Prüffiles den Verbindungsfehler 4355. Ein Online-Upload oder ein erneuter Download ist damit weiterhin ungeprüft. Stellt macOS diesen Fehler bei einer Dateioperation zu, zeigen Verlauf und Übertragungsanzeige jetzt den lokalisierten Hinweis zur vorübergehend fehlenden Cloud-Verbindung.
+
 ### Google-Drive-Hänger mit dem D1-Bestand prüfen (CLOUD-02)
 
 1. Einen frischen App-Testbereich und einen eigenen D1-Ordner in Google Drive vorbereiten. Den Ordnerabruf im Testadapter zurückhalten. Währenddessen im lokalen Bereich eine eigene Datei auswählen und danach die Cloud-Ansicht schliessen. Der Abruf soll enden, und beide lokalen Bereiche müssen erreichbar sein.

@@ -1050,6 +1050,7 @@ struct HistoryFailure: Codable, Equatable {
             case 516: key = "history_error_exists"
             case 640: key = "history_error_space"
             case 3072: key = "history_error_cancelled"
+            case NSUbiquitousFileUbiquityServerNotAvailable: key = "cloud_temporarily_unavailable"
             default: key = "history_error_generic"
             }
         } else if domain == NSPOSIXErrorDomain {
