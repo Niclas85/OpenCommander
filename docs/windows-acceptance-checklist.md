@@ -652,6 +652,14 @@ Den Unicode-Ordner aus REG-NAS-28 zwischen einer eigenen SMB-Testfreigabe und ei
 
 21. November 2026. Der native Transfercode bestand beide Richtungen. Beim getrennten NTFS-Abbild blieb das SMB-Ziel bytegenau erhalten, und der leere Einhängepunkt blieb unverändert. Nach dem Wiederverbinden schloss dasselbe Journal ab. Rückgängig stellte die Datei und den leeren Unterordner wieder her. Apples schreibgeschützter NTFS-Treiber und eine getrennte Nur-Lese-SMB-Verbindung bestätigten das Ergebnis. Die Namen der AppleDouble-Metadatendateien auf NTFS entsprachen einer separat angelegten Kontrollprobe. Verwendet wurde ein NTFS-Abbild mit dem installierten FSKit-Treiber aus Build 268. Physisches Laufwerk, Test-VM und sichtbare Bedienung waren in diesem Lauf nicht Teil der Prüfung.
 
+### Ordner mit Punktdateien zwischen exFAT und SMB ersetzen
+
+1. Einen eigenen Testordner mit Unicode-Namen, einer Punktdatei und einem leeren Unterordner vorbereiten. Am Ziel einen gleichnamigen Ordner mit anderen Testdateien anlegen. Beide Ordner vor dem Test anhand von Namen, Zeitstempeln und SHA-256-Prüfsummen erfassen. Falls die gerade geschriebene SMB-Dateizeit schwankt, die separate Testverbindung neu öffnen und erneut prüfen.
+2. Zwischen exFAT und der SMB-Testfreigabe mit «Ersetzen» verschieben. Die Übertragungsprüfung muss die Punktdatei akzeptieren, wenn der Name und die Daten unverändert sind und das Versteckt-Attribut dort vom Dateisystem abgeleitet wird.
+3. In einem neuen Prozess Rückgängig ausführen. Den zurückgeholten Quellordner und den alten Zielordner über eine frische SMB-Verbindung sowie nach erneutem, schreibgeschütztem Einhängen des exFAT-Abbilds prüfen. Den Ablauf in beiden Richtungen ausführen.
+
+21. November 2026. Die macOS-Übertragungslogik bestand den Lauf mit 35 Dateien und fünf Unterordnern in beiden Richtungen. Die Korrektur prüft das Versteckt-Attribut bei SMB-Punktdateien einheitlich und nutzt für exFAT/SMB ein privates Journal mit geprüften Wiederherstellungspfaden. Eine vorherige Variante mit wechselndem SMB-Zeitstempel stoppte zur Sicherheit. Der bestandene Lauf verwendete fest gesetzte Zeitstempel und frische Testverbindungen. Die Testsuiten für exFAT und echtes SMB lieferten 42 und 39 PASS-Meldungen. Physische Laufwerke und die sichtbare Bedienung sind separat offen.
+
 ### Einen begonnenen Cloud-Ordnerdownload fortsetzen (CLOUD-03, REC-03)
 
 1. Einen eigenen D1-Ordner aus der Cloud in einen leeren lokalen Testordner herunterladen. Während des Lesens pausieren und die bestätigten Byte- und Dateizähler erfassen.
