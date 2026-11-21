@@ -296,7 +296,7 @@ SERVER-07;SFTP, FTP, FTPS und Netzwerkorte;P0;FTP und FTPS;"Kontrollierte Testse
 SERVER-08;SFTP, FTP, FTPS und Netzwerkorte;P0;SMB/NAS;Dedizierte SMB-Freigabe mit Testkonto und eigenen Dateien.;"1. SMB-Freigabe per \\Server\Freigabe anbinden oder als Netzlaufwerk verbinden
 2. Authentisierung und Aufruf aus OpenCommander prüfen
 3. Ordner anzeigen, Testdatei kopieren, verschieben und das Ergebnis prüfen
-4. Kontrolliert unerreichbaren Testhost öffnen";Ordner und Ziel sind eindeutig. Dateiaktionen liefern die erwarteten Inhalte. Ein unerreichbarer Host ergibt eine verständliche Meldung und blockiert die Oberfläche nicht.;Teilweise belegt;REG-NAS-02, REG-NAS-03, REG-NAS-04, REG-NAS-11, REG-NAS-19, REG-NAS-20, REG-NAS-21, REG-NAS-28;;Nicht ausgeführt;;;
+4. Kontrolliert unerreichbaren Testhost öffnen";Ordner und Ziel sind eindeutig. Dateiaktionen liefern die erwarteten Inhalte. Ein unerreichbarer Host ergibt eine verständliche Meldung und blockiert die Oberfläche nicht.;Nativ belegt;REG-NAS-02, REG-NAS-03, REG-NAS-04, REG-NAS-11, REG-NAS-19, REG-NAS-20, REG-NAS-21, REG-NAS-28;;Nicht ausgeführt;;;
 SERVER-09;SFTP, FTP, FTPS und Netzwerkorte;P1;Serverprofil bearbeiten;"Kontrollierte Testserver mit bekannten Fingerabdrücken/Zertifikaten; Testkonto ohne Zugriff auf Produktionsdaten.";"1. Port/Benutzer/Startordner am Testprofil ändern
 2. Neu verbinden
 3. Anzeige prüfen";"Neue Werte wirksam, keine Vermischung alter Sitzung; Anzeigename kann ohne Geheimnisverlust geändert werden.";Nativ belegt;;;Nicht ausgeführt;;;
