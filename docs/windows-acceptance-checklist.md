@@ -660,6 +660,8 @@ Den Unicode-Ordner aus REG-NAS-28 zwischen einer eigenen SMB-Testfreigabe und ei
 
 21. November 2026. Die macOS-Übertragungslogik bestand den Lauf mit 35 Dateien und fünf Unterordnern in beiden Richtungen. Die Korrektur prüft das Versteckt-Attribut bei SMB-Punktdateien einheitlich und nutzt für exFAT/SMB ein privates Journal mit geprüften Wiederherstellungspfaden. Eine vorherige Variante mit wechselndem SMB-Zeitstempel stoppte zur Sicherheit. Der bestandene Lauf verwendete fest gesetzte Zeitstempel und frische Testverbindungen. Die Testsuiten für exFAT und echtes SMB lieferten 42 und 39 PASS-Meldungen. Physische Laufwerke und die sichtbare Bedienung sind separat offen.
 
+Zwei weitere Varianten prüften «Abbrechen» in einem neuen Prozess vor und nach dem Weglegen der Quelle. Vor dem Weglegen stellte Abbrechen den ursprünglichen Zielordner wieder her. Nach dem Weglegen erkannte die Prüfung die bereits ausgeführte Verschiebung. Rückgängig stellte dann beide Originale wieder her. Beide Varianten bestanden jeweils in beide Richtungen mit 35 Dateien und fünf Unterordnern. Zwei ältere Aufträge mit abweichendem gespeichertem Zielnachweis blieben pausiert und behielten ihre Daten und Wiederherstellungsdateien.
+
 ### Einen begonnenen Cloud-Ordnerdownload fortsetzen (CLOUD-03, REC-03)
 
 1. Einen eigenen D1-Ordner aus der Cloud in einen leeren lokalen Testordner herunterladen. Während des Lesens pausieren und die bestätigten Byte- und Dateizähler erfassen.
