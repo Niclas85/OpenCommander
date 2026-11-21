@@ -1768,6 +1768,8 @@ Ein weiterer Nachtest prüft das direkte Umbenennen eines gemischten Ordners im 
 
 Der separate Live-Abruf gegen Google bestätigte die normale Namensänderung, die Änderung nur der Schreibweise und die Rückkehr zum Originalnamen. Bei allen drei Änderungen blieben der Elternordner, die IDs aller Einträge, die Inhalte und der Änderungszeitpunkt erhalten. Googles numerische Ordnerrevision stieg jeweils um eins, obwohl das ETag unverändert blieb. Ein absichtlich falsches ETag wurde mit HTTP 412 abgewiesen. Die vollständige Warteschlangensuite meldete 598 bestandene Prüfungen, die Suite für Speicheridentität und Transport 62.
 
+Im App-Fenster von Build 490 änderte F2 den eigenen Ordner von «Box» in «bOX». Die Historie enthielt genau einen Umbenennungseintrag. «Rückgängig» stellte den ursprünglichen Namen wieder her. Ein unabhängiger Google-Abruf bestätigte vor und nach «Rückgängig» dieselben IDs und Inhalte aller Einträge. Beide lokalen Kontrolldateien blieben erhalten und die eigenen Testdaten wurden entfernt.
+
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
 1. Ein natives Google-Dokument im eigenen Testordner anlegen und ID, Typ und Text erfassen. In einen leeren Dropbox-Testordner **verschieben**. In Dropbox muss der DOCX-Export mit dem erwarteten Text erscheinen. Das ursprüngliche Google-Dokument muss unter einem internen Wiederherstellungsnamen mit derselben ID erhalten bleiben.
