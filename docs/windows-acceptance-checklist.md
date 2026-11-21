@@ -1278,6 +1278,8 @@ Im Live-Test zeigte der gespeicherte Fortschritt trotz erfolgreicher Abbruchprü
 
 In Gegenrichtung bestand auch Google Drive → Dropbox einen gezielten Prozessabbruch nach der Veröffentlichung. Nach dem Neustart lief derselbe Auftrag weiter und speicherte genau einen Verschiebeeintrag. Rückgängig stellte beide ursprünglichen Anbieter-IDs und Dateiinhalte wieder her. Separate Anbieterabfragen bestätigten das Ergebnis vor dem Aufräumen.
 
+Ein separater Vergleich mit der Logik aus Mac-Testbuild 457 mass ausschliesslich die Pfad- und Identitätsprüfungen für eine geplante Verschiebung. Mit echten Google-Drive- und Dropbox-Testordnern dauerten die zwei sequenziellen Läufe 16,038 und 15,483 Sekunden. Die überlappenden Läufe dauerten 11,723 und 8,965 Sekunden. Alle vier erzeugten identische Auftragsdaten mit denselben Prüfungen. Während der Messung wurde keine Datei verändert. Die Dauer des vollständigen Verschiebeauftrags wurde hier separat behandelt.
+
 ### Cloud-Rückgängig nach Prozessabbruch fortsetzen
 
 1. Mit eigenen Testdateien eine Cloud-zu-Cloud-Verschiebung mit «Ersetzen» abschliessen und die ursprünglichen Objekt-IDs sowie die Prüfsummen von Quelle und altem Ziel erfassen.
