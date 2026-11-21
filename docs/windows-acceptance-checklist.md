@@ -675,6 +675,8 @@ Im sichtbaren Folgetest wurde der OneDrive-Bereich während des Countdowns gesch
 
 Für den nächsten D2-Lauf wurden ausschliesslich zwei alte, vollständig verifizierte APFS-Testkopien entfernt. Vor dem Entfernen wurden alle 40’008 Dateien erneut mit dem Manifest verglichen. Der D2-Quellbestand, die ursprünglichen Journale und alle NAS-Befunde blieben erhalten.
 
+21. November 2026. Die macOS-Übertragungswarteschlange startete vier Kopieraufträge mit je 20’004 per SHA-256 vorgeprüften Quelldateien und vier separaten SMB-Einbindungen. Der per Warteschlangenbefehl pausierte Auftrag behielt 66 MiB und schrieb nach dem Fortsetzen unter derselben ID weiter. Ein anderes Testziel wurde während des Schreibens getrennt. Der Auftrag pausierte mit Wiederverbindungshinweis bei 70 MiB und ohne Abschlussbeleg. Nach erneutem Einbinden desselben SMB-Ziels schrieb derselbe Auftrag weiter. Eine spätere Stichprobe zeigte bei allen vier Aufträgen erneut laufende Schreibvorgänge und höhere Bytezähler. Der Test verwendete die produktive Übertragungslogik in einem separaten Prozess auf dem Mac. Der Zweistunden-Endnachweis, die unabhängige Zielprüfung, die Bedienoberfläche, die Historie und der Lauf in einer VM stehen für diesen Durchlauf aus.
+
 ### SMB-Verschieben eines Ordners mit Unicode-Namen fortsetzen (REG-NAS-28)
 
 1. Einen eigenen Ordner mit `Nested/Grüße.bin`, einer zweiten Datei und einem leeren Unterordner auf eine beschreibbare SMB-Testfreigabe verschieben. Für die Fehlervariante mit einem Testadapter während der Zielprüfung ein Byte der eigenen Zieldatei über eine zweite Verbindung ändern.
