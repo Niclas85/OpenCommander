@@ -1758,6 +1758,8 @@ Für einzelne native Google-Dokumente liest der macOS-Transport die genaue Revis
 
 Der erste Wiederaufnahmetest für einen gemischten Ordner stoppte, als Google nur die numerische Revision des nativen Dokuments änderte. Der korrigierte Nachweis vergleicht die unveränderten Anbietermerkmale und den Exportinhalt. Bei Office-Archiven vergleicht er die Inhalte der Archiveinträge. Der kontrollierte Nachtest verweigerte eine veränderte Exportdatei bei gleichbleibenden Metadaten und verzeichnete keinen zweiten Verschiebeauftrag. Mit unverändertem Export wurde die Wiederaufnahme akzeptiert.
 
+Im macOS-App-Fenster verschob Build 488 den eigenen gemischten Ordner mit F6. Die Historie zeigte genau einen Verschiebeeintrag. Nach Betätigung seiner Schaltfläche «Rückgängig» bestätigte ein separater Abruf bei Google die ursprünglichen IDs und Inhalte aller Einträge. Der Test verwendete eine separate App-Instanz und entfernte anschliessend die eigenen Testdaten.
+
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
 1. Ein natives Google-Dokument im eigenen Testordner anlegen und ID, Typ und Text erfassen. In einen leeren Dropbox-Testordner **verschieben**. In Dropbox muss der DOCX-Export mit dem erwarteten Text erscheinen. Das ursprüngliche Google-Dokument muss unter einem internen Wiederherstellungsnamen mit derselben ID erhalten bleiben.
