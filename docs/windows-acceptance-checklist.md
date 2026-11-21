@@ -431,6 +431,8 @@ Beim Versuch eines Cloud-Transfers auf SMB wartete der Hauptthread von Mac-Build
 
 21. November 2026. Release-Kandidat 473 enthält zusätzlich die Korrektur für verspätete OAuth-Rückrufe. Der exakt signierte Build startete mit getrenntem Profil. Apple akzeptierte den Kandidaten, und die Prüfung bestätigte Gatekeeper, angeheftetes Notarisierungsticket, beide Verteilungsprofile, den NTFS-Helfer und das schreibfähige FSKit-Modul. 70 automatisierte Prüfungen der Cloud-Warteschlange und 54 Prüfungen der Speicher- und Kontoidentität bestanden mit dem zugehörigen Quellstand. Nach einem gezielten Prozessabbruch blieben die Auftrags-ID, der gespeicherte Fortschritt und die Kontobindung erhalten. Diese Prüfungen verwendeten eigene lokale Testprozesse und simulierte Anbieterantworten. Die sichtbare Abnahme und der Austausch der installierten Version stehen aus.
 
+21. November 2026. Release-Kandidat 474 enthält die zusätzliche Prüfung des gespeicherten Namens bei Umbenennungen, die nur Gross- und Kleinschreibung ändern. Der exakt signierte Build startete mit getrenntem Profil. Gatekeeper, angeheftetes Apple-Notarisierungsticket, beide Verteilungsprofile sowie NTFS-Helfer und schreibfähige FSKit-Erweiterung bestanden die Paketprüfung. Auf demselben Quellstand bestanden 26 Werkzeugprüfungen einschliesslich Mehrfachumbenennen und erzwungenem Prozessabbruch sowie 35 Prüfungen des Historienstores. Die sichtbare Bedienprüfung des Release-Builds und der Austausch der installierten Version stehen aus.
+
 ### Start mit gespeichertem Netzordner prüfen
 
 1. In einem eigenen Testprofil links einen Ordner auf einer Testfreigabe öffnen und rechts einen lokalen Ordner mit zwei unterscheidbaren Dateien. Die App beenden und die gespeicherten Pfade dokumentieren.
