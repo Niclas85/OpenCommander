@@ -3157,6 +3157,12 @@ extension ViewController {
                 DispatchQueue.main.async { self.updateProgress(progress: progress) }
             }
 
+#if targetEnvironment(macCatalyst)
+            let completedFiles = move ? movedFiles : copiedFiles
+            let externalSynchronizationUnverified = failure == nil && completedFiles.contains {
+                SafeFileOperations.maySynchronizeExternally($0.destination)
+            }
+#endif
             DispatchQueue.main.async {
                 if move && !movedFiles.isEmpty { self.operationHistory.append(.move(files: movedFiles)) }
                 if !move && !copiedFiles.isEmpty { self.operationHistory.append(.copy(files: copiedFiles)) }
@@ -3170,7 +3176,14 @@ extension ViewController {
 #endif
                 } else {
                     let count = move ? movedFiles.count : copiedFiles.count
-                    self.finishProgress(String(format: L10n.get(move ? "moved_items" : "copied_items"), count))
+                    let message = String(format: L10n.get(move ? "moved_items" : "copied_items"), count)
+#if targetEnvironment(macCatalyst)
+                    self.finishProgress(externalSynchronizationUnverified
+                        ? "\(message) · \(L10n.get("transfer_external_sync_unverified"))"
+                        : message)
+#else
+                    self.finishProgress(message)
+#endif
                 }
                 completion()
             }

@@ -558,6 +558,14 @@ Der gleiche Ablauf bestand mit Google Drive und einem separaten Testordner mit 3
 
 Der sichtbare iCloud-Test in Mac-Build 464 verwendete den macOS-Synchronisationsordner mit 35 eigenen Dateien. Nach dem App-Neustart öffnete sich der gespeicherte Unterordner mit einer neuen lokalen Testdatei. Die Prüfsummen stimmten. Der Apple-Dateidienst meldete beim Upload der Prüffiles den Verbindungsfehler 4355. Ein Online-Upload oder ein erneuter Download ist damit weiterhin ungeprüft. Stellt macOS diesen Fehler bei einer Dateioperation zu, zeigen Verlauf und Übertragungsanzeige jetzt den lokalisierten Hinweis zur vorübergehend fehlenden Cloud-Verbindung.
 
+### Lokale Kopie in einen Synchronisationsordner prüfen (PROP-08)
+
+1. Eine eigene Datei in einem lokalen Quellordner und eine separate Kontrolldatei in einem eigenen Ordner des nativen Synchronisationsclients anlegen. Den Dienst für diesen Test vorübergehend offline halten, zum Beispiel über die Pausenfunktion des Clients, falls diese verfügbar ist.
+2. Die Quelldatei über den normalen Kopierbefehl in den geöffneten Zielordner kopieren. Die Prüfsummen vergleichen. Die Anzeige soll zwischen lokal abgeschlossener Kopie und noch unbestätigter Synchronisierung unterscheiden.
+3. OpenCommander beenden und neu öffnen. Den einzelnen Kopiervorgang im Verlauf auswählen und «Rückgängig» ausführen. Die Zielkopie soll verschwinden. Die Prüfsummen von Quelle und Kontrolldatei müssen übereinstimmen mit ihren jeweiligen Ausgangswerten.
+
+21. November 2026. Beim sichtbaren lokalen Kopieren per F5 in den echten iCloud-Drive-Synchronisationsordner fehlte in Mac-Build 465 der Hinweis zur externen Synchronisierung. Der korrigierte Build 466 zeigte die lokal abgeschlossene Kopie und die unbestätigte Synchronisierung im Status. Eine Prüfsumme bestätigte alle 2.097.153 Bytes. Nach normalem App-Neustart war genau dieser Vorgang im Verlauf vorhanden. Dort entfernte Rückgängig die Zielkopie; Quelle und separate Zieldatei blieben bytegleich. Der eigene Testordner wurde aufgeräumt. iCloud meldete weiterhin den Verbindungsfehler 4355. Online-Upload und erneuter Download bleiben offen.
+
 ### Google-Drive-Hänger mit dem D1-Bestand prüfen (CLOUD-02)
 
 1. Einen frischen App-Testbereich und einen eigenen D1-Ordner in Google Drive vorbereiten. Den Ordnerabruf im Testadapter zurückhalten. Währenddessen im lokalen Bereich eine eigene Datei auswählen und danach die Cloud-Ansicht schliessen. Der Abruf soll enden, und beide lokalen Bereiche müssen erreichbar sein.
