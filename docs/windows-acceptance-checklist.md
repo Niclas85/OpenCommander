@@ -668,6 +668,10 @@ Im sichtbaren Folgetest wurde der OneDrive-Bereich während des Countdowns gesch
 
 21. November 2026. Für Google Drive wurde ein eigener vollständiger D1-Ordner als Testvorlage bereitgestellt und vor Beginn unabhängig eingelesen. Das native Warteschlangen-Testprogramm pausierte beim Download nach 6 bestätigten Dateien und setzte nach dem Prozessneustart dieselbe Auftrags-ID fort. Alle 453 Meldungen der Lesephase erhielten den bestätigten Fortschritt. Die SHA-256-Werte aller 37 Dateien, vier Unterordner und der einzelne Historieneintrag stimmten. Im selben Ordner bestand die native Dateiaktionslogik Ordneranlage, Umbenennen, Entfernen und beide Rückgängig-Aktionen in neuen Prozessen. Direkte Google-Drive-Abrufe bestätigten die ursprüngliche Objekt-ID und die exakten Inhalte nach der Wiederherstellung. Der abschliessende Direktabruf bestätigte auch die drei vorgesehenen Wiederherstellungskopien und die unveränderten Kontrollinhalte. Der eigene Drive-Testordner wurde aufgeräumt. In diesem Lauf wurde der Upload als Testaufbau ausgeführt. Für den Upload über die App gilt der separate D1-Nachweis. Die Bedienprüfung im App-Fenster und die vollständige Anbietermatrix stehen aus.
 
+### Anmeldung und Wiederverbindung bei FTP, FTPS und SFTP prüfen (SERVER-01, SERVER-03, SERVER-07)
+
+21. November 2026. Die Serverprüfung meldete 21 bestandene Prüfungen mit lokalen FTP-, FTPS- und SFTP-Testservern. Falsche Passwörter und ein nicht vertrauenswürdiges FTPS-Zertifikat wurden mit unterscheidbaren Fehlern abgewiesen. SFTP lieferte nach TCP-Abbruch und bewusstem Neuversuch bytegenaue Inhalte. Geprüft wurden auch Anmeldung mit verschlüsseltem SSH-Schlüssel und der Wiederherstellungsfall nach verlorener Serverantwort.
+
 ### SMB-Verbindung mit Unterordner prüfen (SERVER-08)
 
 1. Eine eigene SMB-Testfreigabe mit einem Unterordner «Übung 01» und einer bekannten Testdatei vorbereiten.
