@@ -1722,6 +1722,14 @@ Die Prüfungen mit simuliertem Anbieter am 21. November 2026 bestanden für Date
 
 Der Live-Test beendete den eigenen Prozess direkt nach dem bestätigten Dropbox-Ordnerwechsel und vor der Rückmeldung an die Warteschlange. Ein neuer Prozess setzte denselben Auftrag fort und speicherte genau einen Verlaufseintrag. Ein weiterer Prozess führte «Rückgängig» aus. Unabhängige Dropbox-Abrufe bestätigten alle ursprünglichen Objekt-IDs, die exakten Dateiinhalte und den leeren Unterordner. Der eigene Testordner wurde entfernt. Der separate Live-Lauf mit einer einzelnen Datei bestand ebenfalls. Nach dem Prozessabbruch setzte ein neuer Prozess denselben Auftrag fort und speicherte genau einen Verlaufseintrag. «Rückgängig» aus einem weiteren Prozess stellte die Datei mit derselben Dropbox-ID und denselben Bytes im ursprünglichen Ordner wieder her. Die eigene Testdatei wurde entfernt. Die sichtbare Bedienprüfung im App-Fenster bleibt offen.
 
+### Gewöhnliche Dateien und Ordner im selben Google-Drive-Konto verschieben
+
+1. In einem eigenen Testordner eine gewöhnliche Datei und einen Ordner mit Datei und leerem Unterordner anlegen. Vor dem Verschieben die Objekt-IDs, Dateiprüfsummen und die IDs beider Elternordner erfassen.
+2. Den Testprozess direkt nach dem vom Anbieter bestätigten Verschieben beenden. Nach erneutem Start den gespeicherten Auftrag fortsetzen. Die ursprünglichen Objekt-IDs und Dateien müssen am Ziel vorhanden sein. Im Verlauf muss genau ein Eintrag erscheinen.
+3. «Rückgängig» aus einem weiteren Prozess ausführen. Der Ausgangsordner muss wieder dieselben Objekte mit denselben IDs, Dateiinhalten und leeren Unterordnern enthalten. Bei einem unter demselben Namen ersetzten Untereintrag oder Elternordner muss die App das Rückgängig ohne Schreibzugriff abbrechen.
+
+Beim Live-Nachtest auf macOS am 21. November 2026 konnte Google Drive die Änderungszeit des verschobenen Hauptordners aktualisieren. Die Prüfungen verglichen die ursprüngliche Ordner-ID, die IDs und Revisionen der Untereinträge sowie die exakten Dateiinhalte. Nach dem Prozessabbruch setzte ein neuer Prozess denselben Auftrag fort und schrieb einen Verlaufseintrag. Ein weiterer Prozess führte «Rückgängig» aus. Die unabhängige Anbieterabfrage bestätigte die ursprünglichen Objekte und den leeren Unterordner. Der eigene Testordner wurde anschliessend entfernt. Der Lauf verwendete die produktive macOS-Warteschlange in einem isolierten Testprogramm. Die sichtbare Bedienprüfung und der Live-Lauf mit einer einzelnen Datei sind eigene Prüfschritte.
+
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
 1. Ein natives Google-Dokument im eigenen Testordner anlegen und ID, Typ und Text erfassen. In einen leeren Dropbox-Testordner **verschieben**. In Dropbox muss der DOCX-Export mit dem erwarteten Text erscheinen. Das ursprüngliche Google-Dokument muss unter einem internen Wiederherstellungsnamen mit derselben ID erhalten bleiben.
