@@ -1276,6 +1276,8 @@ Im Live-Test zeigte der gespeicherte Fortschritt trotz erfolgreicher Abbruchprü
 
 21. November 2026. Der native Übertragungscode bestand diesen Ablauf mit echten Dropbox- und Google-Drive-Testdateien. Der zweite Prozessstopp erfolgte durch das Zeitlimit des Testtreibers. Nach dem nächsten Start wurde derselbe Auftrag bis zum einzigen Historieneintrag fortgesetzt. Rückgängig stellte beide Originale wieder her. Die beiden eigenen Testordner und das isolierte Testprofil wurden entfernt. Die sichtbare Bedienung und der vollständige D2-Lauf sind separat offen.
 
+In Gegenrichtung bestand auch Google Drive → Dropbox einen gezielten Prozessabbruch nach der Veröffentlichung. Nach dem Neustart lief derselbe Auftrag weiter und speicherte genau einen Verschiebeeintrag. Rückgängig stellte beide ursprünglichen Anbieter-IDs und Dateiinhalte wieder her. Separate Anbieterabfragen bestätigten das Ergebnis vor dem Aufräumen.
+
 ### Cloud-Rückgängig nach Prozessabbruch fortsetzen
 
 1. Mit eigenen Testdateien eine Cloud-zu-Cloud-Verschiebung mit «Ersetzen» abschliessen und die ursprünglichen Objekt-IDs sowie die Prüfsummen von Quelle und altem Ziel erfassen.
