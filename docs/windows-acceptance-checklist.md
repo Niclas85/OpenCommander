@@ -1692,6 +1692,8 @@ Der korrigierte Transfer bestand mit derselben Ausgangslage. Der unabhängige rc
 
 Der anschliessende Test mit Google Drive als echtem Ziel fand einen weiteren Fehler. Der Anbieter rundete die Änderungszeit auf Millisekunden. OpenCommander meldete einen Fehler, obwohl die neuen Bytes im Cache und die Vorversion gesichert waren. Nach der Korrektur bestätigte ein unabhängiger Google-Drive-Zugriff beide Versionen bytegenau rund 59 Sekunden nach dem lokalen Abschlussbeleg. Das Auftragsjournal blieb auf der Mac-Festplatte. Eine weitere isolierte Prüfung bestätigte, dass der Zeitstempel-Nachweis bei einer Änderung um eine Millisekunde ungültig wird. Der Test verwendete den produktiven Transfercode mit einer kontrollierten Quelle. Die Bedienprüfung der signierten App bleibt separat offen.
 
+Ein zweiter Google-Drive-Lauf hängte den Export nach der Anbieterbestätigung vollständig aus und wieder ein. Ein neuer Testprozess öffnete die gespeicherte Historie und prüfte sowohl den Abschlussbeleg als auch die gesicherte Vorversion. Ein unabhängiger Anbieterabruf bestätigte vor und nach dem erneuten Einhängen identische Objekt-IDs für beide Versionen und bytegenaue Inhalte. Die eigenen Testdateien und der Testordner wurden entfernt.
+
 ### Cloud-Download bei getrenntem Ziellaufwerk wiederaufnehmen
 
 1. Einen eigenen Cloud-Download auf ein separates Testlaufwerk vorbereiten. Mit einem Testadapter nach erfolgreichem Dateisystemtransfer und vor dem Warteschlangenabschluss den App-Prozess beenden. Die Auftrags-ID und den SHA-256 der Testdatei erfassen. Anschliessend das Testlaufwerk trennen.
