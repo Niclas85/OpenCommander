@@ -1694,6 +1694,16 @@ Mit einem entbehrlichen nativen Google-Dokument im eigenen Drive-Testordner prü
 
 Der Mac-Live-Test belegt die Quellensicherung und Wiederherstellung. Der vollständige Wechsel zu einem zweiten Cloud-Dienst hat eine eigene Abnahme.
 
+### Google-Dokument im selben Konto nach verlorener Anbieterantwort verschieben
+
+1. Ein natives Google-Dokument mit eindeutigem Text in einen eigenen Testordner legen. Die Dokument-ID sowie die IDs von Quell- und Zielordner erfassen. Das Dokument mit OpenCommander in den leeren Zielordner verschieben.
+2. Im Testadapter die Antwort nach dem erfolgreichen Anbieterzugriff verwerfen. Vor dem erneuten Start müssen derselbe Auftrag und seine Ordnerzuordnung erhalten bleiben. Nach «Fortsetzen» darf es keinen zweiten Schreibzugriff geben. Prüfen, dass genau ein Verlaufseintrag entsteht.
+3. «Rückgängig» aus dem neu geladenen Verlauf ausführen. Die Dokument-ID, der Inhalt und der ursprüngliche Ordner müssen übereinstimmen. In einem getrennten Lauf nach dem verlorenen Rückruf eine abweichende Dateirevision simulieren. Die Warteschlange darf daraus keinen Erfolg ableiten.
+
+Der kontrollierte macOS-Test am 21. November 2026 bestand alle Schritte mit einer simulierten Anbieterantwort. Die Wiederaufnahme verwendete denselben gespeicherten Auftrag und der Verlauf blieb auch nach doppelter Bestätigung bei einem Eintrag. «Rückgängig» stellte dieselbe Dokument-ID im Quellordner wieder her. Der getrennte Lauf mit einem echten Google-Dokument ist noch offen.
+
+Beim Verschieben gewöhnlicher Cloud-Ordner zusätzlich leere Unterordner prüfen. Der macOS-Test bestätigt, dass sowohl das Ziel als auch die Wiederherstellungskopie den leeren Unterordner enthalten. rclone verwendet dafür die Option zur Übernahme leerer Verzeichnisse. [rclone-Dokumentation](https://rclone.org/commands/rclone_copy/)
+
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
 1. Ein natives Google-Dokument im eigenen Testordner anlegen und ID, Typ und Text erfassen. In einen leeren Dropbox-Testordner **verschieben**. In Dropbox muss der DOCX-Export mit dem erwarteten Text erscheinen. Das ursprüngliche Google-Dokument muss unter einem internen Wiederherstellungsnamen mit derselben ID erhalten bleiben.
