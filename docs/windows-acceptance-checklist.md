@@ -554,6 +554,8 @@ In Mac-Testbuild 464 wurden beide Bereiche über die Oberfläche mit direktem On
 
 Mit demselben Mac-Build bestand der sichtbare Dropbox-Test an einem echten Testordner mit 35 Dateien. Der erste Abruf dauerte inklusive Bedienautomation 1,770 Sekunden, das Wiederöffnen 1,708 Sekunden. Der Unterordner liess sich mit Return öffnen und mit ⌥← verlassen. Nach einem normalen App-Neustart öffnete sich wieder der Unterordner und zeigte eine Datei, die zwischenzeitlich über eine separate Verbindung hinzugefügt worden war. Der unabhängige Abruf bestätigte die exakten Inhalte und unveränderte IDs der ursprünglichen Dateien. Der eigene Testordner wurde entfernt.
 
+Der gleiche Ablauf bestand mit Google Drive und einem separaten Testordner mit 35 Dateien. Inklusive Bedienautomation dauerte das erste Öffnen 2,218 Sekunden und das Wiederöffnen 1,610 Sekunden. Nach dem App-Neustart zeigte der wiederhergestellte Unterordner die zwischenzeitlich hinzugefügte Datei. Der unabhängige Abruf bestätigte die Prüfsummen und die ursprünglichen IDs. Der Testordner wurde entfernt.
+
 ### Google-Drive-Hänger mit dem D1-Bestand prüfen (CLOUD-02)
 
 1. Einen frischen App-Testbereich und einen eigenen D1-Ordner in Google Drive vorbereiten. Den Ordnerabruf im Testadapter zurückhalten. Währenddessen im lokalen Bereich eine eigene Datei auswählen und danach die Cloud-Ansicht schliessen. Der Abruf soll enden, und beide lokalen Bereiche müssen erreichbar sein.
