@@ -1812,6 +1812,14 @@ Im App-Fenster von Build 492 erzeugte «In die Cloud-Wiederherstellung verschieb
 
 21. November 2026. Ein Live-Test mit der macOS-Cloud-Anbindung beendete den isolierten Testprozess, nachdem Google den Ordner gesichert hatte. Beim nächsten Start stellte die Warteschlange denselben Auftrag wieder her und schrieb genau einen Löschbeleg ohne zweiten Schreibzugriff bei Google. Ein weiterer frischer Prozess stellte den ursprünglichen Namen, die IDs, das native Dokument, die Dateibytes und den leeren Ordner über Rückgängig wieder her. Ein wiederholtes Rückgängig blieb schreibfrei. Die Testdaten wurden entfernt.
 
+### Gemischten Google-Drive-Ordner beim Verschieben ersetzen (CLOUD-03)
+
+1. Im selben Google-Drive-Konto zwei eigene Ordner «Box» mit unterschiedlichen Inhalten anlegen. Einen davon mit einem nativen Google-Dokument, einer regulären Datei und einem leeren Unterordner füllen.
+2. Diesen Quellordner in den Elternordner des zweiten «Box» verschieben und «Ersetzen» wählen. IDs und Inhalte vor und nach der Operation prüfen. Das native Dokument muss ein Google-Dokument bleiben.
+3. In der Historie «Rückgängig» ausführen. Beide Ordner müssen mit ihren ursprünglichen Anbieter-IDs und Inhalten wieder am ursprünglichen Ort liegen.
+
+21. November 2026. Ein Live-Test reproduzierte einen weiteren Fehler beim Ersetzen innerhalb desselben Google-Drive-Kontos. Der Quellordner «Box» enthielt ein natives Google-Dokument, eine reguläre Datei und einen leeren Unterordner. Ein gleichnamiger Zielordner enthielt eine unabhängige Kontrolldatei. Die Vorbereitung der Verschiebung zu einem freien Zielnamen gelang über die Anbieter-ID. Beim Ersetzen brach die Vorbereitung an der fehlenden Dateigrösse des Google-Dokuments ab. Es entstand kein Warteschlangenauftrag. Die Anbieterprüfung bestätigte beide ursprünglichen Ordner-IDs und Inhalte. Die eigenen Testordner wurden entfernt.
+
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
 1. Ein natives Google-Dokument im eigenen Testordner anlegen und ID, Typ und Text erfassen. In einen leeren Dropbox-Testordner **verschieben**. In Dropbox muss der DOCX-Export mit dem erwarteten Text erscheinen. Das ursprüngliche Google-Dokument muss unter einem internen Wiederherstellungsnamen mit derselben ID erhalten bleiben.
