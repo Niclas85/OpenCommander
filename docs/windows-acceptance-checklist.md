@@ -730,6 +730,8 @@ Beim vierten D2-Auftrag verschwand während der Wartezeit die ursprüngliche SMB
 
 22. November 2026. Die beiden sequentiellen Nachläufe erreichten jeweils ein Zeitlimit von 45 Sekunden beim SMB-Einhängen und begannen keine Inhaltsprüfung. Ein separater Prozess wies gezielt einen zusätzlichen POSIX-Leseaufruf am Dateiende einer eigenen Testdatei ab. Die korrigierte Mac-Logik berechnete im selben Test die unveränderte exakte Prüfsumme ohne diesen Aufruf. Die Quellprüfsumme stimmt mit dem signierten, notarisierten und installierten Build 506 überein. Der Lauf auf dem echten NAS und die vollständige D2-Abnahme bleiben offen.
 
+22. November 2026. Beim erneuten isolierten Nur-Lese-Einhängen von NAS-Auftrag 4 wartete NetFS im macOS-Verbindungsdienst. Die Prozessproben zeigten, dass der SMB-Plug-in-Thread beim Abruf der Kontoinformationen über LsarGetUserName auf eine RPC-Antwort wartete. Ein unabhängiger SMB-Client erreichte dieselbe Freigabe und erhielt bei einem einzelnen Versuch ohne Zugangsdaten die erwartete Zugriffsverweigerung. Der NetFS-Versuch erreichte das Zeitlimit, bevor Inhaltsdaten gelesen wurden. OpenCommander unterscheidet jetzt das Zeitlimit von verweigertem Zugriff und sonstigen Einhängefehlern. Sechs Remote-Prüfungen bestanden, darunter die Meldung auf Deutsch und Englisch. Der signierte und notarisierte Build 507 ist installiert. Die sichtbare Meldung und der vollständige D2-Nachlauf am NAS bleiben offen.
+
 1. Die vier grossen Dateien des D2-Satzes mit einem separaten Schreibprogramm parallel in einen eigenen SMB-Testordner kopieren und die Eingabedaten gegen das Manifest prüfen.
 2. Zwei unabhängige SMB-Verbindungen öffnen und alle vier Zielprüfsummen vergleichen. Bei einer Abweichung den eigenen Testordner für einen dritten Bytevergleich erhalten.
 
@@ -1289,6 +1291,8 @@ Im anschliessenden Komponenten-Abnahmetest auf einem eigenen Abbild verwendeten 
 22. November 2026. Der signierte und notarisierte Mac-Build 505 wurde installiert. Das aktive Programm entspricht dem geprüften Paket. Historie, Warteschlangen und Fensterpfade waren vor und nach dem Wechsel gleich. Der FSKit-Treiber der installierten App schrieb auf ein neues NTFS-Abbild. Der unabhängige Apple-Treiber bestätigte nach erneutem Einhängen den Unicode-Namen, exakt 517 Bytes, die Zeitstempel sowie gespeicherte Umbenennungen und Löschungen. Der NTFS-Lauf lieferte 28 PASS-Meldungen. Der Mac lief ohne Neustart weiter. Die physische Medienabnahme bleibt offen.
 
 22. November 2026. Der signierte und notarisierte Mac-Build 506 wurde installiert und gestartet. Historie, Warteschlangen und Fensterpfade stimmten vor und nach dem Wechsel überein. Die exakt installierte FSKit-Erweiterung bestand 28 Prüfungen auf einem neuen NTFS-Abbild. Der unabhängige Apple-Treiber bestätigte nach erneutem Einhängen Unicode-Namen, Dateibytes, Zeitstempel sowie gespeicherte Umbenennungen und Löschungen. Der Mac lief ohne Neustart weiter. Die physische Medienabnahme bleibt offen.
+
+22. November 2026. Der installierte und notarisierte Build 507 bestand mit der exakt installierten FSKit-Erweiterung 28 Prüfungen auf einem neuen NTFS-Abbild, einschliesslich unabhängigem Lesen mit dem Apple-Treiber nach erneutem Einhängen. Historie, Warteschlangen und Fensterpfade stimmten vor und nach der Installation überein. Der Mac lief ohne Neustart weiter. Die physische NTFS-Abnahme bleibt offen.
 
 ### Kopie auf vollem exFAT-Testlaufwerk fortsetzen
 
