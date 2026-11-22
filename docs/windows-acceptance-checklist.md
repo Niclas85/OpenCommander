@@ -1203,6 +1203,8 @@ Im signierten Mac-Build 392 bestanden sechs sichtbare Läufe bei 900 × 600 Fens
 
 Am 21. November meldete der eingebaute Bildschirm des Test-Macs 14 verfügbare Modi. Die Pixel-zu-Punkt-Skalen waren durchgehend 1× oder 2×. Die Prüfung bei exakt 150 % bleibt für diesen Mac offen.
 
+22. November 2026. In separaten Instanzen des Mac-Builds 530 war der Cloud-Reparaturassistent in einem Fenster von 900 × 600 Punkten nach einer simulierten Anbieterfrage vollständig bedienbar. Die ausgeklappten Expertenfelder, Antwortfeld, «Weiter» und «Vorhandene Konfiguration» passten in den sichtbaren Bereich. «Abbrechen» blieb erreichbar und schloss den Assistenten. Die ursprüngliche Verbindung und die Kontrolldateien blieben bytegenau; ein neues Konto wurde nicht gespeichert. Für tatsächlichen Überlauf enthielt die Transferliste 17 pausierte Aufträge und eine abgeschlossene Karte. Mausradereignisse machten den ältesten pausierten Auftrag sichtbar und gelangten zurück zum ersten. «Alle abgeschlossenen entfernen» blieb währenddessen an derselben erreichbaren Stelle. Die Liste wurde auf Englisch und auf Deutsch im Dunkelmodus geprüft, letzteres bei gemessenem 2×-Faktor. Die gespeicherten Aufträge und Dateien blieben unverändert. Die übrige Auflösungsmatrix einschliesslich 150 % steht aus.
+
 ### Sprache und Darstellung bei zwei Fenstergrössen prüfen (PROP-04)
 
 1. Ein separates Testprofil starten und die Suche einmal auf Englisch in heller Ansicht öffnen. Suchpfad, Hinweis zum Dateinamen, Start und Schliessen prüfen.
