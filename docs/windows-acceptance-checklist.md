@@ -923,6 +923,8 @@ Im signierten Mac-Build 392 simulierte der rclone-Testadapter HTTP 401 nach eine
 
 22. November 2026. Eine verzögerte Microsoft-Graph-Antwort HTTP 401 löschte das bereits erneuerte Zugriffstoken und meldete eine nötige Anmeldung. Mit der Korrektur wiederholt ein berechtigter Leseabruf die Anfrage mit dem inzwischen gültigen Token innerhalb des bestehenden Zeitbudgets. Eine abgewiesene Schreibanfrage wird nicht wiederholt. Der kontrollierte Nachtest bestätigte bei beiden Varianten genau zwei Token-Abrufe, den Erhalt des gespeicherten Anmeldestands und einen anschliessenden erfolgreichen Listenabruf. Die vollständige OneDrive-Suite lief seriell durch und lieferte 135 PASS-Zeilen. Die Antworten kamen von einem isolierten Testadapter. Der sichtbare Nachtest und der Widerruf eines Zugriffstokens am echten Anbieterkonto bleiben offen.
 
+22. November 2026. Der isolierte Mac-Debug-Build 532 zeigte zwei Ordner derselben synthetischen OneDrive-Verbindung. Der Testadapter hielt die HTTP-401-Antwort für die erste Token-Generation zurück. Der rechte Bereich zeigte zuerst die neue Liste mit der zweiten Generation. Danach lieferte der Adapter die alte Antwort. Der linke Bereich wiederholte den Leseabruf mit der zweiten Generation und zeigte die aktualisierte Datei. Beide Listen blieben ohne Anmeldeaufforderung oder Warnung. Das Protokoll zählte genau zwei Token-Anfragen. Die lokalen Kontrolldateien und der installierte Mac-Build blieben unverändert. Der echte Widerruf am separaten Anbieterkonto ist weiterhin offen.
+
 ### Cloud-Dateiaktionen nach App-Neustart rückgängig machen (CLOUD-03, TRASH-05)
 
 1. In einem eigenen Cloud-Testordner zwei Dateien mit unterschiedlichen Inhalten ablegen. Objekt-IDs und SHA-256-Prüfsummen mit einem zweiten Client erfassen.
