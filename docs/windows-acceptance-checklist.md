@@ -720,6 +720,8 @@ Beim vierten D2-Auftrag verschwand während der Wartezeit die ursprüngliche SMB
 
 22. November 2026. Der Nur-Lese-Nachtest über die ursprüngliche SMB-Freigabe prüfte alle 20’112 Einträge und erzeugte für dieselbe Auftrags-ID einen gültigen Abschlussbeleg. Die Warteschlange wechselte direkt zur Belegprüfung und startete keine neue Kopie. Der ursprüngliche Auftragsindex und die Kontrollinhalte blieben unverändert. Damit ist der Beleg dieses einzelnen Auftrags bestätigt. Der vollständige parallele Vier-Aufträge-Dauerlauf bleibt offen.
 
+22. November 2026. Drei neu aufgebaute Nur-Lese-SMB-Sitzungen mit SMB 3.1.1 lasen je die drei früher beanstandeten 4-KiB-Blöcke aus den eigenen D2-Zielen der Aufträge 2 bis 4 ohne Dateicache. Alle neun Leseproben stimmten mit der Quelle überein. Die frühere Abweichung war in diesen Stichproben nicht mehr reproduzierbar. Die Tests schrieben nichts auf das NAS und veränderten den alten Auftragsindex nicht. Die Ursache der früheren Abweichungen und die Ergebnisse für die vollständigen Dateien lassen sich aus den Stichproben nicht ableiten. Die aktuelle NAS-Journal-Suite lieferte 85 PASS-Zeilen und bestätigte unter anderem die Ablehnung geänderter Inhalte sowie die Erhaltung von Quelle und Journal bei Pause und Abbruch.
+
 1. Die vier grossen Dateien des D2-Satzes mit einem separaten Schreibprogramm parallel in einen eigenen SMB-Testordner kopieren und die Eingabedaten gegen das Manifest prüfen.
 2. Zwei unabhängige SMB-Verbindungen öffnen und alle vier Zielprüfsummen vergleichen. Bei einer Abweichung den eigenen Testordner für einen dritten Bytevergleich erhalten.
 
