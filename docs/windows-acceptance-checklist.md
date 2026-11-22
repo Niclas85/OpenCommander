@@ -1580,6 +1580,8 @@ Mac-Build 426 wiederholte die Bildfolge mit echten Downloads bei Google Drive un
 
 Der sichtbare Build 446 wechselte im simulierten Cloud-Ordner per Pfeiltaste vom gehaltenen Download zum schnellen Bild. Escape brach den folgenden Bild-Download beim Schliessen ab. Der Backend-Mitschnitt und die verschwundenen temporären Dateien bestätigten beide Abbrüche.
 
+22. November 2026. Mac-Build 504 bestand den schnellen Pfeiltastenwechsel mit eigenen Bilddateien bei Google Drive und Dropbox. Beide Pixelmessungen zeigten das gewählte blaue Bild. Das Schliessen während des roten Downloads brachte die Dateiliste zurück. Die isolierten Downloadprozesse endeten und ihre temporären Verzeichnisse verschwanden. Beide Anbieter bestätigten unabhängig dieselben Objekt-IDs und exakten Dateibytes. Im macOS-iCloud-Synchronisationsordner blieb das aktuelle Bild nach Freigabe der verzögerten Antwort korrekt. Nach dem Schliessen öffnete die verspätete Antwort die Vorschau nicht erneut. Ein Dropbox-Video wurde während der Wiedergabe geschlossen. Sein temporärer Inhalt entsprach genau dem Original und wurde entfernt, während die App weiterlief. Kontrolldateien, leere Historie und leere Warteschlange wurden geprüft. Die 23 Komponententests bestanden. Der Live-Durchlauf im App-Fenster mit einem OneDrive-Testkonto und der direkte iCloud-Zugang stehen noch aus.
+
 ### Online-Video bei einem Stillstand erneut laden (MEDIA-04 und MEDIA-09)
 
 1. Ein kurzes eigenes MP4 und eine Datei mit einer Grösse von 2 GiB plus einem Byte am FTP-Testserver bereitstellen. Den ersten Inhaltsabruf des kurzen Videos bestätigen und anschliessend ohne Datenübertragung offen halten.
