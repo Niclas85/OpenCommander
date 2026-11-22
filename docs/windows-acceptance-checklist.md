@@ -1903,6 +1903,8 @@ Im App-Fenster von Build 492 erzeugte «In die Cloud-Wiederherstellung verschieb
 
 21. November 2026. Der separate Google-Drive-Livetest bestätigte zusätzlich den Abbruch nach dem Prozessende. Der neu gestartete Prozess stellte den bereits gesicherten Zielordner wieder her. Die Quelle wurde nicht verschoben. Die unabhängige Anbieterprüfung bestätigte ursprüngliche Ordner- und Datei-IDs sowie die Inhalte auf beiden Seiten. Die Abschlussprüfung zählte nur die Sicherung und die Wiederherstellung als Anbieteränderungen. Der Auftrag blieb ohne Erfolgsbeleg.
 
+22. November 2026. Die aktuelle Cloud-Client-Suite brach zunächst am Test für das Ersetzen eines Google-Drive-Ordners ab. Der Testadapter beantwortete den nativen Google-Vorgang für Ordner und den Abruf der Speicherwurzel mit einem Fehler. Der korrigierte Adapter modelliert stabile Objekt- und Eltern-IDs sowie Versionswechsel. Der Nachtest bestätigte zwei Änderungen zum Ersetzen und zwei zum Rückgängig, darunter den Erhalt des leeren Unterordners und die Abweisung einer manipulierten Sicherung. Ein wiederholtes Rückgängig löste keine weitere Änderung aus. Der reguläre Cloud-Client-Test endete mit 146 PASS-Zeilen, die OneDrive-Suite mit 134. Die Korrektur betraf den Testadapter im Arbeitsbaum. Beide Suiten verwendeten kontrollierte Anbieterantworten.
+
 ### Google-Dokument nach Dropbox verschieben und rückgängig machen
 
 1. Ein natives Google-Dokument im eigenen Testordner anlegen und ID, Typ und Text erfassen. In einen leeren Dropbox-Testordner **verschieben**. In Dropbox muss der DOCX-Export mit dem erwarteten Text erscheinen. Das ursprüngliche Google-Dokument muss unter einem internen Wiederherstellungsnamen mit derselben ID erhalten bleiben.
