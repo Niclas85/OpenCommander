@@ -1717,6 +1717,8 @@ Für die Miniaturprüfung eine kleine Kontrollgrafik sowie eine Grafik mit 32 Mi
 
 In Build 446 zeigte der stockende simulierte Videoabruf 33 Prozent. Der Testadapter bestätigte den Abbruch nach 1,163 Sekunden. Die App bot «Erneut versuchen» an. Ein separates gültiges Video spielte ab und konnte geschlossen werden. Der Miniaturtest verglich exakt 32 MiB mit 32 MiB plus einem Byte. Nur die Datei am Grenzwert wurde als Miniatur geladen. Die explizite Bild- und Videovorschau lehnte die Testeinträge über 128 MiB und 2 GiB vor dem ersten Abruf ab.
 
+22. November 2026. Im nativen Fenster von Build 529 wurde ein echter MP4-Abruf aus Google Drive und Dropbox nach 393’216 verschlüsselten Bytes angehalten. Nach 30,319 und 30,498 Sekunden zeigte die Vorschau die Zeitüberschreitung und «Erneut versuchen». Der Downloadprozess endete und sein temporärer Ordner verschwand. Der erneute Abruf erreichte den nativen Player. Die Zeitleiste sprang zur gewählten Position, die Wiedergabe lief weiter und Pause hielt die Position. Nach dem Schliessen war die Dateiliste wieder sichtbar. Objekt-ID und Dateibytes blieben unverändert. Die eigenen Cloud-Testdateien und Ordner wurden entfernt. Historie, Warteschlange und lokale Kontrolldateien blieben unverändert. Die Live-Grenzprüfung für Videos und die übrigen Anbieterfälle bleiben offen.
+
 ### Rückgängig nach einer Änderung am lokalen Cloud-Kopierziel prüfen (TRASH-06)
 
 1. Eine eigene Datei über eine direkte Cloud-Verbindung in einen lokalen Testordner ziehen und die gleichnamige lokale Datei mit «Ersetzen» überschreiben. Die Prüfsummen der drei Dateien festhalten: Cloud-Quelle, frühere lokale Version und separate Kontrolldatei. Vor dem nächsten Schritt den erfolgreichen Auftrag und seinen Historieneintrag bestätigen.
